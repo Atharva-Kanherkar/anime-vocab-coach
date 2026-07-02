@@ -1,4 +1,4 @@
-# Publishing / Installing Anime Vocab Coach
+# Publishing / Installing AnimeVocab
 
 There are two ways to get this running. **For your own use, Option A is the right one** —
 it's instant, free, and permanent. The Chrome Web Store (Option B) is only worth it if

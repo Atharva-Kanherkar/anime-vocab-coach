@@ -1,34 +1,43 @@
-# Privacy Policy — Anime Vocab Coach
+# Privacy Policy — AnimeVocab
 
 _Last updated: 2026-07-03_
 
-Anime Vocab Coach is a browser extension that helps you learn Japanese vocabulary
+AnimeVocab is a browser extension that helps you learn Japanese vocabulary
 from videos you watch. This policy explains exactly what it does with data.
+(Also published at https://animevocab.com/privacy.html.)
 
 ## What stays on your device
 
 - **Your vocabulary progress, settings, and statistics** are stored locally in your
-  browser (`chrome.storage.local`). They are never uploaded anywhere by this extension.
-- **Your OpenAI API key** (only if you choose to use Listening Mode) is stored locally
-  in your browser and is sent only to OpenAI's API (`api.openai.com`) to transcribe
-  audio. It is never sent to the extension author or any other party.
+  browser (`chrome.storage.local`). The extension never uploads them anywhere.
+- **Your OpenAI API key** (only if you use bring-your-own-key Listening Mode) is
+  stored locally and sent only to OpenAI's API (`api.openai.com`) to transcribe audio.
+- **Your Pro license key** (only if you subscribe) is stored locally and sent only to
+  the AnimeVocab licensing server to verify your subscription and meter listening hours.
 
-## What leaves your device (only in Listening Mode, only if you enable it)
+## What leaves your device — only in Listening Mode, only when you start it
 
-- When you press **Start Listening Mode**, the extension captures the audio of the
-  current browser tab, splits it into short clips, and sends those clips to
-  **OpenAI's transcription API** using your own API key, solely to convert the
-  Japanese speech into text for vocabulary detection.
-- Audio is sent to OpenAI only while Listening Mode is active. It is not recorded,
-  stored, or sent anywhere else. Nothing is captured when Listening Mode is off.
-- Your use of the OpenAI API is governed by OpenAI's own privacy policy and terms.
+- The current tab's **audio** is streamed to OpenAI's transcription API solely to
+  convert Japanese speech into text for vocabulary detection. Audio goes directly
+  from your browser to OpenAI; it never passes through AnimeVocab's servers, is not
+  recorded, and is not stored.
+- With a Pro subscription, the extension additionally sends your **license key and
+  listening minute counts** (numbers only — never audio, never page content) to the
+  licensing server to enforce the monthly fair-use cap.
+- Nothing is captured when Listening Mode is off.
 
 ## What it never does
 
-- No analytics, no tracking, no advertising, no third-party servers operated by the
-  author. The extension has no backend.
-- It does not read pages other than the video sites it supports, and only to find
-  subtitle text and the video element.
+- No analytics, no tracking, no advertising, no selling of data.
+- No accounts — there is nothing to sign up for and no profile of you anywhere.
+- It reads only the video sites it supports, and only to find subtitle text and
+  the video element.
+
+## Payments
+
+Pro subscriptions are processed by **Dodo Payments**, the merchant of record.
+Payment details go to them, not to us; their privacy policy applies to checkout.
+We receive only the license key status needed to unlock Pro features.
 
 ## Permissions and why
 

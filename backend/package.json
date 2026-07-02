@@ -2,7 +2,7 @@
   "name": "avc-api",
   "version": "0.1.0",
   "private": true,
-  "description": "Anime Vocab Coach Pro backend — Cloudflare Worker that validates Dodo Payments licenses, meters listening hours, and mints ephemeral OpenAI Realtime tokens.",
+  "description": "AnimeVocab Pro backend — Cloudflare Worker that validates Dodo Payments licenses, meters listening hours, and mints ephemeral OpenAI Realtime tokens.",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

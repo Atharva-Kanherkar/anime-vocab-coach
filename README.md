@@ -1,67 +1,125 @@
-# Anime Vocab Coach — Implementation Spec
+<div align="center">
 
-A Chrome extension (Manifest V3) that turns anime watching into active vocabulary study — **built for total beginners who can't read Japanese yet**:
+<img src="extension/icons/icon128.png" width="80" alt="AnimeVocab icon">
 
-1. You watch exactly as you always do: **English subs on screen, Japanese audio in your ears.**
-2. The extension captures the Japanese another way — a hidden caption track on YouTube, or OpenAI audio transcription of the tab on Netflix/Crunchyroll (see `docs/08-LISTENING-MODE.md`).
-3. It tokenizes each Japanese line, looks words up in a bundled dictionary, and **scores** them by frequency, level, and your personal history.
-4. When a word worth learning was just spoken, it **pauses the video** and shows a card: the word in **romaji** ("taikutsu"), spoken aloud, its meaning, the English subtitle you just read, and buttons — *I know it / Learn it / Ignore*.
-5. It **tracks your progress** (words met, learning queue, streaks) and re-surfaces learning words *in context* when they're spoken again in whatever you're watching — spaced repetition powered by anime instead of flashcards.
+# AnimeVocab
 
-This repository is **not the extension** — it is the complete build plan. Every technical decision has already been made and written down so that an implementing agent (human or AI) never has to guess.
+**Learn Japanese from the anime you watch — even before you can read it.**
 
-## How to build this
+A Chrome extension that watches with you, pauses on words worth learning,
+and builds your review queue with spaced repetition. Free, open source, local-first.
 
-Read and implement the docs **in order**. Do not skip ahead. Do not substitute technologies.
+[Install](#install) · [How it works](#how-it-works) · [Pro](#pro-subscription) · [Development](#development) · [Website](https://animevocab.com)
 
-| Doc | What it locks down |
-|---|---|
-| [`docs/00-PRODUCT-SPEC.md`](docs/00-PRODUCT-SPEC.md) | Exact user-facing behavior, modes, defaults |
-| [`docs/01-ARCHITECTURE.md`](docs/01-ARCHITECTURE.md) | File tree, module boundaries, data flow, manifest.json (verbatim) |
-| [`docs/02-DATA-MODEL.md`](docs/02-DATA-MODEL.md) | Storage schemas, dictionary format, scoring formula, SRS algorithm — all exact |
-| [`docs/03-MILESTONES.md`](docs/03-MILESTONES.md) | The build order: 9 milestones, each with acceptance tests you MUST pass before continuing |
-| [`docs/04-SITE-ADAPTERS.md`](docs/04-SITE-ADAPTERS.md) | Per-site subtitle capture: selectors, observers, edge cases |
-| [`docs/05-UI-SPEC.md`](docs/05-UI-SPEC.md) | Overlay card, popup dashboard, options page — exact DOM, CSS, copy text |
-| [`docs/06-PITFALLS.md`](docs/06-PITFALLS.md) | Known traps (MV3 service-worker XHR, fullscreen overlays, Netflix SPA nav…) and their required workarounds |
-| [`docs/07-QA-CHECKLIST.md`](docs/07-QA-CHECKLIST.md) | Final manual test script before calling it done |
-| [`docs/08-LISTENING-MODE.md`](docs/08-LISTENING-MODE.md) | **v2:** romaji-first cards, hidden YouTube ja-track capture, OpenAI audio transcription for Netflix/Crunchyroll |
-| [`scripts/build-dictionary.mjs`](scripts/build-dictionary.mjs) | **Already written.** Generates `data/dictionary.json` from JMdict. Run it; don't rewrite it. |
+</div>
 
-## Hand-off prompt (paste this into your coding agent)
+---
 
-> Clone this repo and read `AGENTS.md`, then `docs/00` through `docs/07` in order. Implement the Chrome extension exactly as specified, milestone by milestone per `docs/03-MILESTONES.md`. After each milestone, run its acceptance test and show me the result before starting the next milestone. Never deviate from the spec; if something is genuinely impossible as written, stop and report it instead of improvising.
+## What it does
 
-## Tech stack
+You watch anime with English subtitles, like you always do. AnimeVocab detects
+the Japanese actually being spoken, and when a common, level-appropriate word
+comes up, it pauses on a card:
 
-- Chrome extension, **Manifest V3**, **TypeScript** (strict) in `src/`, bundled per-context into `extension/` with **esbuild** (`npm run build`). No UI framework.
-- Tokenizer: **kuromoji.js** (npm), dictionary files bundled into the extension.
-- Dictionary: **JMdict-derived JSON** (~30k common words), generated once by `scripts/build-dictionary.mjs`.
-- Storage: `chrome.storage.local`.
-- Supported sites: **YouTube** (hidden ja caption track, free), any page with native HTML5 `<track>` text tracks (free), and **Netflix + Crunchyroll + anything else** via Listening Mode (OpenAI audio transcription — included with Pro, or bring your own API key).
+- the word in **romaji first** (*taikutsu*), with kana and kanji alongside — complete beginners can start from episode one
+- its meaning, JLPT level, and the exact line it came from
+- one keystroke to judge it: **I know it · Learn it · Ignore**
 
-## Pro (subscription)
+Words you're learning come back as quick memory checks in later episodes,
+timed by a spaced-repetition scheduler — no flashcard app, no separate study
+session. A dashboard tracks your streak, hours watched, and vocabulary by
+JLPT level, computed entirely from local data.
 
-The core learning loop is free and runs entirely locally. **Pro** ($10/month or
-$84/year) makes Listening Mode one click: no OpenAI account or API key needed —
-transcription is handled by a hosted backend, up to 45 listening-hours per month.
-Payments and license keys are handled by Dodo Payments (merchant of record);
-the backend is a single Cloudflare Worker in [`backend/`](backend/README.md)
+**Supported sources**
+
+| Source | How |
+| --- | --- |
+| YouTube | Reads the hidden Japanese caption track, even while you display English subs |
+| Any site with HTML5 subtitle tracks | Hooks native `<track>` cues |
+| Netflix, Crunchyroll, everything else | **Listening Mode** — real-time transcription of the tab's audio |
+
+## Install
+
+**From source (2 minutes):**
+
+1. Download or clone this repository.
+2. Open `chrome://extensions`, enable **Developer mode**.
+3. Click **Load unpacked** and select the `extension/` folder.
+
+A Chrome Web Store listing is in progress. See
+[`extension/README-INSTALL.md`](extension/README-INSTALL.md) for details.
+
+## How it works
+
+- **Tokenization** runs locally with [kuromoji.js](https://github.com/takuyaa/kuromoji.js);
+  the dictionary is a bundled [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html)-derived
+  JSON (~30k common words) with frequency ranks and JLPT levels.
+- **Word picking** scores each token by frequency, distance from your target
+  JLPT level, and how often you've met it — one card per line at most, with
+  cooldowns and an hourly cap so it never becomes a quiz.
+- **Listening Mode** captures tab audio and streams it to OpenAI's Realtime
+  transcription API; cards appear within a couple of seconds of a line being
+  spoken. Use it with a Pro subscription (no setup) or your own OpenAI API key.
+- **Privacy by architecture**: no accounts, no analytics, no tracking. All
+  progress lives in `chrome.storage.local`. In Listening Mode, audio goes
+  directly from your browser to OpenAI — never through any AnimeVocab server.
+  See [PRIVACY.md](PRIVACY.md).
+
+## Pro subscription
+
+The learning loop is free forever — it runs on your device and costs nothing
+to operate. **Pro ($10/month or $84/year)** exists because real-time
+transcription costs real money per minute:
+
+- One-click Listening Mode: no OpenAI account, no API key
+- Up to 45 listening-hours per month (fair use)
+- Payments and license keys via Dodo Payments (merchant of record); no account needed — the license key is the whole identity
+
+The backend is a single Cloudflare Worker ([`backend/`](backend/README.md))
 that validates licenses, meters usage, and mints short-lived OpenAI tokens.
-Audio streams directly from the browser to OpenAI and never touches the backend.
+Audio never touches it.
 
-## Status
+## Development
 
-- [x] Spec complete
-- [x] M0 Scaffold
-- [x] M1 YouTube subtitle capture
-- [x] M2 Tokenizer
-- [x] M3 Dictionary + lookup
-- [x] M4 Pause + overlay card
-- [x] M5 Progress storage
-- [x] M6 Popup dashboard
-- [x] M7 Netflix + generic adapters
-- [x] M8 Options + in-context SRS
-- [x] M9 Polish + QA
-- [x] v2: Romaji-first cards + TTS (`docs/08`)
-- [x] v2: YouTube hidden Japanese caption track
-- [x] v2: Listening Mode — OpenAI transcription for Netflix/Crunchyroll (needs live testing)
+TypeScript sources live in `src/`; `extension/` contains the manifest, static
+assets, and committed build output (so load-unpacked works from a fresh clone).
+
+```bash
+npm install
+npm run typecheck   # tsc --noEmit (strict)
+npm run build       # bundle src/ → extension/ with esbuild
+npm run watch       # rebuild on change
+npm run pack        # typecheck + build + zip for store submission
+```
+
+Layout:
+
+```
+src/           extension source (TypeScript, strict)
+  entries/     one bundle per context: content, background, offscreen, popup, options, dashboard, youtube-main
+  lib/         shared modules: tokenizer, dictionary, scoring, SRS storage, overlay, romaji, site adapters
+extension/     manifest, icons, HTML/CSS, vendored kuromoji, built JS
+backend/       Cloudflare Worker for Pro (licensing, metering, token minting)
+site/          static marketing site (animevocab.com)
+scripts/       dictionary builder (JMdict → data/dictionary.json)
+```
+
+See [PUBLISHING.md](PUBLISHING.md) for Chrome Web Store submission steps.
+
+## Contributing
+
+Issues and pull requests are welcome. Useful starting points: new site
+adapters (`src/lib/adapters/`), tokenizer edge cases, and dictionary quality.
+Please run `npm run typecheck && npm run build` before submitting.
+
+## License
+
+[AGPL-3.0](LICENSE). The code is free to use, study, and modify; if you
+distribute a modified version or run it as a service, your changes must be
+open source too. For commercial licensing, open an issue.
+
+## Support the project
+
+If AnimeVocab helps you learn, consider
+[sponsoring on GitHub](https://github.com/sponsors/Atharva-Kanherkar) or
+subscribing to Pro.

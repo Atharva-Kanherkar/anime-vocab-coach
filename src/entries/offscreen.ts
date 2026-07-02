@@ -4,7 +4,7 @@
 //
 // The offscreen console is nearly impossible to inspect, so every step is
 // forwarded to the service-worker console via avc-offscreen-log. Open it at
-// chrome://extensions -> Anime Vocab Coach -> "service worker".
+// chrome://extensions -> AnimeVocab -> "service worker".
 
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;

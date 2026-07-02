@@ -167,7 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `anime-vocab-coach-export-${todayKey()}.json`;
+    a.download = `animevocab-export-${todayKey()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   });

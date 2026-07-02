@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy — AnimeVocab</title>
+  <meta name="description" content="AnimeVocab privacy policy: your learning data stays in your browser. No accounts, no analytics, no tracking.">
+  <link rel="canonical" href="https://animevocab.com/privacy.html">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .legal { max-width: 720px; padding-bottom: 100px; }
+    .legal h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(32px, 5vw, 48px); margin: 0 0 8px; }
+    .legal .date { color: var(--ink-4); font-size: 13px; margin-bottom: 40px; }
+    .legal h2 { font-size: 20px; margin: 40px 0 14px; }
+    .legal p, .legal li { color: var(--ink-2); font-size: 15px; }
+    .legal ul { padding-left: 22px; margin: 10px 0; }
+    .legal li { margin: 6px 0; }
+    .legal b { color: var(--ink); }
+    .legal a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="bg-grain" aria-hidden="true"></div>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/">アニメ<b>Vocab</b></a>
+      <nav><a href="/">Home</a></nav>
+    </div>
+  </header>
+  <main>
+    <section class="legal">
+      <h1>Privacy Policy</h1>
+      <p class="date">Last updated: July 3, 2026</p>
+
+      <p>AnimeVocab is a browser extension that helps you learn Japanese vocabulary from
+      videos you watch. This policy explains exactly what it does with data.</p>
+
+      <h2>What stays on your device</h2>
+      <ul>
+        <li><b>Your vocabulary progress, settings, and statistics</b> are stored locally in
+        your browser (<code>chrome.storage.local</code>). The extension never uploads them anywhere.</li>
+        <li><b>Your OpenAI API key</b> (only if you use bring-your-own-key Listening Mode) is
+        stored locally and sent only to OpenAI's API to transcribe audio.</li>
+        <li><b>Your Pro license key</b> (only if you subscribe) is stored locally and sent only
+        to the AnimeVocab licensing server to verify your subscription and meter listening hours.</li>
+      </ul>
+
+      <h2>What leaves your device — only in Listening Mode, only when you start it</h2>
+      <ul>
+        <li>The current tab's <b>audio</b> is streamed to OpenAI's transcription API solely to
+        convert Japanese speech into text for vocabulary detection. Audio goes directly from
+        your browser to OpenAI; it never passes through AnimeVocab's servers, is not recorded,
+        and is not stored.</li>
+        <li>With a Pro subscription, the extension additionally sends your <b>license key and
+        listening minute counts</b> (numbers only — never audio, never page content) to the
+        licensing server to enforce the monthly fair-use cap.</li>
+        <li>Nothing is captured when Listening Mode is off.</li>
+      </ul>
+
+      <h2>What it never does</h2>
+      <ul>
+        <li>No analytics, no tracking, no advertising, no selling of data — to anyone, ever.</li>
+        <li>No accounts. There is nothing to sign up for and no profile of you anywhere.</li>
+        <li>It reads only the video sites it supports, and only to find subtitle text and the
+        video element.</li>
+      </ul>
+
+      <h2>Payments</h2>
+      <p>Pro subscriptions are processed by <b>Dodo Payments</b>, our merchant of record.
+      Your payment details go to them, not to us; their
+      <a href="https://dodopayments.com/privacy" rel="noopener">privacy policy</a> applies to checkout.
+      We receive only the license key status needed to unlock Pro features.</p>
+
+      <h2>Open source</h2>
+      <p>The extension's complete source code is public at
+      <a href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">github.com/Atharva-Kanherkar/anime-vocab-coach</a>,
+      so every claim on this page can be verified.</p>
+
+      <h2>Contact</h2>
+      <p>Questions: open an issue on the GitHub repository above.</p>
+    </section>
+  </main>
+</body>
+</html>

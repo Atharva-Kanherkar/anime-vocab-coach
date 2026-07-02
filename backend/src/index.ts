@@ -1,4 +1,4 @@
-// Anime Vocab Coach Pro backend.
+// AnimeVocab Pro backend.
 //
 // Design goal: audio NEVER flows through this server. The extension asks us
 // for a short-lived OpenAI ephemeral token, then streams tab audio directly

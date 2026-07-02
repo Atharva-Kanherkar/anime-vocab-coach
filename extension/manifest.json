@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Anime Vocab Coach",
+  "name": "AnimeVocab — Learn Japanese from Anime",
+  "short_name": "AnimeVocab",
   "version": "0.5.0",
   "description": "Learn Japanese from the anime you watch — even if you can't read it yet. Watches with you, pauses on words worth learning, tracks progress.",
   "permissions": ["storage", "tabCapture", "offscreen", "scripting"],
@@ -14,7 +15,7 @@
   "background": { "service_worker": "background.js" },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Anime Vocab Coach",
+    "default_title": "AnimeVocab",
     "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
   },
   "options_page": "options/options.html",

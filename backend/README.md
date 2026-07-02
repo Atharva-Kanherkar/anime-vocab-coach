@@ -1,4 +1,4 @@
-# Anime Vocab Coach Pro backend
+# AnimeVocab Pro backend
 
 A single Cloudflare Worker that powers the Pro subscription ($10/month or
 $84/year, 45 listening-hours per month). It does three small jobs:
@@ -44,7 +44,7 @@ Then put the deployed URL into `src/config.ts` (extension repo root) as
 
 1. Sign up at dodopayments.com (Indian founders supported; KYC with PAN,
    payouts to your Indian bank as export-of-services remittance).
-2. Create a **subscription product** "Anime Vocab Coach Pro":
+2. Create a **subscription product** "AnimeVocab Pro":
    - $10/month, and optionally a $84/year variant.
    - Enable **license keys** on the product (auto-generated, emailed on purchase).
 3. Copy the product's checkout link into `src/config.ts` as `CHECKOUT_URL`.
