@@ -1,4 +1,5 @@
 import { DEFAULTS } from "../types";
+import { BACKEND_URL } from "../config";
 import type { Settings } from "../types";
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -76,9 +77,15 @@ async function ensureContentScript(tabId: number): Promise<boolean> {
 async function startListening(tabId: number): Promise<Ack> {
   const r = await chrome.storage.local.get(["settings"]);
   const settings = (r.settings as Partial<Settings> | undefined) || {};
-  const key = settings.openaiKey;
-  if (!key) {
-    return { ok: false, error: "No OpenAI API key. Add one in Settings first." };
+
+  // Pro subscription first; fall back to the user's own OpenAI key.
+  const auth = settings.licenseKey
+    ? { kind: "hosted" as const, licenseKey: settings.licenseKey, backendUrl: BACKEND_URL }
+    : settings.openaiKey
+      ? { kind: "byo" as const, key: settings.openaiKey }
+      : null;
+  if (!auth) {
+    return { ok: false, error: "Listening Mode needs Pro (license key) or your own OpenAI API key — set either in Settings." };
   }
 
   // Make sure the page can receive transcripts before we start paying for audio.
@@ -98,7 +105,7 @@ async function startListening(tabId: number): Promise<Ack> {
     type: "avc-offscreen-start",
     streamId,
     tabId,
-    key,
+    auth,
     model: settings.transcribeModel || DEFAULTS.transcribeModel
   }).catch((err): Ack => ({ ok: false, error: String(err.message || err) }));
 
@@ -176,7 +183,8 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, _sender, sendResponse) =>
 
   if (msg.type === "avc-listen-error") {
     getListening().then(async (tabs) => {
-      if (msg.code === "invalid-key" || msg.code === "capture-failed") {
+      if (msg.code === "invalid-key" || msg.code === "capture-failed" ||
+          msg.code === "quota-exceeded" || msg.code === "subscription-inactive") {
         delete tabs[msg.tabId!];
         await setListening(tabs);
         chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });

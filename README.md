@@ -37,7 +37,17 @@ Read and implement the docs **in order**. Do not skip ahead. Do not substitute t
 - Tokenizer: **kuromoji.js** (npm), dictionary files bundled into the extension.
 - Dictionary: **JMdict-derived JSON** (~30k common words), generated once by `scripts/build-dictionary.mjs`.
 - Storage: `chrome.storage.local`.
-- Supported sites: **YouTube** (hidden ja caption track, free), any page with native HTML5 `<track>` text tracks (free), and **Netflix + Crunchyroll + anything else** via Listening Mode (OpenAI audio transcription, bring your own API key).
+- Supported sites: **YouTube** (hidden ja caption track, free), any page with native HTML5 `<track>` text tracks (free), and **Netflix + Crunchyroll + anything else** via Listening Mode (OpenAI audio transcription — included with Pro, or bring your own API key).
+
+## Pro (subscription)
+
+The core learning loop is free and runs entirely locally. **Pro** ($10/month or
+$84/year) makes Listening Mode one click: no OpenAI account or API key needed —
+transcription is handled by a hosted backend, up to 45 listening-hours per month.
+Payments and license keys are handled by Dodo Payments (merchant of record);
+the backend is a single Cloudflare Worker in [`backend/`](backend/README.md)
+that validates licenses, meters usage, and mints short-lived OpenAI tokens.
+Audio streams directly from the browser to OpenAI and never touches the backend.
 
 ## Status
 

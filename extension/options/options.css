@@ -110,6 +110,33 @@ label input[type="checkbox"] {
   line-height: 1.55;
 }
 
+.note a {
+  color: var(--accent, #d96c4f);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(217, 108, 79, 0.4);
+}
+
+.pro-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.pro-row button {
+  background: #c4553a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pro-row button:hover { filter: brightness(1.1); }
+
+.pro-row .note { margin-bottom: 0; }
+
 .filters {
   margin-bottom: 12px;
 }

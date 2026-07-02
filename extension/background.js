@@ -10,10 +10,14 @@
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
+    licenseKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
   };
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
+
+  // src/config.ts
+  var BACKEND_URL = "https://avc-api.example.workers.dev";
 
   // src/entries/background.ts
   chrome.runtime.onInstalled.addListener(() => {
@@ -70,9 +74,9 @@
   async function startListening(tabId) {
     const r = await chrome.storage.local.get(["settings"]);
     const settings = r.settings || {};
-    const key = settings.openaiKey;
-    if (!key) {
-      return { ok: false, error: "No OpenAI API key. Add one in Settings first." };
+    const auth = settings.licenseKey ? { kind: "hosted", licenseKey: settings.licenseKey, backendUrl: BACKEND_URL } : settings.openaiKey ? { kind: "byo", key: settings.openaiKey } : null;
+    if (!auth) {
+      return { ok: false, error: "Listening Mode needs Pro (license key) or your own OpenAI API key \u2014 set either in Settings." };
     }
     const injected = await ensureContentScript(tabId);
     if (!injected) {
@@ -90,7 +94,7 @@
       type: "avc-offscreen-start",
       streamId,
       tabId,
-      key,
+      auth,
       model: settings.transcribeModel || DEFAULTS.transcribeModel
     }).catch((err) => ({ ok: false, error: String(err.message || err) }));
     if (!ack || ack.ok === false) {
@@ -146,7 +150,7 @@
     }
     if (msg.type === "avc-listen-error") {
       getListening().then(async (tabs) => {
-        if (msg.code === "invalid-key" || msg.code === "capture-failed") {
+        if (msg.code === "invalid-key" || msg.code === "capture-failed" || msg.code === "quota-exceeded" || msg.code === "subscription-inactive") {
           delete tabs[msg.tabId];
           await setListening(tabs);
           chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });

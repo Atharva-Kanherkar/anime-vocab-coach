@@ -1,5 +1,6 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
+import { BACKEND_URL, CHECKOUT_URL, PRO_HOURS_PER_MONTH, PRO_PRICE_LABEL } from "../config";
 import type { DisplayScript, PauseMode, Settings, VocabMap, WordState } from "../types";
 
 let vocab: VocabMap = {};
@@ -52,6 +53,78 @@ async function loadSettingsForm(): Promise<void> {
 async function savePartial(partial: Partial<Settings>): Promise<void> {
   await storage.setSettings(partial);
   showSaved();
+}
+
+// ---------- Pro license ----------
+
+interface LicenseStatus {
+  active?: boolean;
+  usedMinutes?: number;
+  capMinutes?: number;
+  error?: string;
+}
+
+function setLicenseStatus(text: string, ok: boolean | null): void {
+  const el = byId("license-status");
+  el.textContent = text;
+  el.style.color = ok === null ? "" : ok ? "var(--known, #4f9e78)" : "#c96a5a";
+}
+
+async function refreshLicenseStatus(licenseKey: string): Promise<void> {
+  if (!licenseKey) { setLicenseStatus("", null); return; }
+  setLicenseStatus("Checking…", null);
+  try {
+    const res = await fetch(BACKEND_URL + "/v1/license/status", {
+      headers: { Authorization: "Bearer " + licenseKey }
+    });
+    const data = (await res.json()) as LicenseStatus;
+    if (data.active) {
+      const usedH = ((data.usedMinutes || 0) / 60).toFixed(1);
+      const capH = Math.round((data.capMinutes || 0) / 60);
+      setLicenseStatus(`Pro active — ${usedH}h of ${capH}h used this month`, true);
+    } else {
+      setLicenseStatus(data.error || "License inactive", false);
+    }
+  } catch {
+    setLicenseStatus("Couldn't reach the Pro server — try again later.", false);
+  }
+}
+
+function initProSection(settings: Settings): void {
+  byId("pro-hours").textContent = String(PRO_HOURS_PER_MONTH);
+  byId("pro-price").textContent = `(${PRO_PRICE_LABEL})`;
+  byId<HTMLAnchorElement>("pro-buy").href = CHECKOUT_URL;
+  byId<HTMLInputElement>("licenseKey").value = settings.licenseKey || "";
+  if (settings.licenseKey) refreshLicenseStatus(settings.licenseKey);
+
+  byId("license-activate").addEventListener("click", async () => {
+    const key = byId<HTMLInputElement>("licenseKey").value.trim();
+    if (!key) {
+      await storage.setSettings({ licenseKey: "" });
+      setLicenseStatus("License removed.", null);
+      showSaved();
+      return;
+    }
+    setLicenseStatus("Activating…", null);
+    try {
+      const res = await fetch(BACKEND_URL + "/v1/license/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: key })
+      });
+      const data = (await res.json()) as LicenseStatus;
+      if (data.active) {
+        await storage.setSettings({ licenseKey: key });
+        showSaved();
+        const capH = Math.round((data.capMinutes || 0) / 60);
+        setLicenseStatus(`Pro active — ${capH}h of listening per month. Enjoy!`, true);
+      } else {
+        setLicenseStatus(data.error || "That license key isn't valid.", false);
+      }
+    } catch {
+      setLicenseStatus("Couldn't reach the Pro server — check your connection and try again.", false);
+    }
+  });
 }
 
 function renderTable(): void {
@@ -113,6 +186,7 @@ function renderTable(): void {
 
 document.addEventListener("DOMContentLoaded", async () => {
   await loadSettingsForm();
+  initProSection(await storage.getSettings());
   vocab = await storage.getVocab();
   renderTable();
 

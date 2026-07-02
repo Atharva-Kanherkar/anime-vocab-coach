@@ -13,6 +13,7 @@
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
+    licenseKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
   };

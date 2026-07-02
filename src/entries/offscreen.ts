@@ -9,6 +9,15 @@
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
 
+// How the session authenticates against OpenAI:
+//  - byo:    the user's own key, used directly (free tier).
+//  - hosted: Pro subscription — we ask our backend for a short-lived
+//    ephemeral OpenAI token per connection, and report listening minutes
+//    so the monthly fair-use cap can be enforced.
+export type SessionAuth =
+  | { kind: "byo"; key: string }
+  | { kind: "hosted"; licenseKey: string; backendUrl: string };
+
 interface Session {
   ws: WebSocket | null;
   ctx: AudioContext;
@@ -18,11 +27,63 @@ interface Session {
   source: MediaStreamAudioSourceNode;
   active: boolean;
   ready: boolean;
-  key: string;
+  auth: SessionAuth;
   model: string;
   tabId: number;
   srcRate: number;
   reconnects: number;
+  heartbeat: ReturnType<typeof setInterval> | null;
+}
+
+// Resolve the key used on the WebSocket. For hosted sessions this mints a
+// fresh ephemeral token (they expire in ~2 min and each realtime session has
+// a ~60 min lifetime, so reconnects re-mint).
+async function getWsKey(session: Session): Promise<string> {
+  if (session.auth.kind === "byo") return session.auth.key;
+  const res = await fetch(session.auth.backendUrl + "/v1/session", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + session.auth.licenseKey }
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    token?: { value: string };
+    model?: string;
+    error?: string;
+  };
+  if (res.status === 402) throw new CodedError("subscription-inactive", data.error || "subscription inactive");
+  if (res.status === 429) throw new CodedError("quota-exceeded", data.error || "monthly listening hours used up");
+  if (!res.ok || !data.token) throw new CodedError("capture-failed", data.error || ("backend HTTP " + res.status));
+  if (data.model) session.model = data.model;
+  return data.token.value;
+}
+
+class CodedError extends Error {
+  code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+function startHeartbeat(session: Session): void {
+  if (session.auth.kind !== "hosted") return;
+  const { backendUrl, licenseKey } = session.auth;
+  session.heartbeat = setInterval(async () => {
+    if (!session.active) return;
+    try {
+      const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + licenseKey },
+        body: JSON.stringify({ minutes: 5 })
+      });
+      if (res.status === 429) {
+        olog("monthly cap reached — stopping");
+        report(session.tabId, "quota-exceeded", "monthly listening hours used up");
+        stop(session.tabId);
+      }
+    } catch (err) {
+      olog("heartbeat failed (will retry):", String(err));
+    }
+  }, 5 * 60 * 1000);
 }
 
 const sessions: Record<number, Session> = {};
@@ -40,7 +101,7 @@ interface StartMsg {
   type: string;
   streamId: string;
   tabId: number;
-  key: string;
+  auth: SessionAuth;
   model: string;
 }
 
@@ -51,8 +112,9 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & { type: string }, _sender,
       .then(() => sendResponse({ ok: true }))
       .catch((err) => {
         const detail = String((err && err.message) || err);
+        const code = err instanceof CodedError ? err.code : "capture-failed";
         olog("START FAILED:", detail);
-        report(msg.tabId, "capture-failed", detail);
+        report(msg.tabId, code, detail);
         sendResponse({ ok: false, error: detail });
       });
     return true; // keep channel open for async sendResponse
@@ -96,7 +158,7 @@ function base64Int16(int16: Int16Array): string {
   return btoa(bin);
 }
 
-async function start({ streamId, tabId, key, model }: StartMsg): Promise<void> {
+async function start({ streamId, tabId, auth, model }: StartMsg): Promise<void> {
   if (sessions[tabId]) stop(tabId);
 
   let stream: MediaStream;
@@ -127,8 +189,8 @@ async function start({ streamId, tabId, key, model }: StartMsg): Promise<void> {
 
   const session: Session = {
     ws: null, ctx, stream, proc, sink, source,
-    active: true, ready: false, key, model, tabId,
-    srcRate: ctx.sampleRate, reconnects: 0
+    active: true, ready: false, auth, model, tabId,
+    srcRate: ctx.sampleRate, reconnects: 0, heartbeat: null
   };
   sessions[tabId] = session;
 
@@ -142,13 +204,15 @@ async function start({ streamId, tabId, key, model }: StartMsg): Promise<void> {
   };
 
   olog("audio graph ready (src rate", session.srcRate + "Hz), connecting realtime WS");
-  connectWS(session);
+  await connectWS(session); // first connect: throw so start() reports mint failures to the popup
+  startHeartbeat(session);
 }
 
-function connectWS(session: Session): void {
+async function connectWS(session: Session): Promise<void> {
+  const wsKey = await getWsKey(session);
   let ws: WebSocket;
   try {
-    ws = new WebSocket(RT_URL, ["realtime", "openai-insecure-api-key." + session.key]);
+    ws = new WebSocket(RT_URL, ["realtime", "openai-insecure-api-key." + wsKey]);
   } catch (err) {
     olog("WebSocket ctor failed:", String(err));
     report(session.tabId, "capture-failed", String(err));
@@ -209,7 +273,12 @@ function connectWS(session: Session): void {
       setTimeout(() => {
         if (session.active) {
           olog("reconnecting realtime WS (try " + session.reconnects + ")");
-          connectWS(session);
+          connectWS(session).catch((err) => {
+            const code = err instanceof CodedError ? err.code : "capture-failed";
+            olog("reconnect failed:", String(err && err.message || err));
+            report(session.tabId, code, String(err && err.message || err));
+            stop(session.tabId);
+          });
         }
       }, 1500);
     }
@@ -220,6 +289,7 @@ function stop(tabId: number): void {
   const session = sessions[tabId];
   if (!session) return;
   session.active = false;
+  if (session.heartbeat) clearInterval(session.heartbeat);
   try { if (session.ws && session.ws.readyState <= 1) session.ws.close(); } catch (err) { /* noop */ }
   try { session.proc.disconnect(); session.sink.disconnect(); session.source.disconnect(); } catch (err) { /* noop */ }
   try { session.stream.getTracks().forEach((t) => t.stop()); } catch (err) { /* noop */ }

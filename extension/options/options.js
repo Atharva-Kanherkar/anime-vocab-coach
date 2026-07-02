@@ -13,6 +13,7 @@
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
+    licenseKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
   };
@@ -287,6 +288,12 @@
     return out.replace(/\s+/g, " ").trim();
   }
 
+  // src/config.ts
+  var BACKEND_URL = "https://avc-api.example.workers.dev";
+  var CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID";
+  var PRO_HOURS_PER_MONTH = 45;
+  var PRO_PRICE_LABEL = "$10/month or $84/year";
+
   // src/entries/options.ts
   var vocab = {};
   var filterState = "all";
@@ -333,6 +340,68 @@
   async function savePartial(partial) {
     await setSettings(partial);
     showSaved();
+  }
+  function setLicenseStatus(text, ok) {
+    const el = byId("license-status");
+    el.textContent = text;
+    el.style.color = ok === null ? "" : ok ? "var(--known, #4f9e78)" : "#c96a5a";
+  }
+  async function refreshLicenseStatus(licenseKey) {
+    if (!licenseKey) {
+      setLicenseStatus("", null);
+      return;
+    }
+    setLicenseStatus("Checking\u2026", null);
+    try {
+      const res = await fetch(BACKEND_URL + "/v1/license/status", {
+        headers: { Authorization: "Bearer " + licenseKey }
+      });
+      const data = await res.json();
+      if (data.active) {
+        const usedH = ((data.usedMinutes || 0) / 60).toFixed(1);
+        const capH = Math.round((data.capMinutes || 0) / 60);
+        setLicenseStatus(`Pro active \u2014 ${usedH}h of ${capH}h used this month`, true);
+      } else {
+        setLicenseStatus(data.error || "License inactive", false);
+      }
+    } catch {
+      setLicenseStatus("Couldn't reach the Pro server \u2014 try again later.", false);
+    }
+  }
+  function initProSection(settings) {
+    byId("pro-hours").textContent = String(PRO_HOURS_PER_MONTH);
+    byId("pro-price").textContent = `(${PRO_PRICE_LABEL})`;
+    byId("pro-buy").href = CHECKOUT_URL;
+    byId("licenseKey").value = settings.licenseKey || "";
+    if (settings.licenseKey) refreshLicenseStatus(settings.licenseKey);
+    byId("license-activate").addEventListener("click", async () => {
+      const key = byId("licenseKey").value.trim();
+      if (!key) {
+        await setSettings({ licenseKey: "" });
+        setLicenseStatus("License removed.", null);
+        showSaved();
+        return;
+      }
+      setLicenseStatus("Activating\u2026", null);
+      try {
+        const res = await fetch(BACKEND_URL + "/v1/license/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ licenseKey: key })
+        });
+        const data = await res.json();
+        if (data.active) {
+          await setSettings({ licenseKey: key });
+          showSaved();
+          const capH = Math.round((data.capMinutes || 0) / 60);
+          setLicenseStatus(`Pro active \u2014 ${capH}h of listening per month. Enjoy!`, true);
+        } else {
+          setLicenseStatus(data.error || "That license key isn't valid.", false);
+        }
+      } catch {
+        setLicenseStatus("Couldn't reach the Pro server \u2014 check your connection and try again.", false);
+      }
+    });
   }
   function renderTable() {
     const tbody = byId("word-tbody");
@@ -382,6 +451,7 @@
   }
   document.addEventListener("DOMContentLoaded", async () => {
     await loadSettingsForm();
+    initProSection(await getSettings());
     vocab = await getVocab();
     renderTable();
     document.querySelectorAll('input[name="pauseMode"]').forEach((el) => {

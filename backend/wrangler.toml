@@ -1,0 +1,28 @@
+# Anime Vocab Coach Pro backend.
+#
+# One-time setup:
+#   npm install
+#   npx wrangler login
+#   npx wrangler kv namespace create AVC_KV        # paste the id below
+#   npx wrangler secret put OPENAI_API_KEY          # your OpenAI key (the only one; scale = rate-limit tier, not key count)
+#   npx wrangler secret put DODO_API_KEY            # Dodo Payments API key (Dashboard -> Developer -> API Keys)
+#   npx wrangler deploy
+#
+# The deployed URL (https://avc-api.<your-subdomain>.workers.dev) goes into
+# src/config.ts in the extension repo root.
+
+name = "avc-api"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+kv_namespaces = [
+  { binding = "AVC_KV", id = "REPLACE_WITH_KV_NAMESPACE_ID" }
+]
+
+[vars]
+# Fair-use cap per subscription per calendar month, in minutes (45 h).
+CAP_MINUTES = "2700"
+# Transcription model used for hosted sessions (users don't choose; you control cost).
+TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
+# Dodo API base: use https://test.dodopayments.com while testing, live for prod.
+DODO_API_BASE = "https://live.dodopayments.com"

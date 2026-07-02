@@ -3,6 +3,46 @@
   // src/entries/offscreen.ts
   var RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
   var OUT_RATE = 24e3;
+  async function getWsKey(session) {
+    if (session.auth.kind === "byo") return session.auth.key;
+    const res = await fetch(session.auth.backendUrl + "/v1/session", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + session.auth.licenseKey }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 402) throw new CodedError("subscription-inactive", data.error || "subscription inactive");
+    if (res.status === 429) throw new CodedError("quota-exceeded", data.error || "monthly listening hours used up");
+    if (!res.ok || !data.token) throw new CodedError("capture-failed", data.error || "backend HTTP " + res.status);
+    if (data.model) session.model = data.model;
+    return data.token.value;
+  }
+  var CodedError = class extends Error {
+    constructor(code, message) {
+      super(message);
+      this.code = code;
+    }
+  };
+  function startHeartbeat(session) {
+    if (session.auth.kind !== "hosted") return;
+    const { backendUrl, licenseKey } = session.auth;
+    session.heartbeat = setInterval(async () => {
+      if (!session.active) return;
+      try {
+        const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + licenseKey },
+          body: JSON.stringify({ minutes: 5 })
+        });
+        if (res.status === 429) {
+          olog("monthly cap reached \u2014 stopping");
+          report(session.tabId, "quota-exceeded", "monthly listening hours used up");
+          stop(session.tabId);
+        }
+      } catch (err) {
+        olog("heartbeat failed (will retry):", String(err));
+      }
+    }, 5 * 60 * 1e3);
+  }
   var sessions = {};
   function olog(...args) {
     const line = args.map((a) => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
@@ -18,8 +58,9 @@
       olog("start received for tab", msg.tabId, "model", msg.model);
       start(msg).then(() => sendResponse({ ok: true })).catch((err) => {
         const detail = String(err && err.message || err);
+        const code = err instanceof CodedError ? err.code : "capture-failed";
         olog("START FAILED:", detail);
-        report(msg.tabId, "capture-failed", detail);
+        report(msg.tabId, code, detail);
         sendResponse({ ok: false, error: detail });
       });
       return true;
@@ -60,7 +101,7 @@
     }
     return btoa(bin);
   }
-  async function start({ streamId, tabId, key, model }) {
+  async function start({ streamId, tabId, auth, model }) {
     if (sessions[tabId]) stop(tabId);
     let stream;
     try {
@@ -91,11 +132,12 @@
       source,
       active: true,
       ready: false,
-      key,
+      auth,
       model,
       tabId,
       srcRate: ctx.sampleRate,
-      reconnects: 0
+      reconnects: 0,
+      heartbeat: null
     };
     sessions[tabId] = session;
     proc.onaudioprocess = (e) => {
@@ -108,12 +150,14 @@
       }
     };
     olog("audio graph ready (src rate", session.srcRate + "Hz), connecting realtime WS");
-    connectWS(session);
+    await connectWS(session);
+    startHeartbeat(session);
   }
-  function connectWS(session) {
+  async function connectWS(session) {
+    const wsKey = await getWsKey(session);
     let ws;
     try {
-      ws = new WebSocket(RT_URL, ["realtime", "openai-insecure-api-key." + session.key]);
+      ws = new WebSocket(RT_URL, ["realtime", "openai-insecure-api-key." + wsKey]);
     } catch (err) {
       olog("WebSocket ctor failed:", String(err));
       report(session.tabId, "capture-failed", String(err));
@@ -173,7 +217,12 @@
         setTimeout(() => {
           if (session.active) {
             olog("reconnecting realtime WS (try " + session.reconnects + ")");
-            connectWS(session);
+            connectWS(session).catch((err) => {
+              const code = err instanceof CodedError ? err.code : "capture-failed";
+              olog("reconnect failed:", String(err && err.message || err));
+              report(session.tabId, code, String(err && err.message || err));
+              stop(session.tabId);
+            });
           }
         }, 1500);
       }
@@ -183,6 +232,7 @@
     const session = sessions[tabId];
     if (!session) return;
     session.active = false;
+    if (session.heartbeat) clearInterval(session.heartbeat);
     try {
       if (session.ws && session.ws.readyState <= 1) session.ws.close();
     } catch (err) {
