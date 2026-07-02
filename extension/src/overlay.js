@@ -217,7 +217,7 @@ AVC.overlay = (function () {
     chip.className = "avc-chip";
     chip.textContent = isReview
       ? "復習 · Review — you learned this word. Remember it?"
-      : `N${6 - entry.level}-ish · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · 🎧 heard just now" : ""}`;
+      : `N${entry.level}-ish · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · 🎧 heard just now" : ""}`;
 
     const displays = wordDisplays(token, entry, displayScript);
 

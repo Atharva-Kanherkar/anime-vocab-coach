@@ -78,7 +78,7 @@ function renderTable() {
       <td>${word}</td>
       <td>${AVC.romaji.toRomaji(rec.reading || "")}<br><small>${rec.reading || ""}</small></td>
       <td>${rec.gloss || ""}</td>
-      <td>N${6 - rec.level}</td>
+      <td>N${rec.level}</td>
       <td>${rec.seenCount || 0}</td>
       <td><select data-word="${word}">
         <option value="new" ${rec.state === "new" ? "selected" : ""}>new</option>

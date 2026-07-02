@@ -142,6 +142,11 @@ document.addEventListener("DOMContentLoaded", () => {
     e.target.textContent = next;
   });
 
+  document.getElementById("dashboard-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
+  });
+
   document.getElementById("settings-link").addEventListener("click", (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();

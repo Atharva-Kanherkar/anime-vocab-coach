@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anime Vocab Coach — Your Progress</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="head">
+      <h1>アニメ Vocab Coach</h1>
+      <p class="sub">Everything you've learned from watching — computed live from your own data.</p>
+    </header>
+
+    <section class="tiles" id="tiles"><!-- stat tiles injected --></section>
+
+    <section class="grid">
+      <figure class="card wide">
+        <figcaption>
+          <h2>Vocabulary encountered over time</h2>
+          <span class="cap-note">Cumulative distinct words the show has taught you</span>
+        </figcaption>
+        <div class="chart" id="chart-time"></div>
+      </figure>
+
+      <figure class="card">
+        <figcaption><h2>Where your words stand</h2></figcaption>
+        <div class="chart donut-wrap" id="chart-donut"></div>
+      </figure>
+
+      <figure class="card">
+        <figcaption>
+          <h2>What you know, by JLPT level</h2>
+          <span class="cap-note">N5 easiest → N1 hardest</span>
+        </figcaption>
+        <div class="chart" id="chart-level"></div>
+      </figure>
+
+      <figure class="card">
+        <figcaption>
+          <h2>Review pipeline</h2>
+          <span class="cap-note">Learning words by memory stage</span>
+        </figcaption>
+        <div class="chart" id="chart-srs"></div>
+      </figure>
+
+      <figure class="card wide">
+        <figcaption>
+          <h2>Study activity</h2>
+          <span class="cap-note">Days you judged at least one word</span>
+        </figcaption>
+        <div class="chart" id="chart-cal"></div>
+      </figure>
+    </section>
+
+    <section class="card list-card">
+      <div class="list-head">
+        <h2>What you've learned</h2>
+        <div class="list-controls">
+          <input type="search" id="word-search" placeholder="Search romaji, kana, meaning…">
+          <div class="chips" id="list-chips">
+            <button class="chip active" data-f="active" type="button">Known + Learning</button>
+            <button class="chip" data-f="known" type="button">Known</button>
+            <button class="chip" data-f="learning" type="button">Learning</button>
+            <button class="chip" data-f="all" type="button">All seen</button>
+          </div>
+        </div>
+      </div>
+      <p class="list-note" id="list-note"></p>
+      <div class="table-scroll">
+        <table id="word-table">
+          <thead><tr>
+            <th>Word</th><th>Reading</th><th>Kanji</th><th>Meaning</th><th>Level</th><th>Times heard</th><th>State</th><th>Next review</th>
+          </tr></thead>
+          <tbody id="word-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <p class="empty" id="empty" hidden>No data yet — watch something with Listening Mode on and judge a few words, then come back.</p>
+  </main>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+
+  <script src="../src/log.js"></script>
+  <script src="../src/romaji.js"></script>
+  <script src="../src/storage.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
