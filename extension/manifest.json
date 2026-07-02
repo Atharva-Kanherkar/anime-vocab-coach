@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Anime Vocab Coach",
+  "version": "0.1.0",
+  "description": "Learn Japanese vocabulary from the anime you watch. Pauses on words worth learning and tracks your progress.",
+  "permissions": ["storage"],
+  "host_permissions": ["*://*.youtube.com/*", "*://*.netflix.com/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup/popup.html", "default_title": "Anime Vocab Coach" },
+  "options_page": "options/options.html",
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*", "*://*.netflix.com/*"],
+      "js": [
+        "vendor/kuromoji.js",
+        "src/log.js",
+        "src/storage.js",
+        "src/dictionary.js",
+        "src/tokenizer.js",
+        "src/scoring.js",
+        "src/overlay.js",
+        "src/adapters/youtube.js",
+        "src/adapters/netflix.js",
+        "src/adapters/generic.js",
+        "src/main.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["kuromoji/dict/*", "data/dictionary.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

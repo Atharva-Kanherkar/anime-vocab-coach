@@ -40,13 +40,13 @@ Read and implement the docs **in order**. Do not skip ahead. Do not substitute t
 ## Status
 
 - [x] Spec complete
-- [ ] M0 Scaffold
-- [ ] M1 YouTube subtitle capture
-- [ ] M2 Tokenizer
-- [ ] M3 Dictionary + lookup
-- [ ] M4 Pause + overlay card
-- [ ] M5 Progress storage
-- [ ] M6 Popup dashboard
-- [ ] M7 Netflix + generic adapters
-- [ ] M8 Options + in-context SRS
-- [ ] M9 Polish + QA
+- [x] M0 Scaffold
+- [x] M1 YouTube subtitle capture
+- [x] M2 Tokenizer
+- [x] M3 Dictionary + lookup
+- [x] M4 Pause + overlay card
+- [x] M5 Progress storage
+- [x] M6 Popup dashboard
+- [x] M7 Netflix + generic adapters
+- [x] M8 Options + in-context SRS
+- [x] M9 Polish + QA

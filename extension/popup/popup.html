@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=320">
+  <title>Anime Vocab Coach</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="header">
+    <h1>アニメ Vocab Coach</h1>
+    <button id="mode-pill" class="mode-pill" type="button">pause</button>
+  </header>
+
+  <section class="today-row">
+    <div class="stat"><span id="stat-met" class="num">0</span><span class="label">Met</span></div>
+    <div class="stat"><span id="stat-judged" class="num">0</span><span class="label">Judged</span></div>
+    <div class="stat"><span id="stat-reviews" class="num">0</span><span class="label">Reviews</span></div>
+    <div class="stat"><span id="stat-watch" class="num">0</span><span class="label">Min watched</span></div>
+  </section>
+
+  <section class="totals-row" id="totals-row"></section>
+  <section class="streak" id="streak"></section>
+
+  <section class="recent">
+    <h2>Recent words</h2>
+    <ul id="recent-list"></ul>
+  </section>
+
+  <footer class="footer">
+    <a href="#" id="settings-link">Settings</a>
+    <span>·</span>
+    <a href="#" id="export-link">Export</a>
+  </footer>
+
+  <script src="../src/log.js"></script>
+  <script src="../src/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

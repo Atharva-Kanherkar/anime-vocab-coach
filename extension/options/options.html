@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anime Vocab Coach — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>Anime Vocab Coach</h1>
+
+    <section class="panel">
+      <h2>Settings</h2>
+      <p class="saved" id="saved-msg" hidden>Saved ✓</p>
+
+      <fieldset>
+        <legend>Mode</legend>
+        <label><input type="radio" name="pauseMode" value="pause"> Pause (default)</label>
+        <label><input type="radio" name="pauseMode" value="notify"> Notify</label>
+        <label><input type="radio" name="pauseMode" value="off"> Off</label>
+      </fieldset>
+
+      <label>Cooldown (seconds, 5–120)
+        <input type="number" id="cooldownSec" min="5" max="120">
+      </label>
+
+      <label>Max cards per hour (1–60)
+        <input type="number" id="maxCardsPerHour" min="1" max="60">
+      </label>
+
+      <label>Target level
+        <select id="targetLevel">
+          <option value="5">N5</option>
+          <option value="4">N4</option>
+          <option value="3">N3</option>
+          <option value="2">N2</option>
+          <option value="1">N1</option>
+        </select>
+      </label>
+
+      <label>Auto-resume (seconds, 0 = off)
+        <input type="number" id="autoResumeSec" min="0" max="120">
+      </label>
+
+      <fieldset>
+        <legend>Sites enabled</legend>
+        <label><input type="checkbox" id="site-youtube"> YouTube</label>
+        <label><input type="checkbox" id="site-netflix"> Netflix</label>
+        <label><input type="checkbox" id="site-generic"> Generic HTML5 tracks</label>
+      </fieldset>
+    </section>
+
+    <section class="panel">
+      <h2>Word list</h2>
+      <div class="filters">
+        <input type="search" id="search" placeholder="Search word, reading, meaning…">
+        <div class="chips" id="state-chips">
+          <button type="button" class="chip active" data-state="all">All</button>
+          <button type="button" class="chip" data-state="known">Known</button>
+          <button type="button" class="chip" data-state="learning">Learning</button>
+          <button type="button" class="chip" data-state="new">New</button>
+          <button type="button" class="chip" data-state="ignored">Ignored</button>
+        </div>
+      </div>
+      <p class="note" id="table-note"></p>
+      <table>
+        <thead>
+          <tr>
+            <th>Word</th>
+            <th>Reading</th>
+            <th>Meaning</th>
+            <th>Level</th>
+            <th>Seen</th>
+            <th>State</th>
+            <th>SRS due</th>
+          </tr>
+        </thead>
+        <tbody id="word-tbody"></tbody>
+      </table>
+    </section>
+
+    <section class="panel actions">
+      <button type="button" id="export-btn">Export JSON</button>
+    </section>
+
+    <section class="panel danger">
+      <h2>Danger zone</h2>
+      <button type="button" id="reset-btn" class="danger-btn">Reset all progress</button>
+    </section>
+  </main>
+
+  <script src="../src/log.js"></script>
+  <script src="../src/storage.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

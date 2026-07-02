@@ -1,0 +1,149 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #121218;
+  color: #f2f2f7;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 24px;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 22px;
+  margin-bottom: 20px;
+}
+
+h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.panel {
+  background: #1c1c24;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+fieldset {
+  border: none;
+  margin-bottom: 12px;
+}
+
+legend {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 6px;
+}
+
+label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+input[type="number"],
+input[type="search"],
+select {
+  display: block;
+  margin-top: 4px;
+  width: 100%;
+  max-width: 280px;
+  background: #121218;
+  color: #f2f2f7;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+label input[type="radio"],
+label input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.saved {
+  color: #4ade80;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.filters {
+  margin-bottom: 10px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chip {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.chip.active {
+  background: #8b7cf6;
+  color: #fff;
+  border-color: #8b7cf6;
+}
+
+.note {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th, td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+th {
+  color: #9ca3af;
+  font-weight: normal;
+}
+
+td select {
+  max-width: 100px;
+  font-size: 11px;
+  padding: 4px;
+}
+
+.actions button,
+.danger-btn {
+  background: #8b7cf6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.danger-btn {
+  background: transparent;
+  color: #f87171;
+  border: 1px solid #f87171;
+}
+
+.danger h2 {
+  color: #f87171;
+}

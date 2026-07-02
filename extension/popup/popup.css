@@ -1,0 +1,134 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 320px;
+  background: #1c1c24;
+  color: #f2f2f7;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 14px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.header h1 {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.mode-pill {
+  background: rgba(139, 124, 246, 0.2);
+  color: #8b7cf6;
+  border: 1px solid #8b7cf6;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+.today-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stat {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.stat .num {
+  display: block;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.stat .label {
+  display: block;
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.totals-row {
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: #9ca3af;
+}
+
+.totals-row .dot-known { color: #4ade80; }
+.totals-row .dot-learning { color: #8b7cf6; }
+.totals-row .dot-seen { color: #9ca3af; }
+
+.streak {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.recent h2 {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+#recent-list {
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#recent-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+}
+
+#recent-list .word {
+  font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  font-weight: bold;
+  min-width: 48px;
+}
+
+#recent-list .reading {
+  color: #9ca3af;
+  flex: 1;
+  font-size: 11px;
+}
+
+#recent-list select {
+  background: #1c1c24;
+  color: #f2f2f7;
+  border: 1px solid #9ca3af;
+  border-radius: 6px;
+  font-size: 10px;
+  padding: 2px 4px;
+}
+
+.footer {
+  margin-top: 14px;
+  font-size: 12px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.footer a {
+  color: #8b7cf6;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}

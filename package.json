@@ -1,0 +1,18 @@
+{
+  "name": "anime-vocab-coach",
+  "version": "1.0.0",
+  "description": "A Chrome extension (Manifest V3) that turns anime/Japanese video watching into active vocabulary study:",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "kuromoji": "^0.1.2"
+  }
+}

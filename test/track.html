@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>AVC Generic Adapter Test</title>
+  <style>
+    body { background: #111; color: #fff; font-family: sans-serif; padding: 24px; }
+    video { width: 100%; max-width: 640px; }
+  </style>
+</head>
+<body>
+  <h1>Generic text-track test</h1>
+  <p>Load with <code>npx http-server test/ -p 8080</code> and add <code>http://localhost:8080/*</code> to manifest host_permissions while testing.</p>
+  <video controls width="640" height="360">
+    <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4">
+    <track kind="subtitles" srclang="ja" src="ja.vtt" default>
+  </video>
+</body>
+</html>
