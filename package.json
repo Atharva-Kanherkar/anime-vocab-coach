@@ -7,8 +7,11 @@
     "doc": "docs"
   },
   "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
     "build-dict": "node scripts/build-dictionary.mjs",
-    "pack": "rm -f dist/anime-vocab-coach.zip && cd extension && zip -rq ../dist/anime-vocab-coach.zip . -x 'icons/icon.svg' -x '*.DS_Store' && cd .. && echo 'Built dist/anime-vocab-coach.zip'"
+    "pack": "npm run typecheck && npm run build && rm -f dist/anime-vocab-coach.zip && cd extension && zip -rq ../dist/anime-vocab-coach.zip . -x 'icons/icon.svg' -x '*.DS_Store' && cd .. && echo 'Built dist/anime-vocab-coach.zip'"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +20,9 @@
     "kuromoji": "^0.1.2"
   },
   "devDependencies": {
-    "playwright": "^1.61.1"
+    "@types/chrome": "^0.2.2",
+    "esbuild": "^0.28.1",
+    "playwright": "^1.61.1",
+    "typescript": "^6.0.3"
   }
 }

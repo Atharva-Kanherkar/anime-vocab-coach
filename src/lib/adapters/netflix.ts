@@ -1,34 +1,38 @@
-AVC.adapters = AVC.adapters || [];
+import { warn } from "../log";
+import { normalize, hasJapanese } from "./util";
+import type { SiteAdapter } from "../../types";
 
-if (!AVC.adapters.some((a) => a.name === "netflix")) AVC.adapters.push({
+function getVisibleText(): string {
+  const rows = document.querySelectorAll(".player-timedtext-text-container");
+  return normalize(Array.from(rows).map((r) => r.textContent || "").join(" "));
+}
+
+export const netflixAdapter: SiteAdapter = {
   name: "netflix",
   matches() {
     return location.hostname.endsWith("netflix.com");
   },
   getVideo() {
-    return document.querySelector("video");
+    return document.querySelector<HTMLVideoElement>("video");
   },
   // Netflix only downloads the subtitle track the viewer selected, so with
   // English subs on screen this returns English — used as context for
   // listening-mode transcripts. (Japanese cards on Netflix come from
   // listening mode, not from the DOM.)
-  getVisibleText() {
-    const rows = document.querySelectorAll(".player-timedtext-text-container");
-    return normalize(Array.from(rows).map((r) => r.textContent).join(" "));
-  },
+  getVisibleText,
   start(onLine) {
     let lastText = "";
-    let debounceTimer = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const check = () => {
       try {
-        const text = this.getVisibleText();
+        const text = getVisibleText();
         if (!text || text === lastText) return;
         if (!hasJapanese(text)) return;
         lastText = text;
         onLine(text, { en: "" });
       } catch (err) {
-        AVC.warn("netflix adapter error:", err);
+        warn("netflix adapter error:", err);
       }
     };
 
@@ -39,4 +43,4 @@ if (!AVC.adapters.some((a) => a.name === "netflix")) AVC.adapters.push({
 
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
-});
+};

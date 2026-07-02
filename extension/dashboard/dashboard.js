@@ -1,13 +1,244 @@
-(function () {
-  const SVGNS = "http://www.w3.org/2000/svg";
-  const C = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const COL = {
-    known: C("--known"), learning: C("--learning"), new: C("--new"), ignored: C("--ignored"),
-    accent: C("--accent"), muted: C("--muted"), grid: C("--grid"), axis: C("--axis"),
+"use strict";
+(() => {
+  // src/types.ts
+  var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
+
+  // src/lib/storage.ts
+  var queue = Promise.resolve();
+  function pruneTimestamps(timestamps) {
+    const cutoff = Date.now() - 36e5;
+    return (timestamps || []).filter((t) => t >= cutoff);
+  }
+  function emptyStats() {
+    return { daily: {}, cardTimestamps: [] };
+  }
+  function getVocab() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["vocab"], (r) => resolve(r.vocab || {}));
+    });
+  }
+  function getStats() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["stats"], (r) => {
+        const stats = r.stats || emptyStats();
+        stats.cardTimestamps = pruneTimestamps(stats.cardTimestamps);
+        resolve(stats);
+      });
+    });
+  }
+
+  // src/lib/romaji.ts
+  var DIGRAPHS = {
+    "\u304D\u3083": "kya",
+    "\u304D\u3085": "kyu",
+    "\u304D\u3087": "kyo",
+    "\u3057\u3083": "sha",
+    "\u3057\u3085": "shu",
+    "\u3057\u3087": "sho",
+    "\u3057\u3047": "she",
+    "\u3061\u3083": "cha",
+    "\u3061\u3085": "chu",
+    "\u3061\u3087": "cho",
+    "\u3061\u3047": "che",
+    "\u306B\u3083": "nya",
+    "\u306B\u3085": "nyu",
+    "\u306B\u3087": "nyo",
+    "\u3072\u3083": "hya",
+    "\u3072\u3085": "hyu",
+    "\u3072\u3087": "hyo",
+    "\u307F\u3083": "mya",
+    "\u307F\u3085": "myu",
+    "\u307F\u3087": "myo",
+    "\u308A\u3083": "rya",
+    "\u308A\u3085": "ryu",
+    "\u308A\u3087": "ryo",
+    "\u304E\u3083": "gya",
+    "\u304E\u3085": "gyu",
+    "\u304E\u3087": "gyo",
+    "\u3058\u3083": "ja",
+    "\u3058\u3085": "ju",
+    "\u3058\u3087": "jo",
+    "\u3058\u3047": "je",
+    "\u3062\u3083": "ja",
+    "\u3062\u3085": "ju",
+    "\u3062\u3087": "jo",
+    "\u3073\u3083": "bya",
+    "\u3073\u3085": "byu",
+    "\u3073\u3087": "byo",
+    "\u3074\u3083": "pya",
+    "\u3074\u3085": "pyu",
+    "\u3074\u3087": "pyo",
+    "\u3075\u3041": "fa",
+    "\u3075\u3043": "fi",
+    "\u3075\u3047": "fe",
+    "\u3075\u3049": "fo",
+    "\u3066\u3043": "ti",
+    "\u3067\u3043": "di",
+    "\u3068\u3045": "tu",
+    "\u3069\u3045": "du",
+    "\u3046\u3043": "wi",
+    "\u3046\u3047": "we",
+    "\u3046\u3049": "wo",
+    "\u3064\u3041": "tsa",
+    "\u3064\u3043": "tsi",
+    "\u3064\u3047": "tse",
+    "\u3064\u3049": "tso",
+    "\u3094\u3041": "va",
+    "\u3094\u3043": "vi",
+    "\u3094\u3047": "ve",
+    "\u3094\u3049": "vo"
+  };
+  var MONOGRAPHS = {
+    "\u3042": "a",
+    "\u3044": "i",
+    "\u3046": "u",
+    "\u3048": "e",
+    "\u304A": "o",
+    "\u304B": "ka",
+    "\u304D": "ki",
+    "\u304F": "ku",
+    "\u3051": "ke",
+    "\u3053": "ko",
+    "\u304C": "ga",
+    "\u304E": "gi",
+    "\u3050": "gu",
+    "\u3052": "ge",
+    "\u3054": "go",
+    "\u3055": "sa",
+    "\u3057": "shi",
+    "\u3059": "su",
+    "\u305B": "se",
+    "\u305D": "so",
+    "\u3056": "za",
+    "\u3058": "ji",
+    "\u305A": "zu",
+    "\u305C": "ze",
+    "\u305E": "zo",
+    "\u305F": "ta",
+    "\u3061": "chi",
+    "\u3064": "tsu",
+    "\u3066": "te",
+    "\u3068": "to",
+    "\u3060": "da",
+    "\u3062": "ji",
+    "\u3065": "zu",
+    "\u3067": "de",
+    "\u3069": "do",
+    "\u306A": "na",
+    "\u306B": "ni",
+    "\u306C": "nu",
+    "\u306D": "ne",
+    "\u306E": "no",
+    "\u306F": "ha",
+    "\u3072": "hi",
+    "\u3075": "fu",
+    "\u3078": "he",
+    "\u307B": "ho",
+    "\u3070": "ba",
+    "\u3073": "bi",
+    "\u3076": "bu",
+    "\u3079": "be",
+    "\u307C": "bo",
+    "\u3071": "pa",
+    "\u3074": "pi",
+    "\u3077": "pu",
+    "\u307A": "pe",
+    "\u307D": "po",
+    "\u307E": "ma",
+    "\u307F": "mi",
+    "\u3080": "mu",
+    "\u3081": "me",
+    "\u3082": "mo",
+    "\u3084": "ya",
+    "\u3086": "yu",
+    "\u3088": "yo",
+    "\u3089": "ra",
+    "\u308A": "ri",
+    "\u308B": "ru",
+    "\u308C": "re",
+    "\u308D": "ro",
+    "\u308F": "wa",
+    "\u3090": "i",
+    "\u3091": "e",
+    "\u3092": "o",
+    "\u3093": "n",
+    "\u3094": "vu",
+    "\u3041": "a",
+    "\u3043": "i",
+    "\u3045": "u",
+    "\u3047": "e",
+    "\u3049": "o",
+    "\u3083": "ya",
+    "\u3085": "yu",
+    "\u3087": "yo",
+    "\u308E": "wa",
+    "\u3002": ". ",
+    "\u3001": ", ",
+    "\uFF01": "! ",
+    "\uFF1F": "? ",
+    "\u30FB": " ",
+    "\u300C": ' "',
+    "\u300D": '" '
+  };
+  function kataToHira(s) {
+    return (s || "").replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 96));
+  }
+  function toRomaji(kana) {
+    const s = kataToHira(kana);
+    let out = "";
+    let sokuon = false;
+    let i = 0;
+    while (i < s.length) {
+      const ch = s[i];
+      if (ch === "\u3063") {
+        sokuon = true;
+        i++;
+        continue;
+      }
+      if (ch === "\u30FC") {
+        const m = out.match(/[aiueo](?=[^aiueo]*$)/);
+        if (m) out += m[0];
+        i++;
+        continue;
+      }
+      let roma = null;
+      const pair = s.slice(i, i + 2);
+      if (DIGRAPHS[pair]) {
+        roma = DIGRAPHS[pair];
+        i += 2;
+      } else if (MONOGRAPHS[ch]) {
+        roma = MONOGRAPHS[ch];
+        i += 1;
+      } else {
+        out += ch;
+        i += 1;
+        sokuon = false;
+        continue;
+      }
+      if (sokuon) {
+        out += roma.startsWith("ch") ? "t" : roma[0];
+        sokuon = false;
+      }
+      out += roma;
+    }
+    return out.replace(/\s+/g, " ").trim();
+  }
+
+  // src/entries/dashboard.ts
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var C = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  var COL = {
+    known: C("--known"),
+    learning: C("--learning"),
+    new: C("--new"),
+    ignored: C("--ignored"),
+    accent: C("--accent"),
+    muted: C("--muted"),
+    grid: C("--grid"),
+    axis: C("--axis"),
     seq: ["--seq-1", "--seq-2", "--seq-3", "--seq-4", "--seq-5", "--seq-6"].map(C)
   };
-
-  const tip = document.getElementById("tooltip");
+  var tip = document.getElementById("tooltip");
   function showTip(html, ev) {
     tip.innerHTML = html;
     tip.hidden = false;
@@ -15,13 +246,15 @@
     let x = ev.clientX + pad, y = ev.clientY + pad;
     if (x + w > innerWidth) x = ev.clientX - w - pad;
     if (y + h > innerHeight) y = ev.clientY - h - pad;
-    tip.style.left = x + "px"; tip.style.top = y + "px";
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
   }
-  const hideTip = () => { tip.hidden = true; };
-
+  var hideTip = () => {
+    tip.hidden = true;
+  };
   function el(tag, attrs, kids) {
     const n = document.createElementNS(SVGNS, tag);
-    for (const k in (attrs || {})) n.setAttribute(k, attrs[k]);
+    for (const k in attrs || {}) n.setAttribute(k, String(attrs[k]));
     (kids || []).forEach((c) => n.appendChild(c));
     return n;
   }
@@ -33,10 +266,8 @@
     t.textContent = s;
     return t;
   }
-  const todayKey = () => new Date().toLocaleDateString("sv");
-  const nf = (n) => n.toLocaleString();
-
-  // ---------- data ----------
+  var todayKey = () => (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
+  var nf = (n) => n.toLocaleString();
   function computeStreak(daily) {
     const days = Object.keys(daily || {}).filter((d) => daily[d].judged >= 1).sort().reverse();
     if (!days.length) return 0;
@@ -47,12 +278,10 @@
     for (const d of days) {
       if (d !== expect) break;
       streak++;
-      expect = new Date(new Date(expect + "T12:00:00").getTime() - 864e5).toLocaleDateString("sv");
+      expect = new Date((/* @__PURE__ */ new Date(expect + "T12:00:00")).getTime() - 864e5).toLocaleDateString("sv");
     }
     return streak;
   }
-
-  // ---------- charts ----------
   function renderTiles(vocab, stats) {
     const v = Object.values(vocab);
     const known = v.filter((r) => r.state === "known").length;
@@ -69,34 +298,37 @@
       { val: streak + "d", lab: "Current streak", cls: "" },
       { val: (mins / 60).toFixed(1) + "h", lab: "Watched", cls: "" }
     ];
-    document.getElementById("tiles").innerHTML = tiles.map((t) =>
-      `<div class="tile"><div class="val ${t.cls}">${t.val}</div><div class="lab">${t.lab}</div></div>`).join("");
+    document.getElementById("tiles").innerHTML = tiles.map((t) => `<div class="tile"><div class="val ${t.cls}">${t.val}</div><div class="lab">${t.lab}</div></div>`).join("");
   }
-
   function renderTime(stats) {
     const host = document.getElementById("chart-time");
     const daily = stats.daily || {};
     const keys = Object.keys(daily).sort();
     const W = 640, H = 220, ml = 40, mr = 12, mt = 12, mb = 26;
-    if (keys.length < 2) { host.innerHTML = '<p class="cap-note">Not enough days yet — come back after a few sessions.</p>'; return; }
+    if (keys.length < 2) {
+      host.innerHTML = '<p class="cap-note">Not enough days yet \u2014 come back after a few sessions.</p>';
+      return;
+    }
     let cum = 0;
-    const pts = keys.map((k) => { cum += daily[k].met || 0; return { k, y: cum }; });
+    const pts = keys.map((k) => {
+      cum += daily[k].met || 0;
+      return { k, y: cum };
+    });
     const maxY = Math.max(1, cum);
-    const x = (i) => ml + (i / (pts.length - 1)) * (W - ml - mr);
+    const x = (i) => ml + i / (pts.length - 1) * (W - ml - mr);
     const y = (val) => mt + (1 - val / maxY) * (H - mt - mb);
     const s = svg(W, H);
-
-    // gridlines + y ticks
     const ticks = 4;
     for (let i = 0; i <= ticks; i++) {
-      const val = Math.round((maxY / ticks) * i);
+      const val = Math.round(maxY / ticks * i);
       const yy = y(val);
       s.appendChild(el("line", { x1: ml, y1: yy, x2: W - mr, y2: yy, class: "gridline" }));
       s.appendChild(txt(ml - 6, yy + 3, nf(val), "ax-val", "end"));
     }
-    // area + line
     let d = `M ${x(0)} ${y(pts[0].y)}`;
-    pts.forEach((p, i) => { if (i) d += ` L ${x(i)} ${y(p.y)}`; });
+    pts.forEach((p, i) => {
+      if (i) d += ` L ${x(i)} ${y(p.y)}`;
+    });
     const area = d + ` L ${x(pts.length - 1)} ${y(0)} L ${x(0)} ${y(0)} Z`;
     const grad = el("linearGradient", { id: "areaGrad", x1: 0, y1: 0, x2: 0, y2: 1 }, [
       el("stop", { offset: "0%", "stop-color": COL.accent, "stop-opacity": ".35" }),
@@ -105,17 +337,14 @@
     s.appendChild(el("defs", {}, [grad]));
     s.appendChild(el("path", { d: area, fill: "url(#areaGrad)" }));
     s.appendChild(el("path", { d, fill: "none", stroke: COL.accent, "stroke-width": 2, "stroke-linejoin": "round" }));
-
-    // x labels (first, mid, last)
     [0, Math.floor(pts.length / 2), pts.length - 1].forEach((i) => {
-      const lab = pts[i].k.slice(5); // MM-DD
+      const lab = pts[i].k.slice(5);
       s.appendChild(txt(x(i), H - 8, lab, "ax", i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"));
     });
-
-    // hover crosshair
     const hoverLine = el("line", { y1: mt, y2: H - mb, class: "baseline", opacity: 0 });
     const hoverDot = el("circle", { r: 4, fill: COL.accent, stroke: COL.grid, "stroke-width": 2, opacity: 0 });
-    s.appendChild(hoverLine); s.appendChild(hoverDot);
+    s.appendChild(hoverLine);
+    s.appendChild(hoverDot);
     const hit = el("rect", { x: ml, y: mt, width: W - ml - mr, height: H - mt - mb, fill: "transparent" });
     s.appendChild(hit);
     hit.addEventListener("mousemove", (ev) => {
@@ -123,27 +352,38 @@
       const px = (ev.clientX - r.left) / r.width * W;
       let i = Math.round((px - ml) / (W - ml - mr) * (pts.length - 1));
       i = Math.max(0, Math.min(pts.length - 1, i));
-      hoverLine.setAttribute("x1", x(i)); hoverLine.setAttribute("x2", x(i)); hoverLine.setAttribute("opacity", 1);
-      hoverDot.setAttribute("cx", x(i)); hoverDot.setAttribute("cy", y(pts[i].y)); hoverDot.setAttribute("opacity", 1);
+      hoverLine.setAttribute("x1", String(x(i)));
+      hoverLine.setAttribute("x2", String(x(i)));
+      hoverLine.setAttribute("opacity", "1");
+      hoverDot.setAttribute("cx", String(x(i)));
+      hoverDot.setAttribute("cy", String(y(pts[i].y)));
+      hoverDot.setAttribute("opacity", "1");
       showTip(`<b>${nf(pts[i].y)}</b> words by ${pts[i].k}`, ev);
     });
-    hit.addEventListener("mouseleave", () => { hideTip(); hoverLine.setAttribute("opacity", 0); hoverDot.setAttribute("opacity", 0); });
-    host.innerHTML = ""; host.appendChild(s);
+    hit.addEventListener("mouseleave", () => {
+      hideTip();
+      hoverLine.setAttribute("opacity", "0");
+      hoverDot.setAttribute("opacity", "0");
+    });
+    host.innerHTML = "";
+    host.appendChild(s);
   }
-
   function renderDonut(vocab) {
     const host = document.getElementById("chart-donut");
     const v = Object.values(vocab);
     const segs = [
-      { key: "known", lab: "Known", color: COL.known, n: v.filter((r) => r.state === "known").length },
-      { key: "learning", lab: "Learning", color: COL.learning, n: v.filter((r) => r.state === "learning").length },
-      { key: "new", lab: "Seen", color: COL.new, n: v.filter((r) => r.state === "new").length },
-      { key: "ignored", lab: "Ignored", color: COL.ignored, n: v.filter((r) => r.state === "ignored").length }
-    ].filter((s) => s.n > 0);
-    const total = segs.reduce((a, s) => a + s.n, 0);
+      { key: "known", lab: "Known", color: COL.known, n: v.filter((r2) => r2.state === "known").length },
+      { key: "learning", lab: "Learning", color: COL.learning, n: v.filter((r2) => r2.state === "learning").length },
+      { key: "new", lab: "Seen", color: COL.new, n: v.filter((r2) => r2.state === "new").length },
+      { key: "ignored", lab: "Ignored", color: COL.ignored, n: v.filter((r2) => r2.state === "ignored").length }
+    ].filter((seg) => seg.n > 0);
+    const total = segs.reduce((a, seg) => a + seg.n, 0);
     const R = 74, r = 46, cx = 90, cy = 90;
     const s = svg(180, 180);
-    if (!total) { host.innerHTML = '<p class="cap-note">No words yet.</p>'; return; }
+    if (!total) {
+      host.innerHTML = '<p class="cap-note">No words yet.</p>';
+      return;
+    }
     let a0 = -Math.PI / 2;
     segs.forEach((seg) => {
       const frac = seg.n / total;
@@ -153,7 +393,9 @@
       const [x0, y0] = p(a0, R), [x1, y1] = p(a1, R), [x2, y2] = p(a1, r), [x3, y3] = p(a0, r);
       const path = el("path", {
         d: `M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1} L ${x2} ${y2} A ${r} ${r} 0 ${large} 0 ${x3} ${y3} Z`,
-        fill: seg.color, stroke: C("--card"), "stroke-width": 2
+        fill: seg.color,
+        stroke: C("--card"),
+        "stroke-width": 2
       });
       path.addEventListener("mousemove", (ev) => showTip(`<b>${seg.lab}</b>: ${nf(seg.n)} (${Math.round(frac * 100)}%)`, ev));
       path.addEventListener("mouseleave", hideTip);
@@ -161,37 +403,42 @@
       a0 = a1;
     });
     s.appendChild(txt(cx, cy - 4, nf(total), "dlabel", "middle"));
-    const sub = txt(cx, cy + 12, "words", "ax", "middle"); s.appendChild(sub);
+    s.appendChild(txt(cx, cy + 12, "words", "ax", "middle"));
     const legend = document.createElement("ul");
     legend.className = "legend";
-    legend.innerHTML = segs.map((seg) =>
-      `<li><span class="sw" style="background:${seg.color}"></span>${seg.lab} <b>${nf(seg.n)}</b></li>`).join("");
-    host.innerHTML = ""; host.appendChild(s); host.appendChild(legend);
+    legend.innerHTML = segs.map((seg) => `<li><span class="sw" style="background:${seg.color}"></span>${seg.lab} <b>${nf(seg.n)}</b></li>`).join("");
+    host.innerHTML = "";
+    host.appendChild(s);
+    host.appendChild(legend);
   }
-
   function renderLevel(vocab) {
     const host = document.getElementById("chart-level");
-    // N5..N1  (stored level 5..1 → N = 6-level)
     const levels = [5, 4, 3, 2, 1];
     const data = levels.map((lv) => {
       const words = Object.values(vocab).filter((r) => r.level === lv);
-      return { n: "N" + lv, known: words.filter((r) => r.state === "known").length, learning: words.filter((r) => r.state === "learning").length };
+      return {
+        n: "N" + lv,
+        known: words.filter((r) => r.state === "known").length,
+        learning: words.filter((r) => r.state === "learning").length
+      };
     });
     const maxV = Math.max(1, ...data.map((d) => d.known + d.learning));
     const W = 320, H = 220, ml = 32, mr = 10, mt = 10, mb = 28;
     const bw = (W - ml - mr) / data.length;
     const y = (val) => mt + (1 - val / maxV) * (H - mt - mb);
     const s = svg(W, H);
-    for (let i = 0; i <= 4; i++) { const val = Math.round(maxV / 4 * i), yy = y(val);
+    for (let i = 0; i <= 4; i++) {
+      const val = Math.round(maxV / 4 * i), yy = y(val);
       s.appendChild(el("line", { x1: ml, y1: yy, x2: W - mr, y2: yy, class: "gridline" }));
-      s.appendChild(txt(ml - 6, yy + 3, nf(val), "ax-val", "end")); }
+      s.appendChild(txt(ml - 6, yy + 3, nf(val), "ax-val", "end"));
+    }
     const base = H - mb;
     data.forEach((d, i) => {
       const cx = ml + i * bw + bw / 2, w = Math.min(34, bw - 12);
       let yTop = base;
       [["learning", d.learning, COL.learning], ["known", d.known, COL.known]].forEach(([k, val, col]) => {
         if (!val) return;
-        const h = (val / maxV) * (H - mt - mb);
+        const h = val / maxV * (H - mt - mb);
         const yy = yTop - h;
         const rect = el("rect", { x: cx - w / 2, y: yy, width: w, height: Math.max(0, h - 2), rx: 3, fill: col });
         rect.addEventListener("mousemove", (ev) => showTip(`<b>${d.n}</b> ${k}: ${nf(val)}`, ev));
@@ -203,69 +450,84 @@
     });
     s.appendChild(el("line", { x1: ml, y1: base, x2: W - mr, y2: base, class: "baseline" }));
     const legend = document.createElement("ul");
-    legend.className = "legend"; legend.style.gridAutoFlow = "column"; legend.style.justifyContent = "center"; legend.style.marginTop = "8px";
+    legend.className = "legend";
+    legend.style.gridAutoFlow = "column";
+    legend.style.justifyContent = "center";
+    legend.style.marginTop = "8px";
     legend.innerHTML = `<li><span class="sw" style="background:${COL.known}"></span>Known</li><li><span class="sw" style="background:${COL.learning}"></span>Learning</li>`;
-    host.innerHTML = ""; host.appendChild(s); host.appendChild(legend);
+    host.innerHTML = "";
+    host.appendChild(s);
+    host.appendChild(legend);
   }
-
   function renderSRS(vocab) {
     const host = document.getElementById("chart-srs");
     const now = Date.now();
     const learning = Object.values(vocab).filter((r) => r.state === "learning" && r.srs);
     const stages = [1, 2, 3, 4, 5].map((st) => ({
-      st, label: "Stage " + st,
+      st,
+      label: "Stage " + st,
       n: learning.filter((r) => r.srs.stage === st).length,
       due: learning.filter((r) => r.srs.stage === st && r.srs.dueAt <= now).length
     }));
-    const maxV = Math.max(1, ...stages.map((s) => s.n));
+    const maxV = Math.max(1, ...stages.map((st) => st.n));
     const W = 320, H = 220, ml = 32, mr = 10, mt = 10, mb = 28;
     const bw = (W - ml - mr) / stages.length;
     const y = (val) => mt + (1 - val / maxV) * (H - mt - mb);
     const base = H - mb;
     const s = svg(W, H);
-    for (let i = 0; i <= 4; i++) { const val = Math.round(maxV / 4 * i), yy = y(val);
+    for (let i = 0; i <= 4; i++) {
+      const val = Math.round(maxV / 4 * i), yy = y(val);
       s.appendChild(el("line", { x1: ml, y1: yy, x2: W - mr, y2: yy, class: "gridline" }));
-      s.appendChild(txt(ml - 6, yy + 3, nf(val), "ax-val", "end")); }
+      s.appendChild(txt(ml - 6, yy + 3, nf(val), "ax-val", "end"));
+    }
     stages.forEach((st, i) => {
       const cx = ml + i * bw + bw / 2, w = Math.min(34, bw - 12);
-      const h = (st.n / maxV) * (H - mt - mb);
-      const col = COL.seq[Math.min(5, st.st)]; // deeper = later stage
+      const h = st.n / maxV * (H - mt - mb);
+      const col = COL.seq[Math.min(5, st.st)];
       const rect = el("rect", { x: cx - w / 2, y: base - h, width: w, height: Math.max(0, h), rx: 3, fill: col });
-      rect.addEventListener("mousemove", (ev) => showTip(`<b>Stage ${st.st}</b>: ${nf(st.n)} words${st.due ? ` · ${st.due} due now` : ""}`, ev));
+      rect.addEventListener("mousemove", (ev) => showTip(`<b>Stage ${st.st}</b>: ${nf(st.n)} words${st.due ? ` \xB7 ${st.due} due now` : ""}`, ev));
       rect.addEventListener("mouseleave", hideTip);
       s.appendChild(rect);
       if (st.n) s.appendChild(txt(cx, base - h - 5, nf(st.n), "dlabel", "middle"));
-      s.appendChild(txt(cx, H - 9, st.st, "ax", "middle"));
+      s.appendChild(txt(cx, H - 9, String(st.st), "ax", "middle"));
     });
     s.appendChild(el("line", { x1: ml, y1: base, x2: W - mr, y2: base, class: "baseline" }));
-    const dueTotal = stages.reduce((a, s) => a + s.due, 0);
+    const dueTotal = stages.reduce((a, st) => a + st.due, 0);
     host.innerHTML = "";
-    if (!learning.length) { host.innerHTML = '<p class="cap-note">Mark words "Learn it" to build your review pipeline.</p>'; return; }
+    if (!learning.length) {
+      host.innerHTML = '<p class="cap-note">Mark words "Learn it" to build your review pipeline.</p>';
+      return;
+    }
     host.appendChild(s);
-    const note = document.createElement("p"); note.className = "cap-note"; note.style.textAlign = "center";
-    note.textContent = dueTotal ? `${dueTotal} word${dueTotal > 1 ? "s" : ""} due for review — they'll pop up as you watch.` : "Nothing due right now.";
+    const note = document.createElement("p");
+    note.className = "cap-note";
+    note.style.textAlign = "center";
+    note.textContent = dueTotal ? `${dueTotal} word${dueTotal > 1 ? "s" : ""} due for review \u2014 they'll pop up as you watch.` : "Nothing due right now.";
     host.appendChild(note);
   }
-
   function renderCalendar(stats) {
     const host = document.getElementById("chart-cal");
     const daily = stats.daily || {};
     const WEEKS = 18, cell = 15, gap = 4, W = WEEKS * (cell + gap) + 30, H = 7 * (cell + gap) + 24;
     const s = svg(W, H);
-    const end = new Date(todayKey() + "T12:00:00");
-    // align to end of current week (Sat)
+    const end = /* @__PURE__ */ new Date(todayKey() + "T12:00:00");
     const start = new Date(end.getTime() - (WEEKS * 7 - 1) * 864e5);
     start.setDate(start.getDate() - start.getDay());
     let max = 1;
-    Object.values(daily).forEach((d) => { if (d.judged > max) max = d.judged; });
+    Object.values(daily).forEach((d) => {
+      if (d.judged > max) max = d.judged;
+    });
     const shade = (n) => {
       if (!n) return C("--surface");
-      const idx = Math.min(COL.seq.length - 1, 1 + Math.floor((n / max) * (COL.seq.length - 2)));
+      const idx = Math.min(COL.seq.length - 1, 1 + Math.floor(n / max * (COL.seq.length - 2)));
       return COL.seq[idx];
     };
     const dayLabels = ["", "Mon", "", "Wed", "", "Fri", ""];
-    dayLabels.forEach((l, i) => { if (l) s.appendChild(txt(0, 24 + i * (cell + gap) + cell - 3, l, "ax", "start")); });
-    let cur = new Date(start), col = 0, lastMonth = -1, lastLabelX = -100;
+    dayLabels.forEach((l, i) => {
+      if (l) s.appendChild(txt(0, 24 + i * (cell + gap) + cell - 3, l, "ax", "start"));
+    });
+    const cur = new Date(start);
+    let col = 0, lastMonth = -1, lastLabelX = -100;
     while (cur <= end) {
       const wx = 30 + col * (cell + gap);
       for (let dow = 0; dow < 7; dow++) {
@@ -276,26 +538,28 @@
         const y = 24 + dow * (cell + gap);
         const rect = el("rect", { x: wx, y, width: cell, height: cell, rx: 3, fill: shade(n) });
         if (d) {
-          rect.addEventListener("mousemove", (ev) => showTip(`<b>${key}</b><br>${n} judged · ${d.met || 0} new · ${d.reviews || 0} reviews`, ev));
+          rect.addEventListener("mousemove", (ev) => showTip(`<b>${key}</b><br>${n} judged \xB7 ${d.met || 0} new \xB7 ${d.reviews || 0} reviews`, ev));
           rect.addEventListener("mouseleave", hideTip);
         }
         s.appendChild(rect);
         const m = cur.getMonth();
         if (dow === 0 && m !== lastMonth && wx - lastLabelX >= 28) {
           s.appendChild(txt(wx, 14, cur.toLocaleString("en", { month: "short" }), "ax", "start"));
-          lastMonth = m; lastLabelX = wx;
+          lastMonth = m;
+          lastLabelX = wx;
         }
         cur.setDate(cur.getDate() + 1);
       }
       col++;
     }
-    host.innerHTML = ""; host.appendChild(s);
+    host.innerHTML = "";
+    host.appendChild(s);
   }
-
-  // ---------- word list ----------
-  let VOCAB = {}, listFilter = "active", listQuery = "";
+  var VOCAB = {};
+  var listFilter = "active";
+  var listQuery = "";
   function relDue(dueAt) {
-    if (!dueAt) return "—";
+    if (!dueAt) return "\u2014";
     const diff = dueAt - Date.now();
     if (diff <= 0) return "now";
     const h = Math.round(diff / 36e5);
@@ -308,33 +572,28 @@
     else if (listFilter !== "all") rows = rows.filter(([, r]) => r.state === listFilter);
     if (listQuery) {
       const q = listQuery.toLowerCase();
-      rows = rows.filter(([w, r]) =>
-        AVC.romaji.toRomaji(r.reading || "").includes(q) || w.toLowerCase().includes(q) ||
-        (r.reading || "").includes(q) || (r.gloss || "").toLowerCase().includes(q));
+      rows = rows.filter(([w, r]) => toRomaji(r.reading || "").includes(q) || w.toLowerCase().includes(q) || (r.reading || "").includes(q) || (r.gloss || "").toLowerCase().includes(q));
     }
     rows.sort((a, b) => (b[1].lastSeenAt || 0) - (a[1].lastSeenAt || 0));
     const total = rows.length, shown = rows.slice(0, 300);
-    document.getElementById("list-note").textContent =
-      total > 300 ? `Showing 300 of ${total}` : `${total} word${total === 1 ? "" : "s"}`;
+    document.getElementById("list-note").textContent = total > 300 ? `Showing 300 of ${total}` : `${total} word${total === 1 ? "" : "s"}`;
     tbody.innerHTML = shown.map(([w, r]) => {
-      const romaji = AVC.romaji.toRomaji(r.reading || "");
-      const due = r.state === "learning" && r.srs ? relDue(r.srs.dueAt) : "—";
+      const romaji = toRomaji(r.reading || "");
+      const due = r.state === "learning" && r.srs ? relDue(r.srs.dueAt) : "\u2014";
       return `<tr>
-        <td class="romaji">${romaji || w}</td>
-        <td class="jp">${r.reading || ""}</td>
-        <td class="jp">${w}</td>
-        <td class="meaning">${r.gloss || ""}</td>
-        <td>N${r.level}</td>
-        <td>${r.seenCount || 0}</td>
-        <td><span class="state-tag ${r.state}">${r.state}</span></td>
-        <td>${due}</td></tr>`;
+      <td class="romaji">${romaji || w}</td>
+      <td class="jp">${r.reading || ""}</td>
+      <td class="jp">${w}</td>
+      <td class="meaning">${r.gloss || ""}</td>
+      <td>N${r.level}</td>
+      <td>${r.seenCount || 0}</td>
+      <td><span class="state-tag ${r.state}">${r.state}</span></td>
+      <td>${due}</td></tr>`;
     }).join("");
   }
-
-  // ---------- boot ----------
   async function boot() {
-    const vocab = await AVC.storage.getVocab();
-    const stats = await AVC.storage.getStats();
+    const vocab = await getVocab();
+    const stats = await getStats();
     VOCAB = vocab;
     if (!Object.keys(vocab).length) {
       document.getElementById("empty").hidden = false;
@@ -346,11 +605,15 @@
     renderSRS(vocab);
     renderCalendar(stats);
     renderList();
-
-    document.getElementById("word-search").addEventListener("input", (e) => { listQuery = e.target.value.trim(); renderList(); });
+    document.getElementById("word-search").addEventListener("input", (e) => {
+      listQuery = e.target.value.trim();
+      renderList();
+    });
     document.querySelectorAll("#list-chips .chip").forEach((c) => c.addEventListener("click", () => {
       document.querySelectorAll("#list-chips .chip").forEach((x) => x.classList.remove("active"));
-      c.classList.add("active"); listFilter = c.dataset.f; renderList();
+      c.classList.add("active");
+      listFilter = c.dataset.f;
+      renderList();
     }));
   }
   document.addEventListener("DOMContentLoaded", boot);

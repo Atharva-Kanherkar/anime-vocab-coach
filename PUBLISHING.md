@@ -79,7 +79,18 @@ upload it as a new package on the same item, resubmit.
 From the repo root:
 
 ```bash
-cd extension && zip -rq ../dist/anime-vocab-coach.zip . -x "icons/icon.svg" && cd ..
+npm install
+npm run pack   # typechecks, builds the TypeScript bundles, zips extension/ into dist/
 ```
 
-(or `npm run pack` if you add the script in `package.json`).
+## Development
+
+The source of truth is TypeScript in `src/`; the JS bundles in `extension/` are
+build output (committed so load-unpacked works from a fresh clone — don't edit
+them by hand).
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run build       # bundle src/ → extension/ with esbuild
+npm run watch       # rebuild on change
+```

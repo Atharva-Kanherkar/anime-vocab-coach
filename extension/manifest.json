@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Anime Vocab Coach",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Learn Japanese from the anime you watch — even if you can't read it yet. Watches with you, pauses on words worth learning, tracks progress.",
   "permissions": ["storage", "tabCapture", "offscreen", "scripting"],
   "host_permissions": [
@@ -21,39 +21,13 @@
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*", "*://*.netflix.com/*"],
-      "js": [
-        "vendor/kuromoji.js",
-        "src/log.js",
-        "src/romaji.js",
-        "src/storage.js",
-        "src/dictionary.js",
-        "src/tokenizer.js",
-        "src/scoring.js",
-        "src/overlay.js",
-        "src/adapters/youtube.js",
-        "src/adapters/netflix.js",
-        "src/adapters/generic.js",
-        "src/main.js"
-      ],
+      "js": ["vendor/kuromoji.js", "content.js"],
       "run_at": "document_idle",
       "all_frames": false
     },
     {
       "matches": ["*://*.crunchyroll.com/*"],
-      "js": [
-        "vendor/kuromoji.js",
-        "src/log.js",
-        "src/romaji.js",
-        "src/storage.js",
-        "src/dictionary.js",
-        "src/tokenizer.js",
-        "src/scoring.js",
-        "src/overlay.js",
-        "src/adapters/youtube.js",
-        "src/adapters/netflix.js",
-        "src/adapters/generic.js",
-        "src/main.js"
-      ],
+      "js": ["vendor/kuromoji.js", "content.js"],
       "run_at": "document_idle",
       "all_frames": true
     },

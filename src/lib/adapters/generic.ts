@@ -1,38 +1,43 @@
-AVC.adapters = AVC.adapters || [];
+import { warn } from "../log";
+import { normalize, hasJapanese } from "./util";
+import type { SiteAdapter } from "../../types";
 
-if (!AVC.adapters.some((a) => a.name === "generic")) AVC.adapters.push({
+function getVideo(): HTMLVideoElement | null {
+  const videos = document.querySelectorAll<HTMLVideoElement>("video");
+  for (const v of videos) {
+    if (v.textTracks && v.textTracks.length > 0) return v;
+  }
+  return videos[0] || null;
+}
+
+export const genericAdapter: SiteAdapter = {
   name: "generic",
   matches() {
     return document.querySelector("video") !== null;
   },
-  getVideo() {
-    const videos = document.querySelectorAll("video");
-    for (const v of videos) {
-      if (v.textTracks && v.textTracks.length > 0) return v;
-    }
-    return videos[0] || null;
-  },
+  getVideo,
   getVisibleText() {
-    const video = this.getVideo();
+    const video = getVideo();
     if (!video || !video.textTracks) return "";
-    const parts = [];
+    const parts: string[] = [];
     for (const track of video.textTracks) {
       if (track.mode !== "showing" || !track.activeCues) continue;
       for (const cue of track.activeCues) {
-        if (cue.text) parts.push(cue.text.replace(/<[^>]+>/g, ""));
+        const text = (cue as VTTCue).text;
+        if (text) parts.push(text.replace(/<[^>]+>/g, ""));
       }
     }
     return normalize(parts.join(" "));
   },
   start(onLine) {
-    const hooked = new WeakSet();
-    const lastByTrack = new WeakMap();
+    const hooked = new WeakSet<TextTrack>();
+    const lastByTrack = new WeakMap<TextTrack, string>();
 
-    const enContext = (video) => {
+    const enContext = (video: HTMLVideoElement): string => {
       for (const track of video.textTracks) {
         if (!(track.language || "").startsWith("en") || !track.activeCues) continue;
         const text = normalize(
-          Array.from(track.activeCues).map((c) => c.text.replace(/<[^>]+>/g, "")).join(" ")
+          Array.from(track.activeCues).map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, "")).join(" ")
         );
         if (text) return text;
       }
@@ -41,7 +46,7 @@ if (!AVC.adapters.some((a) => a.name === "generic")) AVC.adapters.push({
 
     setInterval(() => {
       try {
-        document.querySelectorAll("video").forEach((v) => {
+        document.querySelectorAll<HTMLVideoElement>("video").forEach((v) => {
           for (const track of v.textTracks) {
             if (hooked.has(track)) continue;
             hooked.add(track);
@@ -55,7 +60,7 @@ if (!AVC.adapters.some((a) => a.name === "generic")) AVC.adapters.push({
                 if (!cues || !cues.length) return;
                 const text = normalize(
                   Array.from(cues)
-                    .map((c) => c.text.replace(/<[^>]+>/g, ""))
+                    .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
                     .join(" ")
                 );
                 const lastText = lastByTrack.get(track) || "";
@@ -64,14 +69,14 @@ if (!AVC.adapters.some((a) => a.name === "generic")) AVC.adapters.push({
                 lastByTrack.set(track, text);
                 onLine(text, { en: enContext(v) });
               } catch (err) {
-                AVC.warn("generic adapter cue error:", err);
+                warn("generic adapter cue error:", err);
               }
             });
           }
         });
       } catch (err) {
-        AVC.warn("generic adapter error:", err);
+        warn("generic adapter error:", err);
       }
     }, 2000);
   }
-});
+};

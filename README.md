@@ -31,9 +31,9 @@ Read and implement the docs **in order**. Do not skip ahead. Do not substitute t
 
 > Clone this repo and read `AGENTS.md`, then `docs/00` through `docs/07` in order. Implement the Chrome extension exactly as specified, milestone by milestone per `docs/03-MILESTONES.md`. After each milestone, run its acceptance test and show me the result before starting the next milestone. Never deviate from the spec; if something is genuinely impossible as written, stop and report it instead of improvising.
 
-## Tech stack (final — do not change)
+## Tech stack
 
-- Chrome extension, **Manifest V3**, plain JavaScript, **no build step, no framework, no TypeScript**.
+- Chrome extension, **Manifest V3**, **TypeScript** (strict) in `src/`, bundled per-context into `extension/` with **esbuild** (`npm run build`). No UI framework.
 - Tokenizer: **kuromoji.js** (npm), dictionary files bundled into the extension.
 - Dictionary: **JMdict-derived JSON** (~30k common words), generated once by `scripts/build-dictionary.mjs`.
 - Storage: `chrome.storage.local`.
