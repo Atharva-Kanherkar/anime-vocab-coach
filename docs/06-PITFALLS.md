@@ -27,8 +27,8 @@ Two rapid judgments (or content script + popup writing simultaneously) can inter
 ## 8. The site's own keyboard shortcuts
 YouTube reacts to `1`/`2`/`3` (seek) and `Esc`. The card's keydown handler must run on `window` with **capture: true** and call `stopPropagation()` + `preventDefault()` while the card is open, else judging a word also seeks the video.
 
-## 9. Crunchyroll is out of scope — do not attempt
-Crunchyroll renders subtitles into a **canvas** (libass/WASM); there is no subtitle text in the DOM. Supporting it means OCR or intercepting subtitle network responses — both out of scope for v1. If asked, the honest answer is "watch on Netflix/YouTube, or wait for v2".
+## 9. Crunchyroll has no subtitle text in the DOM
+Crunchyroll renders subtitles into a **canvas** (libass/WASM); there is no subtitle text to scrape, and its player lives in an iframe. v1 declared it out of scope; **v2 solves it with Listening Mode** (audio transcription — `docs/08-LISTENING-MODE.md`). Do not attempt DOM scraping or OCR there.
 
 ## 10. `basic_form` can be `"*"`
 kuromoji returns `"*"` for unknown-word basic forms. The token mapper in `docs/02` §2 already falls back to `surface_form`. Similarly `reading` can be `undefined` for unknown words — fall back to `""` and let dictionary lookup fail naturally (rule 4 filters it).
@@ -41,3 +41,25 @@ kuromoji returns `"*"` for unknown-word basic forms. The token mapper in `docs/0
 
 ## 13. Videos the user paused themselves
 Only auto-resume if the extension did the pausing (`wasPlaying === true` captured immediately before `video.pause()`). If the user hits play manually while the card is open, respect it — set `wasPlaying = false` on a `play` event during card display so dismissal doesn't pause/resume again.
+
+---
+
+## v2 pitfalls (Listening Mode & hidden tracks — see docs/08)
+
+## 14. Tab capture MUTES the tab unless you route audio back
+`getUserMedia` with `chromeMediaSource: "tab"` silences the tab for the viewer. The offscreen document must immediately do `audioCtx.createMediaStreamSource(stream).connect(audioCtx.destination)`. Forgetting this is the #1 "listening mode broke my video" bug.
+
+## 15. MediaRecorder timeslice chunks are not standalone files
+Only the first `dataavailable` blob contains the webm container header; later ones are raw clusters OpenAI rejects. Required pattern: a **fresh MediaRecorder per chunk** (record 12 s → stop → new recorder), never `rec.start(12000)` with timeslice.
+
+## 16. The MV3 service worker dies between chunks
+Keep listening-mode state in `chrome.storage.session`, never in SW module variables. The offscreen document is the thing that persists; the SW just relays messages and must work correctly when freshly woken.
+
+## 17. `getPlayerResponse()` only exists in the page world
+YouTube's caption-track list comes from the player API object, invisible to content scripts (isolated world). Hence `page/youtube-main.js` with `"world": "MAIN"` in the manifest (Chrome 111+) posting data via `window.postMessage`. Never try to read `ytInitialPlayerResponse` from the content script — it's stale after SPA navigation anyway.
+
+## 18. Timedtext URLs expire and are videoId-scoped
+Fetch the ja/en tracks fresh per video (the MAIN-world script re-posts on `yt-navigate-finish`); never cache `baseUrl` across videos or sessions. Append `&fmt=json3` via `URL.searchParams` — naive string concat breaks on URLs that already contain `fmt`.
+
+## 19. Only one frame should react to a transcript
+`chrome.tabs.sendMessage` reaches every frame running the content script (Crunchyroll runs it with `all_frames: true`). The rule: the frame whose adapter `getVideo()` returns non-null handles the transcript; every other frame ignores it. Without this you get double cards.

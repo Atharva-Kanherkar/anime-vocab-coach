@@ -43,12 +43,42 @@
         <input type="number" id="autoResumeSec" min="0" max="120">
       </label>
 
+      <label>Word cards show
+        <select id="displayScript">
+          <option value="romaji">Romaji first (for beginners — "taikutsu")</option>
+          <option value="kana">Kana first (たいくつ)</option>
+          <option value="kanji">Kanji first (退屈)</option>
+        </select>
+      </label>
+
+      <label><input type="checkbox" id="autoSpeak"> Speak the word aloud when a card opens</label>
+
       <fieldset>
         <legend>Sites enabled</legend>
         <label><input type="checkbox" id="site-youtube"> YouTube</label>
         <label><input type="checkbox" id="site-netflix"> Netflix</label>
         <label><input type="checkbox" id="site-generic"> Generic HTML5 tracks</label>
       </fieldset>
+    </section>
+
+    <section class="panel">
+      <h2>Listening mode (OpenAI)</h2>
+      <p class="note">
+        Netflix and Crunchyroll don't expose Japanese subtitles, so Listening Mode
+        transcribes the tab's audio with OpenAI instead. Start/stop it from the
+        toolbar popup while watching. Cost is roughly $0.05–0.10 per episode.
+        Your key is stored locally and sent only to api.openai.com.
+      </p>
+      <label>OpenAI API key
+        <input type="password" id="openaiKey" placeholder="sk-...">
+      </label>
+      <label>Transcription model
+        <select id="transcribeModel">
+          <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe (cheapest, recommended)</option>
+          <option value="gpt-4o-transcribe">gpt-4o-transcribe (most accurate)</option>
+          <option value="whisper-1">whisper-1</option>
+        </select>
+      </label>
     </section>
 
     <section class="panel">
@@ -92,6 +122,7 @@
 
   <script src="../src/log.js"></script>
   <script src="../src/storage.js"></script>
+  <script src="../src/romaji.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

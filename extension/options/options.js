@@ -35,6 +35,10 @@ async function loadSettingsForm() {
   document.getElementById("site-youtube").checked = s.sites?.youtube !== false;
   document.getElementById("site-netflix").checked = s.sites?.netflix !== false;
   document.getElementById("site-generic").checked = s.sites?.generic !== false;
+  document.getElementById("displayScript").value = s.displayScript || "romaji";
+  document.getElementById("autoSpeak").checked = s.autoSpeak !== false;
+  document.getElementById("openaiKey").value = s.openaiKey || "";
+  document.getElementById("transcribeModel").value = s.transcribeModel || "gpt-4o-mini-transcribe";
 }
 
 async function savePartial(partial) {
@@ -72,7 +76,7 @@ function renderTable() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${word}</td>
-      <td>${rec.reading || ""}</td>
+      <td>${AVC.romaji.toRomaji(rec.reading || "")}<br><small>${rec.reading || ""}</small></td>
       <td>${rec.gloss || ""}</td>
       <td>N${6 - rec.level}</td>
       <td>${rec.seenCount || 0}</td>
@@ -136,6 +140,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("site-generic").addEventListener("change", async (e) => {
     const s = await AVC.storage.getSettings();
     savePartial({ sites: { ...s.sites, generic: e.target.checked } });
+  });
+
+  document.getElementById("displayScript").addEventListener("change", (e) => {
+    savePartial({ displayScript: e.target.value });
+  });
+
+  document.getElementById("autoSpeak").addEventListener("change", (e) => {
+    savePartial({ autoSpeak: e.target.checked });
+  });
+
+  document.getElementById("openaiKey").addEventListener("change", (e) => {
+    savePartial({ openaiKey: e.target.value.trim() });
+  });
+
+  document.getElementById("transcribeModel").addEventListener("change", (e) => {
+    savePartial({ transcribeModel: e.target.value });
   });
 
   document.getElementById("search").addEventListener("input", (e) => {

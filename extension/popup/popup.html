@@ -22,6 +22,15 @@
   <section class="totals-row" id="totals-row"></section>
   <section class="streak" id="streak"></section>
 
+  <section class="listen">
+    <button id="listen-btn" type="button">🎧 Start Listening Mode</button>
+    <p class="listen-note" id="listen-note">
+      For Netflix &amp; Crunchyroll: transcribes the audio with OpenAI so cards work
+      without Japanese subtitles. Needs an API key (Settings). ~$0.05–0.10 per episode.
+    </p>
+    <p class="listen-error" id="listen-error" hidden></p>
+  </section>
+
   <section class="recent">
     <h2>Recent words</h2>
     <ul id="recent-list"></ul>
@@ -35,6 +44,7 @@
 
   <script src="../src/log.js"></script>
   <script src="../src/storage.js"></script>
+  <script src="../src/romaji.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

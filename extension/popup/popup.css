@@ -73,6 +73,39 @@ body {
   margin-bottom: 12px;
 }
 
+.listen {
+  margin-bottom: 12px;
+}
+
+#listen-btn {
+  width: 100%;
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  border: 1px solid #f87171;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#listen-btn.active {
+  background: #f87171;
+  color: #1c1c24;
+}
+
+.listen-note {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.listen-error {
+  font-size: 11px;
+  color: #f87171;
+  margin-top: 6px;
+}
+
 .recent h2 {
   font-size: 11px;
   color: #9ca3af;

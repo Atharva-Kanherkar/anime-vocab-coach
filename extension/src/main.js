@@ -1,11 +1,8 @@
 (function () {
   AVC.adapters = AVC.adapters || [];
 
-  const adapter = AVC.adapters.find((a) => a.matches());
-  if (!adapter) return;
-
-  AVC.log("adapter chosen:", adapter.name);
-
+  let adapter = null;
+  let started = false;
   let initialized = false;
   let pipelineDisabled = false;
   let settings = null;
@@ -14,6 +11,19 @@
   let lastPath = location.pathname;
   const targetedThisSession = new Set();
   let watchInterval = null;
+
+  // Adapters can start matching late (e.g. Crunchyroll's player iframe creates
+  // its <video> well after document_idle), so keep looking until one matches.
+  function pickAdapter() {
+    if (adapter) return adapter;
+    adapter = AVC.adapters.find((a) => a.matches()) || null;
+    if (adapter && !started) {
+      started = true;
+      AVC.log("adapter chosen:", adapter.name);
+      adapter.start(onLine);
+    }
+    return adapter;
+  }
 
   async function ensureInit() {
     if (initialized || pipelineDisabled) return;
@@ -34,7 +44,7 @@
   function startWatchInterval() {
     if (watchInterval) return;
     watchInterval = setInterval(async () => {
-      const video = adapter.getVideo();
+      const video = adapter && adapter.getVideo();
       if (!video || video.paused || video.ended) return;
       await AVC.storage.recordWatchTick();
     }, 60000);
@@ -45,8 +55,8 @@
     wordStates = await AVC.storage.getVocab();
   }
 
-  async function handleCard(target, sentence) {
-    const video = adapter.getVideo();
+  async function handleCard(target, sentence, tokens, context) {
+    const video = adapter && adapter.getVideo();
     targetedThisSession.add(target.token.base);
     await AVC.storage.recordCardShown(target.token.base);
 
@@ -57,21 +67,27 @@
       freqRank: target.entry.freqRank
     };
 
+    const cardOptions = {
+      autoResumeSec: settings.autoResumeSec,
+      displayScript: settings.displayScript || "romaji",
+      autoSpeak: settings.autoSpeak !== false,
+      contextEn: context?.en || "",
+      fromAudio: !!context?.fromAudio,
+      tokens,
+      targetIndex: tokens.indexOf(target.token)
+    };
+
     let judgment;
     if (settings.pauseMode === "notify") {
       judgment = await new Promise((resolve) => {
         AVC.overlay.showToast(target, sentence, video, async () => {
           if (video && !video.paused) video.pause();
-          const j = await AVC.overlay.showCard(target, sentence, video, {
-            autoResumeSec: settings.autoResumeSec
-          });
+          const j = await AVC.overlay.showCard(target, sentence, video, cardOptions);
           resolve(j);
         });
       });
     } else {
-      judgment = await AVC.overlay.showCard(target, sentence, video, {
-        autoResumeSec: settings.autoResumeSec
-      });
+      judgment = await AVC.overlay.showCard(target, sentence, video, cardOptions);
     }
 
     if (judgment && judgment !== "dismiss") {
@@ -80,14 +96,14 @@
     }
   }
 
-  async function onLine(text) {
+  async function onLine(text, context) {
     if (pipelineDisabled) return;
 
     settings = await AVC.storage.getSettings();
 
     if (settings.pauseMode === "off") return;
 
-    const siteKey = adapter.name;
+    const siteKey = adapter ? adapter.name : "generic";
     if (settings.sites && settings.sites[siteKey] === false) return;
 
     await ensureInit();
@@ -116,10 +132,32 @@
       if (cardTimestamps.length >= settings.maxCardsPerHour) return;
     }
 
-    await handleCard(target, normalized);
+    await handleCard(target, normalized, tokens, context);
   }
 
-  adapter.start(onLine);
+  // Listening mode: the offscreen document transcribes this tab's audio and the
+  // background forwards Japanese text here. Only the frame that owns the video
+  // handles it (matters on sites whose player lives in an iframe).
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type !== "avc-transcript") return;
+    const a = pickAdapter();
+    if (!a || !a.getVideo()) return;
+    const en = a.getVisibleText ? a.getVisibleText() : "";
+    const segments = msg.text
+      .split(/(?<=[。！？])/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    (async () => {
+      for (const seg of segments) {
+        await onLine(seg, { en, fromAudio: true });
+      }
+    })().catch((err) => AVC.warn("transcript handling failed:", err));
+  });
+
+  pickAdapter();
+  const pickTimer = setInterval(() => {
+    if (pickAdapter()) clearInterval(pickTimer);
+  }, 2000);
 
   setInterval(() => {
     if (location.pathname !== lastPath) {

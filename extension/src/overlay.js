@@ -18,7 +18,7 @@ AVC.overlay = (function () {
     .avc-card {
       background: #1c1c24; color: #f2f2f7;
       border-radius: 14px; padding: 24px;
-      width: min(420px, 90vw);
+      width: min(440px, 90vw);
       pointer-events: auto;
       opacity: 0; transform: scale(0.96);
       transition: opacity 150ms ease, transform 150ms ease;
@@ -30,14 +30,30 @@ AVC.overlay = (function () {
       background: rgba(139,124,246,.15); padding: 4px 10px;
       border-radius: 8px; margin-bottom: 12px;
     }
-    .avc-word { font-size: 44px; font-weight: bold; line-height: 1.1; }
-    .avc-reading { font-size: 20px; color: #8b7cf6; margin: 6px 0 10px; }
+    .avc-word-row { display: flex; align-items: center; gap: 12px; }
+    .avc-word { font-size: 42px; font-weight: bold; line-height: 1.1; letter-spacing: 0.5px; }
+    .avc-speak {
+      background: rgba(139,124,246,.15); color: #8b7cf6;
+      border: 1px solid #8b7cf6; border-radius: 50%;
+      width: 40px; height: 40px; min-width: 40px; cursor: pointer;
+      font-size: 18px; line-height: 1;
+    }
+    .avc-secondary { font-size: 18px; color: #8b7cf6; margin: 6px 0 10px; }
     .avc-gloss { font-size: 17px; color: #f2f2f7; margin-bottom: 14px; }
+    .avc-context {
+      font-size: 14px; color: #f2f2f7; line-height: 1.5;
+      margin-bottom: 10px; padding: 10px 12px;
+      background: rgba(74,222,128,.08); border-left: 3px solid #4ade80;
+      border-radius: 8px;
+    }
+    .avc-context .avc-label { display: block; font-size: 10px; color: #9ca3af; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px; }
     .avc-sentence {
       font-size: 15px; color: #9ca3af; line-height: 1.6;
       margin-bottom: 18px; padding: 10px 12px;
       background: rgba(255,255,255,.04); border-radius: 8px;
     }
+    .avc-sentence .avc-label { display: block; font-size: 10px; color: #9ca3af; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px; }
+    .avc-sentence .avc-ja-small { display: block; font-size: 12px; color: #6b7280; margin-top: 4px; }
     .avc-sentence mark {
       background: transparent; color: #8b7cf6; font-weight: bold;
     }
@@ -85,9 +101,61 @@ AVC.overlay = (function () {
     return host.shadowRoot;
   }
 
-  function highlightSentence(sentence, surface) {
-    const escaped = surface.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return sentence.replace(new RegExp(escaped, "g"), (m) => `<mark>${m}</mark>`);
+  // What the learner reads depends on displayScript. A scratch beginner
+  // (romaji) leads with roman letters; kana/kanji modes for readers.
+  function wordDisplays(token, entry, displayScript) {
+    const romaji = AVC.romaji.toRomaji(entry.reading);
+    if (displayScript === "kana") {
+      return { big: entry.reading, secondary: `${romaji} · ${token.surface}` };
+    }
+    if (displayScript === "kanji") {
+      return { big: token.surface, secondary: `${entry.reading} · ${romaji}` };
+    }
+    const secondary = token.surface === entry.reading
+      ? entry.reading
+      : `${entry.reading} · ${token.surface}`;
+    return { big: romaji, secondary };
+  }
+
+  // Build the sentence box safely (no innerHTML on subtitle/transcript text).
+  function buildSentence(sentence, tokens, targetIndex, surface, displayScript) {
+    const el = document.createElement("div");
+    el.className = "avc-sentence";
+
+    const label = document.createElement("span");
+    label.className = "avc-label";
+    label.textContent = "In this line";
+    el.appendChild(label);
+
+    if (displayScript === "romaji" && tokens && tokens.length) {
+      const pieces = AVC.romaji.sentencePieces(tokens, targetIndex);
+      pieces.forEach((p, idx) => {
+        const node = p.highlight ? document.createElement("mark") : document.createTextNode("");
+        if (p.highlight) {
+          node.textContent = p.text;
+          el.appendChild(node);
+        } else {
+          el.appendChild(document.createTextNode(p.text));
+        }
+        if (idx < pieces.length - 1) el.appendChild(document.createTextNode(" "));
+      });
+      const jaSmall = document.createElement("span");
+      jaSmall.className = "avc-ja-small";
+      jaSmall.textContent = sentence;
+      el.appendChild(jaSmall);
+      return el;
+    }
+
+    const parts = sentence.split(surface);
+    parts.forEach((part, idx) => {
+      el.appendChild(document.createTextNode(part));
+      if (idx < parts.length - 1) {
+        const mark = document.createElement("mark");
+        mark.textContent = surface;
+        el.appendChild(mark);
+      }
+    });
+    return el;
   }
 
   function cleanup(root, video) {
@@ -123,6 +191,8 @@ AVC.overlay = (function () {
     open = true;
     userResumed = false;
 
+    const opts = options || {};
+    const displayScript = opts.displayScript || "romaji";
     const { token, entry, isReview } = target;
     const wasPlaying = video && !video.paused && !video.ended;
 
@@ -145,23 +215,48 @@ AVC.overlay = (function () {
 
     const chip = document.createElement("div");
     chip.className = "avc-chip";
-    chip.textContent = isReview ? "復習 · Review" : `N${6 - entry.level}-ish · #${entry.freqRank.toLocaleString()}`;
+    chip.textContent = isReview
+      ? "復習 · Review — you learned this word. Remember it?"
+      : `N${6 - entry.level}-ish · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · 🎧 heard just now" : ""}`;
 
+    const displays = wordDisplays(token, entry, displayScript);
+
+    const wordRow = document.createElement("div");
+    wordRow.className = "avc-word-row";
     const wordEl = document.createElement("div");
     wordEl.className = "avc-word";
-    wordEl.textContent = token.surface;
+    wordEl.textContent = displays.big;
+    const speakBtn = document.createElement("button");
+    speakBtn.className = "avc-speak";
+    speakBtn.textContent = "🔊";
+    speakBtn.title = "Hear it";
+    speakBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      AVC.romaji.speak(token.surface);
+    });
+    wordRow.appendChild(wordEl);
+    wordRow.appendChild(speakBtn);
 
-    const readingEl = document.createElement("div");
-    readingEl.className = "avc-reading";
-    readingEl.textContent = entry.reading;
+    const secondaryEl = document.createElement("div");
+    secondaryEl.className = "avc-secondary";
+    secondaryEl.textContent = displays.secondary;
 
     const glossEl = document.createElement("div");
     glossEl.className = "avc-gloss";
     glossEl.textContent = entry.glosses.join(" · ");
 
-    const sentenceEl = document.createElement("div");
-    sentenceEl.className = "avc-sentence";
-    sentenceEl.innerHTML = highlightSentence(sentence, token.surface);
+    let contextEl = null;
+    if (opts.contextEn) {
+      contextEl = document.createElement("div");
+      contextEl.className = "avc-context";
+      const label = document.createElement("span");
+      label.className = "avc-label";
+      label.textContent = "English subtitle";
+      contextEl.appendChild(label);
+      contextEl.appendChild(document.createTextNode(opts.contextEn));
+    }
+
+    const sentenceEl = buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript);
 
     const buttons = document.createElement("div");
     buttons.className = "avc-buttons";
@@ -170,25 +265,26 @@ AVC.overlay = (function () {
     hint.className = "avc-hint";
 
     card.appendChild(chip);
-    card.appendChild(wordEl);
+    card.appendChild(wordRow);
 
     if (isReview) {
-      readingEl.style.display = "none";
+      secondaryEl.style.display = "none";
       glossEl.style.display = "none";
 
       const showBtn = document.createElement("button");
       showBtn.className = "avc-show-answer";
       showBtn.textContent = "Show answer";
       showBtn.addEventListener("click", () => {
-        readingEl.style.display = "";
+        secondaryEl.style.display = "";
         glossEl.style.display = "";
         showBtn.remove();
       });
       card.appendChild(showBtn);
     }
 
-    card.appendChild(readingEl);
+    card.appendChild(secondaryEl);
     card.appendChild(glossEl);
+    if (contextEl) card.appendChild(contextEl);
     card.appendChild(sentenceEl);
 
     let judgments;
@@ -252,7 +348,11 @@ AVC.overlay = (function () {
 
     requestAnimationFrame(() => card.classList.add("avc-visible"));
 
-    const autoSec = options?.autoResumeSec || 0;
+    if (opts.autoSpeak) {
+      setTimeout(() => AVC.romaji.speak(token.surface), 250);
+    }
+
+    const autoSec = opts.autoResumeSec || 0;
     if (autoSec > 0) {
       autoTimer = setTimeout(() => {
         finish(root, video, wasPlaying, "dismiss");
@@ -283,7 +383,8 @@ AVC.overlay = (function () {
     }
 
     const { token, entry } = target;
-    toast.textContent = `${token.surface} ${entry.reading} — ${entry.glosses[0] || ""}`;
+    const romaji = AVC.romaji.toRomaji(entry.reading);
+    toast.textContent = `${romaji} (${token.surface}) — ${entry.glosses[0] || ""}`;
     toast.onclick = () => {
       if (toastTimer) clearTimeout(toastTimer);
       toast.classList.remove("avc-visible");

@@ -7,8 +7,12 @@ AVC.storage = (function () {
     pauseMode: "pause",
     cooldownSec: 20,
     maxCardsPerHour: 12,
-    targetLevel: 4,
+    targetLevel: 5,
     autoResumeSec: 0,
+    displayScript: "romaji",
+    autoSpeak: true,
+    openaiKey: "",
+    transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
   };
 

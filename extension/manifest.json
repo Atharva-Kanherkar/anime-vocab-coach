@@ -1,10 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Anime Vocab Coach",
-  "version": "0.1.0",
-  "description": "Learn Japanese vocabulary from the anime you watch. Pauses on words worth learning and tracks your progress.",
-  "permissions": ["storage"],
-  "host_permissions": ["*://*.youtube.com/*", "*://*.netflix.com/*"],
+  "version": "0.2.0",
+  "description": "Learn Japanese from the anime you watch — even if you can't read it yet. Watches with you, pauses on words worth learning, tracks progress.",
+  "permissions": ["storage", "tabCapture", "offscreen"],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.netflix.com/*",
+    "*://*.crunchyroll.com/*",
+    "https://api.openai.com/*"
+  ],
   "background": { "service_worker": "background.js" },
   "action": { "default_popup": "popup/popup.html", "default_title": "Anime Vocab Coach" },
   "options_page": "options/options.html",
@@ -14,6 +19,7 @@
       "js": [
         "vendor/kuromoji.js",
         "src/log.js",
+        "src/romaji.js",
         "src/storage.js",
         "src/dictionary.js",
         "src/tokenizer.js",
@@ -26,6 +32,32 @@
       ],
       "run_at": "document_idle",
       "all_frames": false
+    },
+    {
+      "matches": ["*://*.crunchyroll.com/*"],
+      "js": [
+        "vendor/kuromoji.js",
+        "src/log.js",
+        "src/romaji.js",
+        "src/storage.js",
+        "src/dictionary.js",
+        "src/tokenizer.js",
+        "src/scoring.js",
+        "src/overlay.js",
+        "src/adapters/youtube.js",
+        "src/adapters/netflix.js",
+        "src/adapters/generic.js",
+        "src/main.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["page/youtube-main.js"],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "world": "MAIN"
     }
   ],
   "web_accessible_resources": [

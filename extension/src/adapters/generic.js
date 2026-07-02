@@ -1,13 +1,5 @@
 AVC.adapters = AVC.adapters || [];
 
-function normalize(text) {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function hasJapanese(text) {
-  return /[぀-ヿ㐀-䶿一-鿿]/.test(text);
-}
-
 AVC.adapters.push({
   name: "generic",
   matches() {
@@ -20,9 +12,32 @@ AVC.adapters.push({
     }
     return videos[0] || null;
   },
+  getVisibleText() {
+    const video = this.getVideo();
+    if (!video || !video.textTracks) return "";
+    const parts = [];
+    for (const track of video.textTracks) {
+      if (track.mode !== "showing" || !track.activeCues) continue;
+      for (const cue of track.activeCues) {
+        if (cue.text) parts.push(cue.text.replace(/<[^>]+>/g, ""));
+      }
+    }
+    return normalize(parts.join(" "));
+  },
   start(onLine) {
     const hooked = new WeakSet();
     const lastByTrack = new WeakMap();
+
+    const enContext = (video) => {
+      for (const track of video.textTracks) {
+        if (!(track.language || "").startsWith("en") || !track.activeCues) continue;
+        const text = normalize(
+          Array.from(track.activeCues).map((c) => c.text.replace(/<[^>]+>/g, "")).join(" ")
+        );
+        if (text) return text;
+      }
+      return "";
+    };
 
     setInterval(() => {
       try {
@@ -30,6 +45,8 @@ AVC.adapters.push({
           for (const track of v.textTracks) {
             if (hooked.has(track)) continue;
             hooked.add(track);
+            // A hidden track still fires cuechange — so a Japanese track can
+            // feed the pipeline while the viewer displays English (or nothing).
             if (track.mode === "disabled") track.mode = "hidden";
 
             track.addEventListener("cuechange", () => {
@@ -45,7 +62,7 @@ AVC.adapters.push({
                 if (!text || text === lastText) return;
                 if (!hasJapanese(text)) return;
                 lastByTrack.set(track, text);
-                onLine(text);
+                onLine(text, { en: enContext(v) });
               } catch (err) {
                 AVC.warn("generic adapter cue error:", err);
               }

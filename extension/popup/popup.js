@@ -69,10 +69,11 @@ async function render() {
   list.innerHTML = "";
 
   for (const [word, rec] of recent) {
+    const romaji = AVC.romaji.toRomaji(rec.reading || "");
     const li = document.createElement("li");
     li.innerHTML = `
-      <span class="word">${word}</span>
-      <span class="reading">${rec.reading || ""}</span>
+      <span class="word">${romaji || word}</span>
+      <span class="reading">${word} · ${rec.gloss || rec.reading || ""}</span>
       <select data-word="${word}">
         <option value="new" ${rec.state === "new" ? "selected" : ""}>new</option>
         <option value="learning" ${rec.state === "learning" ? "selected" : ""}>learning</option>
@@ -93,8 +94,44 @@ async function render() {
   pill.textContent = settings.pauseMode;
 }
 
+async function activeTabId() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab ? tab.id : null;
+}
+
+async function initListening() {
+  const btn = document.getElementById("listen-btn");
+  const errEl = document.getElementById("listen-error");
+  const tabId = await activeTabId();
+  if (tabId == null) return;
+
+  const setUi = (listening) => {
+    btn.classList.toggle("active", listening);
+    btn.textContent = listening ? "🎧 Stop Listening Mode" : "🎧 Start Listening Mode";
+  };
+
+  chrome.runtime.sendMessage({ type: "avc-listen-status", tabId }, (res) => {
+    setUi(!!res?.listening);
+  });
+
+  btn.addEventListener("click", () => {
+    errEl.hidden = true;
+    const starting = !btn.classList.contains("active");
+    const type = starting ? "avc-listen-start" : "avc-listen-stop";
+    chrome.runtime.sendMessage({ type, tabId }, (res) => {
+      if (res?.ok) {
+        setUi(starting);
+      } else {
+        errEl.textContent = res?.error || "Failed to toggle listening mode.";
+        errEl.hidden = false;
+      }
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   render();
+  initListening();
 
   const modes = ["pause", "notify", "off"];
   document.getElementById("mode-pill").addEventListener("click", async (e) => {

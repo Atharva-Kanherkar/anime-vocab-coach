@@ -56,6 +56,13 @@ Options page adds: settings (mode, cooldown, hourly cap, level targeting, per-si
 | Mode | `settings.pauseMode` | `"pause"` (`"notify"`, `"off"`) |
 | Cooldown between cards | `settings.cooldownSec` | `20` |
 | Max cards per rolling hour | `settings.maxCardsPerHour` | `12` |
-| Target level | `settings.targetLevel` | `4` (N4; range 5..1) |
+| Target level | `settings.targetLevel` | `5` (N5 — scratch beginner; range 5..1) |
 | Auto-resume after card with no interaction | `settings.autoResumeSec` | `0` (disabled) |
 | Sites enabled | `settings.sites` | `{youtube: true, netflix: true, generic: true}` |
+| Card script (v2) | `settings.displayScript` | `"romaji"` (`"kana"`, `"kanji"`) |
+| Speak word on card open (v2) | `settings.autoSpeak` | `true` |
+| OpenAI API key for Listening Mode (v2) | `settings.openaiKey` | `""` |
+| Transcription model (v2) | `settings.transcribeModel` | `"gpt-4o-mini-transcribe"` |
+
+> **v2 note:** the "user has Japanese subtitles enabled" assumption above is v1-only.
+> v2 removes it — see `docs/08-LISTENING-MODE.md`.
