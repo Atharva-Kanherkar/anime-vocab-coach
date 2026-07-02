@@ -1,0 +1,52 @@
+# Anime Vocab Coach — Implementation Spec
+
+A Chrome extension (Manifest V3) that turns anime/Japanese video watching into active vocabulary study:
+
+1. It watches the **subtitles** of the video you're playing (YouTube, Netflix, generic HTML5 players).
+2. It tokenizes each Japanese subtitle line, looks words up in a bundled dictionary, and **scores** them by frequency, level, and your personal history.
+3. When a word worth learning appears, it **pauses the video** and shows a card: the word, its reading, its meaning, and buttons — *I know it / Learn it / Ignore*.
+4. It **tracks your progress** (words met, learning queue, streaks) and re-surfaces learning words *in context* when they appear again in whatever you're watching — spaced repetition powered by anime instead of flashcards.
+
+This repository is **not the extension** — it is the complete build plan. Every technical decision has already been made and written down so that an implementing agent (human or AI) never has to guess.
+
+## How to build this
+
+Read and implement the docs **in order**. Do not skip ahead. Do not substitute technologies.
+
+| Doc | What it locks down |
+|---|---|
+| [`docs/00-PRODUCT-SPEC.md`](docs/00-PRODUCT-SPEC.md) | Exact user-facing behavior, modes, defaults |
+| [`docs/01-ARCHITECTURE.md`](docs/01-ARCHITECTURE.md) | File tree, module boundaries, data flow, manifest.json (verbatim) |
+| [`docs/02-DATA-MODEL.md`](docs/02-DATA-MODEL.md) | Storage schemas, dictionary format, scoring formula, SRS algorithm — all exact |
+| [`docs/03-MILESTONES.md`](docs/03-MILESTONES.md) | The build order: 9 milestones, each with acceptance tests you MUST pass before continuing |
+| [`docs/04-SITE-ADAPTERS.md`](docs/04-SITE-ADAPTERS.md) | Per-site subtitle capture: selectors, observers, edge cases |
+| [`docs/05-UI-SPEC.md`](docs/05-UI-SPEC.md) | Overlay card, popup dashboard, options page — exact DOM, CSS, copy text |
+| [`docs/06-PITFALLS.md`](docs/06-PITFALLS.md) | Known traps (MV3 service-worker XHR, fullscreen overlays, Netflix SPA nav…) and their required workarounds |
+| [`docs/07-QA-CHECKLIST.md`](docs/07-QA-CHECKLIST.md) | Final manual test script before calling it done |
+| [`scripts/build-dictionary.mjs`](scripts/build-dictionary.mjs) | **Already written.** Generates `data/dictionary.json` from JMdict. Run it; don't rewrite it. |
+
+## Hand-off prompt (paste this into your coding agent)
+
+> Clone this repo and read `AGENTS.md`, then `docs/00` through `docs/07` in order. Implement the Chrome extension exactly as specified, milestone by milestone per `docs/03-MILESTONES.md`. After each milestone, run its acceptance test and show me the result before starting the next milestone. Never deviate from the spec; if something is genuinely impossible as written, stop and report it instead of improvising.
+
+## Tech stack (final — do not change)
+
+- Chrome extension, **Manifest V3**, plain JavaScript, **no build step, no framework, no TypeScript**.
+- Tokenizer: **kuromoji.js** (npm), dictionary files bundled into the extension.
+- Dictionary: **JMdict-derived JSON** (~15–20k common words), generated once by `scripts/build-dictionary.mjs`.
+- Storage: `chrome.storage.local`.
+- Supported sites v1: **YouTube**, **Netflix**, and any page using native HTML5 `<track>` text tracks. (Crunchyroll is explicitly out of scope for v1 — see `docs/06-PITFALLS.md` §9.)
+
+## Status
+
+- [x] Spec complete
+- [ ] M0 Scaffold
+- [ ] M1 YouTube subtitle capture
+- [ ] M2 Tokenizer
+- [ ] M3 Dictionary + lookup
+- [ ] M4 Pause + overlay card
+- [ ] M5 Progress storage
+- [ ] M6 Popup dashboard
+- [ ] M7 Netflix + generic adapters
+- [ ] M8 Options + in-context SRS
+- [ ] M9 Polish + QA
