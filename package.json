@@ -15,5 +15,8 @@
   "license": "ISC",
   "dependencies": {
     "kuromoji": "^0.1.2"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
   }
 }

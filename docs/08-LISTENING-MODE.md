@@ -12,16 +12,18 @@ The viewer keeps English subs; the extension gets the Japanese another way, and 
 card teaches in romaji, anchored to the English line they just read and the audio
 they just heard.
 
-## The three Japanese-text sources (in priority order per site)
+## Japanese-text sources — TESTED, with results
 
-| Source | Sites | Cost | How |
-|---|---|---|---|
-| **Hidden caption track** | YouTube | free | MAIN-world script (`page/youtube-main.js`) reads `movie_player.getPlayerResponse().captions…captionTracks` and posts them to the content script, which fetches the `ja` track (`baseUrl` + `&fmt=json3`) — manual preferred over `asr` — plus an `en` track for context. Cues are synced to `video.currentTime` via `timeupdate`. The viewer's own caption setting is irrelevant. |
-| **Hidden `<track>`** | any native HTML5 player | free | A `ja` text track set to `mode: "hidden"` still fires `cuechange`. The generic adapter hooks all tracks and pulls English context from any `en` track's active cues. |
-| **Audio transcription** | Netflix, Crunchyroll, anything | ~$0.05–0.10/episode | Neither site exposes an unselected Japanese text track (Netflix downloads only the chosen track; Crunchyroll renders subs into canvas). So: `chrome.tabCapture` → offscreen document → 12 s audio chunks → OpenAI `/v1/audio/transcriptions` (`gpt-4o-mini-transcribe`, `language=ja`) → text into the same pipeline. English context comes from whatever subtitle is visible in the DOM (`adapter.getVisibleText()`). |
+| Source | Sites | Status (tested 2026-07-03, real browser) |
+|---|---|---|
+| **Audio transcription (Realtime)** | YouTube, Netflix, Crunchyroll, anything | ✅ **PRIMARY.** `chrome.tabCapture` → offscreen document → PCM16/24k streamed over a WebSocket to OpenAI's GA Realtime transcription API (`wss://api.openai.com/v1/realtime?intent=transcription`) → `.completed` transcripts into the pipeline. Transcript arrives ~1–2 s after a line is spoken. Verified live: returned 「こんな退屈な毎日は、もう嫌だ。」 |
+| **Hidden `<track>`** | native HTML5 players | ✅ Works. A `ja` track set to `mode:"hidden"` still fires `cuechange`. Verified: local page → card for 学校 rendered in-browser. |
+| **DOM scrape of displayed subs** | YouTube, Netflix | ⚠️ Works only if the viewer *displays* Japanese subs (defeats the beginner use case, but kept as a fallback). |
+| **Hidden YouTube caption track** | YouTube | ❌ **DEAD.** `getPlayerResponse().captions` still lists the `ja` track, but fetching its `baseUrl` (even `&fmt=json3`) now returns an **empty 200 body** — YouTube requires a Proof-of-Origin token a content script can't mint. Confirmed inside the loaded extension. The MAIN-world `page/youtube-main.js` + fetch machinery is kept but self-disables on the empty body. |
 
-DOM-scraping of displayed Japanese subs (the whole of v1) survives as a fallback for
-viewers who do display them.
+**Conclusion: audio transcription is the one mechanism that works for the target user
+on every site.** On YouTube you no longer get a free ride — Listening Mode is the path
+there too (or turn on Japanese captions to read them from the DOM).
 
 ## Romaji-first card
 
@@ -42,25 +44,34 @@ viewers who do display them.
 ```
 popup    → background : {type:"avc-listen-start"|"avc-listen-stop"|"avc-listen-status", tabId}
 background→offscreen  : {type:"avc-offscreen-start", streamId, tabId, key, model} | {type:"avc-offscreen-stop", tabId}
-offscreen → background: {type:"avc-transcript", tabId, text} | {type:"avc-listen-error", tabId, code, detail}
+                         (retried until the offscreen doc acks — it loads AFTER createDocument resolves)
+offscreen → background: {type:"avc-transcript", tabId, text} | {type:"avc-offscreen-log", line} | {type:"avc-listen-error", tabId, code, detail}
 background→ tab       : {type:"avc-transcript", text}   // content script (frame that owns the video) feeds pipeline
 ```
 
-State: `chrome.storage.session.listeningTabs` (the SW can be torn down between
-chunks; the offscreen document persists). Badge: `REC` red while capturing.
-Stop on tab close via `tabs.onRemoved`.
+State: `chrome.storage.session.listeningTabs` (the SW can be torn down mid-session;
+the offscreen document persists). Badge: `REC` red while capturing. Stop on tab close
+via `tabs.onRemoved`. Every offscreen step is mirrored to the SW console as
+`[AVC-audio] …` because the offscreen console is not inspectable.
 
-## Offscreen capture rules (all mandatory)
+## Offscreen capture rules (all mandatory) — GA Realtime streaming
 
 1. `getUserMedia` with `chromeMediaSource: "tab"` + the streamId from
    `chrome.tabCapture.getMediaStreamId({targetTabId})` (user gesture = popup click).
-2. Route captured audio back: `AudioContext` source → destination, else the tab
+2. Route captured audio back to speakers: `source → ctx.destination`, else the tab
    goes **silent** for the viewer.
-3. Fresh `MediaRecorder` per 12 s chunk (timeslice chunks after the first lack the
-   webm header and are rejected by the API).
-4. Skip blobs < 4 KB (silence); drop non-Japanese transcripts (music hallucinations).
-5. 401 → surface "invalid key" and stop; 429 → keep capturing, drop chunk; other
-   errors → drop chunk silently.
+3. Tap the same source through a `ScriptProcessorNode` → muted `GainNode` →
+   destination (keeps it processing without doubling audio). In `onaudioprocess`,
+   downsample to 24 kHz, convert Float32 → Int16, base64, and
+   `input_audio_buffer.append`.
+4. WebSocket: `wss://api.openai.com/v1/realtime?intent=transcription`, subprotocols
+   `["realtime", "openai-insecure-api-key." + key]` (the beta subprotocol
+   `openai-beta.realtime-v1` is REJECTED — GA only). On `session.created` send
+   `session.update` with `session.type:"transcription"`, `audio.input.format
+   {type:"audio/pcm", rate:24000}`, `transcription {model, language:"ja"}`,
+   `turn_detection {type:"server_vad"}`. Gate audio sends on `session.updated`.
+5. Read `conversation.item.input_audio_transcription.completed.transcript`; drop
+   non-Japanese. Auth errors → `invalid-key` + stop; otherwise reconnect up to 3×.
 
 ## Known limitations (accepted)
 

@@ -37,7 +37,12 @@ AVC.adapters.push((function () {
     url.searchParams.set("fmt", "json3");
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
-    return parseJson3(await res.json());
+    const text = await res.text();
+    // YouTube now returns an empty 200 body unless the request carries a
+    // Proof-of-Origin token, which content scripts can't produce. Treat empty
+    // as "no captions available" rather than an error.
+    if (!text) return [];
+    return parseJson3(JSON.parse(text));
   }
 
   function pickTrack(tracks, langPrefix) {
@@ -59,11 +64,15 @@ AVC.adapters.push((function () {
     }
     try {
       jaCues = await fetchTrack(jaTrack);
-      AVC.log(`youtube: loaded ${jaCues.length} Japanese cues (${jaTrack.kind === "asr" ? "auto-generated" : "manual"})`);
     } catch (err) {
-      AVC.warn("youtube: ja track fetch failed:", err);
+      jaCues = [];
+    }
+    if (!jaCues.length) {
+      AVC.log("youtube: hidden caption track unavailable (YouTube blocks silent fetches). " +
+        "Use Listening Mode from the toolbar, or turn on Japanese captions to read them from the page.");
       return;
     }
+    AVC.log(`youtube: loaded ${jaCues.length} Japanese cues (${jaTrack.kind === "asr" ? "auto-generated" : "manual"})`);
     const enTrack = pickTrack(msg.tracks, "en");
     if (enTrack) {
       try {

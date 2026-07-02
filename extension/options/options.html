@@ -62,12 +62,13 @@
     </section>
 
     <section class="panel">
-      <h2>Listening mode (OpenAI)</h2>
+      <h2>Listening mode (OpenAI Realtime)</h2>
       <p class="note">
-        Netflix and Crunchyroll don't expose Japanese subtitles, so Listening Mode
-        transcribes the tab's audio with OpenAI instead. Start/stop it from the
-        toolbar popup while watching. Cost is roughly $0.05–0.10 per episode.
-        Your key is stored locally and sent only to api.openai.com.
+        Listening Mode streams the tab's audio to OpenAI's Realtime transcription API
+        and shows cards from what's spoken — within a second or two, while you keep
+        English subtitles on. Works on YouTube, Netflix, and Crunchyroll. Start/stop it
+        from the toolbar popup. Roughly $0.10–0.20 per episode. Your key is stored
+        locally and sent only to api.openai.com.
       </p>
       <label>OpenAI API key
         <input type="password" id="openaiKey" placeholder="sk-...">
@@ -76,7 +77,6 @@
         <select id="transcribeModel">
           <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe (cheapest, recommended)</option>
           <option value="gpt-4o-transcribe">gpt-4o-transcribe (most accurate)</option>
-          <option value="whisper-1">whisper-1</option>
         </select>
       </label>
     </section>
