@@ -9,6 +9,7 @@
 // That keeps the whole thing on Cloudflare's free tier for thousands of users.
 //
 // Endpoints (all JSON, CORS *, license key via "Authorization: Bearer <key>"):
+//   GET  /v1/public/config                  -> promo flag, checkout URLs (no auth)
 //   POST /v1/license/activate   { licenseKey }  -> activate key with Dodo, return status
 //   GET  /v1/license/status                     -> plan status + minutes used/cap
 //   POST /v1/session                            -> ephemeral OpenAI token for one listening session
@@ -16,6 +17,7 @@
 
 import { activateLicense, validateLicense } from "./dodo";
 import { mintTranscriptionToken } from "./openai";
+import { publicConfig } from "./promo";
 import { addMinutes, getUsage } from "./usage";
 
 export interface Env {
@@ -25,6 +27,9 @@ export interface Env {
   CAP_MINUTES: string;
   TRANSCRIBE_MODEL: string;
   DODO_API_BASE: string;
+  CHECKOUT_URL: string;
+  PROMO_CHECKOUT_URL: string;
+  PROMO_END_UTC: string;
 }
 
 const CORS: Record<string, string> = {
@@ -77,6 +82,10 @@ export default {
     }
 
     try {
+      if (path === "/v1/public/config" && req.method === "GET") {
+        return json(publicConfig(env));
+      }
+
       if (path === "/v1/license/activate" && req.method === "POST") {
         const body = (await req.json().catch(() => ({}))) as { licenseKey?: string };
         const licenseKey = (body.licenseKey || "").trim();

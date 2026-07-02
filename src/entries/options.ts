@@ -1,6 +1,6 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
-import { BACKEND_URL, CHECKOUT_URL, PRO_HOURS_PER_MONTH, PRO_PRICE_LABEL } from "../config";
+import { promoState, promoBannerText, BACKEND_URL, PRO_HOURS_PER_MONTH } from "../config";
 import type { DisplayScript, PauseMode, Settings, VocabMap, WordState } from "../types";
 
 let vocab: VocabMap = {};
@@ -91,9 +91,26 @@ async function refreshLicenseStatus(licenseKey: string): Promise<void> {
 }
 
 function initProSection(settings: Settings): void {
+  const promo = promoState();
   byId("pro-hours").textContent = String(PRO_HOURS_PER_MONTH);
-  byId("pro-price").textContent = `(${PRO_PRICE_LABEL})`;
-  byId<HTMLAnchorElement>("pro-buy").href = CHECKOUT_URL;
+
+  const banner = byId("pro-promo-banner");
+  const bannerText = promoBannerText(promo);
+  if (bannerText) {
+    banner.hidden = false;
+    banner.textContent = bannerText;
+  } else {
+    banner.hidden = true;
+  }
+
+  const priceEl = byId("pro-price");
+  if (promo.active) {
+    priceEl.innerHTML = `<s>${promo.regularLabel}</s> <strong>${promo.priceLabel}</strong>`;
+  } else {
+    priceEl.textContent = `(${promo.priceLabel})`;
+  }
+
+  byId<HTMLAnchorElement>("pro-buy").href = promo.checkoutUrl;
   byId<HTMLInputElement>("licenseKey").value = settings.licenseKey || "";
   if (settings.licenseKey) refreshLicenseStatus(settings.licenseKey);
 

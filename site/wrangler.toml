@@ -1,0 +1,6 @@
+# Cloudflare Pages — static marketing site (no build step).
+# Deploy: npm run deploy:site   (from repo root, after wrangler login)
+
+name = "animevocab"
+compatibility_date = "2026-06-01"
+pages_build_output_dir = "."

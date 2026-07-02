@@ -137,6 +137,28 @@ label input[type="checkbox"] {
 
 .pro-row .note { margin-bottom: 0; }
 
+.panel-pro { position: relative; }
+
+.promo-banner {
+  background: rgba(217, 108, 79, 0.12);
+  border: 1px solid rgba(217, 108, 79, 0.35);
+  color: var(--accent, #d96c4f);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 14px;
+}
+
+#pro-price s {
+  color: var(--ink-3);
+  font-weight: 400;
+  margin-right: 6px;
+}
+
+#pro-price strong { color: var(--accent, #d96c4f); }
+
 .filters {
   margin-bottom: 12px;
 }

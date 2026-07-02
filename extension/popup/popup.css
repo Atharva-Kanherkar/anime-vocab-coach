@@ -105,6 +105,18 @@ body {
 
 .streak b { color: var(--ink); font-weight: 600; }
 
+.promo-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent, #d96c4f);
+  background: rgba(217, 108, 79, 0.1);
+  border: 1px solid rgba(217, 108, 79, 0.28);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
 .listen {
   margin-bottom: 14px;
   border-top: 1px solid var(--line);

@@ -1,5 +1,6 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
+import { promoBannerText, promoState } from "../lib/promo";
 import type { DailyStats, PauseMode, VocabMap, WordState } from "../types";
 
 function todayKey(): string {
@@ -138,6 +139,14 @@ async function initListening(): Promise<void> {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const promo = promoState();
+  const pill = byId("popup-promo");
+  const banner = promoBannerText(promo);
+  if (banner) {
+    pill.hidden = false;
+    pill.textContent = banner;
+  }
+
   render();
   initListening();
 

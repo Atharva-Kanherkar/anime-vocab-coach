@@ -289,10 +289,39 @@
   }
 
   // src/config.ts
-  var BACKEND_URL = "https://avc-api.example.workers.dev";
+  var PROMO_END_UTC = "2026-08-03T23:59:59.000Z";
   var CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID";
+  var PROMO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID";
+  var PRO_REGULAR = {
+    monthlyUsd: 10,
+    yearlyUsd: 84,
+    label: "$10/month or $84/year"
+  };
+  var PRO_PROMO = {
+    monthlyUsd: 7,
+    yearlyUsd: 59,
+    label: "$7/month or $59/year"
+  };
+  function promoState(now = Date.now()) {
+    const ends = Date.parse(PROMO_END_UTC);
+    const active = now < ends;
+    const daysLeft = active ? Math.max(0, Math.ceil((ends - now) / 864e5)) : 0;
+    return {
+      active,
+      endsAt: PROMO_END_UTC,
+      daysLeft,
+      checkoutUrl: active ? PROMO_CHECKOUT_URL : CHECKOUT_URL,
+      priceLabel: active ? PRO_PROMO.label : PRO_REGULAR.label,
+      regularLabel: PRO_REGULAR.label
+    };
+  }
+  function promoBannerText(state) {
+    if (!state.active) return null;
+    const dayWord = state.daysLeft === 1 ? "day" : "days";
+    return `Launch pricing \u2014 ${PRO_PROMO.label} (${state.daysLeft} ${dayWord} left)`;
+  }
+  var BACKEND_URL = "https://avc-api.example.workers.dev";
   var PRO_HOURS_PER_MONTH = 45;
-  var PRO_PRICE_LABEL = "$10/month or $84/year";
 
   // src/entries/options.ts
   var vocab = {};
@@ -369,9 +398,23 @@
     }
   }
   function initProSection(settings) {
+    const promo = promoState();
     byId("pro-hours").textContent = String(PRO_HOURS_PER_MONTH);
-    byId("pro-price").textContent = `(${PRO_PRICE_LABEL})`;
-    byId("pro-buy").href = CHECKOUT_URL;
+    const banner = byId("pro-promo-banner");
+    const bannerText = promoBannerText(promo);
+    if (bannerText) {
+      banner.hidden = false;
+      banner.textContent = bannerText;
+    } else {
+      banner.hidden = true;
+    }
+    const priceEl = byId("pro-price");
+    if (promo.active) {
+      priceEl.innerHTML = `<s>${promo.regularLabel}</s> <strong>${promo.priceLabel}</strong>`;
+    } else {
+      priceEl.textContent = `(${promo.priceLabel})`;
+    }
+    byId("pro-buy").href = promo.checkoutUrl;
     byId("licenseKey").value = settings.licenseKey || "";
     if (settings.licenseKey) refreshLicenseStatus(settings.licenseKey);
     byId("license-activate").addEventListener("click", async () => {

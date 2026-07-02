@@ -3,31 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AnimeVocab — Learn Japanese from the Anime You Watch</title>
-  <meta name="description" content="A free Chrome extension that teaches you Japanese vocabulary while you watch anime on YouTube, Netflix, and Crunchyroll. It pauses on words worth learning, shows romaji cards, and builds your review queue automatically.">
+  <title>Learn Japanese from Anime — AnimeVocab Chrome Extension | Netflix, Crunchyroll, YouTube</title>
+  <meta name="description" content="AnimeVocab is a free Chrome extension that teaches Japanese vocabulary while you watch anime. Romaji-first word cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube. No account required.">
+  <meta name="keywords" content="learn japanese from anime, anime vocabulary, japanese chrome extension, netflix japanese learning, crunchyroll vocabulary, romaji flashcards, immersion learning, spaced repetition">
+  <meta name="author" content="AnimeVocab">
+  <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://animevocab.com/">
+  <link rel="alternate" hreflang="en" href="https://animevocab.com/">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="AnimeVocab — Learn Japanese from the Anime You Watch">
-  <meta property="og:description" content="Free Chrome extension: watch anime, learn real Japanese. Word cards from what's spoken, spaced repetition built in, works even if you can't read kana yet.">
+  <meta property="og:site_name" content="AnimeVocab">
+  <meta property="og:title" content="Learn Japanese from Anime — AnimeVocab">
+  <meta property="og:description" content="Free Chrome extension: word cards from what you watch, romaji-first for beginners, SRS built in. Works on YouTube, Netflix, and Crunchyroll.">
   <meta property="og:url" content="https://animevocab.com/">
   <meta property="og:image" content="https://animevocab.com/og.png">
+  <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AnimeVocab — Learn Japanese from Anime">
+  <meta name="twitter:description" content="Watch anime. Learn real vocabulary. Free & open-source Chrome extension.">
+  <meta name="twitter:image" content="https://animevocab.com/og.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Noto+Sans+JP:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "AnimeVocab",
-    "operatingSystem": "Chrome",
-    "applicationCategory": "EducationalApplication",
-    "description": "Chrome extension that teaches Japanese vocabulary from anime on YouTube, Netflix, and Crunchyroll using word cards and spaced repetition.",
-    "offers": [
-      { "@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free" },
-      { "@type": "Offer", "price": "10", "priceCurrency": "USD", "name": "Pro (monthly)" }
+    "@graph": [
+      {
+        "@type": "Organization",
+        "name": "AnimeVocab",
+        "url": "https://animevocab.com",
+        "logo": "https://animevocab.com/favicon.svg",
+        "sameAs": ["https://github.com/Atharva-Kanherkar/anime-vocab-coach"]
+      },
+      {
+        "@type": "WebSite",
+        "name": "AnimeVocab",
+        "url": "https://animevocab.com",
+        "description": "Learn Japanese vocabulary from anime with a free Chrome extension."
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "AnimeVocab",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Chrome",
+        "offers": [
+          { "@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free tier" },
+          { "@type": "Offer", "price": "10", "priceCurrency": "USD", "name": "Pro monthly" }
+        ],
+        "description": "Chrome extension for learning Japanese vocabulary from anime on YouTube, Netflix, and Crunchyroll with romaji-first cards and spaced repetition.",
+        "downloadUrl": "https://github.com/Atharva-Kanherkar/anime-vocab-coach",
+        "softwareVersion": "0.5.0",
+        "author": { "@type": "Organization", "name": "AnimeVocab" }
+      }
     ]
   }
   </script>
@@ -36,201 +66,210 @@
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "Can I learn Japanese just by watching anime?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Watching alone isn't enough — you need to notice words, understand them, and see them again before you forget. AnimeVocab does exactly that: it detects the Japanese being spoken, pauses on one word worth learning, shows you its meaning and reading, and brings it back for review in later episodes using spaced repetition." }
-      },
-      {
-        "@type": "Question",
-        "name": "Do I need to read hiragana or kanji to use AnimeVocab?",
-        "acceptedAnswer": { "@type": "Answer", "text": "No. Cards are romaji-first by default — every word is shown in roman letters with the kana and kanji alongside, so complete beginners can start learning from day one. You can switch to kana-first or kanji-first as you progress." }
-      },
-      {
-        "@type": "Question",
-        "name": "Does it work on Netflix and Crunchyroll?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes. On YouTube it reads the Japanese subtitle track directly. On Netflix, Crunchyroll, and any other site, Listening Mode transcribes the audio in real time, so cards come from what is actually spoken — while you keep English subtitles on screen." }
-      },
-      {
-        "@type": "Question",
-        "name": "Is AnimeVocab free?",
-        "acceptedAnswer": { "@type": "Answer", "text": "The core is free and open source: word cards, spaced repetition, progress dashboard, and YouTube support. Pro ($10/month) adds one-click Listening Mode for Netflix and Crunchyroll with no API key required, up to 45 hours of listening per month. You can also use Listening Mode free with your own OpenAI API key." }
-      },
-      {
-        "@type": "Question",
-        "name": "Where is my learning data stored?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Everything — your vocabulary, progress, and settings — is stored locally in your browser. There are no accounts, no tracking, and no analytics. The extension is open source, so you can verify this yourself." }
-      }
+      { "@type": "Question", "name": "Can I learn Japanese by watching anime?", "acceptedAnswer": { "@type": "Answer", "text": "Watching alone is passive. AnimeVocab makes it active: it picks one useful word per line, shows the meaning in context, and schedules reviews so you remember it." }},
+      { "@type": "Question", "name": "Does AnimeVocab work on Netflix and Crunchyroll?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Listening Mode transcribes tab audio in real time so cards come from spoken Japanese while English subtitles stay on. Pro includes this without an API key." }},
+      { "@type": "Question", "name": "Do I need to read hiragana to start?", "acceptedAnswer": { "@type": "Answer", "text": "No. Cards are romaji-first by default so complete beginners can learn from episode one." }}
     ]
   }
   </script>
 </head>
 <body>
-  <div class="bg-grain" aria-hidden="true"></div>
+  <a class="skip" href="#main">Skip to content</a>
 
-  <header class="nav">
-    <div class="nav-inner">
-      <a class="brand" href="/">アニメ<b>Vocab</b></a>
-      <nav>
+  <div class="promo-bar" id="promo-bar" hidden>
+    <div class="wrap promo-inner">
+      <span class="promo-text"></span>
+      <a href="#pricing" class="promo-link">See Pro pricing</a>
+    </div>
+  </div>
+
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="logo" href="/" aria-label="AnimeVocab home">アニメ<b>Vocab</b></a>
+      <nav aria-label="Primary">
         <a href="#how">How it works</a>
+        <a href="#features">Features</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
-        <a href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">GitHub</a>
       </nav>
+      <a class="btn btn-sm" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">Install free</a>
     </div>
   </header>
 
-  <main>
+  <main id="main">
     <section class="hero">
-      <p class="eyebrow anim" style="--d:0">Free &amp; open-source Chrome extension</p>
-      <h1 class="anim" style="--d:1">Your anime is already<br>a <em>Japanese course</em>.</h1>
-      <p class="sub anim" style="--d:2">
-        AnimeVocab watches with you. When a word worth learning is spoken, it pauses,
-        shows you what it means — in roman letters, so you can start before you can
-        read — and quietly builds your review queue for the next episode.
-      </p>
-      <div class="cta-row anim" style="--d:3">
-        <a class="btn btn-primary" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">Add to Chrome — it's free</a>
-        <a class="btn btn-ghost" href="#how">See how it works</a>
-      </div>
-      <p class="cta-note anim" style="--d:4">Works on YouTube, Netflix &amp; Crunchyroll · No account · Your data stays on your device</p>
-
-      <!-- Pure-CSS recreation of the in-player word card -->
-      <div class="stage anim" style="--d:5" aria-hidden="true">
-        <div class="stage-sub">「退屈な日常が、今日で終わる」</div>
-        <div class="card">
-          <div class="chip">N4 · #1,204</div>
-          <div class="word-row">
-            <div class="word">taikutsu</div>
-            <button class="speak">Listen</button>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="kicker">Free · open source · Chrome extension</p>
+          <h1>Learn Japanese from the anime you already watch.</h1>
+          <p class="lede">
+            AnimeVocab sits in your browser, listens to the Japanese being spoken,
+            and pauses on <strong>one word worth learning</strong> — with the meaning,
+            reading, and exact line. Romaji-first, so you can start before you can read kana.
+          </p>
+          <p class="hero-promo" id="hero-promo-note" hidden></p>
+          <div class="hero-cta">
+            <a class="btn btn-accent" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">Add to Chrome</a>
+            <a class="btn btn-line" href="#how">How it works</a>
           </div>
-          <div class="secondary">たいくつ · 退屈</div>
-          <div class="gloss">boredom · tedious, dull</div>
-          <div class="sentence"><span class="lab">In this line</span><mark>taikutsu</mark> na nichijou ga, kyou de owaru</div>
-          <div class="btns">
-            <button class="b-know">知ってる<span>I know it</span></button>
-            <button class="b-learn">学ぶ<span>Learn it</span></button>
-            <button class="b-ignore">無視<span>Ignore</span></button>
-          </div>
+          <ul class="hero-facts">
+            <li>YouTube, Netflix, Crunchyroll</li>
+            <li>No account · data stays local</li>
+            <li>AGPL open source</li>
+          </ul>
         </div>
+
+        <figure class="hero-card" aria-label="Example vocabulary card">
+          <figcaption class="card-caption">「退屈な日常が、今日で終わる」</figcaption>
+          <div class="card-ui">
+            <span class="tag">N4 · frequency #1,204</span>
+            <div class="card-head">
+              <span class="card-word">taikutsu</span>
+              <span class="card-listen">Listen</span>
+            </div>
+            <p class="card-reading">たいくつ · 退屈</p>
+            <p class="card-meaning">boredom · tedious, dull</p>
+            <p class="card-line"><span class="card-line-label">In this line</span> <em>taikutsu</em> na nichijou ga, kyou de owaru</p>
+            <div class="card-actions">
+              <span class="act">Know it</span>
+              <span class="act act-main">Learn it</span>
+              <span class="act">Ignore</span>
+            </div>
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <section class="strip">
+      <div class="wrap strip-inner reveal">
+        <p>Built for immersion learners who want vocabulary from <strong>real shows</strong>, not textbook dialogues — without opening Anki mid-episode.</p>
       </div>
     </section>
 
     <section class="how" id="how">
-      <h2 class="reveal">Three steps, zero flashcard grind</h2>
-      <ol class="steps">
-        <li class="reveal" style="--d:0">
-          <span class="n">01</span>
-          <h3>Press play</h3>
-          <p>Watch anime like you always do — English subtitles on. AnimeVocab reads the hidden Japanese track on YouTube, or listens to the audio itself on Netflix and Crunchyroll.</p>
-        </li>
-        <li class="reveal" style="--d:1">
-          <span class="n">02</span>
-          <h3>Judge one word</h3>
-          <p>When a common, level-appropriate word is spoken, the video pauses on a card: the word in romaji, its reading, meaning, and the exact line it came from. Know it, learn it, or ignore it — one keystroke.</p>
-        </li>
-        <li class="reveal" style="--d:2">
-          <span class="n">03</span>
-          <h3>Reviews find you</h3>
-          <p>Words you're learning come back as quick memory checks in later episodes — spaced repetition timed to when you'd forget, without ever opening a flashcard app.</p>
-        </li>
-      </ol>
+      <div class="wrap">
+        <header class="section-head reveal">
+          <h2>How it works</h2>
+          <p>Three steps. No separate study session.</p>
+        </header>
+        <ol class="flow reveal">
+          <li>
+            <span class="step-num">1</span>
+            <h3>Watch normally</h3>
+            <p>English subtitles on. On YouTube we read the hidden Japanese track. On Netflix and Crunchyroll, Listening Mode transcribes the audio.</p>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <h3>Judge one word</h3>
+            <p>The player pauses on a single useful word — romaji, reading, gloss, and the line it came from. Know it, learn it, or ignore it.</p>
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            <h3>Reviews catch you later</h3>
+            <p>Words you're learning resurface in future episodes on a spaced-repetition schedule — right before you'd forget them.</p>
+          </li>
+        </ol>
+      </div>
     </section>
 
-    <section class="features">
-      <h2 class="reveal">Built for people who'd rather watch than study</h2>
-      <div class="bento">
-        <article class="cell wide reveal" style="--d:0">
-          <h3>Romaji-first, beginner-proof</h3>
-          <p>Every card leads with roman letters — <i>taikutsu</i>, not 退屈 — so you can learn from episode one, before you can read a single kana. Switch to kana-first or kanji-first whenever you're ready.</p>
-        </article>
-        <article class="cell reveal" style="--d:1">
-          <h3>Listening Mode</h3>
-          <p>Real-time transcription turns any video on any site into study material — cards from what's actually <b>spoken</b>, while your English subs stay on.</p>
-        </article>
-        <article class="cell reveal" style="--d:2">
-          <h3>Knows what's worth pausing for</h3>
-          <p>Frequency data and JLPT levels pick one genuinely useful word per line. No pausing on particles, names, or words you've already learned.</p>
-        </article>
-        <article class="cell reveal" style="--d:3">
-          <h3>A dashboard you'll want to check</h3>
-          <p>Streaks, hours watched, words by JLPT level, review pipeline — computed live from your own local data.</p>
-        </article>
-        <article class="cell wide reveal" style="--d:4">
-          <h3>Private by architecture</h3>
-          <p>No account, no analytics, no server watching you. Progress lives in your browser; the code is open source under AGPL. In Listening Mode, audio goes straight from your browser to the transcription API — nowhere else.</p>
-        </article>
+    <section class="features" id="features">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <h2>Why learners pick AnimeVocab</h2>
+        </header>
+        <div class="feat-grid">
+          <article class="feat reveal">
+            <h3>Romaji-first cards</h3>
+            <p>Start from episode one. Every card leads with roman letters; kana and kanji sit alongside as you grow into them.</p>
+          </article>
+          <article class="feat reveal">
+            <h3>Any show, any site</h3>
+            <p>Listening Mode works from audio — not a subtitle library. New releases, obscure titles, any streaming site.</p>
+          </article>
+          <article class="feat reveal">
+            <h3>Smart word picking</h3>
+            <p>Frequency ranks and JLPT levels filter out particles and noise. One card per line, with cooldowns so it never feels like a quiz show.</p>
+          </article>
+          <article class="feat reveal">
+            <h3>Local progress dashboard</h3>
+            <p>Streaks, hours watched, vocabulary by level, review pipeline — all computed on your device, not our servers.</p>
+          </article>
+        </div>
       </div>
     </section>
 
     <section class="pricing" id="pricing">
-      <h2 class="reveal">Free where it can be. Paid where it costs us.</h2>
-      <p class="pricing-sub reveal">The learning loop runs entirely on your device, so it's free forever.
-      Pro exists because real-time transcription costs real money per minute — we pay that bill for you.</p>
-      <div class="plans">
-        <div class="plan reveal" style="--d:0">
-          <h3>Free</h3>
-          <div class="price">$0 <span>forever</span></div>
-          <ul>
-            <li>Word cards + spaced repetition</li>
-            <li>YouTube Japanese-track support</li>
-            <li>Any site with subtitle tracks</li>
-            <li>Progress dashboard &amp; export</li>
-            <li>Listening Mode with your own OpenAI key</li>
-          </ul>
-          <a class="btn btn-ghost" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">Install free</a>
-        </div>
-        <div class="plan pro reveal" style="--d:1">
-          <div class="plan-badge">Pro</div>
-          <h3>One-click Listening Mode</h3>
-          <div class="price">$10 <span>/month · or $84/year</span></div>
-          <ul>
-            <li><b>No OpenAI account, no API key</b> — press Listen and it works</li>
-            <li>Netflix, Crunchyroll &amp; every other site</li>
-            <li>45 hours of listening per month</li>
-            <li>Cancel anytime — the free tier stays yours</li>
-            <li>Funds the open-source project</li>
-          </ul>
-          <a class="btn btn-primary" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach#pro-subscription" rel="noopener">Get Pro</a>
+      <div class="wrap">
+        <header class="section-head reveal">
+          <h2>Pricing</h2>
+          <p>The core loop is free forever. Pro pays for transcription compute.</p>
+        </header>
+        <div class="price-grid reveal">
+          <div class="price-card">
+            <h3>Free</h3>
+            <p class="amount">$0</p>
+            <ul>
+              <li>Word cards + spaced repetition</li>
+              <li>YouTube + HTML5 subtitle sites</li>
+              <li>Dashboard &amp; JSON export</li>
+              <li>Listening Mode with your OpenAI key</li>
+            </ul>
+            <a class="btn btn-line" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">Install</a>
+          </div>
+          <div class="price-card price-card-pro">
+            <span class="pro-tag">Pro</span>
+            <h3>Listening Mode, no setup</h3>
+            <p class="amount-row">
+              <span class="strike" id="pro-strike" hidden></span>
+              <span class="amount" id="pro-price">$10/month</span>
+            </p>
+            <ul>
+              <li>No OpenAI account or API key</li>
+              <li>Netflix, Crunchyroll, every site</li>
+              <li>45 hours of listening / month</li>
+              <li>Cancel anytime</li>
+            </ul>
+            <a class="btn btn-accent" id="pro-cta" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach#pro-subscription" rel="noopener">Get Pro</a>
+          </div>
         </div>
       </div>
     </section>
 
     <section class="faq" id="faq">
-      <h2 class="reveal">Questions people actually ask</h2>
-      <details class="reveal" style="--d:0">
-        <summary>Can I really learn Japanese just by watching anime?</summary>
-        <p>Not by watching alone — you need to notice words, understand them, and meet them again before you forget. That's the whole product: AnimeVocab makes you notice one useful word at a time, tells you what it means in the exact sentence you heard, and schedules it to reappear right before you'd forget it.</p>
-      </details>
-      <details class="reveal" style="--d:1">
-        <summary>I can't read hiragana yet. Is that a problem?</summary>
-        <p>No — that's the default audience. Cards lead with romaji (<i>taikutsu</i>) and show the kana and kanji alongside, so the writing systems soak in gradually while you learn by sound.</p>
-      </details>
-      <details class="reveal" style="--d:2">
-        <summary>How does it work on Netflix, where there are no Japanese subs?</summary>
-        <p>Listening Mode captures the tab's audio and transcribes it in real time. Cards come from the spoken Japanese within a second or two, while your English subtitles stay on screen for context. Included with Pro, or free with your own OpenAI API key.</p>
-      </details>
-      <details class="reveal" style="--d:3">
-        <summary>Will it interrupt me constantly?</summary>
-        <p>No. It shows at most one card per line, respects a cooldown between cards, caps cards per hour, and you can switch to a non-blocking notification mode — or turn it off per site.</p>
-      </details>
-      <details class="reveal" style="--d:4">
-        <summary>What happens to my data?</summary>
-        <p>It stays in your browser. No accounts, no analytics, no tracking. The extension is open source (AGPL), so this is verifiable, not a promise.</p>
-      </details>
+      <div class="wrap narrow">
+        <header class="section-head reveal">
+          <h2>FAQ</h2>
+        </header>
+        <details class="reveal">
+          <summary>Can I learn Japanese just by watching anime?</summary>
+          <p>Only if you actively notice and remember words. AnimeVocab handles that: one word at a time, in context, with scheduled reviews.</p>
+        </details>
+        <details class="reveal">
+          <summary>I can't read hiragana yet. Can I still use this?</summary>
+          <p>Yes — that's the default setup. Cards show <em>taikutsu</em> before 退屈. Switch to kana-first or kanji-first when you're ready.</p>
+        </details>
+        <details class="reveal">
+          <summary>How is this different from subtitle dictionary tools?</summary>
+          <p>Most tools assume you can read Japanese subtitles and hover words yourself. AnimeVocab pushes one curated word to you in romaji and tracks SRS for you — built for beginners and lazy viewers alike.</p>
+        </details>
+        <details class="reveal">
+          <summary>Where is my data stored?</summary>
+          <p>In your browser only. No accounts, no analytics. Source code is on GitHub under AGPL.</p>
+        </details>
+      </div>
     </section>
 
-    <section class="final">
-      <h2 class="reveal">The next episode can teach you something.</h2>
-      <div class="cta-row reveal">
-        <a class="btn btn-primary" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">Add to Chrome — free</a>
+    <section class="closing">
+      <div class="wrap narrow reveal">
+        <h2>Your next episode can teach you a word.</h2>
+        <a class="btn btn-accent" href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">Add to Chrome — free</a>
       </div>
     </section>
   </main>
 
-  <footer>
-    <div class="foot-inner">
-      <span>アニメ<b>Vocab</b> — learn Japanese from what you love watching.</span>
+  <footer class="foot">
+    <div class="wrap foot-inner">
+      <span>© AnimeVocab · learn Japanese from what you watch</span>
       <nav>
         <a href="https://github.com/Atharva-Kanherkar/anime-vocab-coach" rel="noopener">GitHub</a>
         <a href="privacy.html">Privacy</a>
@@ -239,12 +278,7 @@
     </div>
   </footer>
 
-  <script>
-    // Scroll reveals (no library; respects reduced motion via CSS)
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
-    }, { threshold: 0.15 });
-    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
-  </script>
+  <script src="promo-config.js"></script>
+  <script src="site.js"></script>
 </body>
 </html>

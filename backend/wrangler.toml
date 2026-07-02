@@ -16,13 +16,13 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 
 kv_namespaces = [
-  { binding = "AVC_KV", id = "REPLACE_WITH_KV_NAMESPACE_ID" }
+  { binding = "AVC_KV", id = "8e67f3701aa04195975a583cc59d8425" }
 ]
 
 [vars]
-# Fair-use cap per subscription per calendar month, in minutes (45 h).
 CAP_MINUTES = "2700"
-# Transcription model used for hosted sessions (users don't choose; you control cost).
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
-# Dodo API base: use https://test.dodopayments.com while testing, live for prod.
 DODO_API_BASE = "https://live.dodopayments.com"
+CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID"
+PROMO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID"
+PROMO_END_UTC = "2026-08-03T23:59:59.000Z"
