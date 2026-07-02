@@ -53,11 +53,55 @@ async function sendToOffscreen(msg, tries = 15) {
   throw new Error("offscreen document never acknowledged (audio capture could not start)");
 }
 
+// The isolated-world content scripts, in manifest load order. Injected on
+// demand so Listening Mode works even in a tab that was open before the
+// extension loaded (Chrome only auto-injects on navigation after install).
+const CONTENT_SCRIPTS = [
+  "vendor/kuromoji.js",
+  "src/log.js",
+  "src/romaji.js",
+  "src/storage.js",
+  "src/dictionary.js",
+  "src/tokenizer.js",
+  "src/scoring.js",
+  "src/overlay.js",
+  "src/adapters/youtube.js",
+  "src/adapters/netflix.js",
+  "src/adapters/generic.js",
+  "src/main.js"
+];
+
+async function ensureContentScript(tabId) {
+  try {
+    const [probe] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => !!window.__avcMainLoaded
+    });
+    if (probe && probe.result) return true; // already there
+  } catch (err) {
+    // probe failed (no host access etc.) — injection below will surface it
+  }
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_SCRIPTS });
+    console.log("[AVC] injected content scripts into tab", tabId);
+    return true;
+  } catch (err) {
+    console.warn("[AVC] content-script injection failed:", String(err));
+    return false;
+  }
+}
+
 async function startListening(tabId) {
   const { settings } = await chrome.storage.local.get(["settings"]);
   const key = settings?.openaiKey;
   if (!key) {
     return { ok: false, error: "No OpenAI API key. Add one in Settings first." };
+  }
+
+  // Make sure the page can receive transcripts before we start paying for audio.
+  const injected = await ensureContentScript(tabId);
+  if (!injected) {
+    return { ok: false, error: "Couldn't load the extension into this tab. Try reloading the page, then Start again." };
   }
   let streamId;
   try {

@@ -8,7 +8,7 @@ function hasJapanese(text) {
   return /[぀-ヿ㐀-䶿一-鿿]/.test(text);
 }
 
-AVC.adapters.push((function () {
+if (!AVC.adapters.some((a) => a.name === "youtube")) AVC.adapters.push((function () {
   let onLineCb = null;
 
   // --- Hidden caption-track mode (primary): the Japanese track is fetched and

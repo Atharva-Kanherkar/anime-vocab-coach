@@ -1,4 +1,10 @@
 (function () {
+  // Guard: this script can arrive twice — once via the manifest content_scripts
+  // on page load, and again via chrome.scripting when Listening Mode injects it
+  // into a tab that was open before the extension loaded. Wire the pipeline once.
+  if (window.__avcMainLoaded) { AVC.log("main already loaded, skipping re-init"); return; }
+  window.__avcMainLoaded = true;
+
   AVC.adapters = AVC.adapters || [];
 
   let adapter = null;

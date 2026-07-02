@@ -1,6 +1,6 @@
 AVC.adapters = AVC.adapters || [];
 
-AVC.adapters.push({
+if (!AVC.adapters.some((a) => a.name === "generic")) AVC.adapters.push({
   name: "generic",
   matches() {
     return document.querySelector("video") !== null;

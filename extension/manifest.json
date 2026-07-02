@@ -3,7 +3,7 @@
   "name": "Anime Vocab Coach",
   "version": "0.2.0",
   "description": "Learn Japanese from the anime you watch — even if you can't read it yet. Watches with you, pauses on words worth learning, tracks progress.",
-  "permissions": ["storage", "tabCapture", "offscreen"],
+  "permissions": ["storage", "tabCapture", "offscreen", "scripting"],
   "host_permissions": [
     "*://*.youtube.com/*",
     "*://*.netflix.com/*",

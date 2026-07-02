@@ -1,6 +1,6 @@
 AVC.adapters = AVC.adapters || [];
 
-AVC.adapters.push({
+if (!AVC.adapters.some((a) => a.name === "netflix")) AVC.adapters.push({
   name: "netflix",
   matches() {
     return location.hostname.endsWith("netflix.com");
