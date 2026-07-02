@@ -37,26 +37,53 @@ async function ensureOffscreen() {
   });
 }
 
+// Send a message to the offscreen document, retrying while it is still loading
+// (createDocument resolves before offscreen.js registers its listener).
+async function sendToOffscreen(msg, tries = 15) {
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await chrome.runtime.sendMessage(msg);
+      if (res && res.ok) return res;
+      if (res && res.ok === false) return res; // handled but failed
+    } catch (err) {
+      // "Receiving end does not exist" — offscreen not ready yet; wait & retry
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error("offscreen document never acknowledged (audio capture could not start)");
+}
+
 async function startListening(tabId) {
   const { settings } = await chrome.storage.local.get(["settings"]);
   const key = settings?.openaiKey;
   if (!key) {
     return { ok: false, error: "No OpenAI API key. Add one in Settings first." };
   }
+  let streamId;
+  try {
+    streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
+  } catch (err) {
+    return { ok: false, error: "Couldn't capture this tab's audio: " + (err.message || err) + ". Try clicking the extension icon again directly on the video tab." };
+  }
   await ensureOffscreen();
-  const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
-  await chrome.runtime.sendMessage({
+  const ack = await sendToOffscreen({
     type: "avc-offscreen-start",
     streamId,
     tabId,
     key,
     model: settings.transcribeModel || DEFAULTS.transcribeModel
-  });
+  }).catch((err) => ({ ok: false, error: String(err.message || err) }));
+
+  if (!ack || ack.ok === false) {
+    return { ok: false, error: ack?.error || "Audio capture failed to start." };
+  }
+
   const tabs = await getListening();
   tabs[tabId] = true;
   await setListening(tabs);
   chrome.action.setBadgeText({ tabId, text: "REC" });
   chrome.action.setBadgeBackgroundColor({ tabId, color: "#f87171" });
+  console.log("[AVC] listening started on tab", tabId, "model", settings.transcribeModel || DEFAULTS.transcribeModel);
   return { ok: true };
 }
 
@@ -94,10 +121,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === "avc-offscreen-log") {
+    console.log("[AVC-audio]", msg.line);
+    return;
+  }
+
   if (msg.type === "avc-transcript") {
     // offscreen → the captured tab's content scripts (all frames; the frame
     // that owns the video picks it up)
-    chrome.tabs.sendMessage(msg.tabId, { type: "avc-transcript", text: msg.text }).catch(() => {});
+    console.log("[AVC] relaying transcript to tab", msg.tabId, "→", msg.text);
+    chrome.tabs.sendMessage(msg.tabId, { type: "avc-transcript", text: msg.text }).catch((err) => {
+      console.warn("[AVC] could not deliver transcript to tab (content script not loaded?):", String(err));
+    });
     return;
   }
 

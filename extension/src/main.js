@@ -120,7 +120,7 @@
     if (AVC.overlay.isOpen()) return;
 
     const target = AVC.scoring.pickTarget(tokens, wordStates, settings, targetedThisSession);
-    if (!target) return;
+    if (!target) { AVC.log("no target word in:", normalized); return; }
 
     const stats = await AVC.storage.getStats();
     const now = Date.now();
@@ -128,9 +128,16 @@
 
     if (!target.isReview) {
       const lastCard = cardTimestamps.length ? cardTimestamps[cardTimestamps.length - 1] : 0;
-      if (now - lastCard < settings.cooldownSec * 1000) return;
-      if (cardTimestamps.length >= settings.maxCardsPerHour) return;
+      if (now - lastCard < settings.cooldownSec * 1000) {
+        AVC.log(`target "${target.token.base}" held back by cooldown (${settings.cooldownSec}s)`);
+        return;
+      }
+      if (cardTimestamps.length >= settings.maxCardsPerHour) {
+        AVC.log("hourly card cap reached");
+        return;
+      }
     }
+    AVC.log("showing card for:", target.token.base);
 
     await handleCard(target, normalized, tokens, context);
   }
@@ -141,7 +148,9 @@
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type !== "avc-transcript") return;
     const a = pickAdapter();
-    if (!a || !a.getVideo()) return;
+    if (!a) { AVC.warn("transcript arrived but no adapter matched this frame"); return; }
+    if (!a.getVideo()) { AVC.log("transcript ignored (no video in this frame)"); return; }
+    AVC.log("transcript received:", msg.text);
     const en = a.getVisibleText ? a.getVisibleText() : "";
     const segments = msg.text
       .split(/(?<=[。！？])/)
