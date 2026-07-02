@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build-dict": "node scripts/build-dictionary.mjs",
-    "pack": "cd extension && zip -rq ../dist/anime-vocab-coach.zip . -x 'icons/icon.svg' -x '*.DS_Store' && cd .. && echo 'Built dist/anime-vocab-coach.zip'"
+    "pack": "rm -f dist/anime-vocab-coach.zip && cd extension && zip -rq ../dist/anime-vocab-coach.zip . -x 'icons/icon.svg' -x '*.DS_Store' && cd .. && echo 'Built dist/anime-vocab-coach.zip'"
   },
   "keywords": [],
   "author": "",

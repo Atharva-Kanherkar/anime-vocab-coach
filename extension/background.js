@@ -144,7 +144,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "avc-badge") {
     const text = msg.count > 0 ? String(msg.count) : "";
     chrome.action.setBadgeText({ text });
-    chrome.action.setBadgeBackgroundColor({ color: "#8b7cf6" });
+    chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
     return;
   }
 

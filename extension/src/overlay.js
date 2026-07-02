@@ -10,80 +10,113 @@ AVC.overlay = (function () {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     .avc-scrim {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,.35);
+      background: rgba(0,0,0,.5);
       display: flex; align-items: center; justify-content: center;
       pointer-events: auto;
       font-family: system-ui, -apple-system, sans-serif;
     }
     .avc-card {
-      background: #1c1c24; color: #f2f2f7;
-      border-radius: 14px; padding: 24px;
+      background: #101012; color: rgba(240,239,236,.95);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px; padding: 26px 26px 20px;
       width: min(440px, 90vw);
       pointer-events: auto;
-      opacity: 0; transform: scale(0.96);
-      transition: opacity 150ms ease, transform 150ms ease;
+      opacity: 0; transform: translateY(6px);
+      transition: opacity 160ms ease, transform 160ms ease;
       font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+      box-shadow: 0 24px 60px rgba(0,0,0,.55);
     }
-    .avc-card.avc-visible { opacity: 1; transform: scale(1); }
+    .avc-card.avc-visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .avc-card { transition: none; transform: none; }
+    }
     .avc-chip {
-      display: inline-block; font-size: 11px; color: #9ca3af;
-      background: rgba(139,124,246,.15); padding: 4px 10px;
-      border-radius: 8px; margin-bottom: 12px;
+      display: inline-block; font-size: 10.5px; letter-spacing: .06em;
+      text-transform: uppercase; color: rgba(240,239,236,.5);
+      border: 1px solid rgba(255,255,255,.12); padding: 3px 9px;
+      border-radius: 4px; margin-bottom: 16px;
     }
-    .avc-word-row { display: flex; align-items: center; gap: 12px; }
-    .avc-word { font-size: 42px; font-weight: bold; line-height: 1.1; letter-spacing: 0.5px; }
+    .avc-chip.avc-chip-review { color: #d96c4f; border-color: rgba(217,108,79,.45); }
+    .avc-word-row { display: flex; align-items: baseline; gap: 14px; }
+    .avc-word { font-size: 42px; font-weight: 700; line-height: 1.1; letter-spacing: .01em; }
     .avc-speak {
-      background: rgba(139,124,246,.15); color: #8b7cf6;
-      border: 1px solid #8b7cf6; border-radius: 50%;
-      width: 40px; height: 40px; min-width: 40px; cursor: pointer;
-      font-size: 18px; line-height: 1;
+      background: transparent; color: rgba(240,239,236,.55);
+      border: 1px solid rgba(255,255,255,.16); border-radius: 6px;
+      padding: 4px 12px; cursor: pointer;
+      font-size: 11.5px; letter-spacing: .04em; line-height: 1.6;
+      font-family: system-ui, sans-serif;
+      transition: color 120ms ease, border-color 120ms ease;
     }
-    .avc-secondary { font-size: 18px; color: #8b7cf6; margin: 6px 0 10px; }
-    .avc-gloss { font-size: 17px; color: #f2f2f7; margin-bottom: 14px; }
+    .avc-speak:hover { color: rgba(240,239,236,.9); border-color: rgba(255,255,255,.35); }
+    .avc-secondary { font-size: 17px; color: rgba(240,239,236,.6); margin: 8px 0 10px; }
+    .avc-gloss { font-size: 16px; color: rgba(240,239,236,.9); margin-bottom: 16px; line-height: 1.45; }
     .avc-context {
-      font-size: 14px; color: #f2f2f7; line-height: 1.5;
-      margin-bottom: 10px; padding: 10px 12px;
-      background: rgba(74,222,128,.08); border-left: 3px solid #4ade80;
-      border-radius: 8px;
+      font-size: 14px; color: rgba(240,239,236,.85); line-height: 1.55;
+      margin-bottom: 10px; padding: 10px 14px;
+      background: rgba(255,255,255,.03);
+      border-left: 2px solid rgba(240,239,236,.3);
+      border-radius: 0 6px 6px 0;
     }
-    .avc-context .avc-label { display: block; font-size: 10px; color: #9ca3af; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px; }
+    .avc-context .avc-label { display: block; font-size: 10px; color: rgba(240,239,236,.4); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
     .avc-sentence {
-      font-size: 15px; color: #9ca3af; line-height: 1.6;
-      margin-bottom: 18px; padding: 10px 12px;
-      background: rgba(255,255,255,.04); border-radius: 8px;
+      font-size: 15px; color: rgba(240,239,236,.6); line-height: 1.65;
+      margin-bottom: 20px; padding: 10px 14px;
+      background: rgba(255,255,255,.03);
+      border-left: 2px solid rgba(255,255,255,.1);
+      border-radius: 0 6px 6px 0;
     }
-    .avc-sentence .avc-label { display: block; font-size: 10px; color: #9ca3af; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px; }
-    .avc-sentence .avc-ja-small { display: block; font-size: 12px; color: #6b7280; margin-top: 4px; }
+    .avc-sentence .avc-label { display: block; font-size: 10px; color: rgba(240,239,236,.4); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
+    .avc-sentence .avc-ja-small { display: block; font-size: 12px; color: rgba(240,239,236,.4); margin-top: 5px; }
     .avc-sentence mark {
-      background: transparent; color: #8b7cf6; font-weight: bold;
+      background: transparent; color: #d96c4f; font-weight: 700;
     }
-    .avc-buttons { display: flex; gap: 8px; margin-bottom: 10px; }
+    .avc-buttons { display: flex; gap: 8px; margin-bottom: 12px; }
     .avc-buttons button {
-      flex: 1; border-radius: 8px; padding: 10px 6px; cursor: pointer;
+      flex: 1; border-radius: 7px; padding: 10px 6px 8px; cursor: pointer;
       border: 1px solid transparent; font-family: inherit;
+      transition: filter 120ms ease, border-color 120ms ease;
     }
-    .avc-buttons button span { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
-    .avc-know { background: rgba(74,222,128,.15); color: #4ade80; border-color: #4ade80; font-size: 16px; }
-    .avc-learn { background: #8b7cf6; color: #fff; font-size: 16px; }
-    .avc-learn span { color: rgba(255,255,255,.7); }
-    .avc-ignore { background: transparent; color: #9ca3af; border-color: #9ca3af; font-size: 16px; }
-    .avc-review-pass { background: #4ade80; color: #1c1c24; font-size: 16px; }
-    .avc-review-pass span { color: rgba(28,28,36,.7); }
-    .avc-review-fail { background: transparent; color: #f87171; border-color: #f87171; font-size: 16px; }
+    .avc-buttons button:hover { filter: brightness(1.15); }
+    .avc-buttons button span { display: block; font-size: 10.5px; margin-top: 3px; letter-spacing: .02em; }
+    .avc-know {
+      background: transparent; color: rgba(240,239,236,.85);
+      border-color: rgba(255,255,255,.18); font-size: 16px;
+    }
+    .avc-know span { color: rgba(240,239,236,.45); }
+    .avc-learn { background: #c4553a; color: #fff; font-size: 16px; }
+    .avc-learn span { color: rgba(255,255,255,.65); }
+    .avc-ignore {
+      background: transparent; color: rgba(240,239,236,.45);
+      border-color: rgba(255,255,255,.1); font-size: 16px;
+    }
+    .avc-ignore span { color: rgba(240,239,236,.3); }
+    .avc-review-pass { background: #3d8a63; color: #fff; font-size: 16px; }
+    .avc-review-pass span { color: rgba(255,255,255,.65); }
+    .avc-review-fail {
+      background: transparent; color: #c96a5a;
+      border-color: rgba(201,106,90,.5); font-size: 16px;
+    }
+    .avc-review-fail span { color: rgba(201,106,90,.6); }
     .avc-show-answer {
-      background: rgba(139,124,246,.2); color: #8b7cf6; border: 1px solid #8b7cf6;
-      border-radius: 8px; padding: 10px 16px; cursor: pointer; font-size: 15px;
-      margin-bottom: 14px; width: 100%;
+      background: transparent; color: rgba(240,239,236,.85);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 7px; padding: 10px 16px; cursor: pointer; font-size: 14px;
+      margin-bottom: 16px; width: 100%;
+      font-family: system-ui, sans-serif;
+      transition: border-color 120ms ease;
     }
-    .avc-hint { font-size: 11px; color: #9ca3af; text-align: center; }
+    .avc-show-answer:hover { border-color: rgba(255,255,255,.4); }
+    .avc-hint { font-size: 10.5px; color: rgba(240,239,236,.35); text-align: center; letter-spacing: .02em; }
     .avc-toast {
-      position: fixed; bottom: 12px; left: 12px;
-      background: #1c1c24; color: #f2f2f7; border-radius: 14px;
+      position: fixed; bottom: 14px; left: 14px;
+      background: #101012; color: rgba(240,239,236,.95);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 8px;
       padding: 10px 16px; font-size: 14px; pointer-events: auto;
       cursor: pointer; max-width: 360px;
       font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
       opacity: 0; transition: opacity 200ms ease;
-      box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      box-shadow: 0 8px 30px rgba(0,0,0,.5);
     }
     .avc-toast.avc-visible { opacity: 1; }
   `;
@@ -214,10 +247,10 @@ AVC.overlay = (function () {
     card.setAttribute("role", "dialog");
 
     const chip = document.createElement("div");
-    chip.className = "avc-chip";
+    chip.className = isReview ? "avc-chip avc-chip-review" : "avc-chip";
     chip.textContent = isReview
-      ? "復習 · Review — you learned this word. Remember it?"
-      : `N${entry.level}-ish · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · 🎧 heard just now" : ""}`;
+      ? "Review — you learned this word. Remember it?"
+      : `N${entry.level} · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · heard just now" : ""}`;
 
     const displays = wordDisplays(token, entry, displayScript);
 
@@ -228,7 +261,7 @@ AVC.overlay = (function () {
     wordEl.textContent = displays.big;
     const speakBtn = document.createElement("button");
     speakBtn.className = "avc-speak";
-    speakBtn.textContent = "🔊";
+    speakBtn.textContent = "Listen";
     speakBtn.title = "Hear it";
     speakBtn.addEventListener("click", (e) => {
       e.stopPropagation();

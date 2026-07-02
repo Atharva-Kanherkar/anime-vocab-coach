@@ -54,12 +54,12 @@ async function render() {
 
   const totals = countByState(vocab);
   document.getElementById("totals-row").innerHTML =
-    `<span class="dot-known">● ${totals.known} known</span>   ` +
-    `<span class="dot-learning">● ${totals.learning} learning</span>   ` +
-    `<span class="dot-seen">● ${totals.seen} seen</span>`;
+    `<span><span class="t-known">${totals.known}</span> known</span>` +
+    `<span><span class="t-learning">${totals.learning}</span> learning</span>` +
+    `<span><span class="t-num">${totals.seen}</span> seen</span>`;
 
   const streak = computeStreak(stats.daily);
-  document.getElementById("streak").textContent = streak > 0 ? `🔥 ${streak}-day streak` : "No streak yet";
+  document.getElementById("streak").innerHTML = streak > 0 ? `<b>${streak}-day</b> streak` : "No streak yet";
 
   const recent = Object.entries(vocab)
     .sort((a, b) => (b[1].lastSeenAt || 0) - (a[1].lastSeenAt || 0))
@@ -107,7 +107,7 @@ async function initListening() {
 
   const setUi = (listening) => {
     btn.classList.toggle("active", listening);
-    btn.textContent = listening ? "🎧 Stop Listening Mode" : "🎧 Start Listening Mode";
+    btn.textContent = listening ? "Stop Listening Mode" : "Start Listening Mode";
   };
 
   chrome.runtime.sendMessage({ type: "avc-listen-status", tabId }, (res) => {

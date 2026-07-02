@@ -1,14 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8b7cf6"/>
-      <stop offset="1" stop-color="#6d5ae0"/>
-    </linearGradient>
-  </defs>
-  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
-  <!-- speech-bubble tail -->
-  <path d="M34 92 L34 108 L52 94 Z" fill="#ffffff"/>
-  <!-- kana あ, the first letter a beginner learns -->
-  <text x="64" y="82" font-family="'Hiragino Sans','Yu Gothic','Noto Sans JP',sans-serif"
-        font-size="72" font-weight="700" fill="#ffffff" text-anchor="middle">あ</text>
+  <rect width="128" height="128" rx="24" fill="#131316"/>
+  <rect x="1.5" y="1.5" width="125" height="125" rx="22.5" fill="none" stroke="#2e2e32" stroke-width="3"/>
+  <text x="64" y="86" font-family="'Noto Sans CJK JP','Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif"
+        font-size="72" font-weight="700" fill="#d96c4f" text-anchor="middle">あ</text>
 </svg>
