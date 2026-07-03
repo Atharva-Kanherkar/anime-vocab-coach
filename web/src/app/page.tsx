@@ -1,37 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FxSlider, type Slide } from "@/components/marketing";
+import { FxSlider } from "@/components/fx-slider";
 import {
   PricingSection,
   PromoBar,
   SiteFooter,
   SiteHeader,
 } from "@/components/site-chrome";
+import { heroSlides } from "@/lib/slides";
 import { GITHUB_URL, SITE_URL, getPromoState } from "@/lib/site";
-
-const slides: Slide[] = [
-  {
-    id: "watch",
-    kicker: "Free · open source · Chrome extension",
-    title: "Learn Japanese from the anime you already watch.",
-    body: "One useful word per line, in romaji, with the meaning and the exact moment it was spoken. No kana required to start.",
-    scene: "dusk",
-  },
-  {
-    id: "listen",
-    kicker: "Netflix · Crunchyroll · YouTube",
-    title: "Works when there are no Japanese subtitles.",
-    body: "Listening Mode transcribes the audio while your English subs stay on. New releases and obscure titles included.",
-    scene: "city",
-  },
-  {
-    id: "remember",
-    kicker: "Spaced repetition built in",
-    title: "Reviews find you in the next episode.",
-    body: "Words you are learning resurface right before you would forget them. No separate study session.",
-    scene: "sakura",
-  },
-];
 
 export const metadata: Metadata = {
   title: "Learn Japanese from Anime | AnimeVocab Chrome Extension",
@@ -54,7 +31,7 @@ export default function HomePage() {
       <PromoBar initial={promo} />
       <SiteHeader />
       <main id="main">
-        <FxSlider slides={slides} />
+        <FxSlider slides={heroSlides} />
 
         <section className="strip">
           <div className="wrap strip-inner reveal">

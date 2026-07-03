@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, Newsreader, Noto_Sans_JP } from "next/font/google";
-import { FxSliderClient } from "@/components/fx-slider-client";
 import { ScrollEffects } from "@/components/site-chrome";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -51,7 +50,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         {children}
-        <FxSliderClient />
         <ScrollEffects />
       </body>
     </html>
