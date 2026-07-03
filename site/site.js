@@ -17,7 +17,7 @@
       bar.hidden = false;
       const dayWord = promo.daysLeft === 1 ? "day" : "days";
       bar.querySelector(".promo-text").textContent =
-        `Launch pricing — ${promo.promoLabel || cfg.promoLabel} · ${promo.daysLeft} ${dayWord} left`;
+        `Launch pricing: ${promo.promoLabel || cfg.promoLabel} · ${promo.daysLeft} ${dayWord} left`;
       if (proStrike) {
         proStrike.hidden = false;
         proStrike.textContent = promo.regularLabel || cfg.regularLabel;
@@ -57,6 +57,8 @@
       .catch(() => {});
   }
 
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) {
       if (e.isIntersecting) {
@@ -66,4 +68,20 @@
     }
   }, { threshold: 0.12 });
   document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  if (!reduced) {
+    const heroCard = document.querySelector(".hero-card");
+    if (heroCard) {
+      window.addEventListener("scroll", () => {
+        const y = Math.min(window.scrollY * 0.04, 24);
+        heroCard.style.transform = `translateY(${y}px)`;
+      }, { passive: true });
+    }
+
+    document.querySelectorAll(".top").forEach((nav) => {
+      window.addEventListener("scroll", () => {
+        nav.classList.toggle("top-scrolled", window.scrollY > 12);
+      }, { passive: true });
+    });
+  }
 })();
