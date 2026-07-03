@@ -27,7 +27,8 @@ kv_namespaces = [
 [vars]
 CAP_MINUTES = "2700"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
-OPENAI_WHISPER_MODEL = "whisper-1"
+# OPENAI_WHISPER_MODEL is unset so the batch cache-miss path keeps using
+# TRANSCRIBE_MODEL (gpt-4o-mini-transcribe). Set it only to override that model.
 GROQ_WHISPER_MODEL = "whisper-large-v3"
 DEEPINFRA_WHISPER_MODEL = "openai/whisper-large-v3"
 # Default: OpenAI only (uses your OpenAI credits). No Groq/DeepInfra keys required.

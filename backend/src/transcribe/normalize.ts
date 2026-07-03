@@ -17,7 +17,14 @@ export function normalizeWhisperResponse(
         end: startSec + (s.end ?? s.start ?? 0),
         text: (s.text || "").trim()
       }))
-      .filter((s) => s.text.length > 0 && JA_RE.test(s.text));
+      .filter(
+        (s) =>
+          s.text.length > 0 &&
+          JA_RE.test(s.text) &&
+          Number.isFinite(s.start) &&
+          Number.isFinite(s.end) &&
+          s.end > s.start
+      );
   }
 
   const text = (data.text || "").trim();

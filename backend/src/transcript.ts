@@ -49,8 +49,7 @@ export async function transcribeAndStore(
   licenseId: string,
   cacheKey: string,
   pcmBase64: string,
-  startSec: number,
-  providerOverride?: string
+  startSec: number
 ): Promise<LookupResult> {
   const { pcm, error: pcmErr } = decodePcmBase64(pcmBase64);
   if (pcmErr) throw new Error(pcmErr);
@@ -87,11 +86,14 @@ export async function transcribeAndStore(
     await bumpTranscribeMiss(env, cacheKey);
 
     const language = cacheKey.split(":").pop() || "ja";
-    const tx = await transcribeWithFallback(env, pcm, {
-      language,
-      startSec,
-      providerOverride
-    });
+    let tx;
+    try {
+      tx = await transcribeWithFallback(env, pcm, { language, startSec });
+    } catch (err) {
+      // No provider produced a transcript — refund the minutes we reserved.
+      await addMinutes(env, licenseId, -minutes);
+      throw err;
+    }
     await recordProviderSuccess(env, tx.provider, tx.durationMinutes, tx.estimatedCostUsd);
 
     if (tx.segments.length) {

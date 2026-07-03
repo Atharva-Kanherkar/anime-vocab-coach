@@ -16,8 +16,6 @@ export interface WhisperRawResponse {
 export interface TranscribeOpts {
   language: string;
   startSec: number;
-  /** Override provider chain for testing (comma-separated names). */
-  providerOverride?: string;
   timeoutMs?: number;
 }
 
@@ -38,8 +36,11 @@ export interface ProviderConfig {
   enabled: boolean;
 }
 
+// Rough per-minute estimates for the default model on each provider. Used only
+// for the cost figure on the stats endpoint; openai tracks gpt-4o-mini-transcribe
+// (the configured TRANSCRIBE_MODEL), not whisper-1.
 export const PROVIDER_COST_USD_PER_MIN: Record<string, number> = {
   groq: 0.002,
   deepinfra: 0.0008,
-  openai: 0.006
+  openai: 0.003
 };

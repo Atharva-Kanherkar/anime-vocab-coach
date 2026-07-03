@@ -11,7 +11,7 @@ import { getMetrics } from "./metrics";
 import { mintTranscriptionToken } from "./openai";
 import { publicConfig } from "./promo";
 import { lookupTranscript, transcribeAndStore } from "./transcript";
-import { getProviderMetrics } from "./transcribe";
+import { getProviderMetrics } from "./transcribe/index";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
@@ -215,8 +215,6 @@ export default {
           key?: string;
           startSec?: number;
           audio?: string;
-          /** Testing override: single provider name or comma-separated chain */
-          provider?: string;
         };
         const cacheKey = (body.key || "").trim();
         const keyErr = validateCacheKey(cacheKey);
@@ -229,7 +227,7 @@ export default {
         const audio = body.audio || "";
         if (!audio) return json(req, { error: "missing audio" }, 400);
 
-        const result = await transcribeAndStore(env, auth.id, cacheKey, audio, startSec, body.provider);
+        const result = await transcribeAndStore(env, auth.id, cacheKey, audio, startSec);
         return json(req, result);
       }
 
@@ -239,7 +237,8 @@ export default {
       if (/monthly listening hours used up/i.test(detail)) {
         return json(req, { error: detail }, 429);
       }
-      return json(req, { error: "internal: " + detail }, 500);
+      console.error("request failed:", detail);
+      return json(req, { error: "internal error" }, 500);
     }
   }
 };

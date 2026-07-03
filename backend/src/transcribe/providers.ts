@@ -49,7 +49,15 @@ export function resolveProviderChain(env: Env, override?: string): ProviderDef[]
   const chain: ProviderDef[] = [];
   for (const name of names) {
     const def = byName.get(name);
-    if (def && def.apiKey(env)) chain.push(def);
+    if (!def) {
+      console.warn(`TRANSCRIBE_PROVIDERS: unknown provider "${name}" ignored`);
+      continue;
+    }
+    if (!def.apiKey(env)) {
+      console.warn(`TRANSCRIBE_PROVIDERS: "${name}" skipped — no API key configured`);
+      continue;
+    }
+    chain.push(def);
   }
   if (!chain.length) {
     const openai = byName.get("openai");
@@ -95,9 +103,21 @@ async function invokeProvider(
   const raw = await res.json().catch(() => ({}));
   const data = coerceWhisperJson(raw);
   if (!res.ok) {
-    throw new Error(`${def.name}: ${data.error?.message || res.status}`);
+    const err = new Error(`${def.name}: ${data.error?.message || res.status}`) as ProviderError;
+    err.status = res.status;
+    throw err;
   }
   return data;
+}
+
+interface ProviderError extends Error {
+  status?: number;
+}
+
+/** 4xx (except 429) is a request-level failure — retrying other providers won't help. */
+function isNonRetryable(err: unknown): boolean {
+  const status = (err as ProviderError)?.status;
+  return typeof status === "number" && status >= 400 && status < 500 && status !== 429;
 }
 
 export async function transcribeWithFallback(
@@ -110,7 +130,7 @@ export async function transcribeWithFallback(
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const wav = pcmToWav(pcm, SAMPLE_RATE);
   const durationMinutes = pcmDurationMinutes(pcm.length, SAMPLE_RATE);
-  const chain = resolveProviderChain(env, opts.providerOverride);
+  const chain = resolveProviderChain(env);
 
   if (!chain.length) {
     throw new Error("no transcription providers configured");
@@ -133,6 +153,9 @@ export async function transcribeWithFallback(
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
       await recordProviderError(env, def.name);
+      // A request-level rejection (bad audio, bad key) will fail identically on
+      // every provider — stop rather than burn the whole chain's timeout budget.
+      if (isNonRetryable(err)) break;
     }
   }
 
