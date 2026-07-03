@@ -5,5 +5,5 @@ window.AVC_PROMO = {
   promoLabel: "$7/month or $59/year",
   checkoutUrl: "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID",
   promoCheckoutUrl: "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID",
-  apiBase: "https://avc-api.example.workers.dev"
+  apiBase: "https://api.animevocab.com"
 };
