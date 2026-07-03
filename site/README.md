@@ -1,14 +1,5 @@
-# animevocab.com — marketing site
+# See ../web/README.md — marketing site moved to Next.js (web/)
 
-Dependency-free static site (HTML/CSS only, no build step).
+This folder is the **legacy static HTML** site, kept for reference during migration.
 
-## Deploy (Cloudflare Pages, free)
-
-1. Cloudflare dashboard → Workers & Pages → Create → Pages → connect this repo.
-2. Build settings: no build command, output directory `site`.
-3. Add the custom domain once purchased.
-
-If the final domain differs from `animevocab.com`, update the `canonical`,
-`og:url` URLs (index.html, privacy.html), `robots.txt`, and `sitemap.xml`.
-
-An `og.png` (1200×630 social preview image) should be added before launch.
+New work goes in **`web/`**. Deploy with `npm run deploy:site` from the repo root (runs OpenNext on `web/`).

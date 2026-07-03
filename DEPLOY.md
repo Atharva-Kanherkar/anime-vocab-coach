@@ -26,17 +26,25 @@ This opens a browser; approve access. After that, an agent (or you) can deploy f
 
 ---
 
-## 1. Marketing site → Cloudflare Pages
+## 1. Marketing site → Cloudflare (Next.js on Workers)
 
-From the repo root:
+The site lives in **`web/`** (Next.js + OpenNext for Cloudflare).
 
 ```bash
-npm run deploy:site
+cd web
+npm install
+npm run dev          # local dev at http://localhost:3000
+npm run preview      # test in Workers runtime locally
+npm run deploy       # build + deploy to Cloudflare
 ```
 
-First run creates the Pages project `animevocab`. You'll get a URL like `https://animevocab.pages.dev`.
+Or from repo root: `npm run deploy:site`
 
-**Custom domain:** Cloudflare dashboard → Workers & Pages → animevocab → Custom domains → add `animevocab.com` and `www.animevocab.com`. Cloudflare creates DNS records automatically if the zone is on Cloudflare.
+Production URL: https://animevocab.com (custom domain on Worker `animevocab`)
+
+**Custom domain:** Cloudflare dashboard → Workers & Pages → animevocab → Custom domains → add `animevocab.com` and `www.animevocab.com`.
+
+Legacy static HTML is in `site/` (deprecated).
 
 ---
 
@@ -63,7 +71,7 @@ Pushes to `master` run [`.github/workflows/deploy.yml`](.github/workflows/deploy
 
 | Job | Target | Command |
 | --- | --- | --- |
-| **Deploy marketing site** | Cloudflare Pages project `animevocab` | `wrangler pages deploy` from `site/` |
+| **Deploy marketing site** | Cloudflare Worker `animevocab` (Next.js via OpenNext) | `npm run deploy` in `web/` |
 | **Deploy Pro API** | Cloudflare Worker `avc-api` | `wrangler deploy` from `backend/` |
 
 ### One-time GitHub setup
