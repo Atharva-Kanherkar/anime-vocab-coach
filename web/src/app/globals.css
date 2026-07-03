@@ -120,6 +120,7 @@ body::after {
   display: inline-flex; align-items: center; justify-content: center;
   text-decoration: none; border-radius: 8px; font-weight: 600;
   font-size: 14px; padding: 11px 20px; border: 1px solid transparent;
+  color: var(--ink); /* default so a variant-less button never renders as a blue link */
   transition: background 140ms, border-color 140ms, transform 140ms, box-shadow 140ms;
 }
 .btn:hover { transform: translateY(-1px); }
@@ -550,6 +551,7 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 
 .fx-slide__title .w {
   display: inline-block;
+  margin-right: 0.26em; /* inline-block collapses the trailing space; restore it */
   opacity: 0;
   transform: translateY(22px);
 }
@@ -732,4 +734,130 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
     transform: none;
     animation: none !important;
   }
+}
+
+/* ================================================================
+   IMMERSIVE HOMEPAGE — floating chrome + cinematic editorial
+   sections. Additive; comparison pages keep .top nav + grids.
+   ================================================================ */
+
+/* floating brand bar (replaces navbar on home) */
+.home-bar {
+  position: fixed; inset: 0 0 auto 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px clamp(20px, 4vw, 44px);
+  transition: background 240ms ease, box-shadow 240ms ease, padding 240ms ease, backdrop-filter 240ms ease;
+}
+.home-bar .logo {
+  font-family: var(--jp); font-size: 18px; color: var(--ink); text-decoration: none;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+.home-bar .logo b { color: var(--accent); font-weight: 600; }
+.home-bar.scrolled {
+  background: rgba(14, 12, 16, 0.86);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 1px 0 var(--line), 0 8px 28px rgba(0, 0, 0, 0.28);
+  padding-block: 11px;
+}
+
+.btn-lg { padding: 15px 30px; font-size: 15px; }
+
+/* manifesto (replaces .strip on home) */
+.manifesto {
+  position: relative; padding: clamp(72px, 10vw, 120px) 0;
+  background: rgba(18, 16, 20, 0.55); border-block: 1px solid var(--line);
+  overflow: hidden;
+}
+.manifesto .wrap { position: relative; }
+.man-quote {
+  position: absolute; top: -0.42em; left: -0.06em;
+  font-family: var(--serif); font-size: clamp(120px, 15vw, 200px);
+  color: rgba(224, 120, 86, 0.14); line-height: 1; user-select: none;
+}
+.manifesto p {
+  position: relative; font-family: var(--serif); font-size: clamp(22px, 3vw, 33px);
+  line-height: 1.34; color: var(--ink-2); max-width: 24em;
+  margin-inline: auto; text-align: center; font-weight: 400; text-wrap: balance;
+}
+.manifesto strong { color: var(--ink); font-weight: 500; }
+
+/* JP section mark */
+.jp-mark {
+  display: block; font-family: var(--jp); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.5em; color: rgba(224, 120, 86, 0.8);
+  margin-bottom: 14px;
+}
+
+/* cinematic timeline (replaces boxed .flow grid on home) */
+.timeline { list-style: none; display: flex; flex-direction: column; }
+.timeline li {
+  position: relative; display: grid;
+  grid-template-columns: clamp(56px, 7vw, 92px) 1fr clamp(90px, 12vw, 150px);
+  gap: clamp(18px, 3vw, 44px); align-items: center;
+  padding: clamp(26px, 3.6vw, 44px) 0; border-top: 1px solid var(--line);
+}
+.timeline li:last-child { border-bottom: 1px solid var(--line); }
+.t-num {
+  font-family: var(--serif); font-size: clamp(30px, 3.4vw, 46px); font-weight: 500;
+  color: rgba(224, 120, 86, 0.55); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.t-body h3 { font-size: 19px; font-weight: 600; margin-bottom: 8px; }
+.t-body p { font-size: 15px; color: var(--ink-2); max-width: 54ch; }
+.t-kanji {
+  justify-self: end; font-family: var(--jp); font-weight: 600;
+  font-size: clamp(52px, 8vw, 116px); line-height: 1;
+  color: rgba(224, 120, 86, 0.12); user-select: none;
+  transition: color 320ms ease, transform 320ms ease;
+}
+.timeline li:hover .t-kanji { color: rgba(224, 120, 86, 0.34); transform: translateY(-3px); }
+
+/* editorial feature rows (replaces 2x2 .feat-grid on home) */
+.feat-rows { display: flex; flex-direction: column; }
+.feat-row {
+  display: grid; grid-template-columns: clamp(74px, 9vw, 122px) 1fr;
+  gap: clamp(16px, 3vw, 40px); align-items: start;
+  padding: clamp(24px, 3.4vw, 40px) 0; border-top: 1px solid var(--line);
+}
+.feat-row:last-child { border-bottom: 1px solid var(--line); }
+.feat-kanji {
+  font-family: var(--jp); font-weight: 600; font-size: clamp(44px, 5.5vw, 74px);
+  line-height: 1; color: rgba(224, 120, 86, 0.32); user-select: none;
+  transition: color 300ms ease, transform 300ms ease;
+}
+.feat-row:hover .feat-kanji { color: rgba(224, 120, 86, 0.78); transform: translateY(-3px); }
+.feat-row h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.feat-row p { font-size: 15px; color: var(--ink-2); max-width: 62ch; }
+
+/* cinematic final frame (replaces .closing on home) */
+.final-frame {
+  position: relative; min-height: 82svh;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  overflow: hidden; border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, transparent, rgba(8, 7, 10, 0.85) 70%);
+}
+.final-bg { position: absolute; inset: 0; pointer-events: none; display: grid; place-items: end center; }
+.final-kanji {
+  font-family: var(--jp); font-weight: 600; line-height: 0.8;
+  font-size: clamp(300px, 50vw, 720px); color: rgba(224, 120, 86, 0.05);
+  transform: translateY(0.14em); user-select: none;
+}
+.final-inner { position: relative; z-index: 2; padding: 120px 24px; }
+.final-jp {
+  font-family: var(--jp); font-size: clamp(14px, 1.5vw, 18px);
+  letter-spacing: 0.32em; color: rgba(224, 120, 86, 0.82); margin-bottom: 20px;
+}
+.final-frame h2 {
+  font-family: var(--serif); font-weight: 500; text-wrap: balance;
+  font-size: clamp(30px, 4.6vw, 52px); line-height: 1.1;
+  letter-spacing: -0.02em; margin-bottom: 32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline li:hover .t-kanji, .feat-row:hover .feat-kanji { transform: none; }
+}
+
+@media (max-width: 860px) {
+  .timeline li { grid-template-columns: 44px 1fr; }
+  .t-kanji { display: none; }
+  .home-bar .btn { padding: 8px 14px; font-size: 13px; }
 }

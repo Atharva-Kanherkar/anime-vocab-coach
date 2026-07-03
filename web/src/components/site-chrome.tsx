@@ -20,10 +20,33 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
             <Link href="/#faq">FAQ</Link>
           </nav>
         )}
-        <a className="btn btn-sm" href={GITHUB_URL} rel="noopener noreferrer">
+        <a className="btn btn-sm btn-line" href={GITHUB_URL} rel="noopener noreferrer">
           Install free
         </a>
       </div>
+    </header>
+  );
+}
+
+export function HomeBrandBar() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () =>
+      setScrolled(window.scrollY > window.innerHeight * 0.6);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <header className={`home-bar${scrolled ? " scrolled" : ""}`}>
+      <Link className="logo" href="/" aria-label="AnimeVocab home">
+        アニメ<b>Vocab</b>
+      </Link>
+      <a className="btn btn-sm btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
+        Add to Chrome
+      </a>
     </header>
   );
 }
