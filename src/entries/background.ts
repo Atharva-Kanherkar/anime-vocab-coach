@@ -74,11 +74,19 @@ async function ensureContentScript(tabId: number): Promise<boolean> {
   }
 }
 
+async function getCacheKeyFromTab(tabId: number): Promise<string | null> {
+  try {
+    const res = await chrome.tabs.sendMessage(tabId, { type: "avc-get-cache-key" }) as { key?: string } | undefined;
+    return res?.key || null;
+  } catch {
+    return null;
+  }
+}
+
 async function startListening(tabId: number): Promise<Ack> {
   const r = await chrome.storage.local.get(["settings"]);
   const settings = (r.settings as Partial<Settings> | undefined) || {};
 
-  // Pro subscription first; fall back to the user's own OpenAI key.
   const auth = settings.licenseKey
     ? { kind: "hosted" as const, licenseKey: settings.licenseKey, backendUrl: BACKEND_URL }
     : settings.openaiKey
@@ -88,11 +96,16 @@ async function startListening(tabId: number): Promise<Ack> {
     return { ok: false, error: "Listening Mode needs Pro (license key) or your own OpenAI API key — set either in Settings." };
   }
 
-  // Make sure the page can receive transcripts before we start paying for audio.
   const injected = await ensureContentScript(tabId);
   if (!injected) {
     return { ok: false, error: "Couldn't load the extension into this tab. Try reloading the page, then Start again." };
   }
+
+  const cacheKey = auth.kind === "hosted" ? await getCacheKeyFromTab(tabId) : null;
+  if (auth.kind === "hosted" && !cacheKey) {
+    console.warn("[AVC] no cache key yet — listening will wait for fingerprint or page ID");
+  }
+
   let streamId: string;
   try {
     streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
@@ -106,7 +119,8 @@ async function startListening(tabId: number): Promise<Ack> {
     streamId,
     tabId,
     auth,
-    model: settings.transcribeModel || DEFAULTS.transcribeModel
+    model: settings.transcribeModel || DEFAULTS.transcribeModel,
+    cacheKey: cacheKey || undefined
   }).catch((err): Ack => ({ ok: false, error: String(err.message || err) }));
 
   if (!ack || ack.ok === false) {
@@ -116,6 +130,7 @@ async function startListening(tabId: number): Promise<Ack> {
   const tabs = await getListening();
   tabs[tabId] = true;
   await setListening(tabs);
+  chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: true }).catch(() => {});
   chrome.action.setBadgeText({ tabId, text: "REC" });
   chrome.action.setBadgeBackgroundColor({ tabId, color: "#f87171" });
   console.log("[AVC] listening started on tab", tabId, "model", settings.transcribeModel || DEFAULTS.transcribeModel);
@@ -124,6 +139,7 @@ async function startListening(tabId: number): Promise<Ack> {
 
 async function stopListening(tabId: number): Promise<Ack> {
   chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId }).catch(() => {});
+  chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: false }).catch(() => {});
   const tabs = await getListening();
   delete tabs[tabId];
   await setListening(tabs);
@@ -139,9 +155,10 @@ interface RuntimeMsg {
   text?: string;
   code?: string;
   detail?: string;
+  time?: number;
 }
 
-chrome.runtime.onMessage.addListener((msg: RuntimeMsg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
   if (msg.type === "avc-badge") {
     const text = (msg.count || 0) > 0 ? String(msg.count) : "";
     chrome.action.setBadgeText({ text });
@@ -172,12 +189,19 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, _sender, sendResponse) =>
   }
 
   if (msg.type === "avc-transcript") {
-    // offscreen → the captured tab's content scripts (all frames; the frame
-    // that owns the video picks it up)
     console.log("[AVC] relaying transcript to tab", msg.tabId, "→", msg.text);
     chrome.tabs.sendMessage(msg.tabId!, { type: "avc-transcript", text: msg.text }).catch((err) => {
       console.warn("[AVC] could not deliver transcript to tab (content script not loaded?):", String(err));
     });
+    return;
+  }
+
+  if (msg.type === "avc-playback-time" && sender.tab?.id != null) {
+    chrome.runtime.sendMessage({
+      type: "avc-playback-time",
+      tabId: sender.tab.id,
+      time: msg.time
+    }).catch(() => {});
     return;
   }
 

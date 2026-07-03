@@ -1,5 +1,6 @@
 import { log, warn } from "../log";
 import { normalize, hasJapanese } from "./util";
+import { uploadSubtitlePrefill } from "../prefill-cache";
 import type { LineContext, SiteAdapter } from "../../types";
 
 interface Cue {
@@ -85,6 +86,8 @@ async function handleTracks(msg: CaptionTrackMsg): Promise<void> {
     return;
   }
   log(`youtube: loaded ${jaCues.length} Japanese cues (${jaTrack.kind === "asr" ? "auto-generated" : "manual"})`);
+  uploadSubtitlePrefill("youtube", jaCues.map((c) => ({ start: c.start, end: c.end, text: c.text })))
+    .catch((err) => warn("youtube prefill error:", err));
   const enTrack = pickTrack(msg.tracks, "en");
   if (enTrack) {
     try {

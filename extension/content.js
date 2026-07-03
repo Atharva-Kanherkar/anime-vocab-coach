@@ -942,6 +942,102 @@
     return /[぀-ヿ㐀-䶿一-鿿]/.test(text);
   }
 
+  // src/lib/cache-key.ts
+  var AUDIO_LANG = "ja";
+  function cacheKey(platform, contentId, audioLang = AUDIO_LANG) {
+    if (platform === "generic") {
+      return `fp:${contentId}:${audioLang}`;
+    }
+    return `${platform}:${contentId}:${audioLang}`;
+  }
+  function deriveContentId(platform) {
+    switch (platform) {
+      case "youtube": {
+        const m = location.search.match(/[?&]v=([^&]+)/);
+        if (m) return m[1];
+        const pathMatch = location.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/);
+        return pathMatch ? pathMatch[1] : null;
+      }
+      case "netflix": {
+        const watch = location.pathname.match(/\/watch\/(\d+)/);
+        if (watch) return watch[1];
+        const id = window.__avcNetflixVideoId;
+        return id || null;
+      }
+      case "crunchyroll": {
+        const parts = location.pathname.split("/").filter(Boolean);
+        const watchIdx = parts.indexOf("watch");
+        if (watchIdx >= 0 && parts[watchIdx + 2]) return parts[watchIdx + 2];
+        if (watchIdx >= 0 && parts[watchIdx + 1]) return parts[watchIdx + 1];
+        return null;
+      }
+      default:
+        return null;
+    }
+  }
+  function deriveCacheKey(platform, fingerprint) {
+    const contentId = deriveContentId(platform);
+    if (contentId) {
+      return { key: cacheKey(platform, contentId), platform, contentId, audioLang: AUDIO_LANG };
+    }
+    if (fingerprint) {
+      return {
+        key: cacheKey("generic", fingerprint),
+        platform: "generic",
+        contentId: fingerprint,
+        audioLang: AUDIO_LANG
+      };
+    }
+    return null;
+  }
+
+  // src/config.ts
+  var BACKEND_URL = "https://avc-api.example.workers.dev";
+
+  // src/lib/transcript-client.ts
+  async function lookupTranscript(licenseKey, cacheKey2, t, windowSec = 8) {
+    const url = new URL(BACKEND_URL + "/v1/transcript");
+    url.searchParams.set("key", cacheKey2);
+    url.searchParams.set("t", String(t));
+    url.searchParams.set("window", String(windowSec));
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: "Bearer " + licenseKey }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "transcript lookup HTTP " + res.status);
+    }
+    return res.json();
+  }
+  async function prefillTranscript(licenseKey, cacheKey2, segments, source) {
+    const res = await fetch(BACKEND_URL + "/v1/transcript", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + licenseKey
+      },
+      body: JSON.stringify({ key: cacheKey2, segments, source })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "transcript prefill HTTP " + res.status);
+    }
+  }
+
+  // src/lib/prefill-cache.ts
+  async function uploadSubtitlePrefill(platform, segments) {
+    if (!segments.length) return;
+    const settings = await getSettings();
+    if (!settings.licenseKey) return;
+    const keyResult = deriveCacheKey(platform);
+    if (!keyResult) return;
+    try {
+      await prefillTranscript(settings.licenseKey, keyResult.key, segments, "subtitle_track");
+    } catch (err) {
+      console.warn("[AVC] subtitle prefill failed:", err);
+    }
+  }
+
   // src/lib/adapters/youtube.ts
   var onLineCb = null;
   var jaCues = [];
@@ -995,6 +1091,7 @@
       return;
     }
     log(`youtube: loaded ${jaCues.length} Japanese cues (${jaTrack.kind === "asr" ? "auto-generated" : "manual"})`);
+    uploadSubtitlePrefill("youtube", jaCues.map((c) => ({ start: c.start, end: c.end, text: c.text }))).catch((err) => warn("youtube prefill error:", err));
     const enTrack = pickTrack(msg.tracks, "en");
     if (enTrack) {
       try {
@@ -1078,9 +1175,50 @@
   };
 
   // src/lib/adapters/netflix.ts
+  var jaCues2 = [];
+  var lastCueKey2 = "";
+  var attachedVideo2 = null;
+  var onLineCb2 = null;
   function getVisibleText2() {
     const rows = document.querySelectorAll(".player-timedtext-text-container");
     return normalize(Array.from(rows).map((r) => r.textContent || "").join(" "));
+  }
+  function scrapeVisibleJapaneseCues() {
+    const containers = document.querySelectorAll(".player-timedtext-text-container");
+    const cues = [];
+    const video = document.querySelector("video");
+    const t = video?.currentTime ?? 0;
+    for (const el of containers) {
+      const text = normalize(el.textContent || "");
+      if (!text || !hasJapanese(text)) continue;
+      cues.push({ start: t, end: t + 4, text });
+    }
+    return cues;
+  }
+  function cueAt2(cues, t) {
+    for (const cue of cues) {
+      if (t >= cue.start && t <= cue.end) return cue;
+      if (cue.start > t) break;
+    }
+    return null;
+  }
+  function onTimeUpdate2() {
+    if (!jaCues2.length || !onLineCb2 || !attachedVideo2) return;
+    const t = attachedVideo2.currentTime;
+    const cue = cueAt2(jaCues2, t);
+    if (!cue) return;
+    const key = `${cue.start}:${cue.text}`;
+    if (key === lastCueKey2) return;
+    lastCueKey2 = key;
+    onLineCb2(cue.text, { en: getVisibleText2() });
+  }
+  async function tryLoadJpTracks() {
+    const scraped = scrapeVisibleJapaneseCues();
+    if (scraped.length) {
+      jaCues2 = scraped;
+      uploadSubtitlePrefill("netflix", scraped).catch((err) => warn("netflix prefill error:", err));
+      log(`netflix: scraped ${scraped.length} Japanese cues from timed text`);
+    }
   }
   var netflixAdapter = {
     name: "netflix",
@@ -1090,16 +1228,33 @@
     getVideo() {
       return document.querySelector("video");
     },
-    // Netflix only downloads the subtitle track the viewer selected, so with
-    // English subs on screen this returns English — used as context for
-    // listening-mode transcripts. (Japanese cards on Netflix come from
-    // listening mode, not from the DOM.)
     getVisibleText: getVisibleText2,
     start(onLine) {
+      onLineCb2 = onLine;
+      jaCues2 = [];
+      lastCueKey2 = "";
+      window.addEventListener("message", (e) => {
+        if (e.source !== window) return;
+        if (e.data?.source !== "avc" || e.data.type !== "avc-netflix-video-id") return;
+        jaCues2 = [];
+        lastCueKey2 = "";
+      });
+      setInterval(() => {
+        const v = getVideo2();
+        if (v && v !== attachedVideo2) {
+          if (attachedVideo2) attachedVideo2.removeEventListener("timeupdate", onTimeUpdate2);
+          attachedVideo2 = v;
+          v.addEventListener("timeupdate", onTimeUpdate2);
+        }
+      }, 2e3);
+      setInterval(() => {
+        tryLoadJpTracks().catch((err) => warn("netflix track load error:", err));
+      }, 8e3);
       let lastText = "";
       let debounceTimer = null;
       const check = () => {
         try {
+          if (jaCues2.length) return;
           const text = getVisibleText2();
           if (!text || text === lastText) return;
           if (!hasJapanese(text)) return;
@@ -1111,14 +1266,17 @@
       };
       const observer = new MutationObserver(() => {
         if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => check(), 100);
+        debounceTimer = setTimeout(check, 100);
       });
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     }
   };
+  function getVideo2() {
+    return document.querySelector("video");
+  }
 
   // src/lib/adapters/generic.ts
-  function getVideo2() {
+  function getVideo3() {
     const videos = document.querySelectorAll("video");
     for (const v of videos) {
       if (v.textTracks && v.textTracks.length > 0) return v;
@@ -1130,9 +1288,9 @@
     matches() {
       return document.querySelector("video") !== null;
     },
-    getVideo: getVideo2,
+    getVideo: getVideo3,
     getVisibleText() {
-      const video = getVideo2();
+      const video = getVideo3();
       if (!video || !video.textTracks) return "";
       const parts = [];
       for (const track of video.textTracks) {
@@ -1207,6 +1365,11 @@
     let lastPath = location.pathname;
     const targetedThisSession = /* @__PURE__ */ new Set();
     let watchInterval = null;
+    let cacheKey2 = "";
+    let listeningActive = false;
+    let cachePollTimer = null;
+    let lastCacheCueKey = "";
+    let playbackRelayTimer = null;
     function pickAdapter() {
       if (adapter) return adapter;
       adapter = adapters.find((a) => a.matches()) || null;
@@ -1231,6 +1394,71 @@
         pipelineDisabled = true;
         warn("pipeline init failed:", err);
       }
+    }
+    function platformForAdapter(a) {
+      if (a.name === "youtube") return "youtube";
+      if (a.name === "netflix") return "netflix";
+      if (location.hostname.endsWith("crunchyroll.com")) return "crunchyroll";
+      return "generic";
+    }
+    function refreshCacheKey() {
+      const a = pickAdapter();
+      if (!a) return;
+      const result = deriveCacheKey(platformForAdapter(a));
+      if (result) cacheKey2 = result.key;
+    }
+    async function pollCacheHit() {
+      if (!listeningActive || !cacheKey2) return;
+      const a = pickAdapter();
+      const video = a?.getVideo();
+      if (!video || video.paused) return;
+      settings = await getSettings();
+      if (!settings.licenseKey) return;
+      const t = video.currentTime;
+      try {
+        const result = await lookupTranscript(settings.licenseKey, cacheKey2, t);
+        if (!result.hit || !result.segments.length) return;
+        for (const seg of result.segments) {
+          const key = `${seg.start}:${seg.text}`;
+          if (key === lastCacheCueKey) continue;
+          lastCacheCueKey = key;
+          if (!/[぀-ヿ一-鿿]/.test(seg.text)) continue;
+          const en = a?.getVisibleText() || "";
+          await onLine(seg.text, { en, fromAudio: true });
+        }
+      } catch (err) {
+        warn("cache poll failed:", err);
+      }
+    }
+    function startCachePolling() {
+      if (cachePollTimer) return;
+      refreshCacheKey();
+      cachePollTimer = setInterval(() => {
+        pollCacheHit().catch((err) => warn("cache poll error:", err));
+      }, 800);
+    }
+    function stopCachePolling() {
+      if (cachePollTimer) clearInterval(cachePollTimer);
+      cachePollTimer = null;
+      lastCacheCueKey = "";
+    }
+    function startPlaybackRelay() {
+      if (playbackRelayTimer) return;
+      playbackRelayTimer = setInterval(() => {
+        if (!listeningActive) return;
+        const video = adapter?.getVideo();
+        if (!video) return;
+        chrome.runtime.sendMessage({
+          type: "avc-playback-time",
+          tabId: void 0,
+          time: video.currentTime
+        }).catch(() => {
+        });
+      }, 500);
+    }
+    function stopPlaybackRelay() {
+      if (playbackRelayTimer) clearInterval(playbackRelayTimer);
+      playbackRelayTimer = null;
     }
     function startWatchInterval() {
       if (watchInterval) return;
@@ -1317,7 +1545,23 @@
       log("showing card for:", target.token.base);
       await handleCard(target, normalized, tokens, context);
     }
-    chrome.runtime.onMessage.addListener((msg) => {
+    chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+      if (msg.type === "avc-get-cache-key") {
+        refreshCacheKey();
+        sendResponse({ key: cacheKey2 || null });
+        return true;
+      }
+      if (msg.type === "avc-listening-state") {
+        listeningActive = !!msg.active;
+        if (listeningActive) {
+          startCachePolling();
+          startPlaybackRelay();
+        } else {
+          stopCachePolling();
+          stopPlaybackRelay();
+        }
+        return;
+      }
       if (msg.type !== "avc-transcript") return;
       const a = pickAdapter();
       if (!a) {
@@ -1346,8 +1590,19 @@
         lastPath = location.pathname;
         targetedThisSession.clear();
         lastLine = "";
+        lastCacheCueKey = "";
+        refreshCacheKey();
         log("session reset for new video");
       }
     }, 2e3);
+    window.addEventListener("message", (e) => {
+      if (e.source !== window) return;
+      if (e.data?.source !== "avc") return;
+      if (e.data.type === "avc-netflix-video-id" && e.data.videoId) {
+        window.__avcNetflixVideoId = e.data.videoId;
+        refreshCacheKey();
+      }
+    });
+    refreshCacheKey();
   })();
 })();

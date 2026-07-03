@@ -83,6 +83,12 @@ export interface LineContext {
   fromAudio?: boolean;
 }
 
+export interface TranscriptSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
 export interface SiteAdapter {
   name: "youtube" | "netflix" | "generic";
   matches(): boolean;
@@ -90,6 +96,8 @@ export interface SiteAdapter {
   /** Whatever subtitle text is on screen right now, any language. */
   getVisibleText(): string;
   start(onLine: (text: string, context: LineContext) => void): void;
+  /** Upload subtitle cues to the shared transcript cache (Pro only). */
+  prefillCache?(segments: TranscriptSegment[]): Promise<void>;
 }
 
 export const DEFAULTS: Settings = {

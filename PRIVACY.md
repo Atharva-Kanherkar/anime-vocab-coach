@@ -17,13 +17,16 @@ from videos you watch. This policy explains exactly what it does with data.
 
 ## What leaves your device — only in Listening Mode, only when you start it
 
-- The current tab's **audio** is streamed to OpenAI's transcription API solely to
-  convert Japanese speech into text for vocabulary detection. Audio goes directly
-  from your browser to OpenAI; it never passes through AnimeVocab's servers, is not
-  recorded, and is not stored.
-- With a Pro subscription, the extension additionally sends your **license key and
-  listening minute counts** (numbers only — never audio, never page content) to the
-  licensing server to enforce the monthly fair-use cap.
+- With **bring-your-own-key** Listening Mode, the current tab's **audio** is streamed
+  directly to OpenAI's transcription API. Audio never passes through AnimeVocab's servers.
+- With a **Pro subscription**, the extension first checks a shared transcript cache.
+  On a **cache hit**, no audio leaves your device — only a cache lookup request
+  (episode ID + playback time) goes to our server. On a **cache miss**, a short
+  audio chunk is sent to our server once for transcription, then stored and shared
+  so future users (and your re-watches) never resend that audio.
+- With Pro, the extension additionally sends your **license key and listening minute
+  counts** (numbers only — never page content) to the licensing server to enforce
+  the monthly fair-use cap.
 - Nothing is captured when Listening Mode is off.
 
 ## What it never does

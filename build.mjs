@@ -10,6 +10,7 @@ const entries = [
   { in: "src/entries/background.ts", out: "extension/background.js" },
   { in: "src/entries/offscreen.ts", out: "extension/offscreen/offscreen.js" },
   { in: "src/entries/youtube-main.ts", out: "extension/page/youtube-main.js" },
+  { in: "src/entries/netflix-main.ts", out: "extension/page/netflix-main.js" },
   { in: "src/entries/popup.ts", out: "extension/popup/popup.js" },
   { in: "src/entries/options.ts", out: "extension/options/options.js" },
   { in: "src/entries/dashboard.ts", out: "extension/dashboard/dashboard.js" }

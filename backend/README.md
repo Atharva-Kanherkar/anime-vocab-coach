@@ -8,9 +8,11 @@ $84/year, 45 listening-hours per month). It does three small jobs:
    automatically when a subscription lapses.
 2. **Metering** — counts listening minutes per license per calendar month in
    Workers KV and enforces the fair-use cap (`CAP_MINUTES`, default 2700 = 45 h).
-3. **Token minting** — creates short-lived ephemeral OpenAI Realtime tokens so
-   the extension can stream audio **directly to OpenAI**. Audio never touches
-   this server, and the real OpenAI key never leaves it.
+3. **Shared transcript cache** — Pro users share a per-episode transcript cache.
+   Cache hits return stored segments with no audio upload; cache misses are
+   transcribed server-side once via OpenAI Whisper and stored in Workers KV.
+4. **Token minting** — creates short-lived ephemeral OpenAI Realtime tokens for
+   BYO-key users who stream audio directly to OpenAI.
 
 ## Why this scales (and what it costs you)
 
@@ -61,8 +63,12 @@ Then put the deployed URL into `src/config.ts` (extension repo root) as
 | --- | --- | --- | --- |
 | POST | `/v1/license/activate` | body `{licenseKey}` | First-time activation from the options page |
 | GET | `/v1/license/status` | `Bearer <license>` | Plan status + hours used, shown in options |
-| POST | `/v1/session` | `Bearer <license>` | Mint an ephemeral OpenAI token for one listening session |
+| POST | `/v1/session` | `Bearer <license>` | Mint an ephemeral OpenAI token (BYO fallback) |
 | POST | `/v1/usage/heartbeat` | `Bearer <license>` | Extension reports ≤5 listening minutes; 429 once over cap |
+| GET | `/v1/transcript?key=&t=` | `Bearer <license>` | Lookup cached transcript segments at playback time |
+| POST | `/v1/transcript` | `Bearer <license>` | Prefill cache from subtitle tracks `{ key, segments, source }` |
+| POST | `/v1/transcript/transcribe` | `Bearer <license>` | Transcribe-on-miss `{ key, startSec, audio }` |
+| GET | `/v1/transcript/stats` | `Bearer <license>` | Global cache hit/miss metrics |
 
 ## Abuse & cost controls
 

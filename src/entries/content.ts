@@ -9,11 +9,14 @@ import * as overlay from "../lib/overlay";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
+import { deriveCacheKey, type PlatformId } from "../lib/cache-key";
+import { lookupTranscript } from "../lib/transcript-client";
 import type { LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
 
 declare global {
   interface Window {
     __avcMainLoaded?: boolean;
+    __avcNetflixVideoId?: string;
   }
 }
 
@@ -37,6 +40,11 @@ declare global {
   let lastPath = location.pathname;
   const targetedThisSession = new Set<string>();
   let watchInterval: ReturnType<typeof setInterval> | null = null;
+  let cacheKey = "";
+  let listeningActive = false;
+  let cachePollTimer: ReturnType<typeof setInterval> | null = null;
+  let lastCacheCueKey = "";
+  let playbackRelayTimer: ReturnType<typeof setInterval> | null = null;
 
   // Adapters can start matching late (e.g. Crunchyroll's player iframe creates
   // its <video> well after document_idle), so keep looking until one matches.
@@ -65,6 +73,78 @@ declare global {
       pipelineDisabled = true;
       warn("pipeline init failed:", err);
     }
+  }
+
+  function platformForAdapter(a: SiteAdapter): PlatformId {
+    if (a.name === "youtube") return "youtube";
+    if (a.name === "netflix") return "netflix";
+    if (location.hostname.endsWith("crunchyroll.com")) return "crunchyroll";
+    return "generic";
+  }
+
+  function refreshCacheKey(): void {
+    const a = pickAdapter();
+    if (!a) return;
+    const result = deriveCacheKey(platformForAdapter(a));
+    if (result) cacheKey = result.key;
+  }
+
+  async function pollCacheHit(): Promise<void> {
+    if (!listeningActive || !cacheKey) return;
+    const a = pickAdapter();
+    const video = a?.getVideo();
+    if (!video || video.paused) return;
+    settings = await storage.getSettings();
+    if (!settings.licenseKey) return;
+
+    const t = video.currentTime;
+    try {
+      const result = await lookupTranscript(settings.licenseKey, cacheKey, t);
+      if (!result.hit || !result.segments.length) return;
+      for (const seg of result.segments) {
+        const key = `${seg.start}:${seg.text}`;
+        if (key === lastCacheCueKey) continue;
+        lastCacheCueKey = key;
+        if (!/[぀-ヿ一-鿿]/.test(seg.text)) continue;
+        const en = a?.getVisibleText() || "";
+        await onLine(seg.text, { en, fromAudio: true });
+      }
+    } catch (err) {
+      warn("cache poll failed:", err);
+    }
+  }
+
+  function startCachePolling(): void {
+    if (cachePollTimer) return;
+    refreshCacheKey();
+    cachePollTimer = setInterval(() => {
+      pollCacheHit().catch((err) => warn("cache poll error:", err));
+    }, 800);
+  }
+
+  function stopCachePolling(): void {
+    if (cachePollTimer) clearInterval(cachePollTimer);
+    cachePollTimer = null;
+    lastCacheCueKey = "";
+  }
+
+  function startPlaybackRelay(): void {
+    if (playbackRelayTimer) return;
+    playbackRelayTimer = setInterval(() => {
+      if (!listeningActive) return;
+      const video = adapter?.getVideo();
+      if (!video) return;
+      chrome.runtime.sendMessage({
+        type: "avc-playback-time",
+        tabId: undefined,
+        time: video.currentTime
+      }).catch(() => {});
+    }, 500);
+  }
+
+  function stopPlaybackRelay(): void {
+    if (playbackRelayTimer) clearInterval(playbackRelayTimer);
+    playbackRelayTimer = null;
   }
 
   function startWatchInterval(): void {
@@ -171,7 +251,23 @@ declare global {
   // Listening mode: the offscreen document transcribes this tab's audio and the
   // background forwards Japanese text here. Only the frame that owns the video
   // handles it (matters on sites whose player lives in an iframe).
-  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string }) => {
+  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; active?: boolean }, _sender, sendResponse) => {
+    if (msg.type === "avc-get-cache-key") {
+      refreshCacheKey();
+      sendResponse({ key: cacheKey || null });
+      return true;
+    }
+    if (msg.type === "avc-listening-state") {
+      listeningActive = !!msg.active;
+      if (listeningActive) {
+        startCachePolling();
+        startPlaybackRelay();
+      } else {
+        stopCachePolling();
+        stopPlaybackRelay();
+      }
+      return;
+    }
     if (msg.type !== "avc-transcript") return;
     const a = pickAdapter();
     if (!a) { warn("transcript arrived but no adapter matched this frame"); return; }
@@ -199,7 +295,20 @@ declare global {
       lastPath = location.pathname;
       targetedThisSession.clear();
       lastLine = "";
+      lastCacheCueKey = "";
+      refreshCacheKey();
       log("session reset for new video");
     }
   }, 2000);
+
+  window.addEventListener("message", (e: MessageEvent) => {
+    if (e.source !== window) return;
+    if (e.data?.source !== "avc") return;
+    if (e.data.type === "avc-netflix-video-id" && e.data.videoId) {
+      window.__avcNetflixVideoId = e.data.videoId;
+      refreshCacheKey();
+    }
+  });
+
+  refreshCacheKey();
 })();
