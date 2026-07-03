@@ -57,7 +57,40 @@ Optional: add a custom route in Cloudflare (e.g. `api.animevocab.com`) → Worke
 
 ---
 
-## GitHub auto-deploy (optional)
+## GitHub auto-deploy (recommended)
+
+Pushes to `master` run [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which deploys:
+
+| Job | Target | Command |
+| --- | --- | --- |
+| **Deploy marketing site** | Cloudflare Pages project `animevocab` | `wrangler pages deploy` from `site/` |
+| **Deploy Pro API** | Cloudflare Worker `avc-api` | `wrangler deploy` from `backend/` |
+
+### One-time GitHub setup
+
+1. Create a Cloudflare API token: [dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens) → **Create Token** → **Edit Cloudflare Workers** template (or custom token with **Account → Workers Scripts → Edit**, **Workers KV Storage → Edit**, **Cloudflare Pages → Edit**).
+2. Add it to GitHub: repo **Settings → Secrets and variables → Actions → New repository secret**
+   - Name: `CLOUDFLARE_API_TOKEN`
+   - Value: your token
+3. **Disable duplicate Cloudflare Git builds** (they cause the red “Workers Builds: avc-api” check and wrong root directory):
+   - Cloudflare dashboard → **Workers & Pages** → **avc-api** → **Settings** → **Builds** → disconnect Git / disable automatic builds
+   - If Pages is also connected to Git separately, disconnect that too — the GitHub Action handles both deploys.
+
+After the secret is set, merge to `master` and watch **Actions → Deploy**.
+
+### Manual deploy (fallback)
+
+```bash
+npm run deploy:site   # marketing site → Pages
+npm run deploy:api    # Pro API → Worker avc-api
+```
+
+---
+
+## GitHub auto-deploy (legacy Cloudflare dashboard)
+
+<details>
+<summary>Cloudflare Pages Git integration only (site)</summary>
 
 Connect the repo in Cloudflare Pages (Workers & Pages → Create → Connect to Git). Settings:
 
@@ -67,7 +100,8 @@ Connect the repo in Cloudflare Pages (Workers & Pages → Create → Connect to 
 | Build output directory | `site` |
 | Root directory | `/` |
 
-Every push to `master` updates the site without running wrangler locally.
+Prefer the GitHub Action above so the API deploys on the same merge.
+</details>
 
 ---
 
