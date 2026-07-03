@@ -9,7 +9,8 @@ export interface TranscriptSegment {
 export interface LookupResponse {
   hit: boolean;
   segments: TranscriptSegment[];
-  source?: "whisper" | "subtitle_track";
+  source?: "whisper";
+  stale?: boolean;
 }
 
 export async function lookupTranscript(
@@ -25,31 +26,13 @@ export async function lookupTranscript(
   const res = await fetch(url.toString(), {
     headers: { Authorization: "Bearer " + licenseKey }
   });
+  if (res.status === 402) throw new Error("subscription inactive");
+  if (res.status === 429) throw new Error("monthly listening hours used up");
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(err.error || "transcript lookup HTTP " + res.status);
   }
   return res.json() as Promise<LookupResponse>;
-}
-
-export async function prefillTranscript(
-  licenseKey: string,
-  cacheKey: string,
-  segments: TranscriptSegment[],
-  source: "whisper" | "subtitle_track"
-): Promise<void> {
-  const res = await fetch(BACKEND_URL + "/v1/transcript", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + licenseKey
-    },
-    body: JSON.stringify({ key: cacheKey, segments, source })
-  });
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error || "transcript prefill HTTP " + res.status);
-  }
 }
 
 export async function transcribeChunk(
@@ -68,14 +51,7 @@ export async function transcribeChunk(
   });
   const data = (await res.json().catch(() => ({}))) as LookupResponse & { error?: string };
   if (res.status === 429) throw new Error(data.error || "monthly listening hours used up");
+  if (res.status === 402) throw new Error(data.error || "subscription inactive");
   if (!res.ok) throw new Error(data.error || "transcribe HTTP " + res.status);
   return data;
-}
-
-export async function getCacheStats(licenseKey: string): Promise<{ hits: number; misses: number; hitRate: number }> {
-  const res = await fetch(BACKEND_URL + "/v1/transcript/stats", {
-    headers: { Authorization: "Bearer " + licenseKey }
-  });
-  if (!res.ok) return { hits: 0, misses: 0, hitRate: 0 };
-  return res.json() as Promise<{ hits: number; misses: number; hitRate: number }>;
 }

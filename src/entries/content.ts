@@ -9,7 +9,7 @@ import * as overlay from "../lib/overlay";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
-import { deriveCacheKey, type PlatformId } from "../lib/cache-key";
+import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
 import type { LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
 
@@ -37,7 +37,7 @@ declare global {
   let settings: Settings | null = null;
   let wordStates: VocabMap = {};
   let lastLine = "";
-  let lastPath = location.pathname;
+  let lastSessionId = "";
   const targetedThisSession = new Set<string>();
   let watchInterval: ReturnType<typeof setInterval> | null = null;
   let cacheKey = "";
@@ -85,7 +85,8 @@ declare global {
   function refreshCacheKey(): void {
     const a = pickAdapter();
     if (!a) return;
-    const result = deriveCacheKey(platformForAdapter(a));
+    const video = a.getVideo();
+    const result = deriveCacheKey(platformForAdapter(a), video);
     if (result) cacheKey = result.key;
   }
 
@@ -136,8 +137,8 @@ declare global {
       if (!video) return;
       chrome.runtime.sendMessage({
         type: "avc-playback-time",
-        tabId: undefined,
-        time: video.currentTime
+        time: video.currentTime,
+        paused: video.paused
       }).catch(() => {});
     }, 500);
   }
@@ -291,13 +292,15 @@ declare global {
   }, 2000);
 
   setInterval(() => {
-    if (location.pathname !== lastPath) {
-      lastPath = location.pathname;
+    const a = pickAdapter();
+    const sid = a ? sessionIdentity(platformForAdapter(a)) : location.pathname;
+    if (sid !== lastSessionId) {
+      lastSessionId = sid;
       targetedThisSession.clear();
       lastLine = "";
       lastCacheCueKey = "";
       refreshCacheKey();
-      log("session reset for new video");
+      log("session reset for new video:", sid);
     }
   }, 2000);
 
@@ -311,4 +314,6 @@ declare global {
   });
 
   refreshCacheKey();
+  const initial = pickAdapter();
+  lastSessionId = initial ? sessionIdentity(platformForAdapter(initial)) : location.pathname;
 })();

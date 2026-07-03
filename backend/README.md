@@ -66,9 +66,8 @@ Then put the deployed URL into `src/config.ts` (extension repo root) as
 | POST | `/v1/session` | `Bearer <license>` | Mint an ephemeral OpenAI token (BYO fallback) |
 | POST | `/v1/usage/heartbeat` | `Bearer <license>` | Extension reports ≤5 listening minutes; 429 once over cap |
 | GET | `/v1/transcript?key=&t=` | `Bearer <license>` | Lookup cached transcript segments at playback time |
-| POST | `/v1/transcript` | `Bearer <license>` | Prefill cache from subtitle tracks `{ key, segments, source }` |
-| POST | `/v1/transcript/transcribe` | `Bearer <license>` | Transcribe-on-miss `{ key, startSec, audio }` |
-| GET | `/v1/transcript/stats` | `Bearer <license>` | Global cache hit/miss metrics |
+| POST | `/v1/transcript/transcribe` | `Bearer <license>` | Server-side transcribe-on-miss `{ key, startSec, audio }` (metered) |
+| GET | `/v1/transcript/stats` | `Bearer <license>` | Transcribe hit/miss metrics |
 
 ## Abuse & cost controls
 

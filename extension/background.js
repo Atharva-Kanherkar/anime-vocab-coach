@@ -169,7 +169,8 @@
       chrome.runtime.sendMessage({
         type: "avc-playback-time",
         tabId: sender.tab.id,
-        time: msg.time
+        time: msg.time,
+        paused: msg.paused
       }).catch(() => {
       });
       return;

@@ -156,6 +156,7 @@ interface RuntimeMsg {
   code?: string;
   detail?: string;
   time?: number;
+  paused?: boolean;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
@@ -200,7 +201,8 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     chrome.runtime.sendMessage({
       type: "avc-playback-time",
       tabId: sender.tab.id,
-      time: msg.time
+      time: msg.time,
+      paused: msg.paused
     }).catch(() => {});
     return;
   }

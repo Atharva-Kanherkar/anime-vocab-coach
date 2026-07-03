@@ -942,102 +942,6 @@
     return /[぀-ヿ㐀-䶿一-鿿]/.test(text);
   }
 
-  // src/lib/cache-key.ts
-  var AUDIO_LANG = "ja";
-  function cacheKey(platform, contentId, audioLang = AUDIO_LANG) {
-    if (platform === "generic") {
-      return `fp:${contentId}:${audioLang}`;
-    }
-    return `${platform}:${contentId}:${audioLang}`;
-  }
-  function deriveContentId(platform) {
-    switch (platform) {
-      case "youtube": {
-        const m = location.search.match(/[?&]v=([^&]+)/);
-        if (m) return m[1];
-        const pathMatch = location.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/);
-        return pathMatch ? pathMatch[1] : null;
-      }
-      case "netflix": {
-        const watch = location.pathname.match(/\/watch\/(\d+)/);
-        if (watch) return watch[1];
-        const id = window.__avcNetflixVideoId;
-        return id || null;
-      }
-      case "crunchyroll": {
-        const parts = location.pathname.split("/").filter(Boolean);
-        const watchIdx = parts.indexOf("watch");
-        if (watchIdx >= 0 && parts[watchIdx + 2]) return parts[watchIdx + 2];
-        if (watchIdx >= 0 && parts[watchIdx + 1]) return parts[watchIdx + 1];
-        return null;
-      }
-      default:
-        return null;
-    }
-  }
-  function deriveCacheKey(platform, fingerprint) {
-    const contentId = deriveContentId(platform);
-    if (contentId) {
-      return { key: cacheKey(platform, contentId), platform, contentId, audioLang: AUDIO_LANG };
-    }
-    if (fingerprint) {
-      return {
-        key: cacheKey("generic", fingerprint),
-        platform: "generic",
-        contentId: fingerprint,
-        audioLang: AUDIO_LANG
-      };
-    }
-    return null;
-  }
-
-  // src/config.ts
-  var BACKEND_URL = "https://avc-api.example.workers.dev";
-
-  // src/lib/transcript-client.ts
-  async function lookupTranscript(licenseKey, cacheKey2, t, windowSec = 8) {
-    const url = new URL(BACKEND_URL + "/v1/transcript");
-    url.searchParams.set("key", cacheKey2);
-    url.searchParams.set("t", String(t));
-    url.searchParams.set("window", String(windowSec));
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: "Bearer " + licenseKey }
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "transcript lookup HTTP " + res.status);
-    }
-    return res.json();
-  }
-  async function prefillTranscript(licenseKey, cacheKey2, segments, source) {
-    const res = await fetch(BACKEND_URL + "/v1/transcript", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + licenseKey
-      },
-      body: JSON.stringify({ key: cacheKey2, segments, source })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "transcript prefill HTTP " + res.status);
-    }
-  }
-
-  // src/lib/prefill-cache.ts
-  async function uploadSubtitlePrefill(platform, segments) {
-    if (!segments.length) return;
-    const settings = await getSettings();
-    if (!settings.licenseKey) return;
-    const keyResult = deriveCacheKey(platform);
-    if (!keyResult) return;
-    try {
-      await prefillTranscript(settings.licenseKey, keyResult.key, segments, "subtitle_track");
-    } catch (err) {
-      console.warn("[AVC] subtitle prefill failed:", err);
-    }
-  }
-
   // src/lib/adapters/youtube.ts
   var onLineCb = null;
   var jaCues = [];
@@ -1091,7 +995,6 @@
       return;
     }
     log(`youtube: loaded ${jaCues.length} Japanese cues (${jaTrack.kind === "asr" ? "auto-generated" : "manual"})`);
-    uploadSubtitlePrefill("youtube", jaCues.map((c) => ({ start: c.start, end: c.end, text: c.text }))).catch((err) => warn("youtube prefill error:", err));
     const enTrack = pickTrack(msg.tracks, "en");
     if (enTrack) {
       try {
@@ -1175,50 +1078,9 @@
   };
 
   // src/lib/adapters/netflix.ts
-  var jaCues2 = [];
-  var lastCueKey2 = "";
-  var attachedVideo2 = null;
-  var onLineCb2 = null;
   function getVisibleText2() {
     const rows = document.querySelectorAll(".player-timedtext-text-container");
     return normalize(Array.from(rows).map((r) => r.textContent || "").join(" "));
-  }
-  function scrapeVisibleJapaneseCues() {
-    const containers = document.querySelectorAll(".player-timedtext-text-container");
-    const cues = [];
-    const video = document.querySelector("video");
-    const t = video?.currentTime ?? 0;
-    for (const el of containers) {
-      const text = normalize(el.textContent || "");
-      if (!text || !hasJapanese(text)) continue;
-      cues.push({ start: t, end: t + 4, text });
-    }
-    return cues;
-  }
-  function cueAt2(cues, t) {
-    for (const cue of cues) {
-      if (t >= cue.start && t <= cue.end) return cue;
-      if (cue.start > t) break;
-    }
-    return null;
-  }
-  function onTimeUpdate2() {
-    if (!jaCues2.length || !onLineCb2 || !attachedVideo2) return;
-    const t = attachedVideo2.currentTime;
-    const cue = cueAt2(jaCues2, t);
-    if (!cue) return;
-    const key = `${cue.start}:${cue.text}`;
-    if (key === lastCueKey2) return;
-    lastCueKey2 = key;
-    onLineCb2(cue.text, { en: getVisibleText2() });
-  }
-  async function tryLoadJpTracks() {
-    const scraped = scrapeVisibleJapaneseCues();
-    if (scraped.length) {
-      jaCues2 = scraped;
-      uploadSubtitlePrefill("netflix", scraped).catch((err) => warn("netflix prefill error:", err));
-      log(`netflix: scraped ${scraped.length} Japanese cues from timed text`);
-    }
   }
   var netflixAdapter = {
     name: "netflix",
@@ -1230,31 +1092,10 @@
     },
     getVisibleText: getVisibleText2,
     start(onLine) {
-      onLineCb2 = onLine;
-      jaCues2 = [];
-      lastCueKey2 = "";
-      window.addEventListener("message", (e) => {
-        if (e.source !== window) return;
-        if (e.data?.source !== "avc" || e.data.type !== "avc-netflix-video-id") return;
-        jaCues2 = [];
-        lastCueKey2 = "";
-      });
-      setInterval(() => {
-        const v = getVideo2();
-        if (v && v !== attachedVideo2) {
-          if (attachedVideo2) attachedVideo2.removeEventListener("timeupdate", onTimeUpdate2);
-          attachedVideo2 = v;
-          v.addEventListener("timeupdate", onTimeUpdate2);
-        }
-      }, 2e3);
-      setInterval(() => {
-        tryLoadJpTracks().catch((err) => warn("netflix track load error:", err));
-      }, 8e3);
       let lastText = "";
       let debounceTimer = null;
       const check = () => {
         try {
-          if (jaCues2.length) return;
           const text = getVisibleText2();
           if (!text || text === lastText) return;
           if (!hasJapanese(text)) return;
@@ -1271,12 +1112,9 @@
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     }
   };
-  function getVideo2() {
-    return document.querySelector("video");
-  }
 
   // src/lib/adapters/generic.ts
-  function getVideo3() {
+  function getVideo2() {
     const videos = document.querySelectorAll("video");
     for (const v of videos) {
       if (v.textTracks && v.textTracks.length > 0) return v;
@@ -1288,9 +1126,9 @@
     matches() {
       return document.querySelector("video") !== null;
     },
-    getVideo: getVideo3,
+    getVideo: getVideo2,
     getVisibleText() {
-      const video = getVideo3();
+      const video = getVideo2();
       if (!video || !video.textTracks) return "";
       const parts = [];
       for (const track of video.textTracks) {
@@ -1347,6 +1185,90 @@
     }
   };
 
+  // src/lib/cache-key.ts
+  var ALLOWED_AUDIO_LANGS = /* @__PURE__ */ new Set(["ja", "en"]);
+  function cacheKey(platform, contentId, audioLang) {
+    const lang = ALLOWED_AUDIO_LANGS.has(audioLang) ? audioLang : "ja";
+    if (platform === "generic") {
+      return `fp:${contentId}:${lang}`;
+    }
+    return `${platform}:${contentId}:${lang}`;
+  }
+  function detectAudioLang(video) {
+    const v = video || document.querySelector("video");
+    const tracks = v && v.audioTracks;
+    if (tracks && tracks.length) {
+      for (let i = 0; i < tracks.length; i++) {
+        const track = tracks[i];
+        if (track.enabled && track.language) {
+          const code = track.language.slice(0, 2).toLowerCase();
+          if (ALLOWED_AUDIO_LANGS.has(code)) return code;
+        }
+      }
+    }
+    return "ja";
+  }
+  function deriveContentId(platform) {
+    switch (platform) {
+      case "youtube": {
+        const m = location.search.match(/[?&]v=([^&]+)/);
+        if (m) return m[1];
+        const pathMatch = location.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/);
+        return pathMatch ? pathMatch[1] : null;
+      }
+      case "netflix": {
+        const watch = location.pathname.match(/\/watch\/(\d+)/);
+        if (watch) return watch[1];
+        const id = window.__avcNetflixVideoId;
+        return id || null;
+      }
+      case "crunchyroll": {
+        const parts = location.pathname.split("/").filter(Boolean);
+        const watchIdx = parts.indexOf("watch");
+        if (watchIdx >= 0) {
+          for (let i = watchIdx + 1; i < parts.length; i++) {
+            if (/^[A-Z0-9]{8,}$/.test(parts[i])) return parts[i];
+          }
+        }
+        return null;
+      }
+      default:
+        return null;
+    }
+  }
+  function deriveCacheKey(platform, video) {
+    const contentId = deriveContentId(platform);
+    if (!contentId) return null;
+    const audioLang = detectAudioLang(video);
+    return { key: cacheKey(platform, contentId, audioLang), platform, contentId, audioLang };
+  }
+  function sessionIdentity(platform) {
+    const id = deriveContentId(platform);
+    const lang = detectAudioLang();
+    return id ? `${platform}:${id}:${lang}` : location.pathname;
+  }
+
+  // src/config.ts
+  var BACKEND_URL = "https://avc-api.example.workers.dev";
+
+  // src/lib/transcript-client.ts
+  async function lookupTranscript(licenseKey, cacheKey2, t, windowSec = 8) {
+    const url = new URL(BACKEND_URL + "/v1/transcript");
+    url.searchParams.set("key", cacheKey2);
+    url.searchParams.set("t", String(t));
+    url.searchParams.set("window", String(windowSec));
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: "Bearer " + licenseKey }
+    });
+    if (res.status === 402) throw new Error("subscription inactive");
+    if (res.status === 429) throw new Error("monthly listening hours used up");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "transcript lookup HTTP " + res.status);
+    }
+    return res.json();
+  }
+
   // src/entries/content.ts
   (function main() {
     if (window.__avcMainLoaded) {
@@ -1362,7 +1284,7 @@
     let settings = null;
     let wordStates = {};
     let lastLine = "";
-    let lastPath = location.pathname;
+    let lastSessionId = "";
     const targetedThisSession = /* @__PURE__ */ new Set();
     let watchInterval = null;
     let cacheKey2 = "";
@@ -1404,7 +1326,8 @@
     function refreshCacheKey() {
       const a = pickAdapter();
       if (!a) return;
-      const result = deriveCacheKey(platformForAdapter(a));
+      const video = a.getVideo();
+      const result = deriveCacheKey(platformForAdapter(a), video);
       if (result) cacheKey2 = result.key;
     }
     async function pollCacheHit() {
@@ -1450,8 +1373,8 @@
         if (!video) return;
         chrome.runtime.sendMessage({
           type: "avc-playback-time",
-          tabId: void 0,
-          time: video.currentTime
+          time: video.currentTime,
+          paused: video.paused
         }).catch(() => {
         });
       }, 500);
@@ -1586,13 +1509,15 @@
       if (pickAdapter()) clearInterval(pickTimer);
     }, 2e3);
     setInterval(() => {
-      if (location.pathname !== lastPath) {
-        lastPath = location.pathname;
+      const a = pickAdapter();
+      const sid = a ? sessionIdentity(platformForAdapter(a)) : location.pathname;
+      if (sid !== lastSessionId) {
+        lastSessionId = sid;
         targetedThisSession.clear();
         lastLine = "";
         lastCacheCueKey = "";
         refreshCacheKey();
-        log("session reset for new video");
+        log("session reset for new video:", sid);
       }
     }, 2e3);
     window.addEventListener("message", (e) => {
@@ -1604,5 +1529,7 @@
       }
     });
     refreshCacheKey();
+    const initial = pickAdapter();
+    lastSessionId = initial ? sessionIdentity(platformForAdapter(initial)) : location.pathname;
   })();
 })();

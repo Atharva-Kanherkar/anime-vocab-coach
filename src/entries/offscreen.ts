@@ -1,12 +1,13 @@
 // Offscreen document: captures tab audio for Listening Mode.
 //
 // BYO key: streams audio to OpenAI Realtime WebSocket (unchanged).
-// Pro (hosted): uses the shared transcript cache — lookup first, transcribe
-// on miss via our backend so each episode is transcribed once for all users.
+// Pro (hosted): shared transcript cache — lookup first, transcribe on miss.
 
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
 const CHUNK_SEC = 6;
+const SEEK_THRESHOLD_SEC = 2;
+const MIN_PCM_SAMPLES = OUT_RATE; // ~1s minimum before transcribing
 
 export type SessionAuth =
   | { kind: "byo"; key: string }
@@ -27,13 +28,15 @@ interface Session {
   srcRate: number;
   reconnects: number;
   heartbeat: ReturnType<typeof setInterval> | null;
-  /** Shared cache path (Pro only). When set, audio goes to backend on miss. */
   cacheKey: string;
   playbackTime: number;
+  playbackPaused: boolean;
   pcmBuffer: Int16Array[];
   chunkStartSec: number;
+  chunkStarted: boolean;
   transcribing: boolean;
   chunkTimer: ReturnType<typeof setInterval> | null;
+  useCache: boolean;
 }
 
 async function getWsKey(session: Session): Promise<string> {
@@ -104,7 +107,30 @@ interface StartMsg {
   cacheKey?: string;
 }
 
-chrome.runtime.onMessage.addListener((msg: StartMsg & { type: string; time?: number; tabId?: number }, _sender, sendResponse) => {
+interface PlaybackMsg {
+  type: string;
+  tabId?: number;
+  time?: number;
+  paused?: boolean;
+}
+
+function resetAudioBuffer(session: Session, atSec?: number): void {
+  session.pcmBuffer = [];
+  session.chunkStarted = false;
+  session.chunkStartSec = atSec ?? session.playbackTime;
+}
+
+function onPlaybackUpdate(session: Session, time: number, paused: boolean): void {
+  const prev = session.playbackTime;
+  session.playbackTime = time;
+  session.playbackPaused = paused;
+  if (Math.abs(time - prev) > SEEK_THRESHOLD_SEC) {
+    olog("playback seek detected", prev, "→", time, "— resetting audio buffer");
+    resetAudioBuffer(session, time);
+  }
+}
+
+chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, sendResponse) => {
   if (msg.type === "avc-offscreen-start") {
     olog("start received for tab", msg.tabId, "model", msg.model, "cacheKey", msg.cacheKey || "(none)");
     start(msg)
@@ -124,7 +150,7 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & { type: string; time?: num
   }
   if (msg.type === "avc-playback-time" && msg.tabId != null) {
     const session = sessions[msg.tabId];
-    if (session) session.playbackTime = Number(msg.time) || 0;
+    if (session) onPlaybackUpdate(session, Number(msg.time) || 0, !!msg.paused);
   }
 });
 
@@ -169,44 +195,22 @@ function concatPcm(chunks: Int16Array[]): Int16Array {
   return out;
 }
 
-async function lookupCache(session: Session, t: number): Promise<boolean> {
-  if (session.auth.kind !== "hosted" || !session.cacheKey) return false;
-  const url = new URL(session.auth.backendUrl + "/v1/transcript");
-  url.searchParams.set("key", session.cacheKey);
-  url.searchParams.set("t", String(t));
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: "Bearer " + session.auth.licenseKey }
-  });
-  if (!res.ok) return false;
-  const data = (await res.json()) as { hit?: boolean; segments?: { text: string }[] };
-  if (data.hit && data.segments?.length) {
-    for (const seg of data.segments) {
-      const t = (seg.text || "").trim();
-      if (t && /[぀-ヿ一-鿿]/.test(t)) {
-        olog("cache hit:", t);
-        chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
-      }
-    }
-    return true;
-  }
-  return false;
+function pcmSampleCount(chunks: Int16Array[]): number {
+  return chunks.reduce((n, c) => n + c.length, 0);
 }
 
 async function flushChunk(session: Session): Promise<void> {
   if (session.transcribing || !session.cacheKey || session.auth.kind !== "hosted") return;
-  if (!session.pcmBuffer.length) return;
+  if (session.playbackPaused) return;
+  if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
 
   const pcm = concatPcm(session.pcmBuffer);
-  session.pcmBuffer = [];
+  resetAudioBuffer(session);
   const startSec = session.chunkStartSec;
-  session.chunkStartSec = session.playbackTime;
   session.transcribing = true;
 
   try {
-    const hit = await lookupCache(session, startSec);
-    if (hit) { session.transcribing = false; return; }
-
-    olog("cache miss at", startSec, "— transcribing", pcm.length, "samples");
+    olog("transcribing chunk at playback", startSec, "samples", pcm.length);
     const res = await fetch(session.auth.backendUrl + "/v1/transcript/transcribe", {
       method: "POST",
       headers: {
@@ -216,6 +220,7 @@ async function flushChunk(session: Session): Promise<void> {
       body: JSON.stringify({ key: session.cacheKey, startSec, audio: base64Int16(pcm) })
     });
     const data = (await res.json().catch(() => ({}))) as {
+      hit?: boolean;
       segments?: { text: string }[];
       error?: string;
     };
@@ -228,7 +233,7 @@ async function flushChunk(session: Session): Promise<void> {
     for (const seg of data.segments || []) {
       const t = (seg.text || "").trim();
       if (t && /[぀-ヿ一-鿿]/.test(t)) {
-        olog("transcribed:", t);
+        olog(data.hit ? "cache hit:" : "transcribed:", t);
         chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
       }
     }
@@ -267,22 +272,29 @@ async function start({ streamId, tabId, auth, model, cacheKey }: StartMsg): Prom
   const useCache = auth.kind === "hosted" && !!cacheKey;
   const session: Session = {
     ws: null, ctx, stream, proc, sink, source,
-    active: true, ready: !useCache, auth, model, tabId,
+    active: true, ready: false, auth, model, tabId,
     srcRate: ctx.sampleRate, reconnects: 0, heartbeat: null,
     cacheKey: cacheKey || "",
     playbackTime: 0,
+    playbackPaused: true,
     pcmBuffer: [],
     chunkStartSec: 0,
+    chunkStarted: false,
     transcribing: false,
-    chunkTimer: null
+    chunkTimer: null,
+    useCache
   };
   sessions[tabId] = session;
 
   proc.onaudioprocess = (e) => {
-    if (!session.active) return;
+    if (!session.active || session.playbackPaused) return;
     const pcm = downsample(e.inputBuffer.getChannelData(0), session.srcRate);
 
-    if (useCache) {
+    if (session.useCache) {
+      if (!session.chunkStarted) {
+        session.chunkStarted = true;
+        session.chunkStartSec = session.playbackTime;
+      }
       session.pcmBuffer.push(pcm);
       return;
     }
@@ -385,7 +397,7 @@ function stop(tabId: number): void {
   session.active = false;
   if (session.heartbeat) clearInterval(session.heartbeat);
   if (session.chunkTimer) clearInterval(session.chunkTimer);
-  if (session.cacheKey && session.pcmBuffer.length) {
+  if (session.useCache && session.pcmBuffer.length && !session.playbackPaused) {
     flushChunk(session).catch(() => {});
   }
   try { if (session.ws && session.ws.readyState <= 1) session.ws.close(); } catch { /* noop */ }

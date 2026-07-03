@@ -9,16 +9,32 @@ export interface CacheKeyResult {
   audioLang: string;
 }
 
-const AUDIO_LANG = "ja";
+const ALLOWED_AUDIO_LANGS = new Set(["ja", "en"]);
 
-export function cacheKey(platform: PlatformId, contentId: string, audioLang = AUDIO_LANG): string {
+export function cacheKey(platform: PlatformId, contentId: string, audioLang: string): string {
+  const lang = ALLOWED_AUDIO_LANGS.has(audioLang) ? audioLang : "ja";
   if (platform === "generic") {
-    return `fp:${contentId}:${audioLang}`;
+    return `fp:${contentId}:${lang}`;
   }
-  return `${platform}:${contentId}:${audioLang}`;
+  return `${platform}:${contentId}:${lang}`;
 }
 
-/** Extract a stable content ID from the current page URL / DOM. */
+/** Best-effort detection of the active audio track language. */
+export function detectAudioLang(video?: HTMLVideoElement | null): string {
+  const v = video || document.querySelector<HTMLVideoElement>("video");
+  const tracks = v && (v as HTMLVideoElement & { audioTracks?: { length: number; [i: number]: { enabled?: boolean; language?: string } } }).audioTracks;
+  if (tracks && tracks.length) {
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      if (track.enabled && track.language) {
+        const code = track.language.slice(0, 2).toLowerCase();
+        if (ALLOWED_AUDIO_LANGS.has(code)) return code;
+      }
+    }
+  }
+  return "ja";
+}
+
 export function deriveContentId(platform: PlatformId): string | null {
   switch (platform) {
     case "youtube": {
@@ -28,18 +44,20 @@ export function deriveContentId(platform: PlatformId): string | null {
       return pathMatch ? pathMatch[1] : null;
     }
     case "netflix": {
-      // /watch/80192098 or movieId from PAGE-world message
       const watch = location.pathname.match(/\/watch\/(\d+)/);
       if (watch) return watch[1];
       const id = (window as Window & { __avcNetflixVideoId?: string }).__avcNetflixVideoId;
       return id || null;
     }
     case "crunchyroll": {
-      // /watch/GY.../GY... episode GUID from URL
       const parts = location.pathname.split("/").filter(Boolean);
       const watchIdx = parts.indexOf("watch");
-      if (watchIdx >= 0 && parts[watchIdx + 2]) return parts[watchIdx + 2];
-      if (watchIdx >= 0 && parts[watchIdx + 1]) return parts[watchIdx + 1];
+      // Prefer stable episode GUID (e.g. GY...), not the series slug.
+      if (watchIdx >= 0) {
+        for (let i = watchIdx + 1; i < parts.length; i++) {
+          if (/^[A-Z0-9]{8,}$/.test(parts[i])) return parts[i];
+        }
+      }
       return null;
     }
     default:
@@ -47,18 +65,16 @@ export function deriveContentId(platform: PlatformId): string | null {
   }
 }
 
-export function deriveCacheKey(platform: PlatformId, fingerprint?: string): CacheKeyResult | null {
+export function deriveCacheKey(platform: PlatformId, video?: HTMLVideoElement | null): CacheKeyResult | null {
   const contentId = deriveContentId(platform);
-  if (contentId) {
-    return { key: cacheKey(platform, contentId), platform, contentId, audioLang: AUDIO_LANG };
-  }
-  if (fingerprint) {
-    return {
-      key: cacheKey("generic", fingerprint),
-      platform: "generic",
-      contentId: fingerprint,
-      audioLang: AUDIO_LANG
-    };
-  }
-  return null;
+  if (!contentId) return null;
+  const audioLang = detectAudioLang(video);
+  return { key: cacheKey(platform, contentId, audioLang), platform, contentId, audioLang };
+}
+
+/** Session identity for detecting SPA navigations (YouTube ?v= changes without pathname change). */
+export function sessionIdentity(platform: PlatformId): string {
+  const id = deriveContentId(platform);
+  const lang = detectAudioLang();
+  return id ? `${platform}:${id}:${lang}` : location.pathname;
 }

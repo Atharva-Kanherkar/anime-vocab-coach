@@ -1,19 +1,21 @@
 import type { Env } from "./index";
 import type { TranscriptSegment } from "./transcript-types";
+import { parseAudioLang } from "./validate";
 
-/** Transcribe a PCM audio buffer (16-bit LE, 24 kHz mono) via OpenAI batch API. */
+/** Transcribe PCM (16-bit LE, 24 kHz mono) via OpenAI batch API. */
 export async function transcribePcm(
   env: Env,
-  pcmBase64: string,
-  startSec: number
+  pcm: Uint8Array,
+  startSec: number,
+  cacheKey: string
 ): Promise<TranscriptSegment[]> {
-  const pcmBytes = Uint8Array.from(atob(pcmBase64), (c) => c.charCodeAt(0));
-  const wav = pcmToWav(pcmBytes, 24000);
+  const language = parseAudioLang(cacheKey);
+  const wav = pcmToWav(pcm, 24000);
 
   const form = new FormData();
   form.append("file", new Blob([wav], { type: "audio/wav" }), "chunk.wav");
   form.append("model", env.TRANSCRIBE_MODEL);
-  form.append("language", "ja");
+  form.append("language", language);
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "segment");
 
@@ -41,12 +43,12 @@ export async function transcribePcm(
         end: startSec + s.end,
         text: s.text.trim()
       }))
-      .filter((s) => s.text.length > 0);
+      .filter((s) => s.text.length > 0 && /[぀-ヿ一-鿿]/.test(s.text));
   }
 
   const text = (data.text || "").trim();
-  if (!text) return [];
-  const duration = pcmBytes.length / (24000 * 2);
+  if (!text || !/[぀-ヿ一-鿿]/.test(text)) return [];
+  const duration = pcm.length / (24000 * 2);
   return [{ start: startSec, end: startSec + duration, text }];
 }
 
