@@ -11,15 +11,22 @@ import { getMetrics } from "./metrics";
 import { mintTranscriptionToken } from "./openai";
 import { publicConfig } from "./promo";
 import { lookupTranscript, transcribeAndStore } from "./transcript";
+import { getProviderMetrics } from "./transcribe/index";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
 export interface Env {
   AVC_KV: KVNamespace;
   OPENAI_API_KEY: string;
+  GROQ_API_KEY?: string;
+  DEEPINFRA_API_KEY?: string;
   DODO_API_KEY: string;
   CAP_MINUTES: string;
   TRANSCRIBE_MODEL: string;
+  OPENAI_WHISPER_MODEL: string;
+  GROQ_WHISPER_MODEL: string;
+  DEEPINFRA_WHISPER_MODEL: string;
+  TRANSCRIBE_PROVIDERS: string;
   TRANSCRIPT_MODEL_VERSION: string;
   DODO_API_BASE: string;
   CHECKOUT_URL: string;
@@ -171,7 +178,9 @@ export default {
       if (path === "/v1/transcript/stats" && req.method === "GET") {
         const check = await checkLicense(env, licenseKey);
         if (!check.valid) return json(req, { error: check.reason || "subscription inactive" }, 402);
-        return json(req, await getMetrics(env));
+        const cache = await getMetrics(env);
+        const providers = await getProviderMetrics(env);
+        return json(req, { cache, providers, chain: env.TRANSCRIBE_PROVIDERS || "openai" });
       }
 
       if (path === "/v1/transcript" && req.method === "GET") {
@@ -228,7 +237,8 @@ export default {
       if (/monthly listening hours used up/i.test(detail)) {
         return json(req, { error: detail }, 429);
       }
-      return json(req, { error: "internal: " + detail }, 500);
+      console.error("request failed:", detail);
+      return json(req, { error: "internal error" }, 500);
     }
   }
 };

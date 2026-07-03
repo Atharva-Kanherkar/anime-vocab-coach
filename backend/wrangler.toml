@@ -4,9 +4,14 @@
 #   npm install
 #   npx wrangler login
 #   npx wrangler kv namespace create AVC_KV        # paste the id below
-#   npx wrangler secret put OPENAI_API_KEY          # your OpenAI key (the only one; scale = rate-limit tier, not key count)
-#   npx wrangler secret put DODO_API_KEY            # Dodo Payments API key (Dashboard -> Developer -> API Keys)
+#   npx wrangler secret put OPENAI_API_KEY          # required — batch + Realtime transcription
+#   npx wrangler secret put DODO_API_KEY            # Dodo Payments API key
 #   npx wrangler deploy
+#
+# Optional (only when switching off OpenAI credits — see README "Transcription providers"):
+#   npx wrangler secret put GROQ_API_KEY
+#   npx wrangler secret put DEEPINFRA_API_KEY
+#   # then set TRANSCRIBE_PROVIDERS = "groq,deepinfra,openai" in [vars] below
 #
 # The deployed URL (https://avc-api.<your-subdomain>.workers.dev) goes into
 # src/config.ts in the extension repo root.
@@ -22,6 +27,14 @@ kv_namespaces = [
 [vars]
 CAP_MINUTES = "2700"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
+# OPENAI_WHISPER_MODEL is unset so the batch cache-miss path keeps using
+# TRANSCRIBE_MODEL (gpt-4o-mini-transcribe). Set it only to override that model.
+GROQ_WHISPER_MODEL = "whisper-large-v3"
+DEEPINFRA_WHISPER_MODEL = "openai/whisper-large-v3"
+# Default: OpenAI only (uses your OpenAI credits). No Groq/DeepInfra keys required.
+# When credits run low, run the quality gate (benchmarks/QUALITY_GATE.md), then switch to:
+# TRANSCRIBE_PROVIDERS = "groq,deepinfra,openai"
+TRANSCRIBE_PROVIDERS = "openai"
 TRANSCRIPT_MODEL_VERSION = "1"
 DODO_API_BASE = "https://live.dodopayments.com"
 CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID"

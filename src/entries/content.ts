@@ -87,7 +87,10 @@ declare global {
     if (!a) return;
     const video = a.getVideo();
     const result = deriveCacheKey(platformForAdapter(a), video);
-    if (result) cacheKey = result.key;
+    // Shared cache only covers Japanese audio (the vocab source). For a dub or
+    // any non-ja track, leave cacheKey unset so we don't upload audio that would
+    // be transcribed and then discarded — the per-user path handles those.
+    cacheKey = result && result.audioLang === "ja" ? result.key : "";
   }
 
   async function pollCacheHit(): Promise<void> {

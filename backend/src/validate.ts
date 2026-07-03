@@ -1,7 +1,9 @@
 import type { TranscriptSegment } from "./transcript-types";
 
-/** Allowed cache key shapes: platform:id:lang or fp:hash:lang */
-const CACHE_KEY_RE = /^(youtube|netflix|crunchyroll|fp):[A-Za-z0-9._-]{1,128}:(ja|en)$/;
+/** Allowed cache key shapes: platform:id:ja or fp:hash:ja.
+ *  Japanese-only — the shared cache exists to teach Japanese vocab, so non-ja
+ *  audio (dubs) is out of scope and never cached or transcribed. */
+const CACHE_KEY_RE = /^(youtube|netflix|crunchyroll|fp):[A-Za-z0-9._-]{1,128}:ja$/;
 
 export const MAX_SEGMENTS_PER_STORE = 500;
 export const MAX_SEGMENT_TEXT = 500;

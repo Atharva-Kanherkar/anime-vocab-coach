@@ -10,9 +10,32 @@ $84/year, 45 listening-hours per month). It does three small jobs:
    Workers KV and enforces the fair-use cap (`CAP_MINUTES`, default 2700 = 45 h).
 3. **Shared transcript cache** — Pro users share a per-episode transcript cache.
    Cache hits return stored segments with no audio upload; cache misses are
-   transcribed server-side once via OpenAI Whisper and stored in Workers KV.
+   transcribed server-side once via Whisper and stored in Workers KV.
 4. **Token minting** — creates short-lived ephemeral OpenAI Realtime tokens for
    BYO-key users who stream audio directly to OpenAI.
+
+## Transcription providers (cache miss path)
+
+Batch transcription (shared cache misses) goes through a **configurable provider chain**
+in `src/transcribe/`. Each provider implements the same `transcribe(audio, lang) → segments[]`
+interface; responses are normalized before storage.
+
+| Provider | Model | ~Cost/min | When to use |
+|----------|-------|-----------|-------------|
+| **OpenAI** (default) | `whisper-1` | ~$0.006 | **Now** — uses your OpenAI credits; no extra signup |
+| Groq | `whisper-large-v3` | ~$0.002 | Optional; paid API key required |
+| DeepInfra | `whisper-large-v3` | ~$0.0008 | Optional; paid API key required |
+
+**Default:** `TRANSCRIBE_PROVIDERS=openai` in `wrangler.toml`. Only `OPENAI_API_KEY` is required.
+
+**Later (when OpenAI credits run low):**
+
+1. Run the quality gate: `backend/benchmarks/QUALITY_GATE.md`
+2. Add secrets: `npx wrangler secret put GROQ_API_KEY` (and/or `DEEPINFRA_API_KEY`)
+3. Set `TRANSCRIBE_PROVIDERS = "groq,deepinfra,openai"` — OpenAI stays as automatic fallback
+
+Provider usage (success count, errors, estimated cost) is exposed on
+`GET /v1/transcript/stats` under the `providers` field.
 
 ## Why this scales (and what it costs you)
 
@@ -67,7 +90,7 @@ Then put the deployed URL into `src/config.ts` (extension repo root) as
 | POST | `/v1/usage/heartbeat` | `Bearer <license>` | Extension reports ≤5 listening minutes; 429 once over cap |
 | GET | `/v1/transcript?key=&t=` | `Bearer <license>` | Lookup cached transcript segments at playback time |
 | POST | `/v1/transcript/transcribe` | `Bearer <license>` | Server-side transcribe-on-miss `{ key, startSec, audio }` (metered) |
-| GET | `/v1/transcript/stats` | `Bearer <license>` | Transcribe hit/miss metrics |
+| GET | `/v1/transcript/stats` | `Bearer <license>` | Cache + per-provider transcribe metrics |
 
 ## Abuse & cost controls
 

@@ -1328,7 +1328,7 @@
       if (!a) return;
       const video = a.getVideo();
       const result = deriveCacheKey(platformForAdapter(a), video);
-      if (result) cacheKey2 = result.key;
+      cacheKey2 = result && result.audioLang === "ja" ? result.key : "";
     }
     async function pollCacheHit() {
       if (!listeningActive || !cacheKey2) return;

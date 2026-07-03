@@ -20,7 +20,7 @@ export async function addMinutes(env: Env, id: string, minutes: number): Promise
   if (!Number.isFinite(minutes) || minutes <= 0) return getUsage(env, id);
   const key = usageKey(id);
   const current = parseFloat((await env.AVC_KV.get(key)) || "0") || 0;
-  const next = current + minutes;
+  const next = Math.max(0, current + minutes);
   await env.AVC_KV.put(key, String(next), { expirationTtl: 40 * 24 * 3600 });
   return next;
 }
