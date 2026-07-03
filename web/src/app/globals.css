@@ -709,11 +709,11 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 
 .hero__title {
   font-family: var(--serif);
-  font-size: clamp(38px, 6.4vw, 82px);
+  font-size: clamp(30px, 4vw, 52px);
   font-weight: 500;
-  line-height: 1.02;
-  letter-spacing: -0.03em;
-  max-width: 16ch;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  max-width: 18ch;
   text-shadow: 0 2px 40px rgba(0, 0, 0, 0.5);
 }
 

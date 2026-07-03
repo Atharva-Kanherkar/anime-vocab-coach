@@ -2,10 +2,6 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "animevocab",
   "main": ".open-next/worker.js",
-  "routes": [
-    { "pattern": "animevocab.com", "custom_domain": true },
-    { "pattern": "www.animevocab.com", "custom_domain": true }
-  ],
   "compatibility_date": "2026-07-03",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {

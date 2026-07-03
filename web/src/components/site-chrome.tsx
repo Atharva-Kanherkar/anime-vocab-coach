@@ -33,17 +33,6 @@ export function HomeNav() {
       <Link className="floatnav__logo" href="/" aria-label="AnimeVocab home">
         アニメ<b>Vocab</b>
       </Link>
-      <div className="floatnav__right">
-        <nav className="floatnav__links" aria-label="Primary">
-          <Link href="/#features">Features</Link>
-          <Link href="/learn-japanese-with-anime">Compare</Link>
-          <Link href="/#pricing">Pricing</Link>
-          <Link href="/#faq">FAQ</Link>
-        </nav>
-        <a className="btn btn-sm btn-line" href={GITHUB_URL} rel="noopener noreferrer">
-          Add to Chrome
-        </a>
-      </div>
     </header>
   );
 }
