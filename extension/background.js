@@ -17,7 +17,7 @@
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
   // src/config.ts
-  var BACKEND_URL = "https://avc-api.example.workers.dev";
+  var BACKEND_URL = "https://api.animevocab.com";
 
   // src/entries/background.ts
   chrome.runtime.onInstalled.addListener(() => {

@@ -1249,7 +1249,7 @@
   }
 
   // src/config.ts
-  var BACKEND_URL = "https://avc-api.example.workers.dev";
+  var BACKEND_URL = "https://api.animevocab.com";
 
   // src/lib/transcript-client.ts
   async function lookupTranscript(licenseKey, cacheKey2, t, windowSec = 8) {
