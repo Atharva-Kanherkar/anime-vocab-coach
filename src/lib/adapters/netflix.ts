@@ -15,10 +15,6 @@ export const netflixAdapter: SiteAdapter = {
   getVideo() {
     return document.querySelector<HTMLVideoElement>("video");
   },
-  // Netflix only downloads the subtitle track the viewer selected, so with
-  // English subs on screen this returns English — used as context for
-  // listening-mode transcripts. (Japanese cards on Netflix come from
-  // listening mode, not from the DOM.)
   getVisibleText,
   start(onLine) {
     let lastText = "";
@@ -38,7 +34,7 @@ export const netflixAdapter: SiteAdapter = {
 
     const observer = new MutationObserver(() => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => check(), 100);
+      debounceTimer = setTimeout(check, 100);
     });
 
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });

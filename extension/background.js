@@ -71,6 +71,14 @@
       return false;
     }
   }
+  async function getCacheKeyFromTab(tabId) {
+    try {
+      const res = await chrome.tabs.sendMessage(tabId, { type: "avc-get-cache-key" });
+      return res?.key || null;
+    } catch {
+      return null;
+    }
+  }
   async function startListening(tabId) {
     const r = await chrome.storage.local.get(["settings"]);
     const settings = r.settings || {};
@@ -81,6 +89,10 @@
     const injected = await ensureContentScript(tabId);
     if (!injected) {
       return { ok: false, error: "Couldn't load the extension into this tab. Try reloading the page, then Start again." };
+    }
+    const cacheKey = auth.kind === "hosted" ? await getCacheKeyFromTab(tabId) : null;
+    if (auth.kind === "hosted" && !cacheKey) {
+      console.warn("[AVC] no cache key yet \u2014 listening will wait for fingerprint or page ID");
     }
     let streamId;
     try {
@@ -95,7 +107,8 @@
       streamId,
       tabId,
       auth,
-      model: settings.transcribeModel || DEFAULTS.transcribeModel
+      model: settings.transcribeModel || DEFAULTS.transcribeModel,
+      cacheKey: cacheKey || void 0
     }).catch((err) => ({ ok: false, error: String(err.message || err) }));
     if (!ack || ack.ok === false) {
       return { ok: false, error: ack?.error || "Audio capture failed to start." };
@@ -103,6 +116,8 @@
     const tabs = await getListening();
     tabs[tabId] = true;
     await setListening(tabs);
+    chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: true }).catch(() => {
+    });
     chrome.action.setBadgeText({ tabId, text: "REC" });
     chrome.action.setBadgeBackgroundColor({ tabId, color: "#f87171" });
     console.log("[AVC] listening started on tab", tabId, "model", settings.transcribeModel || DEFAULTS.transcribeModel);
@@ -111,6 +126,8 @@
   async function stopListening(tabId) {
     chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId }).catch(() => {
     });
+    chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: false }).catch(() => {
+    });
     const tabs = await getListening();
     delete tabs[tabId];
     await setListening(tabs);
@@ -118,7 +135,7 @@
     });
     return { ok: true };
   }
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "avc-badge") {
       const text = (msg.count || 0) > 0 ? String(msg.count) : "";
       chrome.action.setBadgeText({ text });
@@ -145,6 +162,16 @@
       console.log("[AVC] relaying transcript to tab", msg.tabId, "\u2192", msg.text);
       chrome.tabs.sendMessage(msg.tabId, { type: "avc-transcript", text: msg.text }).catch((err) => {
         console.warn("[AVC] could not deliver transcript to tab (content script not loaded?):", String(err));
+      });
+      return;
+    }
+    if (msg.type === "avc-playback-time" && sender.tab?.id != null) {
+      chrome.runtime.sendMessage({
+        type: "avc-playback-time",
+        tabId: sender.tab.id,
+        time: msg.time,
+        paused: msg.paused
+      }).catch(() => {
       });
       return;
     }

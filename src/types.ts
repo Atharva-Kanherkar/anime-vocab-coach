@@ -83,6 +83,12 @@ export interface LineContext {
   fromAudio?: boolean;
 }
 
+export interface TranscriptSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
 export interface SiteAdapter {
   name: "youtube" | "netflix" | "generic";
   matches(): boolean;

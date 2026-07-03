@@ -1,8 +1,4 @@
-// Per-license monthly minute counters in Workers KV.
-//
-// KV is eventually consistent, so a rare concurrent heartbeat can lose an
-// update — acceptable for fair-use metering (it only ever under-counts).
-// Counters expire ~40 days after last write, so old months clean themselves up.
+// Per-license monthly usage in Workers KV (stored as fractional minutes).
 
 import type { Env } from "./index";
 
@@ -17,12 +13,13 @@ function usageKey(id: string): string {
 
 export async function getUsage(env: Env, id: string): Promise<number> {
   const v = await env.AVC_KV.get(usageKey(id));
-  return Number(v) || 0;
+  return parseFloat(v || "0") || 0;
 }
 
 export async function addMinutes(env: Env, id: string, minutes: number): Promise<number> {
+  if (!Number.isFinite(minutes) || minutes <= 0) return getUsage(env, id);
   const key = usageKey(id);
-  const current = Number(await env.AVC_KV.get(key)) || 0;
+  const current = parseFloat((await env.AVC_KV.get(key)) || "0") || 0;
   const next = current + minutes;
   await env.AVC_KV.put(key, String(next), { expirationTtl: 40 * 24 * 3600 });
   return next;

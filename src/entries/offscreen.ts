@@ -1,19 +1,14 @@
-// Offscreen document: captures a tab's audio and streams it to OpenAI's GA
-// Realtime transcription API over a WebSocket, so transcripts arrive within
-// ~1-2s of a line being spoken (vs 12-30s for the old chunk-and-POST approach).
+// Offscreen document: captures tab audio for Listening Mode.
 //
-// The offscreen console is nearly impossible to inspect, so every step is
-// forwarded to the service-worker console via avc-offscreen-log. Open it at
-// chrome://extensions -> AnimeVocab -> "service worker".
+// BYO key: streams audio to OpenAI Realtime WebSocket (unchanged).
+// Pro (hosted): shared transcript cache — lookup first, transcribe on miss.
 
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
+const CHUNK_SEC = 6;
+const SEEK_THRESHOLD_SEC = 2;
+const MIN_PCM_SAMPLES = OUT_RATE; // ~1s minimum before transcribing
 
-// How the session authenticates against OpenAI:
-//  - byo:    the user's own key, used directly (free tier).
-//  - hosted: Pro subscription — we ask our backend for a short-lived
-//    ephemeral OpenAI token per connection, and report listening minutes
-//    so the monthly fair-use cap can be enforced.
 export type SessionAuth =
   | { kind: "byo"; key: string }
   | { kind: "hosted"; licenseKey: string; backendUrl: string };
@@ -33,11 +28,17 @@ interface Session {
   srcRate: number;
   reconnects: number;
   heartbeat: ReturnType<typeof setInterval> | null;
+  cacheKey: string;
+  playbackTime: number;
+  playbackPaused: boolean;
+  pcmBuffer: Int16Array[];
+  chunkStartSec: number;
+  chunkStarted: boolean;
+  transcribing: boolean;
+  chunkTimer: ReturnType<typeof setInterval> | null;
+  useCache: boolean;
 }
 
-// Resolve the key used on the WebSocket. For hosted sessions this mints a
-// fresh ephemeral token (they expire in ~2 min and each realtime session has
-// a ~60 min lifetime, so reconnects re-mint).
 async function getWsKey(session: Session): Promise<string> {
   if (session.auth.kind === "byo") return session.auth.key;
   const res = await fetch(session.auth.backendUrl + "/v1/session", {
@@ -103,11 +104,35 @@ interface StartMsg {
   tabId: number;
   auth: SessionAuth;
   model: string;
+  cacheKey?: string;
 }
 
-chrome.runtime.onMessage.addListener((msg: StartMsg & { type: string }, _sender, sendResponse) => {
+interface PlaybackMsg {
+  type: string;
+  tabId?: number;
+  time?: number;
+  paused?: boolean;
+}
+
+function resetAudioBuffer(session: Session, atSec?: number): void {
+  session.pcmBuffer = [];
+  session.chunkStarted = false;
+  session.chunkStartSec = atSec ?? session.playbackTime;
+}
+
+function onPlaybackUpdate(session: Session, time: number, paused: boolean): void {
+  const prev = session.playbackTime;
+  session.playbackTime = time;
+  session.playbackPaused = paused;
+  if (Math.abs(time - prev) > SEEK_THRESHOLD_SEC) {
+    olog("playback seek detected", prev, "→", time, "— resetting audio buffer");
+    resetAudioBuffer(session, time);
+  }
+}
+
+chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, sendResponse) => {
   if (msg.type === "avc-offscreen-start") {
-    olog("start received for tab", msg.tabId, "model", msg.model);
+    olog("start received for tab", msg.tabId, "model", msg.model, "cacheKey", msg.cacheKey || "(none)");
     start(msg)
       .then(() => sendResponse({ ok: true }))
       .catch((err) => {
@@ -117,11 +142,15 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & { type: string }, _sender,
         report(msg.tabId, code, detail);
         sendResponse({ ok: false, error: detail });
       });
-    return true; // keep channel open for async sendResponse
+    return true;
   }
   if (msg.type === "avc-offscreen-stop") {
-    stop(msg.tabId);
+    stop(msg.tabId!);
     sendResponse({ ok: true });
+  }
+  if (msg.type === "avc-playback-time" && msg.tabId != null) {
+    const session = sessions[msg.tabId];
+    if (session) onPlaybackUpdate(session, Number(msg.time) || 0, !!msg.paused);
   }
 });
 
@@ -158,13 +187,69 @@ function base64Int16(int16: Int16Array): string {
   return btoa(bin);
 }
 
-async function start({ streamId, tabId, auth, model }: StartMsg): Promise<void> {
+function concatPcm(chunks: Int16Array[]): Int16Array {
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const out = new Int16Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
+}
+
+function pcmSampleCount(chunks: Int16Array[]): number {
+  return chunks.reduce((n, c) => n + c.length, 0);
+}
+
+async function flushChunk(session: Session): Promise<void> {
+  if (session.transcribing || !session.cacheKey || session.auth.kind !== "hosted") return;
+  if (session.playbackPaused) return;
+  if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
+
+  const pcm = concatPcm(session.pcmBuffer);
+  resetAudioBuffer(session);
+  const startSec = session.chunkStartSec;
+  session.transcribing = true;
+
+  try {
+    olog("transcribing chunk at playback", startSec, "samples", pcm.length);
+    const res = await fetch(session.auth.backendUrl + "/v1/transcript/transcribe", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + session.auth.licenseKey
+      },
+      body: JSON.stringify({ key: session.cacheKey, startSec, audio: base64Int16(pcm) })
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      hit?: boolean;
+      segments?: { text: string }[];
+      error?: string;
+    };
+    if (res.status === 429) {
+      report(session.tabId, "quota-exceeded", data.error || "monthly listening hours used up");
+      stop(session.tabId);
+      return;
+    }
+    if (!res.ok) throw new Error(data.error || "transcribe HTTP " + res.status);
+    for (const seg of data.segments || []) {
+      const t = (seg.text || "").trim();
+      if (t && /[぀-ヿ一-鿿]/.test(t)) {
+        olog(data.hit ? "cache hit:" : "transcribed:", t);
+        chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
+      }
+    }
+  } catch (err) {
+    olog("chunk transcribe failed:", String(err));
+  } finally {
+    session.transcribing = false;
+  }
+}
+
+async function start({ streamId, tabId, auth, model, cacheKey }: StartMsg): Promise<void> {
   if (sessions[tabId]) stop(tabId);
 
   let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      // Chrome's tab-capture constraints are non-standard; not in TS lib DOM types.
       audio: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: streamId } }
     } as MediaStreamConstraints);
   } catch (err) {
@@ -175,11 +260,8 @@ async function start({ streamId, tabId, auth, model }: StartMsg): Promise<void> 
 
   const ctx = new AudioContext();
   const source = ctx.createMediaStreamSource(stream);
-  // Playback: route the captured audio back to the speakers at full quality,
-  // else tabCapture leaves the tab silent for the viewer.
   source.connect(ctx.destination);
 
-  // Capture: tap the same source through a processor whose output is muted.
   const proc = ctx.createScriptProcessor(4096, 1, 1);
   const sink = ctx.createGain();
   sink.gain.value = 0;
@@ -187,24 +269,53 @@ async function start({ streamId, tabId, auth, model }: StartMsg): Promise<void> 
   proc.connect(sink);
   sink.connect(ctx.destination);
 
+  const useCache = auth.kind === "hosted" && !!cacheKey;
   const session: Session = {
     ws: null, ctx, stream, proc, sink, source,
     active: true, ready: false, auth, model, tabId,
-    srcRate: ctx.sampleRate, reconnects: 0, heartbeat: null
+    srcRate: ctx.sampleRate, reconnects: 0, heartbeat: null,
+    cacheKey: cacheKey || "",
+    playbackTime: 0,
+    playbackPaused: true,
+    pcmBuffer: [],
+    chunkStartSec: 0,
+    chunkStarted: false,
+    transcribing: false,
+    chunkTimer: null,
+    useCache
   };
   sessions[tabId] = session;
 
   proc.onaudioprocess = (e) => {
-    if (!session.active || !session.ready) return;
-    if (!session.ws || session.ws.readyState !== WebSocket.OPEN) return;
+    if (!session.active || session.playbackPaused) return;
     const pcm = downsample(e.inputBuffer.getChannelData(0), session.srcRate);
+
+    if (session.useCache) {
+      if (!session.chunkStarted) {
+        session.chunkStarted = true;
+        session.chunkStartSec = session.playbackTime;
+      }
+      session.pcmBuffer.push(pcm);
+      return;
+    }
+
+    if (!session.ready || !session.ws || session.ws.readyState !== WebSocket.OPEN) return;
     try {
       session.ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: base64Int16(pcm) }));
-    } catch (err) { /* socket mid-close */ }
+    } catch { /* socket mid-close */ }
   };
 
+  if (useCache) {
+    olog("using shared transcript cache for", cacheKey);
+    session.chunkTimer = setInterval(() => {
+      if (session.active) flushChunk(session).catch((err) => olog("flush error:", String(err)));
+    }, CHUNK_SEC * 1000);
+    startHeartbeat(session);
+    return;
+  }
+
   olog("audio graph ready (src rate", session.srcRate + "Hz), connecting realtime WS");
-  await connectWS(session); // first connect: throw so start() reports mint failures to the popup
+  await connectWS(session);
   startHeartbeat(session);
 }
 
@@ -249,8 +360,6 @@ async function connectWS(session: Session): Promise<void> {
       if (t && /[぀-ヿ一-鿿]/.test(t)) {
         olog("transcript:", t);
         chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
-      } else {
-        olog("transcript dropped (no Japanese):", JSON.stringify(t));
       }
     } else if (msg.type === "error") {
       const detail = (msg.error && msg.error.message) || JSON.stringify(msg);
@@ -267,15 +376,12 @@ async function connectWS(session: Session): Promise<void> {
   ws.onclose = (ev) => {
     olog("realtime WS closed:", ev.code, ev.reason || "");
     session.ready = false;
-    // 4001-ish / auth closes should not loop; otherwise try a couple reconnects.
     if (session.active && session.reconnects < 3 && ev.code !== 4001) {
       session.reconnects += 1;
       setTimeout(() => {
         if (session.active) {
-          olog("reconnecting realtime WS (try " + session.reconnects + ")");
           connectWS(session).catch((err) => {
             const code = err instanceof CodedError ? err.code : "capture-failed";
-            olog("reconnect failed:", String(err && err.message || err));
             report(session.tabId, code, String(err && err.message || err));
             stop(session.tabId);
           });
@@ -290,9 +396,13 @@ function stop(tabId: number): void {
   if (!session) return;
   session.active = false;
   if (session.heartbeat) clearInterval(session.heartbeat);
-  try { if (session.ws && session.ws.readyState <= 1) session.ws.close(); } catch (err) { /* noop */ }
-  try { session.proc.disconnect(); session.sink.disconnect(); session.source.disconnect(); } catch (err) { /* noop */ }
-  try { session.stream.getTracks().forEach((t) => t.stop()); } catch (err) { /* noop */ }
+  if (session.chunkTimer) clearInterval(session.chunkTimer);
+  if (session.useCache && session.pcmBuffer.length && !session.playbackPaused) {
+    flushChunk(session).catch(() => {});
+  }
+  try { if (session.ws && session.ws.readyState <= 1) session.ws.close(); } catch { /* noop */ }
+  try { session.proc.disconnect(); session.sink.disconnect(); session.source.disconnect(); } catch { /* noop */ }
+  try { session.stream.getTracks().forEach((t) => t.stop()); } catch { /* noop */ }
   session.ctx.close().catch(() => {});
   delete sessions[tabId];
   olog("stopped tab", tabId);
