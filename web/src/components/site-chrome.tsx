@@ -13,7 +13,6 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         </Link>
         {!compact && (
           <nav aria-label="Primary">
-            <Link href="/#how">How it works</Link>
             <Link href="/#features">Features</Link>
             <Link href="/learn-japanese-with-anime">Compare</Link>
             <Link href="/#pricing">Pricing</Link>
@@ -22,6 +21,27 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         )}
         <a className="btn btn-sm btn-line" href={GITHUB_URL} rel="noopener noreferrer">
           Install free
+        </a>
+      </div>
+    </header>
+  );
+}
+
+export function HomeNav() {
+  return (
+    <header className="floatnav">
+      <Link className="floatnav__logo" href="/" aria-label="AnimeVocab home">
+        アニメ<b>Vocab</b>
+      </Link>
+      <div className="floatnav__right">
+        <nav className="floatnav__links" aria-label="Primary">
+          <Link href="/#features">Features</Link>
+          <Link href="/learn-japanese-with-anime">Compare</Link>
+          <Link href="/#pricing">Pricing</Link>
+          <Link href="/#faq">FAQ</Link>
+        </nav>
+        <a className="btn btn-sm btn-line" href={GITHUB_URL} rel="noopener noreferrer">
+          Add to Chrome
         </a>
       </div>
     </header>
@@ -163,6 +183,7 @@ export function PricingSection({ initialPromo }: { initialPromo: PromoState }) {
     <section className="pricing" id="pricing">
       <div className="wrap">
         <header className="section-head reveal">
+          <span className="jp-mark" aria-hidden="true">価格</span>
           <h2>Pricing</h2>
           <p>The core loop is free forever. Pro pays for transcription compute.</p>
         </header>
@@ -202,8 +223,13 @@ export function PricingSection({ initialPromo }: { initialPromo: PromoState }) {
               href={promo.checkoutUrl}
               rel="noopener noreferrer"
             >
-              Get Pro
+              {promo.active ? "Get Pro at launch price" : "Get Pro"}
             </a>
+            {promo.active && (
+              <p className="promo-note">
+                Launch pricing ends in {promo.daysLeft} {promo.daysLeft === 1 ? "day" : "days"}
+              </p>
+            )}
           </div>
         </div>
       </div>

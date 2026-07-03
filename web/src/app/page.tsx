@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { FxSlider } from "@/components/fx-slider";
-import {
-  HomeBrandBar,
-  PricingSection,
-  SiteFooter,
-} from "@/components/site-chrome";
+import { FeatureCoverflow } from "@/components/feature-coverflow";
+import { HomeNav, PricingSection, SiteFooter } from "@/components/site-chrome";
 import { heroSlides } from "@/lib/slides";
 import { GITHUB_URL, SITE_URL, getPromoState } from "@/lib/site";
 
@@ -23,7 +19,6 @@ export const metadata: Metadata = {
 };
 
 const HOME_FOOTER_LINKS = [
-  { href: "/#how", label: "How it works" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/learn-japanese-with-anime", label: "Compare" },
   { href: GITHUB_URL, label: "GitHub" },
@@ -35,8 +30,7 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Immersive homepage: no full navbar — a minimal floating brand bar only. */}
-      <HomeBrandBar />
+      <HomeNav />
       <main id="main">
         <FxSlider slides={heroSlides} />
 
@@ -50,143 +44,14 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="how" id="how">
-          <div className="wrap">
-            <header className="section-head reveal">
-              <span className="jp-mark" aria-hidden="true">流れ</span>
-              <h2>How it works</h2>
-              <p>Three steps. No separate study session.</p>
-            </header>
-            <ol className="timeline">
-              <li className="reveal">
-                <span className="t-num">01</span>
-                <div className="t-body">
-                  <h3>Watch normally</h3>
-                  <p>
-                    English subtitles on. On YouTube we read the hidden Japanese track. On
-                    Netflix and Crunchyroll, Listening Mode transcribes the audio.
-                  </p>
-                </div>
-                <span className="t-kanji" aria-hidden="true">観</span>
-              </li>
-              <li className="reveal">
-                <span className="t-num">02</span>
-                <div className="t-body">
-                  <h3>Judge one word</h3>
-                  <p>
-                    The player pauses on a single useful word — romaji, reading, gloss, and
-                    the line it came from. Know it, learn it, or ignore it.
-                  </p>
-                </div>
-                <span className="t-kanji" aria-hidden="true">選</span>
-              </li>
-              <li className="reveal">
-                <span className="t-num">03</span>
-                <div className="t-body">
-                  <h3>Reviews catch you later</h3>
-                  <p>
-                    Words you&apos;re learning resurface in future episodes on a
-                    spaced-repetition schedule, right before you&apos;d forget them.
-                  </p>
-                </div>
-                <span className="t-kanji" aria-hidden="true">憶</span>
-              </li>
-            </ol>
-          </div>
-        </section>
-
         <section className="features" id="features">
           <div className="wrap">
             <header className="section-head reveal">
               <span className="jp-mark" aria-hidden="true">特徴</span>
               <h2>Why learners pick AnimeVocab</h2>
             </header>
-            <div className="feat-rows">
-              <article className="feat-row reveal">
-                <span className="feat-kanji" aria-hidden="true">音</span>
-                <div>
-                  <h3>Any show, any site</h3>
-                  <p>
-                    Listening Mode works from audio, not a subtitle library. New releases,
-                    obscure titles, any streaming site. When there&apos;s nothing to read, it
-                    still hears.
-                  </p>
-                </div>
-              </article>
-              <article className="feat-row reveal">
-                <span className="feat-kanji" aria-hidden="true">初</span>
-                <div>
-                  <h3>Romaji-first cards</h3>
-                  <p>
-                    Start from episode one. Every card leads with roman letters; kana and
-                    kanji sit alongside as you grow into them.
-                  </p>
-                </div>
-              </article>
-              <article className="feat-row reveal">
-                <span className="feat-kanji" aria-hidden="true">選</span>
-                <div>
-                  <h3>Smart word picking</h3>
-                  <p>
-                    Frequency ranks and JLPT levels filter out particles and noise. One card
-                    per line, with cooldowns so it never feels like a quiz show.
-                  </p>
-                </div>
-              </article>
-              <article className="feat-row reveal">
-                <span className="feat-kanji" aria-hidden="true">私</span>
-                <div>
-                  <h3>Yours, locally</h3>
-                  <p>
-                    Streaks, hours watched, vocabulary by level, review pipeline — computed on
-                    your device, not our servers. No account, ever.
-                  </p>
-                </div>
-              </article>
-            </div>
           </div>
-        </section>
-
-        <section className="compare-teaser" id="compare">
-          <div className="wrap">
-            <header className="section-head reveal">
-              <span className="jp-mark" aria-hidden="true">比較</span>
-              <h2>How AnimeVocab compares</h2>
-              <p>
-                Most anime-Japanese tools assume you can already read the subtitles.
-                AnimeVocab is built for the episode-one beginner.
-              </p>
-            </header>
-            <div className="vs-grid reveal">
-              <Link className="vs-card" href="/vs-language-reactor">
-                <span className="vs-label">Comparison</span>
-                <span className="vs-h">vs Language Reactor</span>
-                <p>
-                  The popular dual-subtitle reader. Where it wins, and where romaji-first
-                  beats hovering.
-                </p>
-                <span className="vs-go">Read comparison →</span>
-              </Link>
-              <Link className="vs-card" href="/vs-migaku">
-                <span className="vs-label">Comparison</span>
-                <span className="vs-h">vs Migaku</span>
-                <p>
-                  The power-user Anki mining suite. When its depth is worth the setup, and
-                  when it isn&apos;t.
-                </p>
-                <span className="vs-go">Read comparison →</span>
-              </Link>
-              <Link className="vs-card" href="/learn-japanese-with-anime">
-                <span className="vs-label">Guide</span>
-                <span className="vs-h">Every tool, ranked</span>
-                <p>
-                  A 2026 guide to learning Japanese from anime: subtitle readers, players,
-                  and this.
-                </p>
-                <span className="vs-go">Read the guide →</span>
-              </Link>
-            </div>
-          </div>
+          <FeatureCoverflow />
         </section>
 
         <PricingSection initialPromo={promo} />
