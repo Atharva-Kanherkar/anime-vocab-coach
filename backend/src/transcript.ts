@@ -12,7 +12,7 @@ import type { Env } from "./index";
 import { acquireTranscribeLock, releaseTranscribeLock, waitForPeerLock } from "./lock";
 import { recordLookupHit, recordTranscribeHit, recordTranscribeMiss } from "./metrics";
 import type { TranscriptSegment } from "./transcript-types";
-import { transcribePcm } from "./transcribe";
+import { transcribeWithFallback, recordProviderSuccess } from "./transcribe/providers";
 import { chunkBucket, decodePcmBase64, pcmDurationMinutes } from "./validate";
 import { addMinutes, getUsage } from "./usage";
 
@@ -49,7 +49,8 @@ export async function transcribeAndStore(
   licenseId: string,
   cacheKey: string,
   pcmBase64: string,
-  startSec: number
+  startSec: number,
+  providerOverride?: string
 ): Promise<LookupResult> {
   const { pcm, error: pcmErr } = decodePcmBase64(pcmBase64);
   if (pcmErr) throw new Error(pcmErr);
@@ -74,22 +75,33 @@ export async function transcribeAndStore(
   }
 
   try {
-  const cap = Number(env.CAP_MINUTES);
-  const minutes = pcmDurationMinutes(pcm.length);
-  const usedBefore = await getUsage(env, licenseId);
-  if (usedBefore + minutes > cap) {
-    throw new Error("monthly listening hours used up");
-  }
-  await addMinutes(env, licenseId, minutes);
+    const cap = Number(env.CAP_MINUTES);
+    const minutes = pcmDurationMinutes(pcm.length);
+    const usedBefore = await getUsage(env, licenseId);
+    if (usedBefore + minutes > cap) {
+      throw new Error("monthly listening hours used up");
+    }
+    await addMinutes(env, licenseId, minutes);
 
     await recordTranscribeMiss(env);
     await bumpTranscribeMiss(env, cacheKey);
 
-    const segments = await transcribePcm(env, pcm, startSec, cacheKey);
-    if (segments.length) {
-      await storeSegments(env, cacheKey, segments, "whisper", env.TRANSCRIPT_MODEL_VERSION);
+    const language = cacheKey.split(":").pop() || "ja";
+    const tx = await transcribeWithFallback(env, pcm, {
+      language,
+      startSec,
+      providerOverride
+    });
+    await recordProviderSuccess(env, tx.provider, tx.durationMinutes, tx.estimatedCostUsd);
+
+    if (tx.segments.length) {
+      await storeSegments(env, cacheKey, tx.segments, "whisper", env.TRANSCRIPT_MODEL_VERSION);
     }
-    return { hit: false, segments, source: "whisper" };
+    return {
+      hit: false,
+      segments: tx.segments,
+      source: "whisper"
+    };
   } finally {
     await releaseTranscribeLock(env, cacheKey, startSec, lockOwner);
   }

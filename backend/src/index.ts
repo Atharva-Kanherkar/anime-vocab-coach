@@ -11,15 +11,22 @@ import { getMetrics } from "./metrics";
 import { mintTranscriptionToken } from "./openai";
 import { publicConfig } from "./promo";
 import { lookupTranscript, transcribeAndStore } from "./transcript";
+import { getProviderMetrics } from "./transcribe";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
 export interface Env {
   AVC_KV: KVNamespace;
   OPENAI_API_KEY: string;
+  GROQ_API_KEY?: string;
+  DEEPINFRA_API_KEY?: string;
   DODO_API_KEY: string;
   CAP_MINUTES: string;
   TRANSCRIBE_MODEL: string;
+  OPENAI_WHISPER_MODEL: string;
+  GROQ_WHISPER_MODEL: string;
+  DEEPINFRA_WHISPER_MODEL: string;
+  TRANSCRIBE_PROVIDERS: string;
   TRANSCRIPT_MODEL_VERSION: string;
   DODO_API_BASE: string;
   CHECKOUT_URL: string;
@@ -171,7 +178,9 @@ export default {
       if (path === "/v1/transcript/stats" && req.method === "GET") {
         const check = await checkLicense(env, licenseKey);
         if (!check.valid) return json(req, { error: check.reason || "subscription inactive" }, 402);
-        return json(req, await getMetrics(env));
+        const cache = await getMetrics(env);
+        const providers = await getProviderMetrics(env);
+        return json(req, { cache, providers, chain: env.TRANSCRIBE_PROVIDERS || "openai" });
       }
 
       if (path === "/v1/transcript" && req.method === "GET") {
@@ -206,6 +215,8 @@ export default {
           key?: string;
           startSec?: number;
           audio?: string;
+          /** Testing override: single provider name or comma-separated chain */
+          provider?: string;
         };
         const cacheKey = (body.key || "").trim();
         const keyErr = validateCacheKey(cacheKey);
@@ -218,7 +229,7 @@ export default {
         const audio = body.audio || "";
         if (!audio) return json(req, { error: "missing audio" }, 400);
 
-        const result = await transcribeAndStore(env, auth.id, cacheKey, audio, startSec);
+        const result = await transcribeAndStore(env, auth.id, cacheKey, audio, startSec, body.provider);
         return json(req, result);
       }
 
