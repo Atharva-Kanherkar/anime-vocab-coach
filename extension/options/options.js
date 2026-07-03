@@ -320,7 +320,7 @@
     const dayWord = state.daysLeft === 1 ? "day" : "days";
     return `Launch pricing \u2014 ${PRO_PROMO.label} (${state.daysLeft} ${dayWord} left)`;
   }
-  var BACKEND_URL = "https://avc-api.example.workers.dev";
+  var BACKEND_URL = "https://api.animevocab.com";
   var PRO_HOURS_PER_MONTH = 45;
 
   // src/entries/options.ts

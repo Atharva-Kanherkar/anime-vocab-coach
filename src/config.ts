@@ -53,8 +53,8 @@ export function promoBannerText(state: PromoState): string | null {
   return `Launch pricing — ${PRO_PROMO.label} (${state.daysLeft} ${dayWord} left)`;
 }
 
-// Cloudflare Worker URL — update after `wrangler deploy` in backend/.
-export const BACKEND_URL = "https://avc-api.example.workers.dev";
+// Cloudflare Worker URL (custom domain routed to the avc-api Worker).
+export const BACKEND_URL = "https://api.animevocab.com";
 
 export const PRO_HOURS_PER_MONTH = 45;
 
