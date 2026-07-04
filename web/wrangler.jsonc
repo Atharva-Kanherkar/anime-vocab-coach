@@ -14,6 +14,15 @@
       "id": "8e67f3701aa04195975a583cc59d8425"
     }
   ],
+  // AI coach (issue #13). OPENAI_API_KEY is a Worker secret, not a var:
+  //   npx wrangler secret put OPENAI_API_KEY
+  // gpt-4.1-nano is the cheapest capable model ($0.10/$0.40 per 1M tokens as of
+  // Jul 2026): a coach call costs ~$0.00014. Limits are per Clerk user per month.
+  "vars": {
+    "AI_COACH_MODEL": "gpt-4.1-nano",
+    "FREE_AI_CALLS_PER_MONTH": "5",
+    "PRO_AI_CALLS_PER_MONTH": "300"
+  },
   "observability": {
     "enabled": true
   }
