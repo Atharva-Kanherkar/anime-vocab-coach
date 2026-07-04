@@ -13,6 +13,9 @@
 
 export type CoachMode = "explain" | "hooks";
 export type Plan = "free" | "pro";
+// "launch" is the tier reported while the free launch window is open: everyone
+// signed in gets all features at one capped limit, no Dodo/plan gating.
+export type Tier = "free" | "pro" | "launch";
 
 export interface CoachRequest {
   mode: CoachMode;
@@ -43,6 +46,18 @@ export type CoachResult = ExplainResult | HooksResult;
 export const DEFAULT_COACH_MODEL = "gpt-4.1-nano";
 export const DEFAULT_FREE_LIMIT = 5;
 export const DEFAULT_PRO_LIMIT = 300;
+// Free launch: while the window is open every signed-in account gets this cap for
+// all AI features. Capped so a launch cannot blow the budget (30 * ~$0.00014 =
+// ~$0.004/user/mo). Overridable via LAUNCH_AI_CALLS_PER_MONTH / AI_FREE_LAUNCH_UNTIL.
+export const DEFAULT_LAUNCH_LIMIT = 30;
+export const DEFAULT_LAUNCH_UNTIL = "2026-09-01T00:00:00.000Z";
+
+/** True while the free launch window is open. */
+export function launchActive(until: string | undefined, now = Date.now()): boolean {
+  const iso = until || DEFAULT_LAUNCH_UNTIL;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) && now < t;
+}
 
 // Bounds keep the prompt small (cost + the "never send more than needed" constraint).
 export const MAX_WORD_LEN = 80;

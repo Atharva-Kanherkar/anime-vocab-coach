@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   aiLimitForPlan,
   coachCacheKey,
+  launchActive,
   normalizeCoachRequest,
   runCoach,
   type CoachRequest,
@@ -55,6 +56,19 @@ describe("aiLimitForPlan", () => {
   it("gives pro the higher cap", () => {
     expect(aiLimitForPlan("free", 5, 300)).toBe(5);
     expect(aiLimitForPlan("pro", 5, 300)).toBe(300);
+  });
+});
+
+describe("launchActive", () => {
+  const until = "2026-09-01T00:00:00.000Z";
+  it("is open before the window ends", () => {
+    expect(launchActive(until, Date.parse("2026-07-15T00:00:00.000Z"))).toBe(true);
+  });
+  it("is closed after the window ends", () => {
+    expect(launchActive(until, Date.parse("2026-09-02T00:00:00.000Z"))).toBe(false);
+  });
+  it("falls back to the default window when unset", () => {
+    expect(launchActive(undefined, Date.parse("2026-07-15T00:00:00.000Z"))).toBe(true);
   });
 });
 

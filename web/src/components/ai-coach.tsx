@@ -9,7 +9,7 @@ import type { CoachMode, CoachResult } from "@/lib/ai-coach";
 
 const promo = getPromoState();
 
-type Usage = { used: number; limit: number; plan: "free" | "pro" };
+type Usage = { used: number; limit: number; plan: "free" | "pro" | "launch" };
 
 export function AiCoach() {
   const snapshot = useCloudSnapshot();
@@ -79,7 +79,7 @@ export function AiCoach() {
         </div>
         {usage && (
           <span className="status-pill">
-            {quotaLeft} / {usage.limit} {usage.plan === "pro" ? "Pro" : "free"} left
+            {quotaLeft} / {usage.limit} {tierLabel(usage.plan)} left
           </span>
         )}
       </div>
@@ -129,7 +129,7 @@ export function AiCoach() {
       {error && (
         <p className="ai-error">
           {error}{" "}
-          {usage && quotaLeft === 0 && (
+          {usage && quotaLeft === 0 && usage.plan !== "launch" && (
             <a href={promo.checkoutUrl} rel="noopener noreferrer">
               Upgrade to Pro
             </a>
@@ -164,11 +164,23 @@ export function AiCoach() {
       )}
 
       <p className="ai-foot">
-        Free accounts get a taste. <Link href="/#pricing">Pro</Link> raises the monthly cap. Your saved words
-        stay local and exportable.
+        {usage?.plan === "launch" ? (
+          <>All AI features are free during launch, capped per account. Your saved words stay local and exportable.</>
+        ) : (
+          <>
+            Free accounts get a taste. <Link href="/#pricing">Pro</Link> raises the monthly cap. Your saved words
+            stay local and exportable.
+          </>
+        )}
       </p>
     </section>
   );
+}
+
+function tierLabel(plan: "free" | "pro" | "launch"): string {
+  if (plan === "launch") return "free launch";
+  if (plan === "pro") return "Pro";
+  return "free";
 }
 
 function errorCopy(code: string | undefined, status: number): string {

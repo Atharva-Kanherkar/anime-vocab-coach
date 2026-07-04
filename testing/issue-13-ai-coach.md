@@ -17,10 +17,15 @@ Ships the first two AI anime-coach features (issue #13) and defers the rest.
 
 ## Usage limits by plan (AC2)
 
-- Free: `FREE_AI_CALLS_PER_MONTH` (default 5) per Clerk user per month.
-- Pro: `PRO_AI_CALLS_PER_MONTH` (default 300). Pro is read from Clerk
-  `publicMetadata.plan` (Dodo linking is a follow-up).
+- **Free launch (current):** until `AI_FREE_LAUNCH_UNTIL` (default 2026-09-01),
+  every signed-in account gets all AI features at `LAUNCH_AI_CALLS_PER_MONTH`
+  (default 30). No Dodo/plan gating. Still capped so a launch cannot blow the
+  budget (~$0.004/user/mo at 30 calls).
+- After the window: Free `FREE_AI_CALLS_PER_MONTH` (5), Pro
+  `PRO_AI_CALLS_PER_MONTH` (300). Pro is read from Clerk `publicMetadata.plan`
+  (Dodo linking is a follow-up).
 - Enforced in `web/src/app/api/ai/coach/route.ts`; counters in `AVC_SYNC_KV`.
+- `launchActive()` gates the window; the response reports `usage.plan: "launch"`.
 
 ## Cost per active user (AC3)
 

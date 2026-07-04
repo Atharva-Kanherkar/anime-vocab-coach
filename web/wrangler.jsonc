@@ -18,10 +18,16 @@
   //   npx wrangler secret put OPENAI_API_KEY
   // gpt-4.1-nano is the cheapest capable model ($0.10/$0.40 per 1M tokens as of
   // Jul 2026): a coach call costs ~$0.00014. Limits are per Clerk user per month.
+  //
+  // Free launch: until AI_FREE_LAUNCH_UNTIL, every signed-in account gets all AI
+  // features at LAUNCH_AI_CALLS_PER_MONTH (no Dodo/plan gating). Still capped so a
+  // launch cannot blow the budget. After the date, the free/pro limits apply.
   "vars": {
     "AI_COACH_MODEL": "gpt-4.1-nano",
     "FREE_AI_CALLS_PER_MONTH": "5",
-    "PRO_AI_CALLS_PER_MONTH": "300"
+    "PRO_AI_CALLS_PER_MONTH": "300",
+    "LAUNCH_AI_CALLS_PER_MONTH": "30",
+    "AI_FREE_LAUNCH_UNTIL": "2026-09-01T00:00:00.000Z"
   },
   "observability": {
     "enabled": true

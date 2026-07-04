@@ -10,6 +10,8 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import {
   DEFAULT_COACH_MODEL,
   DEFAULT_FREE_LIMIT,
+  DEFAULT_LAUNCH_LIMIT,
+  DEFAULT_LAUNCH_UNTIL,
   DEFAULT_PRO_LIMIT,
 } from "./ai-coach";
 
@@ -24,6 +26,8 @@ interface CoachEnv {
   AI_COACH_MODEL?: string;
   FREE_AI_CALLS_PER_MONTH?: string;
   PRO_AI_CALLS_PER_MONTH?: string;
+  LAUNCH_AI_CALLS_PER_MONTH?: string;
+  AI_FREE_LAUNCH_UNTIL?: string;
 }
 
 const localStore = new Map<string, string>();
@@ -53,7 +57,13 @@ export async function getOpenAiKey(): Promise<string | null> {
   return env.OPENAI_API_KEY ?? null;
 }
 
-export async function getCoachConfig(): Promise<{ model: string; freeLimit: number; proLimit: number }> {
+export async function getCoachConfig(): Promise<{
+  model: string;
+  freeLimit: number;
+  proLimit: number;
+  launchLimit: number;
+  launchUntil: string;
+}> {
   const env = await cfEnv();
   const num = (v: string | undefined, fallback: number) => {
     const n = v ? Number(v) : NaN;
@@ -63,6 +73,8 @@ export async function getCoachConfig(): Promise<{ model: string; freeLimit: numb
     model: process.env.AI_COACH_MODEL || env.AI_COACH_MODEL || DEFAULT_COACH_MODEL,
     freeLimit: num(process.env.FREE_AI_CALLS_PER_MONTH || env.FREE_AI_CALLS_PER_MONTH, DEFAULT_FREE_LIMIT),
     proLimit: num(process.env.PRO_AI_CALLS_PER_MONTH || env.PRO_AI_CALLS_PER_MONTH, DEFAULT_PRO_LIMIT),
+    launchLimit: num(process.env.LAUNCH_AI_CALLS_PER_MONTH || env.LAUNCH_AI_CALLS_PER_MONTH, DEFAULT_LAUNCH_LIMIT),
+    launchUntil: process.env.AI_FREE_LAUNCH_UNTIL || env.AI_FREE_LAUNCH_UNTIL || DEFAULT_LAUNCH_UNTIL,
   };
 }
 
