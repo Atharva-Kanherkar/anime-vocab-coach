@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { playFxSound, type SfxKind } from "@/lib/fx-sounds";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
 
@@ -18,6 +19,7 @@ export function FxSlider({
 }) {
   const wrapRef = useRef<HTMLElement>(null);
   const [index, setIndex] = useState(0);
+  const indexRef = useRef(0);
   const rafRef = useRef(0);
   const [promo, setPromo] = useState(initialPromo);
 
@@ -41,7 +43,13 @@ export function FxSlider({
       const scrolled = Math.min(Math.max(-wrap.getBoundingClientRect().top, 0), Math.max(distance, 1));
       const p = distance > 0 ? scrolled / distance : 0;
       const next = Math.min(slides.length - 1, Math.floor(p * slides.length + 0.0001));
-      setIndex((cur) => (cur === next ? cur : next));
+      const cur = indexRef.current;
+      if (cur !== next) {
+        const sound: SfxKind = next > cur ? "click" : "transition";
+        playFxSound(sound);
+        indexRef.current = next;
+        setIndex(next);
+      }
     };
 
     const onScroll = () => {
