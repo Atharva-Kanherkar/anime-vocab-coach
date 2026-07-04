@@ -874,6 +874,21 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   pointer-events: none;
   transition: opacity 500ms ease;
 }
+.hero__auth {
+  position: absolute;
+  top: clamp(16px, 3vw, 28px);
+  right: clamp(20px, 4.5vw, 44px);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .hero__auth .btn-line {
+    display: none;
+  }
+}
 .hero__brand.is-visible {
   opacity: 1;
   pointer-events: auto;
