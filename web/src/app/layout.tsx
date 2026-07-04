@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { IBM_Plex_Sans, Newsreader, Noto_Sans_JP } from "next/font/google";
 import { ScrollEffects } from "@/components/site-chrome";
 import { SITE_URL } from "@/lib/site";
@@ -46,11 +47,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${newsreader.variable} ${ibmPlex.variable} ${notoJp.variable}`}>
       <body>
-        <a className="skip" href="#main">
-          Skip to content
-        </a>
-        {children}
-        <ScrollEffects />
+        <ClerkProvider>
+          <a className="skip" href="#main">
+            Skip to content
+          </a>
+          {children}
+          <ScrollEffects />
+        </ClerkProvider>
       </body>
     </html>
   );

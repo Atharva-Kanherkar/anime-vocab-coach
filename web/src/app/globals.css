@@ -498,6 +498,263 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   .pick { grid-template-columns: 1fr; }
 }
 
+/* ---------- Cloud app ---------- */
+.cloud-page {
+  min-height: 100vh;
+}
+
+.cloud-hero {
+  padding: clamp(56px, 8vw, 92px) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.cloud-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.7fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: center;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.cloud-hero h1,
+.app-hero h1 {
+  font-family: var(--serif);
+  font-size: clamp(38px, 7vw, 72px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 0.96;
+  max-width: 10ch;
+  margin-bottom: 22px;
+}
+
+.cloud-lede,
+.app-hero p {
+  color: var(--ink-2);
+  font-size: 18px;
+  max-width: 58ch;
+}
+
+.cloud-proof,
+.cloud-feature-grid article,
+.cloud-panel,
+.app-grid article {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(165deg, rgba(32, 41, 63, 0.56), rgba(10, 13, 22, 0.62));
+  backdrop-filter: blur(12px);
+}
+
+.cloud-proof {
+  padding: 28px;
+}
+
+.cloud-proof span,
+.app-grid span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cloud-proof ul {
+  list-style: none;
+  margin-top: 16px;
+}
+
+.cloud-proof li {
+  color: var(--ink-2);
+  padding: 10px 0 10px 18px;
+  position: relative;
+}
+
+.cloud-proof li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 20px;
+  width: 8px;
+  height: 4px;
+  border-left: 1.5px solid var(--accent);
+  border-bottom: 1.5px solid var(--accent);
+  transform: rotate(-45deg);
+}
+
+.cloud-band {
+  padding: clamp(48px, 7vw, 76px) 0;
+}
+
+.cloud-feature-grid,
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.cloud-feature-grid article,
+.app-grid article {
+  padding: 26px;
+}
+
+.cloud-feature-grid h2,
+.cloud-panel h2,
+.app-grid h2 {
+  font-family: var(--serif);
+  font-size: 27px;
+  font-weight: 500;
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
+
+.cloud-feature-grid p,
+.app-grid p,
+.sync-note,
+.sync-message {
+  color: var(--ink-2);
+}
+
+.app-top {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 18px clamp(20px, 4vw, 48px);
+  border-bottom: 1px solid var(--line);
+  background: rgba(10, 13, 22, 0.82);
+  backdrop-filter: blur(14px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.app-top nav {
+  display: flex;
+  gap: 18px;
+  margin-left: auto;
+}
+
+.app-top nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.app-shell {
+  width: var(--wrap);
+  margin-inline: auto;
+  padding: clamp(42px, 7vw, 78px) 0;
+}
+
+.app-hero {
+  margin-bottom: 28px;
+}
+
+.cloud-panel {
+  padding: clamp(22px, 4vw, 34px);
+  margin-bottom: 22px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.status-pill {
+  border: 1px solid rgba(227, 186, 99, 0.45);
+  border-radius: 999px;
+  color: #f6e6c0;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.metric-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(224, 232, 255, 0.04);
+  padding: 18px;
+}
+
+.metric-card strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.metric-card span {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 22px 0 14px;
+}
+
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14.5px;
+  line-height: 1;
+  padding: 13px 22px;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(227, 186, 99, 0.24), rgba(227, 186, 99, 0.1));
+  border: 1px solid rgba(227, 186, 99, 0.5);
+  color: #f6e6c0;
+}
+
+.file-button input {
+  display: none;
+}
+
+.sync-message {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .cloud-hero-grid,
+  .cloud-feature-grid,
+  .app-grid,
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-top nav {
+    display: none;
+  }
+
+  .panel-head {
+    display: block;
+  }
+}
+
 /* ---------- Floating homepage nav (no container, no border) ---------- */
 .floatnav {
   position: absolute;
