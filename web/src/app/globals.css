@@ -147,7 +147,7 @@ body::after {
 /* glassmorphic buttons */
 .btn-accent {
   background: linear-gradient(180deg, rgba(227, 186, 99, 0.24), rgba(227, 186, 99, 0.1));
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   border-color: rgba(227, 186, 99, 0.5);
   color: #f6e6c0; /* light gold */
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 8px 30px rgba(0, 0, 0, 0.28), 0 0 26px rgba(227, 186, 99, 0.12);
@@ -160,7 +160,7 @@ body::after {
 .btn-line {
   border-color: rgba(224, 232, 255, 0.16); color: var(--ink);
   background: rgba(224, 232, 255, 0.05);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 .btn-line:hover {
   border-color: rgba(227, 186, 99, 0.55); color: #f6e6c0;
@@ -295,7 +295,8 @@ section { padding: clamp(64px, 9vw, 100px) 0; }
 .price-card {
   position: relative;
   border: 1px solid var(--line); border-radius: 16px; padding: 32px 30px;
-  background: linear-gradient(170deg, rgba(24, 30, 46, 0.5) 0%, rgba(13, 17, 26, 0.5) 100%);
+  background: linear-gradient(170deg, rgba(24, 30, 46, 0.6) 0%, rgba(13, 17, 26, 0.66) 100%);
+  backdrop-filter: blur(12px);
   display: flex; flex-direction: column;
 }
 .price-card-pro {
@@ -679,6 +680,150 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   font-weight: 600;
 }
 
+/* deeper scrim, faded in over bright artwork (e.g. the sunrise slide) */
+.hero__scrim--deep {
+  opacity: 0;
+  transition: opacity 700ms ease;
+  background:
+    radial-gradient(85% 65% at 50% 46%, rgba(6, 8, 14, 0.62) 0%, rgba(6, 8, 14, 0.38) 55%, rgba(6, 8, 14, 0.2) 100%),
+    linear-gradient(to bottom, rgba(6, 8, 14, 0.45), rgba(6, 8, 14, 0.55));
+}
+.hero__scrim--deep.is-on { opacity: 1; }
+
+/* in-slider pricing + FAQ slide bodies */
+.hero__center--wide {
+  padding: 0 clamp(24px, 6vw, 100px);
+}
+/* dense slides: title/body step down to the scale of the plain slides */
+.hero__center--wide .hero__title {
+  font-size: clamp(24px, 2.8vw, 38px);
+}
+.hero__center--wide .hero__body {
+  margin-top: 12px;
+  font-size: clamp(14px, 1.6vw, 16px);
+}
+.hero__pricing {
+  margin-top: 30px;
+  width: min(780px, 100%);
+  text-align: left;
+  align-items: stretch;
+}
+/* consistent row rhythm so both cards line up amount → list → button → note */
+.hero__pricing .price-card { gap: 0; }
+.hero__pricing .price-card h3 { min-height: 2.4em; margin-bottom: 6px; }
+.hero__pricing .amount-row {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 56px; margin-bottom: 14px;
+}
+.hero__pricing .price-card ul { flex: 1 1 auto; margin-bottom: 18px; }
+.hero__pricing .price-card .btn { width: 100%; }
+.hero__pricing .promo-note {
+  min-height: 1.2em; margin-top: 10px; margin-bottom: 0;
+}
+/* transparent glassmorphic cards — the blur carries the glass effect,
+   near-zero fill, text punched up for contrast */
+.hero__pricing .price-card {
+  padding: 24px 26px 22px;
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+  border-color: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(30px) saturate(150%);
+
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 18px 46px rgba(0, 0, 0, 0.3);
+}
+.hero__pricing .price-card-pro {
+  background: linear-gradient(170deg, rgba(227, 186, 99, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-color: rgba(227, 186, 99, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 18px 46px rgba(0, 0, 0, 0.34), 0 0 44px rgba(227, 186, 99, 0.14);
+}
+.hero__pricing .price-card li,
+.hero__pricing .price-card h3,
+.hero__pricing .amount,
+.hero__pricing .strike,
+.hero__pricing .promo-note {
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.75), 0 0 3px rgba(0, 0, 0, 0.5);
+}
+.hero__pricing .price-card li { padding: 4px 0 4px 18px; color: rgba(244, 247, 255, 0.95); }
+.hero__pricing .price-card h3 { color: rgba(244, 247, 255, 0.9); }
+.hero__pricing .amount { color: #fff; }
+.hero__pricing .strike { color: rgba(238, 242, 252, 0.65); }
+.hero__pricing .amount { font-size: 30px; }
+.hero__pricing .amount-row { min-height: 0; margin-bottom: 12px; }
+.hero__pricing ul { margin-bottom: 16px; }
+/* FAQ frame: side-subject artwork with an extra dark-centered scrim so the
+   questions stay readable over the middle of the image */
+.hero__center--faq { position: absolute; }
+.hero__center--faq::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(58% 60% at 50% 50%, rgba(7, 9, 14, 0.82) 0%, rgba(7, 9, 14, 0.55) 55%, transparent 100%);
+}
+.hero__center--faq > * { position: relative; z-index: 1; }
+.hero__faq {
+  margin-top: 26px;
+  width: min(680px, 100%);
+  text-align: left;
+}
+.hero__faq details {
+  border-bottom: 1px solid rgba(224, 232, 255, 0.16);
+  backdrop-filter: blur(2px);
+}
+.hero__faq summary {
+  cursor: pointer; list-style: none; padding: 15px 28px 15px 0;
+  font-weight: 500; position: relative;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.7);
+}
+.hero__faq summary::-webkit-details-marker { display: none; }
+.hero__faq summary::after {
+  content: "+"; position: absolute; right: 4px; top: 11px;
+  font-family: var(--serif); font-size: 22px; color: var(--accent);
+}
+.hero__faq details[open] summary::after { content: "×"; }
+.hero__faq p {
+  color: rgba(224, 232, 250, 0.78); font-size: 14.5px;
+  padding-bottom: 16px; max-width: 60ch;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.7);
+}
+.hero__fineprint {
+  margin-top: 26px; font-size: 12.5px; color: var(--ink-3);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.7);
+}
+
+/* creator credit — floats at the bottom of every frame */
+.creator-credit {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 45;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  text-decoration: none;
+  white-space: nowrap;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6);
+  transition: color 200ms ease;
+}
+.creator-credit:hover { color: #f6e6c0; }
+.creator-credit span { color: #e36363; }
+.hero__fineprint a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid rgba(224, 232, 255, 0.25); }
+.hero__fineprint a:hover { color: var(--ink); }
+
+@media (max-height: 760px) {
+  .hero__pricing { margin-top: 20px; }
+  .hero__pricing .price-card { padding: 18px 20px 16px; }
+  .hero__pricing .price-card li { font-size: 13px; padding: 3px 0 3px 16px; }
+}
+
+/* stacked cards / opened FAQs can exceed one viewport on small screens —
+   let the pinned frame scroll internally instead of clipping */
+@media (max-width: 860px) {
+  .hero__center--wide {
+    justify-content: flex-start;
+    overflow-y: auto;
+    padding-top: 84px;
+    padding-bottom: 44px;
+  }
+}
+
 /* centered content */
 .hero__center {
   position: absolute;
@@ -709,20 +854,22 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 
 .hero__title {
   font-family: var(--serif);
-  font-size: clamp(30px, 4vw, 52px);
+  font-size: clamp(30px, 3.4vw, 46px);
   font-weight: 500;
-  line-height: 1.1;
+  line-height: 1.12;
   letter-spacing: -0.02em;
-  max-width: 18ch;
+  max-width: 20ch;
+  text-wrap: balance;
   text-shadow: 0 2px 40px rgba(0, 0, 0, 0.5);
 }
 
 .hero__body {
   margin-top: 20px;
   max-width: 46ch;
-  color: var(--ink-2);
+  color: rgba(238, 242, 252, 0.92);
   font-size: clamp(15px, 1.9vw, 18px);
   line-height: 1.6;
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.6);
 }
 
 .hero__cta-btn {
@@ -781,8 +928,10 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   50% { opacity: 0.75; }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1080px) {
   .hero__index { display: none; }
+}
+@media (max-width: 860px) {
   .hero__center { padding: 0 24px; }
 }
 
@@ -819,25 +968,6 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 
 .btn-lg { padding: 15px 30px; font-size: 15px; }
 
-/* manifesto (replaces .strip on home) */
-.manifesto {
-  position: relative; padding: clamp(72px, 10vw, 120px) 0;
-  background: rgba(16, 20, 31, 0.55); border-block: 1px solid var(--line);
-  overflow: hidden;
-}
-.manifesto .wrap { position: relative; }
-.man-quote {
-  position: absolute; top: -0.42em; left: -0.06em;
-  font-family: var(--serif); font-size: clamp(120px, 15vw, 200px);
-  color: rgba(227, 186, 99, 0.07); line-height: 1; user-select: none;
-}
-.manifesto p {
-  position: relative; font-family: var(--serif); font-size: clamp(22px, 3vw, 33px);
-  line-height: 1.34; color: var(--ink-2); max-width: 24em;
-  margin-inline: auto; text-align: center; font-weight: 400; text-wrap: balance;
-}
-.manifesto strong { color: var(--ink); font-weight: 500; }
-
 /* JP section mark */
 .jp-mark {
   display: block; font-family: var(--jp); font-size: 12px; font-weight: 600;
@@ -853,7 +983,7 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   display: flex; flex-direction: column; gap: 10px;
   padding: 30px 28px 34px; border: 1px solid var(--line); border-radius: 18px;
   background: linear-gradient(165deg, rgba(30, 38, 58, 0.5) 0%, rgba(14, 18, 28, 0.5) 100%);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   transition: border-color 240ms ease, transform 240ms ease, box-shadow 240ms ease;
 }
 .timeline li:hover {
@@ -881,7 +1011,7 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   display: flex; flex-direction: column; gap: 12px; align-items: flex-start;
   padding: 30px 30px 32px; border: 1px solid var(--line); border-radius: 18px;
   background: linear-gradient(165deg, rgba(30, 38, 58, 0.5) 0%, rgba(14, 18, 28, 0.5) 100%);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   transition: border-color 240ms ease, transform 240ms ease, box-shadow 240ms ease;
 }
 .feat-row:hover {
@@ -897,58 +1027,6 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 .feat-row h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
 .feat-row p { font-size: 15px; color: var(--ink-2); }
 
-/* ---------- feature coverflow (3D carousel) ---------- */
-.cf { position: relative; margin-top: 52px; user-select: none; touch-action: pan-y; }
-.cf__stage {
-  position: relative; height: clamp(360px, 46vw, 460px);
-  perspective: 1900px; transform-style: preserve-3d;
-  overflow: hidden;
-}
-.cf__card {
-  position: absolute; top: 50%; left: 50%;
-  width: clamp(258px, 30vw, 358px); height: clamp(330px, 42vw, 418px);
-  margin: 0; padding: 0; border: 0; cursor: pointer; display: block;
-  border-radius: 26px; overflow: hidden; background: var(--bg-2);
-  transform-origin: center center;
-  transition: transform 580ms cubic-bezier(0.22, 1, 0.36, 1), opacity 520ms ease, box-shadow 420ms ease;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
-  will-change: transform, opacity;
-}
-.cf__card.is-active {
-  cursor: default;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.92), 0 36px 84px rgba(0, 0, 0, 0.62), 0 0 60px rgba(227, 186, 99, 0.2);
-}
-.cf__img { position: absolute; inset: 0; }
-.cf__noise {
-  position: absolute; inset: 0; opacity: 0.32; mix-blend-mode: overlay; pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-}
-.cf__scrim {
-  position: absolute; inset: 0;
-  background: linear-gradient(180deg, transparent 0%, transparent 52%, rgba(6, 8, 14, 0.78) 100%);
-}
-.cf__kanji {
-  position: absolute; top: 16px; right: 20px; font-family: var(--jp); font-weight: 600;
-  font-size: 72px; line-height: 1; color: rgba(255, 255, 255, 0.16); pointer-events: none;
-}
-.cf__content {
-  position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 26px 30px; text-align: center;
-  opacity: 0; transform: translateY(8px); transition: opacity 420ms ease 120ms, transform 420ms ease 120ms;
-}
-.cf__card.is-active .cf__content { opacity: 1; transform: none; }
-.cf__content h3 { font-family: var(--serif); font-size: 25px; font-weight: 500; margin-bottom: 8px; color: var(--ink); text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55); }
-.cf__content p { font-size: 14px; color: rgba(238, 242, 252, 0.84); line-height: 1.55; }
-.cf__dots { display: flex; justify-content: center; gap: 9px; margin-top: 38px; }
-.cf__dots button {
-  width: 8px; height: 8px; border-radius: 999px; border: 0; padding: 0; cursor: pointer;
-  background: rgba(224, 232, 255, 0.25); transition: background 220ms ease, width 220ms ease;
-}
-.cf__dots button.is-active { width: 28px; background: var(--accent); }
-
-/* tighten rhythm around the carousel + pricing */
-.features { padding-bottom: clamp(40px, 5vw, 64px); }
-.pricing { padding-top: clamp(48px, 6vw, 72px); }
-
 /* pricing conversion details */
 .promo-note {
   margin-top: 12px; text-align: center; font-size: 12.5px;
@@ -957,34 +1035,6 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 .price-card ul + .btn-line { opacity: 0.82; }
 .price-card .btn-accent { font-size: 15px; padding: 14px 26px; }
 
-@media (max-width: 620px) {
-  .cf__stage { perspective: 1100px; }
-  .cf__content p { font-size: 13px; }
-}
-
-/* cinematic final frame (replaces .closing on home) */
-.final-frame {
-  position: relative; min-height: 82svh;
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  overflow: hidden; border-top: 1px solid var(--line);
-  background: linear-gradient(180deg, transparent, rgba(8, 7, 10, 0.85) 70%);
-}
-.final-bg { position: absolute; inset: 0; pointer-events: none; display: grid; place-items: end center; }
-.final-kanji {
-  font-family: var(--jp); font-weight: 600; line-height: 0.8;
-  font-size: clamp(300px, 50vw, 720px); color: rgba(227, 186, 99, 0.05);
-  transform: translateY(0.14em); user-select: none;
-}
-.final-inner { position: relative; z-index: 2; padding: 120px 24px; }
-.final-jp {
-  font-family: var(--jp); font-size: clamp(14px, 1.5vw, 18px);
-  letter-spacing: 0.32em; color: rgba(227, 186, 99, 0.82); margin-bottom: 20px;
-}
-.final-frame h2 {
-  font-family: var(--serif); font-weight: 500; text-wrap: balance;
-  font-size: clamp(30px, 4.6vw, 52px); line-height: 1.1;
-  letter-spacing: -0.02em; margin-bottom: 32px;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .timeline li:hover .t-kanji, .feat-row:hover .feat-kanji { transform: none; }

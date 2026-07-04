@@ -2,6 +2,10 @@ import { GITHUB_URL } from "@/lib/site";
 
 export type HeroSlide = {
   id: string;
+  /** Special slide body rendered by FxSlider ("pricing" | "faq"). */
+  kind?: "pricing" | "faq";
+  /** Bright artwork — FxSlider adds a deeper scrim so light text stays readable. */
+  bright?: boolean;
   /** Cinematic CSS-gradient backdrop. Used when no `image` is set. */
   tone: string;
   /** Optional real art — overrides `tone` when present. */
@@ -50,7 +54,7 @@ export const heroSlides: HeroSlide[] = [
     title: "Works when there are no Japanese subtitles.",
     body: "Listening Mode transcribes audio on Netflix, Crunchyroll, and YouTube while English subs stay on.",
     ctaLabel: "See pricing",
-    ctaHref: "#pricing",
+    ctaHref: "#slide-pricing",
   },
   {
     id: "mist",
@@ -87,5 +91,50 @@ export const heroSlides: HeroSlide[] = [
     body: "No account, no analytics, no selling data. Open source under AGPL on GitHub.",
     ctaLabel: "View on GitHub",
     ctaHref: GITHUB_URL,
+  },
+  {
+    id: "manifesto",
+    tone: "linear-gradient(158deg, #10141f 0%, #0a0d16 60%, #07060c 100%)",
+    image: "/slides/06-manifesto.jpg",
+    navLabel: "Real shows",
+    tag: "Real shows",
+    kicker: "06 · why",
+    title: "Vocabulary from real shows, not textbook dialogues.",
+    body: "Without opening Anki mid-episode. One word at a time, in context, with scheduled reviews.",
+  },
+  {
+    id: "pricing",
+    kind: "pricing",
+    tone: "linear-gradient(158deg, #131020 0%, #0c0a14 60%, #07060c 100%)",
+    image: "/slides/07-pricing.jpg",
+    navLabel: "Pricing",
+    tag: "Free · Pro",
+    kicker: "07 · pricing",
+    title: "The core loop is free forever.",
+    body: "Pro pays for transcription compute.",
+  },
+  {
+    id: "begin",
+    bright: true,
+    tone: "linear-gradient(158deg, #1a1420 0%, #0f0a12 60%, #07060c 100%)",
+    image: "/slides/08-final.jpg",
+    navLabel: "Begin",
+    tag: "始めよう",
+    kicker: "08 · begin",
+    title: "Your next episode can teach you a word.",
+    body: "次のエピソードから、始めよう。",
+    ctaLabel: "Add to Chrome — free",
+    ctaHref: GITHUB_URL,
+  },
+  {
+    id: "faq",
+    kind: "faq",
+    image: "/slides/09-faq.jpg",
+    tone: "radial-gradient(110% 90% at 50% 0%, rgba(64, 74, 136, 0.35), transparent 55%), linear-gradient(158deg, #0f1320 0%, #0a0b14 60%, #07060c 100%)",
+    navLabel: "FAQ",
+    tag: "FAQ",
+    kicker: "09 · faq",
+    title: "FAQ",
+    body: "",
   },
 ];
