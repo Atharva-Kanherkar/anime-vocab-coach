@@ -9,7 +9,10 @@ prompts should appear at the moment hosted value is obvious, never as a random
 paywall on something that used to be free.
 
 This document answers the four acceptance criteria for #15 and grounds the pricing
-calls in market data verified in July 2026 (sources at the bottom).
+calls in market data verified in July 2026 (sources at the bottom). It also defines
+an **acquisition phase** that spends a $2000 OpenAI credit as a customer-acquisition
+budget while it lasts (see "Acquisition Phase" below), before the steady-state margin
+plan takes over.
 
 ## Market Reality (verified)
 
@@ -63,6 +66,85 @@ user is **underwater**, and against regular monthly net of $9.00 the margin is a
 $0.30. This is the single most important business risk in the plan and it drives the
 cap decision below.
 
+## Acquisition Phase: the $2000 OpenAI credit is CAC, not COGS
+
+There is a $2000 OpenAI credit sitting on the account. While it burns, transcription
+and AI are prepaid and sunk. That flips the strategy for this window: the per-user
+margin math above (heavy users underwater) does not apply, because the cost is not
+coming out of revenue. The credit is a **customer-acquisition budget**. Spend it to
+get people hooked, then convert them before they would ever hit a real cost.
+
+The wedge: free users can already run Listening Mode with their *own* OpenAI key. Most
+people will never set one up. So the acquisition offer is a bounded free trial of
+**no-key hosted Listening Mode** (the exact thing Pro sells), funded by the credit.
+
+### The offer (chosen dial: Taste)
+
+- **90 minutes of hosted, no-key Listening Mode per account, one-time.** About four
+  episodes. Enough to hit the magic moment and build a starter vocabulary deck.
+- **10 free AI explanations** during the trial (about $0.02/user).
+- **Sign-in required** (Clerk), so the trial is metered per account, not per anonymous
+  hit. This is the primary anti-farming control.
+
+### CAC math (verified cost basis: $0.003/min)
+
+- Cost per trial user: `90 * $0.003 + 10 * $0.002` = **$0.29**, dropping to **~$0.15**
+  once transcript cache hits kick in for popular anime.
+- Reserve a $200 buffer, spend $1,800: **~6,200 trials** (naive), more with cache.
+- At a 3-10% trial-to-paid conversion (verified realistic band), that is **~190 to
+  620 paying subscribers** for the credit.
+- CAC per paying customer: **$2.90 (at 10%) to $9.66 (at 3%)**. Payback is about **one
+  month** at the $9.00 regular-monthly net, about two months at the worst-case launch
+  annual net of $4.59/mo. Any way you cut it, the credit pays for itself fast.
+
+### The cache flywheel
+
+Popular episodes are transcribed once and served to everyone from cache. The more
+trial users watch the *same* hit anime, the cheaper each additional user gets. So
+acquisition marketing should point new users at a small set of popular titles first,
+not the long tail. That maximizes cache hits and stretches the $2000 further.
+
+### Getting them hooked (so they never cancel)
+
+The trial builds the switching cost; these mechanics cash it in:
+
+- **Default the upgrade nudge to annual** ($59/$84). Fewer renewal decisions, prepaid,
+  lower churn.
+- **Loss aversion at the trial wall.** Show "you've saved N words, a X-day streak, Y
+  reviews due" right where the trial ends. Canceling means abandoning the deck.
+- **Sync stickiness.** Once progress is synced, it follows them to any device; leaving
+  means losing that.
+- **Cache = habit.** Their favorite shows are instant on Pro, which reinforces the
+  daily loop.
+- **Referral loop (credit-funded).** Give referrer and referee +30 min hosted each.
+  Cheap viral coefficient on the same budget.
+
+### Guardrails (go all out, but not too generous)
+
+- **Per-account lifetime cap** (90 min + 10 AI). Hard ceiling, so no single whale eats
+  the budget.
+- **Global kill switch.** Stop granting new trials once cumulative credit spend hits
+  **$1,800** (`TRIAL_BUDGET_USD_CAP`), keeping a $200 buffer. Monitor daily via
+  `GET /v1/transcript/stats`, which already exposes cost counters (#16).
+- **Sign-in gate** limits trial farming to one allotment per account.
+- **Check the credit's expiry date.** OpenAI promo credits often expire on a fixed
+  date. If this grant expires soon, front-load the campaign; unspent credit is wasted
+  CAC. (Owner to confirm the grant terms.)
+
+### What to implement (follow-up PR, config-first)
+
+- New env: `FREE_TRIAL_HOSTED_MINUTES=90`, `FREE_TRIAL_AI_CALLS=10`,
+  `TRIAL_BUDGET_USD_CAP=1800`.
+- Backend: meter per-Clerk-user trial usage in KV (same pattern as the sync store),
+  check it in `backend/src/transcript.ts` alongside `CAP_MINUTES`, reserve before
+  transcription and refund on provider failure.
+- Gate: signed-in free users get hosted Listening Mode until their allotment or the
+  global cap is hit, then upgrade prompt #1 fires.
+
+This phase is deliberately reversible: every number above is an env var, and the
+global cap is a hard stop. When the credit runs out, the trial turns off and the
+steady-state margin plan (AC3, Phase 2) takes over.
+
 ## AC1: Five upgrade prompts mapped to exact UI locations
 
 Each prompt fires where the hosted value is already visible on screen. File paths are
@@ -114,7 +196,13 @@ moves behind the paywall. Pro only adds hosted convenience.
 
 ## AC3: First pricing experiment and rollback plan
 
-**Experiment: hold the launch promo, protect margin with a promo-specific cap.**
+There are two phases. **Phase 1 (now, while the $2000 credit lasts)** is
+acquisition-led: run the 90-minute no-key trial above, optimize for trials-to-paid,
+and the only real guardrail is the global kill switch so the credit is not blown.
+Per-user margin does not matter yet because the cost is prepaid. **Phase 2 (after the
+credit)** is the steady-state margin experiment below.
+
+**Phase 2 experiment: hold the launch promo, protect margin with a promo-specific cap.**
 
 The margin math shows launch *annual* buyers at heavy listening use are unprofitable.
 So the experiment is not just "keep $7/$59." It is "keep the promo price but cap the

@@ -11,6 +11,9 @@ acceptance criteria and a build check for the copy change.
   - AC2: Free vs Pro (vs possible Cloud) feature table with an explicit bundle-vs-separate recommendation.
   - AC3: a first pricing experiment with success metrics and a config-only rollback plan.
   - AC4: local-ownership framing copy, both existing strings and the one added here.
+- An acquisition phase spends the $2000 OpenAI credit as CAC: a bounded 90-minute
+  no-key hosted Listening Mode trial, with CAC math, retention mechanics, and a global
+  kill switch (`TRIAL_BUDGET_USD_CAP`) so the credit cannot be overspent.
 - Every pricing/cost claim is backed by a cited source (July 2026), listed in a Sources section.
 - The four pricing questions from the issue are answered explicitly.
 
