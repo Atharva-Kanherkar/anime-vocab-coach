@@ -25,6 +25,11 @@ export function publicConfig(env: Env) {
     promo,
     checkoutUrl: promo.checkoutUrl,
     capMinutes: promo.capMinutes,
+    planLimits: {
+      proListeningMinutesPerMonth: Number(env.CAP_MINUTES),
+      freeAiCallsPerMonth: Number(env.FREE_AI_CALLS_PER_MONTH || 5),
+      proAiCallsPerMonth: Number(env.PRO_AI_CALLS_PER_MONTH || 300)
+    },
     siteUrl: "https://animevocab.com"
   };
 }
