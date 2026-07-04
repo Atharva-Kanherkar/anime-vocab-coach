@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
+import { AiCoach } from "@/components/ai-coach";
 import { useCloudSnapshot } from "@/components/cloud-sync-panel";
 import { GITHUB_URL, getPromoState } from "@/lib/site";
 import { pickDueReviews, pickRecentWords, summarizeSyncSnapshot } from "@/lib/sync";
@@ -78,6 +79,8 @@ export function AppDashboard() {
         </DashPanel>
       </div>
 
+      <AiCoach />
+
       <section className="app-grid dash-features" aria-label="Cloud features">
         <FeatureEmpty
           mark="ノート"
@@ -89,13 +92,6 @@ export function AppDashboard() {
               ? { href: "#sync", label: "Sync to unlock notebooks" }
               : { href: GITHUB_URL, label: "Start in the extension", external: true }
           }
-        />
-        <FeatureEmpty
-          mark="コーチ"
-          title="AI coach"
-          body="Explain a saved line, generate memory hooks, and turn scene context into review prompts — not generic chatbot drills."
-          status="Pro · usage-capped"
-          cta={{ href: "/#pricing", label: "See Pro pricing" }}
         />
         <FeatureEmpty
           mark="順位"
