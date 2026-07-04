@@ -9,9 +9,16 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
   // route 500s. Turn on via NEXT_PUBLIC_CLERK_ENABLED=true. See @/lib/flags.
   if (!CLERK_ENABLED) return NextResponse.next();
 
-  return clerkMiddleware(async (auth, request) => {
-    if (isProtectedRoute(request)) await auth.protect();
-  })(req, event);
+  return clerkMiddleware(
+    async (auth, request) => {
+      if (isProtectedRoute(request)) await auth.protect();
+    },
+    {
+      frontendApiProxy: {
+        enabled: true,
+      },
+    }
+  )(req, event);
 }
 
 export const config = {
