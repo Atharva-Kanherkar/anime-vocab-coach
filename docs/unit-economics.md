@@ -103,7 +103,11 @@ Use `GET /v1/transcript/stats` with a valid Pro license. It now returns:
 - configured provider chain,
 - economics assumptions,
 - plan limits,
-- margin scenarios.
+- margin scenarios as `grossMarginPercent`.
+
+`grossMarginPercent` is intentionally allowed to go negative when the configured
+payment assumptions or usage costs are unprofitable. Empty environment-variable
+values are treated as unset and fall back to the documented defaults.
 
 Weekly review checklist:
 
