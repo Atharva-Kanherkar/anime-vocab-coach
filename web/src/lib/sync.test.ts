@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { normalizeAnimeVocabExport, summarizeSyncSnapshot } from "./sync";
+import {
+  applyCloudSyncUpdate,
+  cloudSnapshotToAnimeVocabExport,
+  createCloudSyncEnvelope,
+  normalizeAnimeVocabExport,
+  summarizeSyncSnapshot,
+} from "./sync";
 
 describe("normalizeAnimeVocabExport", () => {
   it("handles missing settings, vocab, and stats", () => {
@@ -90,6 +96,70 @@ describe("summarizeSyncSnapshot", () => {
       reviewsDue: 1,
       watchMinutes: 40,
       judgedCards: 6,
+    });
+  });
+});
+
+describe("cloudSnapshotToAnimeVocabExport", () => {
+  it("round-trips a local vocabulary item through the cloud snapshot shape", () => {
+    const localExport = {
+      settings: { targetLevel: 4 },
+      exportedAt: "2026-07-03T12:00:00.000Z",
+      vocab: {
+        見る: {
+          state: "learning" as const,
+          reading: "みる",
+          gloss: "to see",
+          level: 5,
+          freqRank: 120,
+          seenCount: 6,
+          shownCount: 2,
+          firstSeenAt: 1783000000000,
+          lastSeenAt: 1783000600000,
+          srs: { stage: 2, dueAt: 1783086400000, lapses: 1 },
+        },
+      },
+      stats: {
+        daily: {
+          "2026-07-03": { met: 1, judged: 2, reviews: 1, watchMin: 24 },
+        },
+        cardTimestamps: [1783000600000],
+      },
+    };
+
+    const snapshot = normalizeAnimeVocabExport(localExport, new Date("2026-07-04T00:00:00.000Z"));
+    const roundTrip = cloudSnapshotToAnimeVocabExport(snapshot);
+
+    expect(roundTrip.settings).toEqual(localExport.settings);
+    expect(roundTrip.vocab?.見る).toEqual(localExport.vocab.見る);
+    expect(roundTrip.stats?.daily).toEqual(localExport.stats.daily);
+  });
+});
+
+describe("applyCloudSyncUpdate", () => {
+  const profile = { id: "user_123", email: "learner@example.com", name: "Learner" };
+
+  it("creates the first cloud envelope for an account", () => {
+    const snapshot = normalizeAnimeVocabExport({}, new Date("2026-07-04T00:00:00.000Z"));
+    const next = applyCloudSyncUpdate(null, profile, snapshot, null, new Date("2026-07-04T01:00:00.000Z"));
+
+    expect(next).toMatchObject({
+      schemaVersion: 1,
+      profile,
+      revision: 1,
+      lastSyncedAt: "2026-07-04T01:00:00.000Z",
+    });
+  });
+
+  it("rejects stale writes instead of silently overwriting cloud progress", () => {
+    const snapshot = normalizeAnimeVocabExport({}, new Date("2026-07-04T00:00:00.000Z"));
+    const current = createCloudSyncEnvelope(profile, snapshot, 3, new Date("2026-07-04T01:00:00.000Z"));
+    const result = applyCloudSyncUpdate(current, profile, snapshot, 2, new Date("2026-07-04T02:00:00.000Z"));
+
+    expect(result).toMatchObject({
+      type: "revision-conflict",
+      expectedRevision: 2,
+      currentRevision: 3,
     });
   });
 });

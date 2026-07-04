@@ -7,6 +7,12 @@ export interface AnimeVocabExport {
   exportedAt?: string;
 }
 
+export interface CloudUserProfile {
+  id: string;
+  email: string | null;
+  name: string | null;
+}
+
 export interface ExtensionVocabRecord {
   state: WordState;
   reading: string;
@@ -68,6 +74,35 @@ export interface CloudSyncSnapshot {
   daily: CloudDailyStats[];
 }
 
+export type ExtensionSyncConnectionState =
+  | "local-only"
+  | "connected-synced"
+  | "sync-error"
+  | "disconnected";
+
+export interface ExtensionSyncStatus {
+  state: ExtensionSyncConnectionState;
+  userId: string | null;
+  lastSyncedAt: string | null;
+  revision: number | null;
+  message: string | null;
+}
+
+export interface CloudSyncEnvelope {
+  schemaVersion: 1;
+  profile: CloudUserProfile;
+  snapshot: CloudSyncSnapshot;
+  revision: number;
+  lastSyncedAt: string;
+}
+
+export interface SyncConflict {
+  type: "revision-conflict";
+  expectedRevision: number | null;
+  currentRevision: number;
+  currentEnvelope: CloudSyncEnvelope;
+}
+
 export interface SyncSummary {
   totalWords: number;
   newWords: number;
@@ -99,6 +134,12 @@ function timeToIso(value: unknown): string | null {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
   return new Date(n).toISOString();
+}
+
+function isoToTime(value: string | null): number {
+  if (!value) return 0;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : 0;
 }
 
 export function normalizeAnimeVocabExport(
@@ -173,4 +214,80 @@ export function summarizeSyncSnapshot(snapshot: CloudSyncSnapshot, now = new Dat
 export function parseAnimeVocabExportJson(text: string): CloudSyncSnapshot {
   const parsed = JSON.parse(text) as AnimeVocabExport;
   return normalizeAnimeVocabExport(parsed);
+}
+
+export function cloudSnapshotToAnimeVocabExport(snapshot: CloudSyncSnapshot): AnimeVocabExport {
+  const vocab: Record<string, ExtensionVocabRecord> = {};
+  const daily: Record<string, ExtensionDailyStats> = {};
+
+  for (const word of snapshot.words) {
+    vocab[word.base] = {
+      state: word.state,
+      reading: word.reading,
+      gloss: word.gloss,
+      level: word.level ?? 0,
+      freqRank: word.freqRank ?? 0,
+      seenCount: word.seenCount,
+      shownCount: word.shownCount,
+      firstSeenAt: isoToTime(word.firstSeenAt),
+      lastSeenAt: isoToTime(word.lastSeenAt),
+      srs: word.review
+        ? {
+            stage: word.review.stage,
+            dueAt: isoToTime(word.review.dueAt),
+            lapses: word.review.lapses,
+          }
+        : null,
+    };
+  }
+
+  for (const day of snapshot.daily) {
+    daily[day.day] = {
+      met: day.met,
+      judged: day.judged,
+      reviews: day.reviews,
+      watchMin: day.watchMin,
+    };
+  }
+
+  return {
+    settings: snapshot.settings,
+    vocab,
+    stats: { daily, cardTimestamps: [] },
+    exportedAt: snapshot.importedAt,
+  };
+}
+
+export function createCloudSyncEnvelope(
+  profile: CloudUserProfile,
+  snapshot: CloudSyncSnapshot,
+  revision = 1,
+  now = new Date()
+): CloudSyncEnvelope {
+  return {
+    schemaVersion: 1,
+    profile,
+    snapshot,
+    revision,
+    lastSyncedAt: now.toISOString(),
+  };
+}
+
+export function applyCloudSyncUpdate(
+  current: CloudSyncEnvelope | null,
+  profile: CloudUserProfile,
+  snapshot: CloudSyncSnapshot,
+  expectedRevision: number | null,
+  now = new Date()
+): CloudSyncEnvelope | SyncConflict {
+  if (current && expectedRevision !== current.revision) {
+    return {
+      type: "revision-conflict",
+      expectedRevision,
+      currentRevision: current.revision,
+      currentEnvelope: current,
+    };
+  }
+
+  return createCloudSyncEnvelope(profile, snapshot, current ? current.revision + 1 : 1, now);
 }

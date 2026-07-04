@@ -8,6 +8,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "kv_namespaces": [
+    {
+      "binding": "AVC_SYNC_KV",
+      "id": "8e67f3701aa04195975a583cc59d8425"
+    }
+  ],
   "observability": {
     "enabled": true
   }

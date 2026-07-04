@@ -675,6 +675,23 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   color: #f6e6c0;
   padding: 6px 11px;
   font-size: 12px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-connected-synced {
+  border-color: rgba(94, 234, 212, 0.42);
+  color: #a7f3d0;
+}
+
+.status-sync-error {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fecaca;
+}
+
+.status-disconnected {
+  border-color: rgba(148, 163, 184, 0.42);
+  color: #cbd5e1;
 }
 
 .metric-grid {
