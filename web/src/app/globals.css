@@ -810,7 +810,14 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 .floatnav__right {
   display: flex;
   align-items: center;
-  gap: clamp(18px, 2.6vw, 34px);
+  gap: 12px;
+}
+
+.floatnav__right > a:not(.btn) {
+  color: var(--ink-2);
+  font-size: 13.5px;
+  text-decoration: none;
+  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6);
 }
 
 .floatnav__links {
@@ -838,6 +845,8 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 }
 @media (max-width: 600px) {
   .floatnav__links { display: none; } /* logo only; use footer nav on mobile */
+  .floatnav__right > a:not(.btn),
+  .floatnav__right .btn-line { display: none; }
 }
 
 /* ---------- Hero: full-bleed, scroll-driven vertical slideshow ---------- */

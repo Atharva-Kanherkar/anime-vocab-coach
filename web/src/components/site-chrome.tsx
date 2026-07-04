@@ -22,24 +22,7 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
             <Link href="/#faq">FAQ</Link>
           </nav>
         )}
-        {CLERK_ENABLED && (
-          <>
-            <Show when="signed-out">
-              <SignUpButton mode="modal">
-                <button className="btn btn-sm btn-accent" type="button">Sign up</button>
-              </SignUpButton>
-              <SignInButton mode="modal">
-                <button className="btn btn-sm btn-line" type="button">Sign in</button>
-              </SignInButton>
-            </Show>
-            <Show when="signed-in">
-              <Link className="btn btn-sm btn-line" href="/app" prefetch={false}>
-                Cloud app
-              </Link>
-              <UserButton />
-            </Show>
-          </>
-        )}
+        <AuthControls size="sm" />
         <a className="btn btn-sm btn-line" href={GITHUB_URL} rel="noopener noreferrer">
           Install free
         </a>
@@ -54,7 +37,37 @@ export function HomeNav() {
       <Link className="floatnav__logo" href="/" aria-label="AnimeVocab home">
         アニメ<b>Vocab</b>
       </Link>
+      <div className="floatnav__right">
+        <Link href="/cloud" prefetch={false}>Cloud</Link>
+        <AuthControls size="sm" />
+      </div>
     </header>
+  );
+}
+
+export function AuthControls({ size = "md" }: { size?: "sm" | "md" }) {
+  if (!CLERK_ENABLED) return null;
+
+  const lineClass = size === "sm" ? "btn btn-sm btn-line" : "btn btn-line";
+  const accentClass = size === "sm" ? "btn btn-sm btn-accent" : "btn btn-accent";
+
+  return (
+    <>
+      <Show when="signed-out">
+        <SignUpButton mode="modal">
+          <button className={accentClass} type="button">Sign up</button>
+        </SignUpButton>
+        <SignInButton mode="modal">
+          <button className={lineClass} type="button">Sign in</button>
+        </SignInButton>
+      </Show>
+      <Show when="signed-in">
+        <Link className={lineClass} href="/app" prefetch={false}>
+          Cloud app
+        </Link>
+        <UserButton />
+      </Show>
+    </>
   );
 }
 
