@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { playFxSound, unlockFxAudio, type SfxKind } from "@/lib/fx-sounds";
+import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
 
@@ -35,20 +35,6 @@ export function FxSlider({
   }, []);
 
   useEffect(() => {
-    const unlock = () => {
-      void unlockFxAudio();
-    };
-    window.addEventListener("pointerdown", unlock, { passive: true });
-    window.addEventListener("keydown", unlock, { passive: true });
-    window.addEventListener("wheel", unlock, { passive: true });
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      window.removeEventListener("wheel", unlock);
-    };
-  }, []);
-
-  useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
 
@@ -62,7 +48,8 @@ export function FxSlider({
         const sound: SfxKind = next > cur ? "click" : "transition";
         indexRef.current = next;
         setIndex(next);
-        void playFxSound(sound);
+        primeFxAudio();
+        playFxSound(sound);
       }
     };
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/vs-language-reactor";
 
@@ -12,11 +13,18 @@ export const metadata: Metadata = {
     "An honest AnimeVocab vs Language Reactor comparison for 2026. Language Reactor is the best dual-subtitle reader; AnimeVocab is built for beginners who can't read kana yet and works from audio when there's no Japanese subtitle track. Features, pricing, and who each is for.",
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
+    ...defaultOpenGraph,
     type: "article",
     title: "AnimeVocab vs Language Reactor (2026)",
     description:
       "Language Reactor is the best dual-subtitle reader. AnimeVocab is for beginners who can't read kana and works from audio. An honest comparison.",
     url: `${SITE_URL}${path}`,
+  },
+  twitter: {
+    ...defaultTwitter,
+    title: "AnimeVocab vs Language Reactor (2026)",
+    description:
+      "Language Reactor is the best dual-subtitle reader. AnimeVocab is for beginners who can't read kana.",
   },
 };
 
