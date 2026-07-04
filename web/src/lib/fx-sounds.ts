@@ -1,53 +1,65 @@
 export type SfxKind = "hover" | "click" | "transition";
 
 let ctx: AudioContext | null = null;
+let unlockPromise: Promise<AudioContext | null> | null = null;
 
-function getCtx() {
-  if (typeof window === "undefined") return null;
-  if (!ctx) ctx = new AudioContext();
-  if (ctx.state === "suspended") void ctx.resume();
-  return ctx;
+/** Call on pointer / key / wheel so scroll-triggered sounds are allowed. */
+export function unlockFxAudio(): Promise<AudioContext | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  if (ctx?.state === "running") return Promise.resolve(ctx);
+
+  if (!unlockPromise) {
+    unlockPromise = (async () => {
+      if (!ctx) ctx = new AudioContext();
+      if (ctx.state === "suspended") await ctx.resume();
+      return ctx.state === "running" ? ctx : null;
+    })().finally(() => {
+      unlockPromise = null;
+    });
+  }
+
+  return unlockPromise;
 }
 
 function tone(
+  audio: AudioContext,
   frequency: number,
   duration: number,
   type: OscillatorType,
-  gain = 0.04,
+  gain = 0.08,
   when = 0
 ) {
-  const audio = getCtx();
-  if (!audio) return;
-
   const osc = audio.createOscillator();
   const amp = audio.createGain();
   osc.type = type;
   osc.frequency.setValueAtTime(frequency, audio.currentTime + when);
-  amp.gain.setValueAtTime(gain, audio.currentTime + when);
-  amp.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + when + duration);
+  amp.gain.setValueAtTime(Math.max(gain, 0.0001), audio.currentTime + when);
+  amp.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + when + duration);
   osc.connect(amp);
   amp.connect(audio.destination);
   osc.start(audio.currentTime + when);
   osc.stop(audio.currentTime + when + duration + 0.02);
 }
 
-export function playFxSound(kind: SfxKind) {
-  if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    return;
-  }
-
+function playKind(audio: AudioContext, kind: SfxKind) {
   if (kind === "hover") {
-    tone(880, 0.04, "sine", 0.025);
+    tone(audio, 880, 0.04, "sine", 0.04);
     return;
   }
 
   if (kind === "click") {
-    tone(480, 0.035, "square", 0.032);
-    tone(720, 0.045, "triangle", 0.026, 0.006);
-    tone(1040, 0.03, "sine", 0.014, 0.012);
+    tone(audio, 520, 0.04, "square", 0.1);
+    tone(audio, 780, 0.05, "triangle", 0.07, 0.006);
+    tone(audio, 1180, 0.035, "sine", 0.045, 0.012);
     return;
   }
 
-  tone(180, 0.18, "sine", 0.05);
-  tone(320, 0.22, "triangle", 0.03, 0.04);
+  tone(audio, 180, 0.18, "sine", 0.07);
+  tone(audio, 320, 0.22, "triangle", 0.05, 0.04);
+}
+
+export async function playFxSound(kind: SfxKind): Promise<void> {
+  const audio = await unlockFxAudio();
+  if (!audio) return;
+  playKind(audio, kind);
 }
