@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { useEffect, useState, type CSSProperties } from "react";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
 import { CLERK_ENABLED } from "@/lib/flags";
@@ -25,6 +25,9 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         {CLERK_ENABLED && (
           <>
             <Show when="signed-out">
+              <SignUpButton mode="modal">
+                <button className="btn btn-sm btn-accent" type="button">Sign up</button>
+              </SignUpButton>
               <SignInButton mode="modal">
                 <button className="btn btn-sm btn-line" type="button">Sign in</button>
               </SignInButton>

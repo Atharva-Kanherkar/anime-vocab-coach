@@ -69,7 +69,7 @@ export default function CloudPage() {
               <h2>Sync that starts with export</h2>
               <p>
                 Import your local extension JSON, normalize it into a versioned Cloud snapshot,
-                and keep the schema compatible with existing progress before durable persistence lands.
+                and keep the schema compatible with existing progress as you sync to your account.
               </p>
             </article>
             <article>
