@@ -61,12 +61,27 @@ export function FxSlider({
     const wrap = wrapRef.current;
     if (!wrap) return;
 
+    // Require the scroll to move a margin past a band boundary before the
+    // active slide commits. Without this dead zone, sub-pixel scroll jitter at
+    // a boundary flips the index back and forth, restarting the content
+    // animation and firing a sound on every flip.
+    const HYST = 0.22;
+
     const update = () => {
       const distance = wrap.offsetHeight - window.innerHeight;
       const scrolled = Math.min(Math.max(-wrap.getBoundingClientRect().top, 0), Math.max(distance, 1));
       const p = distance > 0 ? scrolled / distance : 0;
-      const next = Math.min(slides.length - 1, Math.floor(p * slides.length + 0.0001));
+      const raw = Math.min(slides.length - 1e-4, Math.max(0, p * slides.length));
+      const band = Math.floor(raw);
       const cur = indexRef.current;
+
+      // Commit forward only once we're HYST into the new band; commit backward
+      // only once we've dropped HYST below the current band's start. Anything
+      // inside the dead zone keeps the current slide.
+      let next = cur;
+      if (band > cur && raw - band >= HYST) next = band;
+      else if (band < cur && cur - raw >= HYST) next = band;
+
       if (cur !== next) {
         const sound: SfxKind = next > cur ? "click" : "transition";
         indexRef.current = next;
