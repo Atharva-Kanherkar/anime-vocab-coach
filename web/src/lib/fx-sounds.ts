@@ -10,9 +10,13 @@ export function unlockFxAudio(): Promise<AudioContext | null> {
 
   if (!unlockPromise) {
     unlockPromise = (async () => {
-      if (!ctx) ctx = new AudioContext();
-      if (ctx.state === "suspended") await ctx.resume();
-      return ctx.state === "running" ? ctx : null;
+      try {
+        if (!ctx) ctx = new AudioContext();
+        if (ctx.state === "suspended") await ctx.resume();
+        return ctx.state === "running" ? ctx : null;
+      } catch {
+        return null;
+      }
     })().finally(() => {
       unlockPromise = null;
     });

@@ -52,7 +52,7 @@ export function FxSlider({
     const wrap = wrapRef.current;
     if (!wrap) return;
 
-    const update = async () => {
+    const update = () => {
       const distance = wrap.offsetHeight - window.innerHeight;
       const scrolled = Math.min(Math.max(-wrap.getBoundingClientRect().top, 0), Math.max(distance, 1));
       const p = distance > 0 ? scrolled / distance : 0;
@@ -60,10 +60,9 @@ export function FxSlider({
       const cur = indexRef.current;
       if (cur !== next) {
         const sound: SfxKind = next > cur ? "click" : "transition";
-        await unlockFxAudio();
-        void playFxSound(sound);
         indexRef.current = next;
         setIndex(next);
+        void playFxSound(sound);
       }
     };
 
