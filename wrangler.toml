@@ -1,0 +1,27 @@
+# Root config for the Cloudflare Git-connected avc-api Worker build.
+# The Cloudflare dashboard runs `npx wrangler versions upload` from repo root,
+# so keep this in sync with backend/wrangler.toml.
+name = "avc-api"
+main = "backend/src/index.ts"
+compatibility_date = "2026-06-01"
+
+kv_namespaces = [
+  { binding = "AVC_KV", id = "8e67f3701aa04195975a583cc59d8425" }
+]
+
+[vars]
+CAP_MINUTES = "2700"
+FREE_AI_CALLS_PER_MONTH = "5"
+PRO_AI_CALLS_PER_MONTH = "300"
+AI_COST_USD_PER_CALL = "0.002"
+PAYMENT_FEE_RATE = "0.05"
+PAYMENT_FIXED_FEE_USD = "0.30"
+TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
+GROQ_WHISPER_MODEL = "whisper-large-v3"
+DEEPINFRA_WHISPER_MODEL = "openai/whisper-large-v3"
+TRANSCRIBE_PROVIDERS = "openai"
+TRANSCRIPT_MODEL_VERSION = "1"
+DODO_API_BASE = "https://live.dodopayments.com"
+CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID"
+PROMO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID"
+PROMO_END_UTC = "2026-08-03T23:59:59.000Z"
