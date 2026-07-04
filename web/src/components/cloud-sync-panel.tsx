@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import {
+  type AnimeVocabExport,
   normalizeAnimeVocabExport,
   parseAnimeVocabExportJson,
   summarizeSyncSnapshot,
@@ -9,26 +10,64 @@ import {
 } from "@/lib/sync";
 
 const STORAGE_KEY = "animevocab.cloudSyncSnapshot.v1";
+const STORAGE_EVENT = "animevocab-cloud-sync";
+const EMPTY_SNAPSHOT = normalizeAnimeVocabExport({}, new Date(0));
+
+let cachedRaw: string | null = null;
+let cachedSnapshot: CloudSyncSnapshot = EMPTY_SNAPSHOT;
+
+function isCloudSyncSnapshot(value: unknown): value is CloudSyncSnapshot {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as CloudSyncSnapshot).schemaVersion === 1 &&
+    (value as CloudSyncSnapshot).source === "animevocab-extension" &&
+    Array.isArray((value as CloudSyncSnapshot).words) &&
+    Array.isArray((value as CloudSyncSnapshot).daily)
+  );
+}
 
 function loadSnapshot(): CloudSyncSnapshot {
-  if (typeof window === "undefined") return normalizeAnimeVocabExport({});
+  if (typeof window === "undefined") return EMPTY_SNAPSHOT;
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return normalizeAnimeVocabExport({});
+  if (!raw) return EMPTY_SNAPSHOT;
+  if (raw === cachedRaw) return cachedSnapshot;
   try {
-    return JSON.parse(raw) as CloudSyncSnapshot;
+    const parsed = JSON.parse(raw) as unknown;
+    const next = isCloudSyncSnapshot(parsed)
+      ? parsed
+      : normalizeAnimeVocabExport(parsed as AnimeVocabExport);
+    cachedRaw = raw;
+    cachedSnapshot = next;
+    return next;
   } catch {
-    return normalizeAnimeVocabExport({});
+    return EMPTY_SNAPSHOT;
   }
 }
 
+function subscribeToSnapshot(onChange: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) onChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(STORAGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(STORAGE_EVENT, onChange);
+  };
+}
+
 export function CloudSyncPanel() {
-  const [snapshot, setSnapshot] = useState<CloudSyncSnapshot>(() => loadSnapshot());
+  const snapshot = useSyncExternalStore(subscribeToSnapshot, loadSnapshot, () => EMPTY_SNAPSHOT);
   const [message, setMessage] = useState("Local-only Cloud foundation ready.");
   const summary = useMemo(() => summarizeSyncSnapshot(snapshot), [snapshot]);
 
   const saveSnapshot = (next: CloudSyncSnapshot) => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setSnapshot(next);
+    const raw = JSON.stringify(next);
+    cachedRaw = raw;
+    cachedSnapshot = next;
+    window.localStorage.setItem(STORAGE_KEY, raw);
+    window.dispatchEvent(new Event(STORAGE_EVENT));
   };
 
   const onFile = async (file: File | null) => {
