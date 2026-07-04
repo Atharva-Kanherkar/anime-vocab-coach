@@ -93,20 +93,16 @@ export function FxSlider({
 
   const active = slides[index];
 
-  const goToSlide = (targetIndex: number) => {
+  const goToSlideId = (id: string) => {
     const wrap = wrapRef.current;
-    if (!wrap || targetIndex < 0 || targetIndex >= slides.length) return;
+    const i = slides.findIndex((s) => s.id === id);
+    if (!wrap || i < 0) return;
     primeFxAudio();
     const distance = wrap.offsetHeight - window.innerHeight;
     window.scrollTo({
-      top: wrap.offsetTop + (distance * (targetIndex + 0.5)) / slides.length,
+      top: wrap.offsetTop + (distance * (i + 0.5)) / slides.length,
       behavior: "smooth",
     });
-  };
-
-  const goToSlideId = (id: string) => {
-    const i = slides.findIndex((s) => s.id === id);
-    if (i >= 0) goToSlide(i);
   };
 
   return (
@@ -131,6 +127,14 @@ export function FxSlider({
           aria-hidden="true"
         />
 
+        <ul className="hero__index hero__index--left" aria-hidden="true">
+          {slides.map((s, i) => (
+            <li key={s.id} className={i === index ? "is-active" : ""}>
+              {s.navLabel}
+            </li>
+          ))}
+        </ul>
+
         <ul className="hero__index hero__index--right" aria-hidden="true">
           {slides.map((s, i) => (
             <li key={s.id} className={i === index ? "is-active" : ""}>
@@ -139,27 +143,8 @@ export function FxSlider({
           ))}
         </ul>
 
-        <div className="hero__chrome" aria-label="Slide progress">
-          <span className="hero__chrome-tag">{active.tag}</span>
-          <div className="hero__meter">
-            {slides.map((s, i) => (
-              <button
-                key={s.id}
-                type="button"
-                className={`hero__meter-dot${i === index ? " is-active" : ""}`}
-                aria-label={`Go to ${s.navLabel}`}
-                onClick={() => goToSlide(i)}
-              />
-            ))}
-          </div>
-          <span className="hero__chrome-count">
-            {String(index + 1).padStart(2, "0")}/{String(slides.length).padStart(2, "0")}
-          </span>
-        </div>
-
         {active.kind === "pricing" ? (
           <div className="hero__center hero__center--wide hero__center--pricing" key={active.id}>
-            <p className="hero__kicker">{active.kicker}</p>
             <h2 className="hero__title">{active.title}</h2>
             <p className="hero__body">{active.body}</p>
             <div className="price-grid hero__pricing">
@@ -212,7 +197,6 @@ export function FxSlider({
           </div>
         ) : active.kind === "faq" ? (
           <div className="hero__center hero__center--wide hero__center--faq" key={active.id}>
-            <p className="hero__kicker">{active.kicker}</p>
             <h2 className="hero__title">{active.title}</h2>
             <div className="hero__faq">
               <details>
@@ -253,7 +237,6 @@ export function FxSlider({
           </div>
         ) : (
           <div className="hero__center" key={active.id}>
-            <p className="hero__kicker">{active.kicker}</p>
             <h1 className="hero__title">{active.title}</h1>
             <p className="hero__body">{active.body}</p>
             <div className="hero__cta">
@@ -273,10 +256,6 @@ export function FxSlider({
             </div>
           </div>
         )}
-
-        <p className="hero__hint" aria-hidden="true">
-          Scroll
-        </p>
       </div>
     </section>
   );
