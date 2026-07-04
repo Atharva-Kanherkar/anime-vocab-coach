@@ -196,8 +196,8 @@ export function CloudSyncPanel() {
 
       <p className="sync-message">{message}</p>
       <p className="sync-note">
-        Revision {revision ?? "none"} uses explicit conflict checks. Cloud saves fail instead of overwriting
-        newer account data silently.
+        Revision {revision ?? "none"} uses best-effort stale-save checks. For active work on multiple
+        devices, load cloud before syncing and keep an export backup.
       </p>
     </section>
   );

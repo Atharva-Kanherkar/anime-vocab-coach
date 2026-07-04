@@ -9,7 +9,7 @@ account.
 
 - `CloudUserProfile` stores the Clerk user id plus display email/name.
 - `CloudSyncSnapshot` is the versioned cloud shape for extension settings,
-  vocabulary/progress, and daily stats.
+  vocabulary/progress, daily stats, and recent card timestamps.
 - `CloudSyncEnvelope` wraps the snapshot with account profile, `revision`, and
   `lastSyncedAt`.
 - `ExtensionSyncStatus` defines the extension-visible states: `local-only`,
@@ -20,20 +20,25 @@ account.
 `/api/sync/snapshot` stores one sync envelope per Clerk user:
 
 - `GET /api/sync/snapshot` returns the current envelope for the signed-in user.
-- `PUT /api/sync/snapshot` saves a snapshot only when `expectedRevision` matches
-  the stored revision.
+- `PUT /api/sync/snapshot` validates the snapshot, rejects malformed JSON, caps
+  payload size, and saves only when `expectedRevision` matches the revision read
+  by the request.
 
 Production persistence uses the `AVC_SYNC_KV` Cloudflare KV binding configured in
 `web/wrangler.jsonc`. It reuses the existing AnimeVocab KV namespace with a
-`sync:user:` key prefix. Local Next development falls back to process-local
-memory so the route can be exercised before a Cloudflare binding is available.
+`sync:user:` key prefix. The sync route returns `501 sync_auth_disabled` when
+Clerk is disabled, so deployed builds do not expose a shared local-dev bucket.
 
 ## Conflict Rule
 
-Sync never silently overwrites newer cloud progress. If the browser tries to save
-with a stale `expectedRevision`, the API returns `409 revision-conflict` with the
-current cloud envelope. The user must load cloud first, export local JSON if they
-need a backup, and retry intentionally.
+Sync uses best-effort stale-save detection. If the browser tries to save with a
+stale `expectedRevision` and the KV read sees the newer envelope, the API returns
+`409 revision-conflict` with the current cloud envelope. Because Cloudflare KV is
+eventually consistent and has no compare-and-swap operation, this is not an
+atomic concurrency guarantee: two devices saving the same revision at the same
+time can still produce a last-write-wins result. Users should load cloud before
+syncing from another device and keep extension JSON exports as backups until the
+storage layer moves to a single-writer store such as Durable Objects or D1.
 
 ## Manual Round Trip
 

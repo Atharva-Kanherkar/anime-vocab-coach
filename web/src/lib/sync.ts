@@ -72,6 +72,7 @@ export interface CloudSyncSnapshot {
   settings: Record<string, unknown>;
   words: CloudWordRecord[];
   daily: CloudDailyStats[];
+  cardTimestamps: number[];
 }
 
 export type ExtensionSyncConnectionState =
@@ -126,8 +127,10 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
-function asWordState(value: unknown): WordState {
-  return value === "learning" || value === "known" || value === "ignored" ? value : "new";
+function asWordState(value: unknown, base = "word"): WordState {
+  if (value === undefined || value === null || value === "new") return "new";
+  if (value === "learning" || value === "known" || value === "ignored") return value;
+  throw new Error(`Invalid word state for ${base}.`);
 }
 
 function timeToIso(value: unknown): string | null {
@@ -140,6 +143,18 @@ function isoToTime(value: string | null): number {
   if (!value) return 0;
   const time = Date.parse(value);
   return Number.isFinite(time) ? time : 0;
+}
+
+function normalizeIsoString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+function asTimestampArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+    : [];
 }
 
 export function normalizeAnimeVocabExport(
@@ -156,6 +171,7 @@ export function normalizeAnimeVocabExport(
     importedAt: now.toISOString(),
     sourceExportedAt: typeof input.exportedAt === "string" ? input.exportedAt : null,
     settings: asRecord(input.settings),
+    cardTimestamps: asTimestampArray(stats.cardTimestamps),
     words: Object.entries(vocab)
       .map(([base, raw]) => {
         const rec = asRecord(raw);
@@ -163,7 +179,7 @@ export function normalizeAnimeVocabExport(
         const hasSrs = rec.srs !== null && Object.keys(srs).length > 0;
         return {
           base,
-          state: asWordState(rec.state),
+          state: asWordState(rec.state, base),
           reading: asString(rec.reading),
           gloss: asString(rec.gloss),
           level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
@@ -192,6 +208,67 @@ export function normalizeAnimeVocabExport(
           reviews: asNumber(rec.reviews),
           watchMin: asNumber(rec.watchMin),
         };
+      })
+      .sort((a, b) => a.day.localeCompare(b.day)),
+  };
+}
+
+export function normalizeCloudSyncSnapshot(input: unknown, now = new Date()): CloudSyncSnapshot {
+  const raw = asRecord(input);
+  const words = Array.isArray(raw.words) ? raw.words : [];
+  const daily = Array.isArray(raw.daily) ? raw.daily : [];
+
+  if (raw.schemaVersion !== 1 || raw.source !== "animevocab-extension") {
+    throw new Error("invalid_snapshot");
+  }
+
+  return {
+    schemaVersion: 1,
+    source: "animevocab-extension",
+    importedAt: normalizeIsoString(raw.importedAt) ?? now.toISOString(),
+    sourceExportedAt: normalizeIsoString(raw.sourceExportedAt),
+    settings: asRecord(raw.settings),
+    cardTimestamps: asTimestampArray(raw.cardTimestamps),
+    words: words
+      .map((value) => {
+        const rec = asRecord(value);
+        const review = asRecord(rec.review);
+        const hasReview = rec.review !== null && Object.keys(review).length > 0;
+        const base = asString(rec.base);
+        if (!base) throw new Error("invalid_snapshot");
+        return {
+          base,
+          state: asWordState(rec.state, base),
+          reading: asString(rec.reading),
+          gloss: asString(rec.gloss),
+          level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
+          freqRank: Number.isFinite(Number(rec.freqRank)) ? Number(rec.freqRank) : null,
+          seenCount: asNumber(rec.seenCount),
+          shownCount: asNumber(rec.shownCount),
+          firstSeenAt: normalizeIsoString(rec.firstSeenAt),
+          lastSeenAt: normalizeIsoString(rec.lastSeenAt),
+          review: hasReview
+            ? {
+                stage: asNumber(review.stage),
+                dueAt: normalizeIsoString(review.dueAt),
+                lapses: asNumber(review.lapses),
+              }
+            : null,
+        } satisfies CloudWordRecord;
+      })
+      .sort((a, b) => a.base.localeCompare(b.base)),
+    daily: daily
+      .map((value) => {
+        const rec = asRecord(value);
+        const day = asString(rec.day);
+        if (!day) throw new Error("invalid_snapshot");
+        return {
+          day,
+          met: asNumber(rec.met),
+          judged: asNumber(rec.judged),
+          reviews: asNumber(rec.reviews),
+          watchMin: asNumber(rec.watchMin),
+        } satisfies CloudDailyStats;
       })
       .sort((a, b) => a.day.localeCompare(b.day)),
   };
@@ -253,8 +330,8 @@ export function cloudSnapshotToAnimeVocabExport(snapshot: CloudSyncSnapshot): An
   return {
     settings: snapshot.settings,
     vocab,
-    stats: { daily, cardTimestamps: [] },
-    exportedAt: snapshot.importedAt,
+    stats: { daily, cardTimestamps: snapshot.cardTimestamps },
+    exportedAt: snapshot.sourceExportedAt ?? snapshot.importedAt,
   };
 }
 
