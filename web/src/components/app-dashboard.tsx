@@ -7,8 +7,6 @@ import { useCloudSnapshot } from "@/components/cloud-sync-panel";
 import { GITHUB_URL, getPromoState } from "@/lib/site";
 import { pickDueReviews, pickRecentWords, summarizeSyncSnapshot } from "@/lib/sync";
 
-const promo = getPromoState();
-
 export function AppDashboard() {
   const snapshot = useCloudSnapshot();
   const summary = useMemo(() => summarizeSyncSnapshot(snapshot), [snapshot]);
@@ -112,6 +110,8 @@ export function AppDashboard() {
 }
 
 function PlanStatusBar() {
+  const promo = getPromoState();
+
   return (
     <section className="plan-bar" aria-label="Plan status">
       <div>

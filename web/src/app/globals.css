@@ -909,8 +909,22 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
     grid-template-columns: 1fr;
   }
 
+  .app-top {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding: 14px clamp(16px, 4vw, 24px);
+  }
+
   .app-top nav {
-    display: none;
+    order: 3;
+    flex: 1 1 100%;
+    margin-left: 0;
+    gap: 14px 18px;
+    flex-wrap: wrap;
+  }
+
+  .app-top nav a {
+    font-size: 12px;
   }
 
   .panel-head,

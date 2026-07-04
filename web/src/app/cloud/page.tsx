@@ -10,9 +10,9 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/cloud` },
 };
 
-const promo = getPromoState();
-
 export default function CloudPage() {
+  const promo = getPromoState();
+
   return (
     <>
       <SiteHeader />

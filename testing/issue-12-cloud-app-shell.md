@@ -39,4 +39,4 @@
 - Visit `/cloud`: local-first messaging, install CTA, Pro/pricing CTA, Cloud nav present.
 - Visit `/app` with Clerk off: dashboard shell renders with empty states and sync panel disabled message.
 - Visit `/app` signed in (Clerk on): protected route, dashboard shell, import JSON populates recent words and reviews due.
-- Resize to mobile width: grids stack to one column; app nav remains usable.
+- Resize to mobile width: grids stack to one column; app top nav wraps with Home/Cloud/Pricing/Install links visible.
