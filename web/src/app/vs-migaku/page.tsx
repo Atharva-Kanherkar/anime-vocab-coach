@@ -2,20 +2,28 @@ import type { Metadata } from "next";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/vs-migaku";
 
 export const metadata: Metadata = {
   title: "AnimeVocab vs Migaku (2026): Beginner On-Ramp or Power-User Mining Suite?",
   description:
-    "AnimeVocab vs Migaku, compared honestly for 2026. Migaku is the most powerful Anki-mining suite for serious immersion learners; AnimeVocab is the zero-setup, romaji-first on-ramp for beginners. Pricing, learning model, and who each is for.",
+    "AnimeVocab vs Migaku in 2026: zero-setup romaji-first beginner tool vs power-user Anki mining suite. Pricing, features, and who each is for.",
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
+    ...defaultOpenGraph,
     type: "article",
     title: "AnimeVocab vs Migaku (2026)",
     description:
       "Migaku is the power-user mining suite. AnimeVocab is the zero-setup, romaji-first beginner on-ramp. An honest comparison.",
     url: `${SITE_URL}${path}`,
+  },
+  twitter: {
+    ...defaultTwitter,
+    title: "AnimeVocab vs Migaku (2026)",
+    description:
+      "Migaku is the power-user mining suite. AnimeVocab is the zero-setup, romaji-first beginner on-ramp.",
   },
 };
 

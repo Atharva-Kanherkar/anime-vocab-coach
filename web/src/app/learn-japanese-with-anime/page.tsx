@@ -3,20 +3,28 @@ import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/learn-japanese-with-anime";
 
 export const metadata: Metadata = {
   title: "How to Learn Japanese with Anime (2026): Every Tool, Ranked",
   description:
-    "A practical, honest guide to learning Japanese from anime in 2026 — and the best tools to do it. Compare AnimeVocab, Language Reactor, Migaku, Trancy, asbplayer, Animelon and Memento on price, beginner-friendliness, and whether they work without Japanese subtitles.",
+    "Learn Japanese from anime in 2026. Compare AnimeVocab, Language Reactor, Migaku, and more on price, romaji support, and no-subtitle watching.",
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
+    ...defaultOpenGraph,
     type: "article",
     title: "How to Learn Japanese with Anime (2026): Every Tool, Ranked",
     description:
-      "An honest guide to learning Japanese from anime — and the best tools for beginners vs power users. Compares 7 tools on price, romaji support, and no-subtitle content.",
+      "Compare 7 anime learning tools for beginners and power users. Price, romaji support, and no-subtitle content.",
     url: `${SITE_URL}${path}`,
+  },
+  twitter: {
+    ...defaultTwitter,
+    title: "How to Learn Japanese with Anime (2026)",
+    description:
+      "Compare AnimeVocab, Language Reactor, Migaku, and more for learning Japanese from anime.",
   },
 };
 

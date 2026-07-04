@@ -1,12 +1,24 @@
 import type { Metadata } from "next";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
     "AnimeVocab privacy policy: your learning data stays in your browser. No accounts, no analytics, no tracking.",
   alternates: { canonical: `${SITE_URL}/privacy` },
+  openGraph: {
+    ...defaultOpenGraph,
+    title: "Privacy Policy | AnimeVocab",
+    description:
+      "AnimeVocab privacy policy: your learning data stays in your browser. No accounts, no analytics, no tracking.",
+    url: `${SITE_URL}/privacy`,
+  },
+  twitter: {
+    ...defaultTwitter,
+    title: "Privacy Policy | AnimeVocab",
+  },
 };
 
 export default function PrivacyPage() {

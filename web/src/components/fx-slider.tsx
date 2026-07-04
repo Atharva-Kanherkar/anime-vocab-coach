@@ -1,13 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { heroMobileImage, preloadHeroImages } from "@/lib/hero-images";
+import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
 
+function slideBgStyle(image?: string, tone?: string): CSSProperties {
+  if (!image) return { background: tone };
+  const mobile = heroMobileImage(image);
+  return {
+    backgroundColor: "#0a0d16",
+    ["--hero-bg-desktop" as string]: `url(${image})`,
+    ["--hero-bg-mobile" as string]: mobile ? `url(${mobile})` : `url(${image})`,
+  };
+}
+
 /**
- * Full-bleed, scroll-driven hero — and the entire page. The stage is pinned
- * (sticky) while the tall outer section scrolls; scroll progress selects the
- * active slide and the backgrounds crossfade. Pricing and FAQ are slides too.
+ * Full-bleed, scroll-driven hero and entire homepage. The stage pins while the
+ * tall outer section scrolls; scroll progress selects the active slide.
  */
 export function FxSlider({
   slides,
@@ -18,6 +29,7 @@ export function FxSlider({
 }) {
   const wrapRef = useRef<HTMLElement>(null);
   const [index, setIndex] = useState(0);
+  const indexRef = useRef(0);
   const rafRef = useRef(0);
   const [promo, setPromo] = useState(initialPromo);
 
@@ -33,6 +45,19 @@ export function FxSlider({
   }, []);
 
   useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 768px)").matches;
+    const neighbors = [index, index + 1, index - 1]
+      .map((i) => slides[i])
+      .filter(Boolean) as HeroSlide[];
+    preloadHeroImages(
+      neighbors.flatMap((s) => {
+        if (!s.image) return [];
+        return mobile ? [heroMobileImage(s.image)!] : [s.image];
+      })
+    );
+  }, [index, slides]);
+
+  useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
 
@@ -41,7 +66,14 @@ export function FxSlider({
       const scrolled = Math.min(Math.max(-wrap.getBoundingClientRect().top, 0), Math.max(distance, 1));
       const p = distance > 0 ? scrolled / distance : 0;
       const next = Math.min(slides.length - 1, Math.floor(p * slides.length + 0.0001));
-      setIndex((cur) => (cur === next ? cur : next));
+      const cur = indexRef.current;
+      if (cur !== next) {
+        const sound: SfxKind = next > cur ? "click" : "transition";
+        indexRef.current = next;
+        setIndex(next);
+        primeFxAudio();
+        playFxSound(sound);
+      }
     };
 
     const onScroll = () => {
@@ -61,11 +93,11 @@ export function FxSlider({
 
   const active = slides[index];
 
-  // "#slide-<id>" CTAs scroll the pinned stage to that slide's mid-range
-  const goToSlide = (id: string) => {
+  const goToSlideId = (id: string) => {
     const wrap = wrapRef.current;
     const i = slides.findIndex((s) => s.id === id);
     if (!wrap || i < 0) return;
+    primeFxAudio();
     const distance = wrap.offsetHeight - window.innerHeight;
     window.scrollTo({
       top: wrap.offsetTop + (distance * (i + 0.5)) / slides.length,
@@ -85,11 +117,7 @@ export function FxSlider({
           <div
             key={s.id}
             className={`hero__bg${i === index ? " is-active" : ""}`}
-            style={
-              s.image
-                ? { backgroundImage: `url(${s.image})`, backgroundColor: "#0a0d16" }
-                : { background: s.tone }
-            }
+            style={slideBgStyle(s.image, s.tone)}
             aria-hidden="true"
           />
         ))}
@@ -98,6 +126,14 @@ export function FxSlider({
           className={`hero__scrim hero__scrim--deep${active.bright ? " is-on" : ""}`}
           aria-hidden="true"
         />
+
+        <ul className="hero__index hero__index--left" aria-hidden="true">
+          {slides.map((s, i) => (
+            <li key={s.id} className={i === index ? "is-active" : ""}>
+              {s.navLabel}
+            </li>
+          ))}
+        </ul>
 
         <ul className="hero__index hero__index--right" aria-hidden="true">
           {slides.map((s, i) => (
@@ -108,7 +144,7 @@ export function FxSlider({
         </ul>
 
         {active.kind === "pricing" ? (
-          <div className="hero__center hero__center--wide" key={active.id}>
+          <div className="hero__center hero__center--wide hero__center--pricing" key={active.id}>
             <h2 className="hero__title">{active.title}</h2>
             <p className="hero__body">{active.body}</p>
             <div className="price-grid hero__pricing">
@@ -136,7 +172,7 @@ export function FxSlider({
                 <h3>Listening Mode, no setup</h3>
                 <p className="amount-row">
                   <span className="strike" aria-hidden={!promo.active}>
-                    {promo.active ? promo.regularLabel : " "}
+                    {promo.active ? promo.regularLabel : " "}
                   </span>
                   <span className="amount">
                     {promo.active ? promo.promoLabel : promo.regularLabel}
@@ -154,7 +190,7 @@ export function FxSlider({
                 <p className="promo-note">
                   {promo.active
                     ? `Launch pricing ends in ${promo.daysLeft} ${promo.daysLeft === 1 ? "day" : "days"}`
-                    : " "}
+                    : " "}
                 </p>
               </div>
             </div>
@@ -211,11 +247,11 @@ export function FxSlider({
                 onClick={(e) => {
                   if (active.ctaHref?.startsWith("#slide-")) {
                     e.preventDefault();
-                    goToSlide(active.ctaHref.slice("#slide-".length));
+                    goToSlideId(active.ctaHref.slice("#slide-".length));
                   }
                 }}
               >
-                {active.ctaLabel ?? "Add to Chrome — free"}
+                {active.ctaLabel ?? "Add to Chrome · free"}
               </a>
             </div>
           </div>
