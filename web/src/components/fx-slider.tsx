@@ -6,6 +6,7 @@ import { heroMobileImage, preloadHeroImages } from "@/lib/hero-images";
 import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
+import { AuthControls } from "@/components/site-chrome";
 
 function slideBgStyle(image?: string, tone?: string): CSSProperties {
   if (!image) return { background: tone };
@@ -154,6 +155,9 @@ export function FxSlider({
         >
           アニメ<b>Vocab</b>
         </Link>
+        <div className="hero__auth">
+          <AuthControls size="sm" />
+        </div>
 
         <ul className="hero__index hero__index--left" aria-hidden="true">
           {slides.map((s, i) => (

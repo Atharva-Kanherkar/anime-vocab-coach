@@ -35,6 +35,35 @@ const notoJp = Noto_Sans_JP({
   display: "swap",
 });
 
+const clerkAppearance = {
+  variables: {
+    colorPrimary: "#e3ba63",
+    colorBackground: "#10141f",
+    colorInputBackground: "#171c2b",
+    colorInputText: "rgba(238, 242, 252, 0.95)",
+    colorText: "rgba(238, 242, 252, 0.95)",
+    colorTextSecondary: "rgba(224, 232, 250, 0.66)",
+    colorModalBackdrop: "rgba(4, 6, 12, 0.74)",
+    borderRadius: "0.625rem",
+    fontFamily: "var(--sans)",
+  },
+  elements: {
+    cardBox: {
+      boxShadow: "0 24px 64px rgba(0, 0, 0, 0.45)",
+    },
+    card: {
+      border: "1px solid rgba(224, 232, 255, 0.11)",
+    },
+    formButtonPrimary: {
+      color: "#10141f",
+      fontWeight: "600",
+    },
+    footerActionLink: {
+      color: "#e3ba63",
+    },
+  },
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -101,7 +130,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {/* Clerk is behind a flag; when off, render with no ClerkProvider so
             the site works without Clerk keys. See @/lib/flags. */}
-        {CLERK_ENABLED ? <ClerkProvider>{shell}</ClerkProvider> : shell}
+        {CLERK_ENABLED ? (
+          <ClerkProvider appearance={clerkAppearance}>{shell}</ClerkProvider>
+        ) : (
+          shell
+        )}
       </body>
     </html>
   );

@@ -3,10 +3,13 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   type AnimeVocabExport,
+  type CloudSyncEnvelope,
   normalizeAnimeVocabExport,
   parseAnimeVocabExportJson,
   summarizeSyncSnapshot,
   type CloudSyncSnapshot,
+  type ExtensionSyncConnectionState,
+  type ExtensionSyncStatus,
 } from "@/lib/sync";
 
 const STORAGE_KEY = "animevocab.cloudSyncSnapshot.v1";
@@ -15,6 +18,10 @@ const EMPTY_SNAPSHOT = normalizeAnimeVocabExport({}, new Date(0));
 
 let cachedRaw: string | null = null;
 let cachedSnapshot: CloudSyncSnapshot = EMPTY_SNAPSHOT;
+
+type CloudMessage = {
+  envelope: CloudSyncEnvelope | null;
+};
 
 function isCloudSyncSnapshot(value: unknown): value is CloudSyncSnapshot {
   return (
@@ -59,7 +66,9 @@ function subscribeToSnapshot(onChange: () => void): () => void {
 
 export function CloudSyncPanel() {
   const snapshot = useSyncExternalStore(subscribeToSnapshot, loadSnapshot, () => EMPTY_SNAPSHOT);
-  const [message, setMessage] = useState("Local-only Cloud foundation ready.");
+  const [message, setMessage] = useState("Local-only Cloud sync is ready.");
+  const [revision, setRevision] = useState<number | null>(null);
+  const [connectionState, setConnectionState] = useState<ExtensionSyncConnectionState>("local-only");
   const summary = useMemo(() => summarizeSyncSnapshot(snapshot), [snapshot]);
 
   const saveSnapshot = (next: CloudSyncSnapshot) => {
@@ -70,14 +79,71 @@ export function CloudSyncPanel() {
     window.dispatchEvent(new Event(STORAGE_EVENT));
   };
 
+  const syncStatus: ExtensionSyncStatus = {
+    state: connectionState,
+    userId: null,
+    lastSyncedAt: null,
+    revision,
+    message,
+  };
+
+  const setCloudEnvelope = (envelope: CloudSyncEnvelope | null) => {
+    if (!envelope) {
+      setConnectionState("disconnected");
+      setRevision(null);
+      setMessage("No cloud snapshot exists for this account yet.");
+      return;
+    }
+    saveSnapshot(envelope.snapshot);
+    setRevision(envelope.revision);
+    setConnectionState("connected-synced");
+    setMessage(`Loaded cloud revision ${envelope.revision} from ${envelope.profile.email || envelope.profile.name || "account"}.`);
+  };
+
   const onFile = async (file: File | null) => {
     if (!file) return;
     try {
       const next = parseAnimeVocabExportJson(await file.text());
       saveSnapshot(next);
+      setConnectionState(revision === null ? "local-only" : "disconnected");
       setMessage(`Imported ${next.words.length} words from extension export.`);
     } catch (err) {
+      setConnectionState("sync-error");
       setMessage(err instanceof Error ? err.message : "Could not import that JSON export.");
+    }
+  };
+
+  const loadCloudSnapshot = async () => {
+    try {
+      const res = await fetch("/api/sync/snapshot", { cache: "no-store" });
+      if (!res.ok) throw new Error(`Cloud load failed with ${res.status}.`);
+      const data = await res.json() as CloudMessage;
+      setCloudEnvelope(data.envelope);
+    } catch (err) {
+      setConnectionState("sync-error");
+      setMessage(err instanceof Error ? err.message : "Could not load cloud snapshot.");
+    }
+  };
+
+  const saveCloudSnapshot = async () => {
+    try {
+      const res = await fetch("/api/sync/snapshot", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ snapshot, expectedRevision: revision }),
+      });
+      const data = await res.json() as CloudMessage & { error?: string };
+      if (res.status === 409) {
+        setConnectionState("sync-error");
+        setMessage("Cloud changed since you loaded it. Load cloud first, export your local JSON if needed, then retry.");
+        return;
+      }
+      if (!res.ok || !data.envelope) throw new Error(data.error || `Cloud save failed with ${res.status}.`);
+      setCloudEnvelope(data.envelope);
+      setMessage(`Synced ${data.envelope.snapshot.words.length} words to cloud revision ${data.envelope.revision}.`);
+    } catch (err) {
+      setConnectionState("sync-error");
+      setMessage(err instanceof Error ? err.message : "Could not sync cloud snapshot.");
     }
   };
 
@@ -96,9 +162,9 @@ export function CloudSyncPanel() {
       <div className="panel-head">
         <div>
           <p className="eyebrow">Local-first sync</p>
-          <h2>Back up the extension export before full cloud persistence ships.</h2>
+          <h2>Back up extension progress to your AnimeVocab Cloud account.</h2>
         </div>
-        <span className="status-pill">Opt-in</span>
+        <span className={`status-pill status-${syncStatus.state}`}>{syncStatus.state.replaceAll("-", " ")}</span>
       </div>
 
       <div className="metric-grid">
@@ -120,12 +186,18 @@ export function CloudSyncPanel() {
         <button className="btn btn-line" type="button" onClick={exportSnapshot}>
           Export cloud snapshot
         </button>
+        <button className="btn btn-line" type="button" onClick={loadCloudSnapshot}>
+          Load cloud
+        </button>
+        <button className="btn" type="button" onClick={saveCloudSnapshot}>
+          Sync to cloud
+        </button>
       </div>
 
       <p className="sync-message">{message}</p>
       <p className="sync-note">
-        This first version keeps the normalized snapshot in this browser while the account and schema are
-        locked. The next backend step can persist this exact shape per Clerk user.
+        Revision {revision ?? "none"} uses best-effort stale-save checks. For active work on multiple
+        devices, load cloud before syncing and keep an export backup.
       </p>
     </section>
   );

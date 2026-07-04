@@ -13,12 +13,21 @@
   - normalizes them into a cloud sync snapshot,
   - reports counts and sync state,
   - exports the normalized snapshot back to JSON.
+- The hosted app persists the sync snapshot per account through
+  `/api/sync/snapshot` and the `AVC_SYNC_KV` binding.
+- Sync writes use revision checks and return a conflict instead of silently
+  overwriting newer cloud progress.
+- Extension-facing sync states are represented as `local-only`,
+  `connected-synced`, `sync-error`, and `disconnected`.
 - The implementation documents why Clerk was chosen over WorkOS and custom auth.
 
 ## Unit Tests
 - `normalizeAnimeVocabExport` handles missing settings/vocab/stats without throwing.
 - `normalizeAnimeVocabExport` maps existing `VocabMap` and daily stats into a versioned snapshot.
 - `summarizeSyncSnapshot` counts words by state and reviews due.
+- A local vocabulary item round-trips from extension export to cloud snapshot
+  and back to extension export shape.
+- Stale sync writes produce a revision conflict.
 
 ## Integration / Functional Tests
 - `npm run build` in `web/` compiles Clerk provider, proxy, and app routes.

@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-import { SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { AuthControls, SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
-import { CLERK_ENABLED } from "@/lib/flags";
 
 export const metadata: Metadata = {
   title: "AnimeVocab Cloud | Optional sync and AI for anime Japanese learning",
@@ -27,24 +24,7 @@ export default function CloudPage() {
                 notebooks, streaks, and leaderboards without taking away the free extension.
               </p>
               <div className="hero-cta">
-                {CLERK_ENABLED && (
-                  <>
-                    <Show when="signed-out">
-                      <SignUpButton mode="modal">
-                        <button className="btn btn-accent" type="button">Create Cloud account</button>
-                      </SignUpButton>
-                      <SignInButton mode="modal">
-                        <button className="btn btn-line" type="button">Sign in</button>
-                      </SignInButton>
-                    </Show>
-                    <Show when="signed-in">
-                      <Link className="btn btn-accent" href="/app" prefetch={false}>
-                        Open Cloud app
-                      </Link>
-                      <UserButton />
-                    </Show>
-                  </>
-                )}
+                <AuthControls />
                 <a className="btn btn-line" href={GITHUB_URL} rel="noopener noreferrer">
                   Install free extension
                 </a>
@@ -69,7 +49,7 @@ export default function CloudPage() {
               <h2>Sync that starts with export</h2>
               <p>
                 Import your local extension JSON, normalize it into a versioned Cloud snapshot,
-                and keep the schema compatible with existing progress before durable persistence lands.
+                and keep the schema compatible with existing progress as you sync to your account.
               </p>
             </article>
             <article>

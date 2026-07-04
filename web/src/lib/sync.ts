@@ -7,6 +7,12 @@ export interface AnimeVocabExport {
   exportedAt?: string;
 }
 
+export interface CloudUserProfile {
+  id: string;
+  email: string | null;
+  name: string | null;
+}
+
 export interface ExtensionVocabRecord {
   state: WordState;
   reading: string;
@@ -66,6 +72,36 @@ export interface CloudSyncSnapshot {
   settings: Record<string, unknown>;
   words: CloudWordRecord[];
   daily: CloudDailyStats[];
+  cardTimestamps: number[];
+}
+
+export type ExtensionSyncConnectionState =
+  | "local-only"
+  | "connected-synced"
+  | "sync-error"
+  | "disconnected";
+
+export interface ExtensionSyncStatus {
+  state: ExtensionSyncConnectionState;
+  userId: string | null;
+  lastSyncedAt: string | null;
+  revision: number | null;
+  message: string | null;
+}
+
+export interface CloudSyncEnvelope {
+  schemaVersion: 1;
+  profile: CloudUserProfile;
+  snapshot: CloudSyncSnapshot;
+  revision: number;
+  lastSyncedAt: string;
+}
+
+export interface SyncConflict {
+  type: "revision-conflict";
+  expectedRevision: number | null;
+  currentRevision: number;
+  currentEnvelope: CloudSyncEnvelope;
 }
 
 export interface SyncSummary {
@@ -91,14 +127,34 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
-function asWordState(value: unknown): WordState {
-  return value === "learning" || value === "known" || value === "ignored" ? value : "new";
+function asWordState(value: unknown, base = "word"): WordState {
+  if (value === undefined || value === null || value === "new") return "new";
+  if (value === "learning" || value === "known" || value === "ignored") return value;
+  throw new Error(`Invalid word state for ${base}.`);
 }
 
 function timeToIso(value: unknown): string | null {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
   return new Date(n).toISOString();
+}
+
+function isoToTime(value: string | null): number {
+  if (!value) return 0;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : 0;
+}
+
+function normalizeIsoString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+function asTimestampArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+    : [];
 }
 
 export function normalizeAnimeVocabExport(
@@ -115,6 +171,7 @@ export function normalizeAnimeVocabExport(
     importedAt: now.toISOString(),
     sourceExportedAt: typeof input.exportedAt === "string" ? input.exportedAt : null,
     settings: asRecord(input.settings),
+    cardTimestamps: asTimestampArray(stats.cardTimestamps),
     words: Object.entries(vocab)
       .map(([base, raw]) => {
         const rec = asRecord(raw);
@@ -122,7 +179,7 @@ export function normalizeAnimeVocabExport(
         const hasSrs = rec.srs !== null && Object.keys(srs).length > 0;
         return {
           base,
-          state: asWordState(rec.state),
+          state: asWordState(rec.state, base),
           reading: asString(rec.reading),
           gloss: asString(rec.gloss),
           level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
@@ -156,6 +213,67 @@ export function normalizeAnimeVocabExport(
   };
 }
 
+export function normalizeCloudSyncSnapshot(input: unknown, now = new Date()): CloudSyncSnapshot {
+  const raw = asRecord(input);
+  const words = Array.isArray(raw.words) ? raw.words : [];
+  const daily = Array.isArray(raw.daily) ? raw.daily : [];
+
+  if (raw.schemaVersion !== 1 || raw.source !== "animevocab-extension") {
+    throw new Error("invalid_snapshot");
+  }
+
+  return {
+    schemaVersion: 1,
+    source: "animevocab-extension",
+    importedAt: normalizeIsoString(raw.importedAt) ?? now.toISOString(),
+    sourceExportedAt: normalizeIsoString(raw.sourceExportedAt),
+    settings: asRecord(raw.settings),
+    cardTimestamps: asTimestampArray(raw.cardTimestamps),
+    words: words
+      .map((value) => {
+        const rec = asRecord(value);
+        const review = asRecord(rec.review);
+        const hasReview = rec.review !== null && Object.keys(review).length > 0;
+        const base = asString(rec.base);
+        if (!base) throw new Error("invalid_snapshot");
+        return {
+          base,
+          state: asWordState(rec.state, base),
+          reading: asString(rec.reading),
+          gloss: asString(rec.gloss),
+          level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
+          freqRank: Number.isFinite(Number(rec.freqRank)) ? Number(rec.freqRank) : null,
+          seenCount: asNumber(rec.seenCount),
+          shownCount: asNumber(rec.shownCount),
+          firstSeenAt: normalizeIsoString(rec.firstSeenAt),
+          lastSeenAt: normalizeIsoString(rec.lastSeenAt),
+          review: hasReview
+            ? {
+                stage: asNumber(review.stage),
+                dueAt: normalizeIsoString(review.dueAt),
+                lapses: asNumber(review.lapses),
+              }
+            : null,
+        } satisfies CloudWordRecord;
+      })
+      .sort((a, b) => a.base.localeCompare(b.base)),
+    daily: daily
+      .map((value) => {
+        const rec = asRecord(value);
+        const day = asString(rec.day);
+        if (!day) throw new Error("invalid_snapshot");
+        return {
+          day,
+          met: asNumber(rec.met),
+          judged: asNumber(rec.judged),
+          reviews: asNumber(rec.reviews),
+          watchMin: asNumber(rec.watchMin),
+        } satisfies CloudDailyStats;
+      })
+      .sort((a, b) => a.day.localeCompare(b.day)),
+  };
+}
+
 export function summarizeSyncSnapshot(snapshot: CloudSyncSnapshot, now = new Date()): SyncSummary {
   const dueTime = now.getTime();
   return {
@@ -173,4 +291,80 @@ export function summarizeSyncSnapshot(snapshot: CloudSyncSnapshot, now = new Dat
 export function parseAnimeVocabExportJson(text: string): CloudSyncSnapshot {
   const parsed = JSON.parse(text) as AnimeVocabExport;
   return normalizeAnimeVocabExport(parsed);
+}
+
+export function cloudSnapshotToAnimeVocabExport(snapshot: CloudSyncSnapshot): AnimeVocabExport {
+  const vocab: Record<string, ExtensionVocabRecord> = {};
+  const daily: Record<string, ExtensionDailyStats> = {};
+
+  for (const word of snapshot.words) {
+    vocab[word.base] = {
+      state: word.state,
+      reading: word.reading,
+      gloss: word.gloss,
+      level: word.level ?? 0,
+      freqRank: word.freqRank ?? 0,
+      seenCount: word.seenCount,
+      shownCount: word.shownCount,
+      firstSeenAt: isoToTime(word.firstSeenAt),
+      lastSeenAt: isoToTime(word.lastSeenAt),
+      srs: word.review
+        ? {
+            stage: word.review.stage,
+            dueAt: isoToTime(word.review.dueAt),
+            lapses: word.review.lapses,
+          }
+        : null,
+    };
+  }
+
+  for (const day of snapshot.daily) {
+    daily[day.day] = {
+      met: day.met,
+      judged: day.judged,
+      reviews: day.reviews,
+      watchMin: day.watchMin,
+    };
+  }
+
+  return {
+    settings: snapshot.settings,
+    vocab,
+    stats: { daily, cardTimestamps: snapshot.cardTimestamps },
+    exportedAt: snapshot.sourceExportedAt ?? snapshot.importedAt,
+  };
+}
+
+export function createCloudSyncEnvelope(
+  profile: CloudUserProfile,
+  snapshot: CloudSyncSnapshot,
+  revision = 1,
+  now = new Date()
+): CloudSyncEnvelope {
+  return {
+    schemaVersion: 1,
+    profile,
+    snapshot,
+    revision,
+    lastSyncedAt: now.toISOString(),
+  };
+}
+
+export function applyCloudSyncUpdate(
+  current: CloudSyncEnvelope | null,
+  profile: CloudUserProfile,
+  snapshot: CloudSyncSnapshot,
+  expectedRevision: number | null,
+  now = new Date()
+): CloudSyncEnvelope | SyncConflict {
+  if (current && expectedRevision !== current.revision) {
+    return {
+      type: "revision-conflict",
+      expectedRevision,
+      currentRevision: current.revision,
+      currentEnvelope: current,
+    };
+  }
+
+  return createCloudSyncEnvelope(profile, snapshot, current ? current.revision + 1 : 1, now);
 }

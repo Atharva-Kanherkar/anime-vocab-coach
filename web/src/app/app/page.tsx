@@ -40,7 +40,22 @@ export default async function AppPage() {
           </p>
         </section>
 
-        <CloudSyncPanel />
+        {CLERK_ENABLED ? (
+          <CloudSyncPanel />
+        ) : (
+          <section className="cloud-panel" aria-label="Cloud sync disabled">
+            <div className="panel-head">
+              <div>
+                <p className="eyebrow">Cloud sync disabled</p>
+                <h2>Enable Clerk before saving account progress.</h2>
+              </div>
+              <span className="status-pill status-disconnected">disabled</span>
+            </div>
+            <p className="sync-message">
+              Set `NEXT_PUBLIC_CLERK_ENABLED=true` and Clerk keys for a private sync account.
+            </p>
+          </section>
+        )}
 
         <section className="app-grid" aria-label="Cloud feature roadmap">
           <article>
