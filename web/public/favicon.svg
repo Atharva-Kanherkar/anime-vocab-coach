@@ -1,6 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="24" fill="#131316"/>
-  <rect x="1.5" y="1.5" width="125" height="125" rx="22.5" fill="none" stroke="#2e2e32" stroke-width="3"/>
-  <text x="64" y="86" font-family="'Noto Sans CJK JP','Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif"
-        font-size="72" font-weight="700" fill="#d96c4f" text-anchor="middle">B</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="AnimeVocab">
+  <rect width="32" height="32" rx="7" fill="#0a0c14"/>
+  <rect x="0.75" y="0.75" width="30.5" height="30.5" rx="6.5" fill="none" stroke="#2a2e3a" stroke-width="1"/>
+  <text x="16" y="22.5" font-family="'Hiragino Sans','Yu Gothic UI','Noto Sans JP',sans-serif" font-size="19" font-weight="700" fill="#e3ba63" text-anchor="middle">あ</text>
 </svg>
