@@ -64,8 +64,12 @@ function subscribeToSnapshot(onChange: () => void): () => void {
   };
 }
 
+export function useCloudSnapshot(): CloudSyncSnapshot {
+  return useSyncExternalStore(subscribeToSnapshot, loadSnapshot, () => EMPTY_SNAPSHOT);
+}
+
 export function CloudSyncPanel() {
-  const snapshot = useSyncExternalStore(subscribeToSnapshot, loadSnapshot, () => EMPTY_SNAPSHOT);
+  const snapshot = useCloudSnapshot();
   const [message, setMessage] = useState("Local-only Cloud sync is ready.");
   const [revision, setRevision] = useState<number | null>(null);
   const [connectionState, setConnectionState] = useState<ExtensionSyncConnectionState>("local-only");
