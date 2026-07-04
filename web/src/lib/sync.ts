@@ -288,6 +288,21 @@ export function summarizeSyncSnapshot(snapshot: CloudSyncSnapshot, now = new Dat
   };
 }
 
+export function pickRecentWords(snapshot: CloudSyncSnapshot, limit = 5): CloudWordRecord[] {
+  return [...snapshot.words]
+    .filter((word) => word.lastSeenAt)
+    .sort((a, b) => Date.parse(b.lastSeenAt!) - Date.parse(a.lastSeenAt!))
+    .slice(0, limit);
+}
+
+export function pickDueReviews(snapshot: CloudSyncSnapshot, now = new Date(), limit = 5): CloudWordRecord[] {
+  const dueTime = now.getTime();
+  return [...snapshot.words]
+    .filter((word) => word.review?.dueAt && Date.parse(word.review.dueAt) <= dueTime)
+    .sort((a, b) => Date.parse(a.review!.dueAt!) - Date.parse(b.review!.dueAt!))
+    .slice(0, limit);
+}
+
 export function parseAnimeVocabExportJson(text: string): CloudSyncSnapshot {
   const parsed = JSON.parse(text) as AnimeVocabExport;
   return normalizeAnimeVocabExport(parsed);

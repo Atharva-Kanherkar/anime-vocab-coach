@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AuthControls, SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { getPromoState, GITHUB_URL, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "AnimeVocab Cloud | Optional sync and AI for anime Japanese learning",
@@ -9,10 +10,12 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/cloud` },
 };
 
+const promo = getPromoState();
+
 export default function CloudPage() {
   return (
     <>
-      <SiteHeader compact />
+      <SiteHeader />
       <main id="main" className="cloud-page">
         <section className="cloud-hero">
           <div className="wrap cloud-hero-grid">
@@ -24,10 +27,10 @@ export default function CloudPage() {
                 notebooks, streaks, and leaderboards without taking away the free extension.
               </p>
               <div className="hero-cta">
-                <AuthControls />
-                <a className="btn btn-line" href={GITHUB_URL} rel="noopener noreferrer">
+                <a className="btn btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
                   Install free extension
                 </a>
+                <AuthControls />
               </div>
             </div>
             <div className="cloud-proof">
@@ -68,6 +71,30 @@ export default function CloudPage() {
                 while preserving private local-only mode.
               </p>
             </article>
+          </div>
+        </section>
+
+        <section className="cloud-pro-band">
+          <div className="wrap cloud-pro-grid">
+            <div>
+              <p className="eyebrow">AnimeVocab Pro</p>
+              <h2>Cloud sync, AI coach, and social features — when you want them</h2>
+              <p className="cloud-lede">
+                Pro pays for hosted transcription and Cloud compute. The extension stays free forever;
+                accounts are optional until sync or AI actually help you.
+              </p>
+            </div>
+            <div className="cloud-pro-actions">
+              <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
+                {promo.active ? "Get Pro at launch price" : "Get Pro"}
+              </a>
+              <Link className="btn btn-line" href="/#pricing">
+                Compare Free vs Pro
+              </Link>
+              <Link className="btn btn-line" href="/app">
+                Open Cloud app
+              </Link>
+            </div>
           </div>
         </section>
       </main>

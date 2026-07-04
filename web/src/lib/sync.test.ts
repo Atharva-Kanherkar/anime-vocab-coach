@@ -5,6 +5,8 @@ import {
   createCloudSyncEnvelope,
   normalizeCloudSyncSnapshot,
   normalizeAnimeVocabExport,
+  pickDueReviews,
+  pickRecentWords,
   summarizeSyncSnapshot,
 } from "./sync";
 
@@ -79,6 +81,45 @@ describe("normalizeAnimeVocabExport", () => {
         },
       })
     ).toThrow("Invalid word state");
+  });
+});
+
+describe("pickRecentWords", () => {
+  it("returns words sorted by most recent lastSeenAt", () => {
+    const snapshot = normalizeAnimeVocabExport({
+      vocab: {
+        古い: { state: "known", lastSeenAt: 1000 },
+        新しい: { state: "learning", lastSeenAt: 3000 },
+        中間: { state: "learning", lastSeenAt: 2000 },
+        未見: { state: "new" },
+      },
+    });
+
+    expect(pickRecentWords(snapshot, 2).map((word) => word.base)).toEqual(["新しい", "中間"]);
+  });
+});
+
+describe("pickDueReviews", () => {
+  it("returns due reviews sorted soonest-first", () => {
+    const now = new Date("2026-07-04T12:00:00.000Z");
+    const snapshot = normalizeAnimeVocabExport({
+      vocab: {
+        後: {
+          state: "learning",
+          srs: { stage: 1, dueAt: Date.parse("2026-07-04T11:00:00.000Z"), lapses: 0 },
+        },
+        先: {
+          state: "learning",
+          srs: { stage: 1, dueAt: Date.parse("2026-07-04T10:00:00.000Z"), lapses: 0 },
+        },
+        未来: {
+          state: "learning",
+          srs: { stage: 1, dueAt: Date.parse("2026-07-05T00:00:00.000Z"), lapses: 0 },
+        },
+      },
+    });
+
+    expect(pickDueReviews(snapshot, now, 5).map((word) => word.base)).toEqual(["先", "後"]);
   });
 });
 
