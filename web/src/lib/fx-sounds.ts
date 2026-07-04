@@ -15,6 +15,7 @@ function getAudio(kind: SfxKind): HTMLAudioElement {
           : "/sfx/click.wav";
     el = new Audio(src);
     el.preload = "auto";
+    el.setAttribute("playsinline", "");
     el.volume = kind === "click" ? 0.75 : 0.45;
     audioPool.set(kind, el);
   }
@@ -62,6 +63,7 @@ export function playFxSound(kind: SfxKind): void {
   const base = getAudio(kind);
   const node = base.cloneNode() as HTMLAudioElement;
   node.volume = base.volume;
+  node.setAttribute("playsinline", "");
   void node.play().catch(() => {
     if (!ctx) {
       try {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { FxSlider } from "@/components/fx-slider";
+import { HeroImagePreloader } from "@/components/hero-preload";
 import { HomeNav } from "@/components/site-chrome";
 import {
   defaultOpenGraph,
@@ -8,6 +9,7 @@ import {
   SITE_DESCRIPTION,
   SITE_OG_DESCRIPTION,
 } from "@/lib/seo";
+import { heroMobileImage } from "@/lib/hero-images";
 import { heroSlides } from "@/lib/slides";
 import { SITE_URL, getPromoState } from "@/lib/site";
 
@@ -34,10 +36,25 @@ export default function HomePage() {
 
   return (
     <>
+      {heroSlides.slice(0, 2).flatMap((s) => {
+        if (!s.image) return [];
+        const mobile = heroMobileImage(s.image)!;
+        return [
+          <link key={`${s.id}-d`} rel="preload" as="image" href={s.image} />,
+          <link
+            key={`${s.id}-m`}
+            rel="preload"
+            as="image"
+            href={mobile}
+            media="(max-width: 768px)"
+          />,
+        ];
+      })}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <HeroImagePreloader slides={heroSlides} />
       <HomeNav />
       <main id="main">
         <FxSlider slides={heroSlides} initialPromo={promo} />
