@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
 
 export function SiteHeader({ compact = false }: { compact?: boolean }) {
@@ -169,7 +169,11 @@ export function PricingSection({ initialPromo }: { initialPromo: PromoState }) {
   }, []);
 
   return (
-    <section className="pricing" id="pricing">
+    <section
+      className="pricing band band--dim"
+      id="pricing"
+      style={{ "--band-img": "url(/slides/07-pricing.jpg)" } as CSSProperties}
+    >
       <div className="wrap">
         <header className="section-head reveal">
           <span className="jp-mark" aria-hidden="true">価格</span>
