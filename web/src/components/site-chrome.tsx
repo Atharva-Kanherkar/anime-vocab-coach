@@ -252,6 +252,9 @@ export function PricingSection({ initialPromo }: { initialPromo: PromoState }) {
             >
               {promo.active ? "Get Pro at launch price" : "Get Pro"}
             </a>
+            <p className="price-ownership-note">
+              Your data stays local and exportable. Pro is optional hosted convenience.
+            </p>
             {promo.active && (
               <p className="promo-note">
                 Launch pricing ends in {promo.daysLeft} {promo.daysLeft === 1 ? "day" : "days"}

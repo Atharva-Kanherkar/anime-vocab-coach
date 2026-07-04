@@ -314,6 +314,12 @@ section { padding: clamp(64px, 9vw, 100px) 0; }
 .strike { display: block; font-size: 13px; color: var(--ink-3); text-decoration: line-through; margin-bottom: 2px; }
 .amount { font-family: var(--serif); font-size: 36px; font-weight: 500; }
 .price-card ul { list-style: none; margin-bottom: 22px; flex: 1; }
+.price-ownership-note {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
 .price-card li {
   font-size: 14px; color: var(--ink-2); padding: 6px 0 6px 18px; position: relative;
 }
