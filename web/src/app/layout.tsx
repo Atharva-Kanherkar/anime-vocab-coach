@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { FxAudioPrimer } from "@/components/fx-audio-primer";
 import { ScrollEffects } from "@/components/site-chrome";
+import { CLERK_ENABLED } from "@/lib/flags";
 import {
   SEO_KEYWORDS,
   SITE_DESCRIPTION,
@@ -84,17 +85,23 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const shell = (
+    <>
+      <a className="skip" href="#main">
+        Skip to content
+      </a>
+      {children}
+      <FxAudioPrimer />
+      <ScrollEffects />
+    </>
+  );
+
   return (
     <html lang="en" className={`${newsreader.variable} ${ibmPlex.variable} ${notoJp.variable}`}>
       <body>
-        <ClerkProvider>
-          <a className="skip" href="#main">
-            Skip to content
-          </a>
-          {children}
-          <FxAudioPrimer />
-          <ScrollEffects />
-        </ClerkProvider>
+        {/* Clerk is behind a flag; when off, render with no ClerkProvider so
+            the site works without Clerk keys. See @/lib/flags. */}
+        {CLERK_ENABLED ? <ClerkProvider>{shell}</ClerkProvider> : shell}
       </body>
     </html>
   );

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { FxSlider } from "@/components/fx-slider";
 import { HeroImagePreloader } from "@/components/hero-preload";
-import { HomeNav } from "@/components/site-chrome";
 import {
   defaultOpenGraph,
   defaultTwitter,
@@ -55,7 +54,6 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HeroImagePreloader slides={heroSlides} />
-      <HomeNav />
       <main id="main">
         <FxSlider slides={heroSlides} initialPromo={promo} />
       </main>

@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { SiteFooter } from "@/components/site-chrome";
+import { CLERK_ENABLED } from "@/lib/flags";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,8 @@ export const metadata: Metadata = {
 };
 
 export default async function AppPage() {
-  const user = await currentUser();
+  // When Clerk is off, skip currentUser() (it needs keys) and show a public shell.
+  const user = CLERK_ENABLED ? await currentUser() : null;
   const name = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress || "learner";
 
   return (
@@ -26,7 +28,7 @@ export default async function AppPage() {
           <Link href="/cloud">Cloud</Link>
           <Link href="/#pricing">Pricing</Link>
         </nav>
-        <UserButton />
+        {CLERK_ENABLED && <UserButton />}
       </header>
       <main id="main" className="app-shell">
         <section className="app-hero">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { useEffect, useState, type CSSProperties } from "react";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
+import { CLERK_ENABLED } from "@/lib/flags";
 
 export function SiteHeader({ compact = false }: { compact?: boolean }) {
   return (
@@ -21,17 +22,21 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
             <Link href="/#faq">FAQ</Link>
           </nav>
         )}
-        <Show when="signed-out">
-          <SignInButton mode="modal">
-            <button className="btn btn-sm btn-line" type="button">Sign in</button>
-          </SignInButton>
-        </Show>
-        <Show when="signed-in">
-          <Link className="btn btn-sm btn-line" href="/app" prefetch={false}>
-            Cloud app
-          </Link>
-          <UserButton />
-        </Show>
+        {CLERK_ENABLED && (
+          <>
+            <Show when="signed-out">
+              <SignInButton mode="modal">
+                <button className="btn btn-sm btn-line" type="button">Sign in</button>
+              </SignInButton>
+            </Show>
+            <Show when="signed-in">
+              <Link className="btn btn-sm btn-line" href="/app" prefetch={false}>
+                Cloud app
+              </Link>
+              <UserButton />
+            </Show>
+          </>
+        )}
         <a className="btn btn-sm btn-line" href={GITHUB_URL} rel="noopener noreferrer">
           Install free
         </a>

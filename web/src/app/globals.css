@@ -828,7 +828,31 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   position: relative;
   padding: 0; /* override global `section` padding so the backdrop reaches y=0 */
   background: var(--bg);
+  /* Total scroll length = one viewport per slide. --slides is set inline by
+     FxSlider. Phones use a shorter length per slide so you don't have to swipe
+     a whole screen to turn each slide (it felt "stuck"). */
+  height: calc(var(--slides, 1) * 100vh);
 }
+
+.hero__brand {
+  position: absolute;
+  top: clamp(16px, 3vw, 28px);
+  left: clamp(20px, 4.5vw, 44px);
+  z-index: 4;
+  font-family: var(--jp);
+  font-size: 18px;
+  color: var(--ink);
+  text-decoration: none;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+.hero__brand.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.hero__brand b { color: var(--accent); font-weight: 600; }
 
 /* pinned stage: stays full-screen while the tall .hero scrolls past it */
 .hero__stage {
@@ -1106,6 +1130,16 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 }
 
 @media (max-width: 768px) {
+  /* Shorter scroll length per slide on phones so slides turn with a normal
+     swipe instead of a full-screen drag. */
+  .hero {
+    height: calc(var(--slides, 1) * 76vh);
+  }
+
+  .hero__brand {
+    font-size: 17px;
+  }
+
   .hero__bg {
     background-image: var(--hero-bg-mobile, var(--hero-bg-desktop));
     background-position: center 22%;

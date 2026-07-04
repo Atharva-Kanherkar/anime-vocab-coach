@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { heroMobileImage, preloadHeroImages } from "@/lib/hero-images";
 import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
@@ -61,11 +62,11 @@ export function FxSlider({
     const wrap = wrapRef.current;
     if (!wrap) return;
 
-    // Require the scroll to move a margin past a band boundary before the
-    // active slide commits. Without this dead zone, sub-pixel scroll jitter at
-    // a boundary flips the index back and forth, restarting the content
-    // animation and firing a sound on every flip.
-    const HYST = 0.22;
+    // Small dead zone past a band boundary before the active slide commits.
+    // Enough to stop sub-pixel scroll jitter from flipping the index back and
+    // forth, but small so touch scrolling still feels responsive (a larger
+    // value makes phones feel like the scroll is "stuck" before a slide turns).
+    const HYST = 0.08;
 
     const update = () => {
       const distance = wrap.offsetHeight - window.innerHeight;
@@ -124,7 +125,7 @@ export function FxSlider({
     <section
       ref={wrapRef}
       className="hero"
-      style={{ height: `${slides.length * 100}vh` }}
+      style={{ ["--slides" as string]: slides.length }}
       aria-label="AnimeVocab"
     >
       <div className="hero__stage">
@@ -141,6 +142,18 @@ export function FxSlider({
           className={`hero__scrim hero__scrim--deep${active.bright ? " is-on" : ""}`}
           aria-hidden="true"
         />
+
+        {/* Brand mark lives in the hero only: shown on the first slide, fades
+            out as you scroll into later slides. */}
+        <Link
+          href="/"
+          className={`hero__brand${index === 0 ? " is-visible" : ""}`}
+          aria-label="AnimeVocab home"
+          aria-hidden={index !== 0}
+          tabIndex={index === 0 ? 0 : -1}
+        >
+          アニメ<b>Vocab</b>
+        </Link>
 
         <ul className="hero__index hero__index--left" aria-hidden="true">
           {slides.map((s, i) => (
