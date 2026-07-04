@@ -2,8 +2,11 @@ import { GITHUB_URL, SITE_URL } from "@/lib/site";
 
 export const SITE_NAME = "AnimeVocab";
 export const SITE_TAGLINE = "Learn Japanese from the anime you watch";
+/** ≤160 chars for Google SERP snippets */
 export const SITE_DESCRIPTION =
-  "AnimeVocab is a free Chrome extension that teaches Japanese vocabulary while you watch anime. Romaji-first word cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube.";
+  "Free Chrome extension to learn Japanese from anime. Romaji-first word cards, spaced repetition, and Listening Mode for Netflix and Crunchyroll.";
+export const SITE_OG_DESCRIPTION =
+  "Romaji-first word cards while you watch. Spaced repetition built in. Add to Chrome free.";
 export const TWITTER_HANDLE = "@attharrva15";
 
 export const SEO_KEYWORDS = [
@@ -27,13 +30,14 @@ export const defaultOpenGraph = {
   locale: "en_US",
   url: SITE_URL,
   title: `${SITE_TAGLINE} | ${SITE_NAME}`,
-  description: SITE_DESCRIPTION,
+  description: SITE_OG_DESCRIPTION,
   images: [
     {
       url: "/og.png",
       width: 1200,
       height: 630,
-      alt: "AnimeVocab — 学ぶ emblem with Japanese night scene and golden kanji",
+      alt: "AnimeVocab landing page preview: learn Japanese from anime with an Add to Chrome free button",
+      type: "image/png",
     },
   ],
 };
@@ -43,7 +47,7 @@ export const defaultTwitter = {
   site: TWITTER_HANDLE,
   creator: TWITTER_HANDLE,
   title: `${SITE_TAGLINE} | ${SITE_NAME}`,
-  description: SITE_DESCRIPTION,
+  description: SITE_OG_DESCRIPTION,
   images: ["/og.png"],
 };
 

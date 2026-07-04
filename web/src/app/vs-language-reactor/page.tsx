@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title:
     "AnimeVocab vs Language Reactor (2026): Which Is Better for Learning Japanese from Anime?",
   description:
-    "An honest AnimeVocab vs Language Reactor comparison for 2026. Language Reactor is the best dual-subtitle reader; AnimeVocab is built for beginners who can't read kana yet and works from audio when there's no Japanese subtitle track. Features, pricing, and who each is for.",
+    "AnimeVocab vs Language Reactor: dual-subtitle reader vs romaji-first beginner tool with audio when Japanese subs are missing.",
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,

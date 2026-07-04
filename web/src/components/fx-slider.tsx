@@ -224,7 +224,7 @@ export function FxSlider({
                   }
                 }}
               >
-                {active.ctaLabel ?? "Add to Chrome — free"}
+                {active.ctaLabel ?? "Add to Chrome · free"}
               </a>
             </div>
           </div>

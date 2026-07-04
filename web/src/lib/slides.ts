@@ -123,7 +123,7 @@ export const heroSlides: HeroSlide[] = [
     kicker: "08 · begin",
     title: "Your next episode can teach you a word.",
     body: "次のエピソードから、始めよう。",
-    ctaLabel: "Add to Chrome — free",
+    ctaLabel: "Add to Chrome · free",
     ctaHref: GITHUB_URL,
   },
   {

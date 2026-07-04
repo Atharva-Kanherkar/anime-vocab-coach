@@ -1,7 +1,7 @@
 {
   "name": "AnimeVocab",
   "short_name": "AnimeVocab",
-  "description": "Learn Japanese from the anime you watch — free Chrome extension with romaji-first vocabulary and spaced repetition.",
+  "description": "Learn Japanese from the anime you watch. Free Chrome extension with romaji-first vocabulary and spaced repetition.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#080a12",
