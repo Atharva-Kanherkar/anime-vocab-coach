@@ -35,7 +35,9 @@ interface; responses are normalized before storage.
 3. Set `TRANSCRIBE_PROVIDERS = "groq,deepinfra,openai"` — OpenAI stays as automatic fallback
 
 Provider usage (success count, errors, estimated cost) is exposed on
-`GET /v1/transcript/stats` under the `providers` field.
+`GET /v1/transcript/stats` under the `providers` field. The same endpoint also
+returns an `economics` field with configured plan limits, payment assumptions,
+and gross-margin scenarios for light, normal, and heavy usage.
 
 ## Why this scales (and what it costs you)
 
@@ -47,6 +49,10 @@ Provider usage (success count, errors, estimated cost) is exposed on
   rate-limit tiers, not by adding keys. gpt-4o-mini-transcribe costs about
   $0.18 per hour of audio, so a worst-case subscriber (45 h) costs ~$8.10
   against $10 revenue, and a typical one (10–15 h) costs $2–3.
+- AI feature caps are configured separately from listening caps:
+  `FREE_AI_CALLS_PER_MONTH`, `PRO_AI_CALLS_PER_MONTH`, and
+  `AI_COST_USD_PER_CALL`. Do not ship an AI feature without checking the
+  model in [`docs/unit-economics.md`](../docs/unit-economics.md).
 - No servers, no database, no containers. KV stores two kinds of keys:
   6-hour license-validity caches and per-month minute counters (self-expiring).
 

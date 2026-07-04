@@ -26,6 +26,11 @@ kv_namespaces = [
 
 [vars]
 CAP_MINUTES = "2700"
+FREE_AI_CALLS_PER_MONTH = "5"
+PRO_AI_CALLS_PER_MONTH = "300"
+AI_COST_USD_PER_CALL = "0.002"
+PAYMENT_FEE_RATE = "0.05"
+PAYMENT_FIXED_FEE_USD = "0.30"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
 # OPENAI_WHISPER_MODEL is unset so the batch cache-miss path keeps using
 # TRANSCRIBE_MODEL (gpt-4o-mini-transcribe). Set it only to override that model.

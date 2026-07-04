@@ -7,6 +7,7 @@
 // BYO-key users stream audio directly to OpenAI Realtime (no cache).
 
 import { activateLicense, validateLicense } from "./dodo";
+import { economicsSnapshot } from "./economics";
 import { getMetrics } from "./metrics";
 import { mintTranscriptionToken } from "./openai";
 import { publicConfig } from "./promo";
@@ -32,6 +33,11 @@ export interface Env {
   CHECKOUT_URL: string;
   PROMO_CHECKOUT_URL: string;
   PROMO_END_UTC: string;
+  PAYMENT_FEE_RATE?: string;
+  PAYMENT_FIXED_FEE_USD?: string;
+  AI_COST_USD_PER_CALL?: string;
+  FREE_AI_CALLS_PER_MONTH?: string;
+  PRO_AI_CALLS_PER_MONTH?: string;
 }
 
 function corsHeaders(req: Request): Record<string, string> {
@@ -180,7 +186,12 @@ export default {
         if (!check.valid) return json(req, { error: check.reason || "subscription inactive" }, 402);
         const cache = await getMetrics(env);
         const providers = await getProviderMetrics(env);
-        return json(req, { cache, providers, chain: env.TRANSCRIBE_PROVIDERS || "openai" });
+        return json(req, {
+          cache,
+          providers,
+          chain: env.TRANSCRIBE_PROVIDERS || "openai",
+          economics: economicsSnapshot(env)
+        });
       }
 
       if (path === "/v1/transcript" && req.method === "GET") {

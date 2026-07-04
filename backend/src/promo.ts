@@ -1,4 +1,5 @@
 import type { Env } from "./index";
+import { planLimitsSnapshot } from "./economics";
 
 const PRO_REGULAR = { monthlyUsd: 10, yearlyUsd: 84, label: "$10/month or $84/year" };
 const PRO_PROMO = { monthlyUsd: 7, yearlyUsd: 59, label: "$7/month or $59/year" };
@@ -21,10 +22,12 @@ export function promoState(env: Env, now = Date.now()) {
 
 export function publicConfig(env: Env) {
   const promo = promoState(env);
+  const planLimits = planLimitsSnapshot(env);
   return {
     promo,
     checkoutUrl: promo.checkoutUrl,
-    capMinutes: promo.capMinutes,
+    capMinutes: planLimits.proListeningMinutesPerMonth,
+    planLimits,
     siteUrl: "https://animevocab.com"
   };
 }
