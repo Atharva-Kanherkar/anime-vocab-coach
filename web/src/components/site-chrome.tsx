@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { useEffect, useState, type CSSProperties } from "react";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
 
@@ -14,11 +15,23 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         {!compact && (
           <nav aria-label="Primary">
             <Link href="/#features">Features</Link>
+            <Link href="/cloud">Cloud</Link>
             <Link href="/learn-japanese-with-anime">Compare</Link>
             <Link href="/#pricing">Pricing</Link>
             <Link href="/#faq">FAQ</Link>
           </nav>
         )}
+        <Show when="signed-out">
+          <SignInButton mode="modal">
+            <button className="btn btn-sm btn-line" type="button">Sign in</button>
+          </SignInButton>
+        </Show>
+        <Show when="signed-in">
+          <Link className="btn btn-sm btn-line" href="/app" prefetch={false}>
+            Cloud app
+          </Link>
+          <UserButton />
+        </Show>
         <a className="btn btn-sm btn-line" href={GITHUB_URL} rel="noopener noreferrer">
           Install free
         </a>
