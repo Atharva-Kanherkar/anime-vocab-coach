@@ -107,8 +107,8 @@ const STYLES = `
   .avc-agent-ambient.avc-focus {
     background: linear-gradient(
       to left,
-      rgba(0, 0, 0, 0.22) 0%,
-      rgba(0, 0, 0, 0.08) calc(var(--avc-panel-w, 340px) * 0.6),
+      rgba(0, 0, 0, 0.12) 0%,
+      rgba(0, 0, 0, 0.04) calc(var(--avc-panel-w, 340px) * 0.6),
       transparent var(--avc-panel-w, 340px)
     );
   }
@@ -120,18 +120,39 @@ const STYLES = `
     max-width: min(${PANEL_MAX_W}px, 42vw);
     display: flex; flex-direction: column;
     pointer-events: auto;
-    background: rgba(8, 7, 10, 0.28);
-    backdrop-filter: blur(18px) saturate(1.1);
-    -webkit-backdrop-filter: blur(18px) saturate(1.1);
-    border-left: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.08);
-    color: rgba(236, 234, 228, 0.72);
+    background: rgba(8, 7, 10, 0.05);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    border-left: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: none;
+    color: rgba(236, 234, 228, 0.3);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     overflow: hidden;
+    transition:
+      background 320ms ease,
+      backdrop-filter 320ms ease,
+      border-color 320ms ease,
+      box-shadow 320ms ease,
+      color 320ms ease;
   }
-  .avc-agent-sidebar.avc-focus-sidebar {
-    background: rgba(8, 7, 10, 0.36);
-    border-left-color: rgba(227, 186, 99, 0.12);
+  .avc-agent-sidebar:hover,
+  .avc-agent-sidebar:focus-within,
+  .avc-agent-sidebar.avc-sidebar-active {
+    background: rgba(8, 7, 10, 0.82);
+    backdrop-filter: blur(20px) saturate(1.12);
+    -webkit-backdrop-filter: blur(20px) saturate(1.12);
+    border-left-color: rgba(255, 255, 255, 0.1);
+    box-shadow: -16px 0 48px rgba(0, 0, 0, 0.18);
+    color: rgba(236, 234, 228, 0.78);
+  }
+  .avc-agent-sidebar.avc-focus-sidebar:not(:hover):not(:focus-within):not(.avc-sidebar-active) {
+    background: rgba(8, 7, 10, 0.07);
+  }
+  .avc-agent-sidebar.avc-focus-sidebar:hover,
+  .avc-agent-sidebar.avc-focus-sidebar:focus-within,
+  .avc-agent-sidebar.avc-focus-sidebar.avc-sidebar-active {
+    background: rgba(8, 7, 10, 0.86);
+    border-left-color: rgba(227, 186, 99, 0.14);
   }
   .avc-agent-resize {
     position: absolute; left: 0; top: 0; bottom: 0;
@@ -301,8 +322,15 @@ const STYLES = `
   }
   .avc-agent-composer {
     flex-shrink: 0; padding: 10px 14px 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(0, 0, 0, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    background: transparent;
+    transition: background 320ms ease, border-color 320ms ease;
+  }
+  .avc-agent-sidebar:hover .avc-agent-composer,
+  .avc-agent-sidebar:focus-within .avc-agent-composer,
+  .avc-agent-sidebar.avc-sidebar-active .avc-agent-composer {
+    border-top-color: rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.12);
   }
   .avc-agent-chat-row { display: flex; gap: 6px; align-items: flex-end; }
   .avc-agent-chat-input {
@@ -416,6 +444,7 @@ function attachResizeHandle(sidebar: HTMLElement, grip: HTMLElement): void {
   const onMove = (e: MouseEvent): void => {
     if (!dragging) return;
     e.preventDefault();
+    sidebar.classList.add("avc-sidebar-active");
     setPanelWidth(sidebar, startW + (startX - e.clientX));
   };
 
@@ -423,6 +452,7 @@ function attachResizeHandle(sidebar: HTMLElement, grip: HTMLElement): void {
     if (!dragging) return;
     dragging = false;
     grip.classList.remove("avc-dragging");
+    sidebar.classList.remove("avc-sidebar-active");
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
     document.removeEventListener("mousemove", onMove);
@@ -438,6 +468,7 @@ function attachResizeHandle(sidebar: HTMLElement, grip: HTMLElement): void {
     startX = e.clientX;
     startW = sidebar.offsetWidth;
     grip.classList.add("avc-dragging");
+    sidebar.classList.add("avc-sidebar-active");
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
     document.addEventListener("mousemove", onMove);
@@ -817,11 +848,15 @@ function populateWordSection(ctx: WordContext): void {
   const wordEl = document.createElement("div");
   wordEl.className = "avc-agent-word";
   wordEl.textContent = displays.big;
+  const speakText = entry.reading || token.reading || token.surface;
   const speakBtn = document.createElement("button");
   speakBtn.className = "avc-agent-speak";
   speakBtn.type = "button";
   speakBtn.textContent = "Hear word";
-  speakBtn.addEventListener("click", (e) => { e.stopPropagation(); romaji.speak(token.surface); });
+  speakBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    romaji.speak(speakText);
+  });
   wordRow.appendChild(wordEl);
   wordRow.appendChild(speakBtn);
 
@@ -870,7 +905,7 @@ function populateWordSection(ctx: WordContext): void {
   renderJudgmentButtons(ctx);
 
   if (opts.autoSpeak && opts.interaction === "focus") {
-    setTimeout(() => romaji.speak(token.surface), 250);
+    setTimeout(() => romaji.speak(entry.reading || token.reading || token.surface), 250);
   }
   bumpAutoTimer(opts);
 }
@@ -1042,6 +1077,7 @@ export function ensureAgentMounted(): void {
 
   shell = buildShell(root);
   mounted = true;
+  romaji.preloadVoices();
 
   void Promise.all([getSettings(), getAgentPanelWidth()]).then(([s, w]) => {
     if (!shell) return;

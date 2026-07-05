@@ -92,15 +92,56 @@ export function sentencePieces(tokens: Token[], highlightIndex: number): Sentenc
 }
 
 export function speak(text: string): void {
+  void speakAsync(text);
+}
+
+/** Warm up voices so the first Hear click works immediately. */
+export function preloadVoices(): void {
   try {
+    const synth = window.top?.speechSynthesis ?? speechSynthesis;
+    void loadVoices(synth);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function speakAsync(raw: string): Promise<void> {
+  const text = (raw || "").trim();
+  if (!text) return;
+  try {
+    const synth = window.top?.speechSynthesis ?? speechSynthesis;
+    const voices = await loadVoices(synth);
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "ja-JP";
     u.rate = 0.85;
-    const ja = speechSynthesis.getVoices().find((v) => v.lang && v.lang.startsWith("ja"));
+    const ja =
+      voices.find((v) => v.lang === "ja-JP") ||
+      voices.find((v) => v.lang?.startsWith("ja")) ||
+      null;
     if (ja) u.voice = ja;
-    speechSynthesis.cancel();
-    speechSynthesis.speak(u);
+    synth.cancel();
+    synth.speak(u);
   } catch (err) {
     warn("tts failed:", err);
   }
+}
+
+function loadVoices(synth: SpeechSynthesis): Promise<SpeechSynthesisVoice[]> {
+  return new Promise((resolve) => {
+    const pick = (): SpeechSynthesisVoice[] => synth.getVoices().filter(Boolean);
+    const existing = pick();
+    if (existing.length) {
+      resolve(existing);
+      return;
+    }
+    const done = (): void => {
+      synth.removeEventListener("voiceschanged", done);
+      resolve(pick());
+    };
+    synth.addEventListener("voiceschanged", done);
+    setTimeout(() => {
+      synth.removeEventListener("voiceschanged", done);
+      resolve(pick());
+    }, 800);
+  });
 }

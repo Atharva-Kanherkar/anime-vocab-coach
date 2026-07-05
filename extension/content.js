@@ -538,17 +538,43 @@
     })).filter((p) => p.text);
   }
   function speak(text) {
+    void speakAsync(text);
+  }
+  async function speakAsync(raw) {
+    const text = (raw || "").trim();
+    if (!text) return;
     try {
+      const synth = window.top?.speechSynthesis ?? speechSynthesis;
+      const voices = await loadVoices(synth);
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "ja-JP";
       u.rate = 0.85;
-      const ja = speechSynthesis.getVoices().find((v) => v.lang && v.lang.startsWith("ja"));
+      const ja = voices.find((v) => v.lang === "ja-JP") || voices.find((v) => v.lang?.startsWith("ja")) || null;
       if (ja) u.voice = ja;
-      speechSynthesis.cancel();
-      speechSynthesis.speak(u);
+      synth.cancel();
+      synth.speak(u);
     } catch (err) {
       warn("tts failed:", err);
     }
+  }
+  function loadVoices(synth) {
+    return new Promise((resolve) => {
+      const pick = () => synth.getVoices().filter(Boolean);
+      const existing = pick();
+      if (existing.length) {
+        resolve(existing);
+        return;
+      }
+      const done = () => {
+        synth.removeEventListener("voiceschanged", done);
+        resolve(pick());
+      };
+      synth.addEventListener("voiceschanged", done);
+      setTimeout(() => {
+        synth.removeEventListener("voiceschanged", done);
+        resolve(pick());
+      }, 800);
+    });
   }
 
   // src/lib/tokenizer.ts
@@ -705,8 +731,8 @@
   .avc-agent-ambient.avc-focus {
     background: linear-gradient(
       to left,
-      rgba(0, 0, 0, 0.22) 0%,
-      rgba(0, 0, 0, 0.08) calc(var(--avc-panel-w, 340px) * 0.6),
+      rgba(0, 0, 0, 0.12) 0%,
+      rgba(0, 0, 0, 0.04) calc(var(--avc-panel-w, 340px) * 0.6),
       transparent var(--avc-panel-w, 340px)
     );
   }
@@ -718,18 +744,39 @@
     max-width: min(${PANEL_MAX_W}px, 42vw);
     display: flex; flex-direction: column;
     pointer-events: auto;
-    background: rgba(8, 7, 10, 0.28);
-    backdrop-filter: blur(18px) saturate(1.1);
-    -webkit-backdrop-filter: blur(18px) saturate(1.1);
-    border-left: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.08);
-    color: rgba(236, 234, 228, 0.72);
+    background: rgba(8, 7, 10, 0.05);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    border-left: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: none;
+    color: rgba(236, 234, 228, 0.3);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     overflow: hidden;
+    transition:
+      background 320ms ease,
+      backdrop-filter 320ms ease,
+      border-color 320ms ease,
+      box-shadow 320ms ease,
+      color 320ms ease;
   }
-  .avc-agent-sidebar.avc-focus-sidebar {
-    background: rgba(8, 7, 10, 0.36);
-    border-left-color: rgba(227, 186, 99, 0.12);
+  .avc-agent-sidebar:hover,
+  .avc-agent-sidebar:focus-within,
+  .avc-agent-sidebar.avc-sidebar-active {
+    background: rgba(8, 7, 10, 0.82);
+    backdrop-filter: blur(20px) saturate(1.12);
+    -webkit-backdrop-filter: blur(20px) saturate(1.12);
+    border-left-color: rgba(255, 255, 255, 0.1);
+    box-shadow: -16px 0 48px rgba(0, 0, 0, 0.18);
+    color: rgba(236, 234, 228, 0.78);
+  }
+  .avc-agent-sidebar.avc-focus-sidebar:not(:hover):not(:focus-within):not(.avc-sidebar-active) {
+    background: rgba(8, 7, 10, 0.07);
+  }
+  .avc-agent-sidebar.avc-focus-sidebar:hover,
+  .avc-agent-sidebar.avc-focus-sidebar:focus-within,
+  .avc-agent-sidebar.avc-focus-sidebar.avc-sidebar-active {
+    background: rgba(8, 7, 10, 0.86);
+    border-left-color: rgba(227, 186, 99, 0.14);
   }
   .avc-agent-resize {
     position: absolute; left: 0; top: 0; bottom: 0;
@@ -899,8 +946,15 @@
   }
   .avc-agent-composer {
     flex-shrink: 0; padding: 10px 14px 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(0, 0, 0, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    background: transparent;
+    transition: background 320ms ease, border-color 320ms ease;
+  }
+  .avc-agent-sidebar:hover .avc-agent-composer,
+  .avc-agent-sidebar:focus-within .avc-agent-composer,
+  .avc-agent-sidebar.avc-sidebar-active .avc-agent-composer {
+    border-top-color: rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.12);
   }
   .avc-agent-chat-row { display: flex; gap: 6px; align-items: flex-end; }
   .avc-agent-chat-input {
@@ -998,6 +1052,7 @@
     const clamped = clampPanelWidth(w);
     sidebar.style.setProperty("--avc-panel-w", `${clamped}px`);
     sidebar.style.width = `${clamped}px`;
+    sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
   }
   function attachResizeHandle(sidebar, grip) {
     let dragging = false;
@@ -1006,12 +1061,14 @@
     const onMove = (e) => {
       if (!dragging) return;
       e.preventDefault();
+      sidebar.classList.add("avc-sidebar-active");
       setPanelWidth(sidebar, startW + (startX - e.clientX));
     };
     const onUp = () => {
       if (!dragging) return;
       dragging = false;
       grip.classList.remove("avc-dragging");
+      sidebar.classList.remove("avc-sidebar-active");
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       document.removeEventListener("mousemove", onMove);
@@ -1026,6 +1083,7 @@
       startX = e.clientX;
       startW = sidebar.offsetWidth;
       grip.classList.add("avc-dragging");
+      sidebar.classList.add("avc-sidebar-active");
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -1379,13 +1437,14 @@
     const wordEl = document.createElement("div");
     wordEl.className = "avc-agent-word";
     wordEl.textContent = displays.big;
+    const speakText = entry.reading || token.reading || token.surface;
     const speakBtn = document.createElement("button");
     speakBtn.className = "avc-agent-speak";
     speakBtn.type = "button";
     speakBtn.textContent = "Hear word";
     speakBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      speak(token.surface);
+      speak(speakText);
     });
     wordRow.appendChild(wordEl);
     wordRow.appendChild(speakBtn);
@@ -1427,7 +1486,7 @@
     shell.wordActive.appendChild(buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript));
     renderJudgmentButtons(ctx);
     if (opts.autoSpeak && opts.interaction === "focus") {
-      setTimeout(() => speak(token.surface), 250);
+      setTimeout(() => speak(entry.reading || token.reading || token.surface), 250);
     }
     bumpAutoTimer(opts);
   }
