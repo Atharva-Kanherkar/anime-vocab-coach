@@ -787,7 +787,7 @@
   function renderAi(out, mode, resp) {
     out.textContent = "";
     if (!resp || !resp.ok) {
-      out.textContent = resp?.error === "not_linked" ? "Sign in at animevocab.com to use the AI coach." : resp?.error === "quota_exceeded" || resp?.error === "ai_quota_exhausted" ? "You've used this month's AI coach calls." : resp?.error === "ai_not_configured" ? "AI coach isn't set up on the server yet." : "AI coach unavailable. Try again.";
+      out.textContent = resp?.error === "not_linked" || resp?.error === "unauthorized" ? "Sign in at animevocab.com to use the AI coach." : resp?.error === "quota_exceeded" || resp?.error === "ai_quota_exhausted" ? "You've used this month's AI coach calls." : resp?.error === "ai_not_configured" ? "AI coach isn't set up on the server yet." : "AI coach unavailable. Try again.";
       return;
     }
     const r = resp.result || {};
@@ -829,6 +829,10 @@
     ai.appendChild(btns);
     ai.appendChild(out);
     const ask = async (mode) => {
+      if (autoTimer) {
+        clearTimeout(autoTimer);
+        autoTimer = null;
+      }
       explainBtn.disabled = true;
       hookBtn.disabled = true;
       out.style.display = "";

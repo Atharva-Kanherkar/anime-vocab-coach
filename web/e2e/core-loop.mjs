@@ -100,9 +100,11 @@ try {
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + t.token },
           body: JSON.stringify({ mode: "explain", word: "見る", reading: "みる", gloss: "to see", line: "星を見る。", level: 5, title: "Your Name" }),
         });
-        return { status: res.status, hasMeaning: !!(await res.json())?.result?.meaning };
+        return { tokenOk: typeof t.token === "string" && t.token.startsWith("avc_st_"), status: res.status, hasMeaning: !!(await res.json())?.result?.meaning };
       });
-      check("coach accepts extension sync-token bearer", bearer.status === 200 && bearer.hasMeaning, `status ${bearer.status}`);
+      // tokenOk guards against a false pass where a missing token → "Bearer undefined"
+      // falls through to cookie/dev auth instead of exercising the bearer path.
+      check("coach accepts extension sync-token bearer", bearer.tokenOk && bearer.status === 200 && bearer.hasMeaning, `token ${bearer.tokenOk} status ${bearer.status}`);
     }
   }
 
