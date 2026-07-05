@@ -1,5 +1,6 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
+import { getDueWords } from "../lib/review";
 import type { DailyStats, Stats, VocabMap } from "../types";
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -259,7 +260,7 @@ function renderSRS(vocab: VocabMap): void {
   const note = document.createElement("p");
   note.className = "cap-note";
   note.style.textAlign = "center";
-  note.textContent = dueTotal ? `${dueTotal} word${dueTotal > 1 ? "s" : ""} due for review — they'll pop up as you watch.` : "Nothing due right now.";
+  note.textContent = dueTotal ? `${dueTotal} word${dueTotal > 1 ? "s" : ""} due for review — use Review above, or they'll also surface as you watch.` : "Nothing due right now.";
   host.appendChild(note);
 }
 
@@ -352,6 +353,91 @@ function renderList(): void {
   }).join("");
 }
 
+// ---------- review session ----------
+// A standalone review: surfaces due words directly instead of waiting for one to
+// reappear on screen. Reveal the answer, then grade Got it / Missed it.
+
+// Escape page-sourced text (subtitle lines, video titles) before it's injected
+// into this privileged extension page. A caption like `<img src=evil>` must not
+// render here.
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+function renderReview(vocab: VocabMap): void {
+  const host = document.getElementById("review") as HTMLElement;
+  const due = getDueWords(vocab);
+  if (!due.length) { host.hidden = true; return; }
+  host.hidden = false;
+  // Deep-linked from the popup's "Review N due" button — start immediately.
+  if (location.hash === "#review") { runReviewSession(host, due); return; }
+  host.innerHTML =
+    `<div class="review-intro"><h2>Review</h2>` +
+    `<p>${due.length} word${due.length > 1 ? "s" : ""} due now.</p>` +
+    `<button class="review-btn review-start" id="review-start" type="button">Start review</button></div>`;
+
+  document.getElementById("review-start")!.addEventListener("click", () => runReviewSession(host, due));
+}
+
+function runReviewSession(host: HTMLElement, due: ReturnType<typeof getDueWords>): void {
+  let i = 0;
+  let reviewed = 0;
+
+  const showCard = (): void => {
+    if (i >= due.length) {
+      host.innerHTML = `<div class="review-intro"><h2>Review complete</h2><p>${reviewed} reviewed. Nice work.</p></div>`;
+      // SRS/tiles are now stale — reload to reflect the new schedule.
+      setTimeout(() => location.reload(), 900);
+      return;
+    }
+    const { base, record } = due[i];
+    const romaji = record.reading ? toRomaji(record.reading) : "";
+    host.innerHTML =
+      `<div class="review-session">` +
+      `<p class="review-progress">${i + 1} / ${due.length}</p>` +
+      `<div class="review-word">${esc(base)}</div>` +
+      `<div class="review-answer" id="review-answer" hidden>` +
+        `<div class="review-reading">${esc(record.reading || "")}${romaji ? ` · ${esc(romaji)}` : ""}</div>` +
+        `<div class="review-gloss">${esc(record.gloss || "")}</div>` +
+        (record.source?.line ? `<div class="review-source">${esc(record.source.line)}${record.source.title ? ` — ${esc(record.source.title)}` : ""}</div>` : "") +
+      `</div>` +
+      `<div class="review-controls">` +
+        `<button class="review-btn" id="review-show" type="button">Show answer</button>` +
+        `<span id="review-grade" hidden>` +
+          `<button class="review-btn review-fail" id="review-miss" type="button">Missed it</button>` +
+          `<button class="review-btn review-pass" id="review-got" type="button">Got it</button>` +
+        `</span>` +
+      `</div></div>`;
+
+    document.getElementById("review-show")!.addEventListener("click", () => {
+      document.getElementById("review-answer")!.hidden = false;
+      document.getElementById("review-show")!.setAttribute("hidden", "");
+      document.getElementById("review-grade")!.hidden = false;
+    });
+
+    let graded = false;
+    const grade = async (judgment: "review-pass" | "review-fail"): Promise<void> => {
+      if (graded) return; // guard against double-click / key-repeat double-grading
+      graded = true;
+      (document.getElementById("review-got") as HTMLButtonElement | null)?.setAttribute("disabled", "");
+      (document.getElementById("review-miss") as HTMLButtonElement | null)?.setAttribute("disabled", "");
+      await storage.judgeWord(base, judgment, {
+        reading: record.reading,
+        gloss: record.gloss,
+        level: record.level,
+        freqRank: record.freqRank
+      });
+      reviewed++;
+      i++;
+      showCard();
+    };
+    document.getElementById("review-got")!.addEventListener("click", () => void grade("review-pass"));
+    document.getElementById("review-miss")!.addEventListener("click", () => void grade("review-fail"));
+  };
+
+  showCard();
+}
+
 // ---------- boot ----------
 async function boot(): Promise<void> {
   const vocab = await storage.getVocab();
@@ -360,6 +446,7 @@ async function boot(): Promise<void> {
   if (!Object.keys(vocab).length) {
     document.getElementById("empty")!.hidden = false;
   }
+  renderReview(vocab);
   renderTiles(vocab, stats);
   renderTime(stats);
   renderDonut(vocab);

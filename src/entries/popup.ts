@@ -1,6 +1,7 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
 import { promoBannerText, promoState } from "../lib/promo";
+import { dueCount } from "../lib/review";
 import type { DailyStats, PauseMode, VocabMap, WordState } from "../types";
 
 function todayKey(): string {
@@ -69,6 +70,16 @@ async function render(): Promise<void> {
 
   const streak = computeStreak(stats.daily);
   byId("streak").innerHTML = streak > 0 ? `<b>${streak}-day</b> streak` : "No streak yet";
+
+  // Surface due reviews with a one-click path into the review session.
+  const due = dueCount(vocab);
+  const reviewBtn = byId<HTMLButtonElement>("review-due");
+  if (due > 0) {
+    reviewBtn.hidden = false;
+    reviewBtn.textContent = `Review ${due} due word${due > 1 ? "s" : ""}`;
+  } else {
+    reviewBtn.hidden = true;
+  }
 
   const recent = Object.entries(vocab)
     .sort((a, b) => (b[1].lastSeenAt || 0) - (a[1].lastSeenAt || 0))
@@ -162,6 +173,12 @@ document.addEventListener("DOMContentLoaded", () => {
   byId("dashboard-link").addEventListener("click", (e) => {
     e.preventDefault();
     chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
+  });
+
+  byId("review-due").addEventListener("click", () => {
+    // The review session lives on the dashboard; the #review hash makes
+    // renderReview start the session immediately on load.
+    chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
   });
 
   byId("settings-link").addEventListener("click", (e) => {
