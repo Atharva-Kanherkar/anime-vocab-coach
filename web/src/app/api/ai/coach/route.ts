@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveProfile, resolvePlan } from "@/lib/auth";
+import { isOwnerEmail, OWNER_AI_LIMIT } from "@/lib/entitlements";
 import {
   aiLimitForPlan,
   coachCacheKey,
@@ -25,7 +26,8 @@ export async function POST(req: Request) {
   // token (Authorization: Bearer) — so the overlay card can call the coach.
   const profile = await resolveProfile(req);
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const user = { id: profile.id, plan: await resolvePlan(req) };
+  const owner = isOwnerEmail(profile.email);
+  const user = { id: profile.id, plan: resolvePlan() };
 
   let body: unknown;
   try {
@@ -51,7 +53,11 @@ export async function POST(req: Request) {
   // back to per-plan limits.
   const isLaunch = launchActive(launchUntil);
   const tier: Tier = isLaunch ? "launch" : user.plan;
-  const limit = isLaunch ? launchLimit : aiLimitForPlan(user.plan, freeLimit, proLimit);
+  const limit = owner
+    ? OWNER_AI_LIMIT
+    : isLaunch
+      ? launchLimit
+      : aiLimitForPlan(user.plan, freeLimit, proLimit);
   const month = currentMonth();
 
   // Cache hit: free to serve, does not consume quota.

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { AiCoach } from "@/components/ai-coach";
 import { useCloudSnapshot } from "@/components/cloud-sync-panel";
-import { GITHUB_URL, getPromoState } from "@/lib/site";
+import { GITHUB_URL } from "@/lib/site";
 import { pickDueReviews, pickRecentWords, summarizeSyncSnapshot } from "@/lib/sync";
 
 export function AppDashboard() {
@@ -89,27 +89,19 @@ export function AppDashboard() {
 }
 
 function PlanStatusBar() {
-  const promo = getPromoState();
-
   return (
     <section className="plan-bar" aria-label="Plan status">
       <div>
         <p className="eyebrow">Current plan</p>
-        <h2>Free · extension-first</h2>
+        <h2>Pro · open to everyone</h2>
         <p className="plan-copy">
-          Cloud sync and AI coach features will map to Pro later. Your local extension data stays yours until you import or sync.
+          Pro features — the AI coach, cloud sync, notebooks, and leaderboard — are free for everyone right now, no checkout needed. Your local extension data stays yours until you import or sync.
         </p>
       </div>
       <div className="plan-actions">
-        {promo.checkoutConfigured ? (
-          <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
-            Upgrade to Pro
-          </a>
-        ) : (
-          <span className="status-pill status-disconnected" title="Pro checkout opens soon">
-            Pro coming soon
-          </span>
-        )}
+        <span className="status-pill status-connected" title="Pro is free for everyone right now">
+          Pro active · free
+        </span>
         <Link className="btn btn-line" href="/#pricing">
           Compare plans
         </Link>
