@@ -39,18 +39,21 @@ export default function WithoutExtensionPage() {
 
           <h2>What works right now, no install</h2>
           <ul>
-            <li><strong>Bring your words in.</strong> Export your progress from the extension (Settings → export) and import the JSON in the Cloud app — or start fresh in the cloud.</li>
-            <li><strong>Review &amp; track.</strong> Your dashboard shows words learned, reviews due, and minutes studied.</li>
-            <li><strong>Notebooks.</strong> Save words, lines, and scenes into notebooks, organize them, and export them any time.</li>
+            <li><strong>Bring your words in.</strong> Export your progress from the extension (Settings → export), import the JSON in the Cloud app, and click <em>Sync to cloud</em>. Your dashboard and stats read from your synced data.</li>
+            <li><strong>Track your progress.</strong> Your dashboard shows words learned, reviews due, and minutes studied from your synced history.</li>
+            <li><strong>Notebooks.</strong> Save words, lines, and scenes into notebooks, organize them, and export them any time — this works from scratch, no import needed.</li>
             <li><strong>AI review summaries.</strong> Turn a notebook into weak-spots and review prompts.</li>
-            <li><strong>Streaks, challenges &amp; the weekly leaderboard.</strong> Keep momentum from the practice you log.</li>
+            <li><strong>See your streak, challenges &amp; the weekly leaderboard.</strong> View where you stand from your synced history.</li>
           </ul>
 
           <h2>What needs the extension</h2>
           <p>
-            Live, in-video learning — pausing on words worth learning as you watch, and Listening
-            Mode transcribing spoken Japanese on YouTube, Netflix, and Crunchyroll. Those capture
-            what&apos;s on screen and in the audio, so they run in your browser via the extension.
+            The extension is what <em>logs practice</em> — running your daily reviews and tracking
+            minutes watched — so your streak, challenge progress, and leaderboard standing only move
+            when you learn through it. It&apos;s also the only way to do live, in-video learning:
+            pausing on words worth learning as you watch, and Listening Mode transcribing spoken
+            Japanese on YouTube, Netflix, and Crunchyroll. Those capture what&apos;s on screen and in
+            the audio, so they run in your browser via the extension.
           </p>
 
           <p style={{ marginTop: 32 }}>

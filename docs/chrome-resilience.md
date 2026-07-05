@@ -29,14 +29,14 @@ Manifest: `permissions: [storage, tabCapture, offscreen, scripting, alarms]`, `h
 ## Reduced-permission variant (if full review blocks)
 
 If `tabCapture` review stalls, ship a **"Reader" build** that drops Listening Mode entirely:
-- Remove `tabCapture`, `offscreen`, and the OpenAI host permission.
-- Keep the subtitle-track pipeline (tokenize + cards from on-screen/again-track subtitles), local progress, SRS, and cloud sync.
+- Remove `tabCapture`, `offscreen`, the OpenAI host permission, **and `scripting`** — `scripting` is used only for Listening Mode's on-demand injection (`ensureContentScript` in `src/entries/background.ts`); the regular subtitle pipeline auto-injects via the manifest `content_scripts`, so a Reader build must not ship an unused `scripting` permission.
+- Keep the subtitle-track pipeline (tokenize + cards from the subtitle tracks), local progress, SRS, and cloud sync.
 - This is the majority of the value and clears review with a far smaller surface.
 - Gate Listening Mode behind a build flag so one codebase produces both the full and Reader packages.
 
 ## Hosted fallback (keeps the business alive without the extension)
 
-Shipped in this change: **`/without-extension`** — a page that explains what works today with no extension installed (import your JSON export, browse/search your synced words, notebooks, streaks, challenges, leaderboard, AI coach on saved lines) and carries **status copy for users waiting on Chrome approval**.
+Shipped in this change: **`/without-extension`** — a page that explains what works today with no extension installed (import your JSON export and sync, track progress on the dashboard, notebooks with AI review summaries, and viewing your streak/challenges/leaderboard) and carries **status copy for users waiting on Chrome approval**. It's explicit that *logging* practice — which moves streaks and the leaderboard — needs the extension.
 
 Further fallback surfaces (roadmap, not yet built):
 - Manual transcript/subtitle upload for episode study on the web.

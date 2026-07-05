@@ -15,12 +15,12 @@
 | Card UI label | `src/lib/overlay.ts:310` | Hardcoded `"English subtitle"` |
 | AI coach prompts | `web/src/lib/ai-coach.ts` (buildPrompt) | Explanations return "beginner **English**"; anime-tutor system prompt is EN-output |
 | Notebook AI summary | `web/src/lib/notebook-ai.ts` | Prompt/output English |
-| Dictionary glosses | `data/dictionary.json` (built by `scripts/build-dictionary.mjs`) | Glosses are English strings |
+| Dictionary glosses | `extension/data/dictionary.json` (built by `scripts/build-dictionary.mjs`) | Glosses are English strings |
 | "English context" cue capture | `src/lib/adapters/youtube.ts`, `generic.ts` | Treats the non-JP track as English for context |
 | Document language | `web/src/app/layout.tsx:132` | `<html lang="en">` |
 | All marketing copy | see below | English UI + "watch with English, learn Japanese" framing |
 
-**What is NOT English-specific (reusable):** the tokenizer (kuromoji, Japanese-only by nature), SRS scheduling, scoring/eligibility, sync + notebooks + leaderboard infrastructure, and the Japanese-audio detection. The learner's *source language* is only assumed in three places that matter: the gloss language, the AI prompt output language, and UI copy.
+**What is NOT English-specific (reusable):** the tokenizer (kuromoji, Japanese-only by nature), SRS scheduling, scoring/eligibility, sync + notebooks + leaderboard infrastructure, and the Japanese-text detection (`hasJapanese`) + `language: "ja"` transcription param. The learner's *source language* is only assumed in three places that matter: the gloss language, the AI prompt output language, and UI copy.
 
 ## Marketing pages that would need localization
 
