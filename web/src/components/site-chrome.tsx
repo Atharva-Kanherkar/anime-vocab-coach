@@ -106,6 +106,7 @@ export function SiteFooter({ links }: { links?: { href: string; label: string }[
   const defaultLinks = [
     { href: GITHUB_URL, label: "GitHub" },
     { href: "/privacy", label: "Privacy" },
+    { href: "/without-extension", label: "No extension?" },
     { href: "https://github.com/sponsors/Atharva-Kanherkar", label: "Sponsor" },
   ];
 
