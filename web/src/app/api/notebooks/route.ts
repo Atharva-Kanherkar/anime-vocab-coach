@@ -50,6 +50,8 @@ export async function POST(req: Request) {
   }
 }
 
+// Never leak raw internal error text (e.g. KV binding messages) to clients.
 function msg(err: unknown): string {
-  return err instanceof Error ? err.message : "notebook_store_unavailable";
+  console.error("[notebooks]", err);
+  return "notebook_store_unavailable";
 }

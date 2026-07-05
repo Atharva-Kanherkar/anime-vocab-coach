@@ -78,7 +78,8 @@ function normTags(value: unknown): string[] {
 
 function asNumberOrNull(value: unknown): number | null {
   const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  if (!Number.isFinite(n) || n < 1) return null;
+  return Math.min(5, Math.round(n)); // JLPT-ish levels are N1–N5
 }
 
 /** Build a validated entry from untrusted input. `id`/`createdAt` are injected. */

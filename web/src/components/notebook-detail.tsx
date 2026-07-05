@@ -27,18 +27,23 @@ interface SummaryResult {
 
 export function NotebookDetail({ id }: { id: string }) {
   const [nb, setNb] = useState<Notebook | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // fatal load error only
+  const [actionError, setActionError] = useState<string | null>(null); // add/remove/summary
   const [draft, setDraft] = useState({ word: "", line: "", note: "", title: "" });
   const [summary, setSummary] = useState<SummaryResult | null>(null);
   const [summarizing, setSummarizing] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/notebooks/${id}`);
-    if (res.status === 404) return setError("Notebook not found.");
-    if (!res.ok) return setError(`Couldn't load notebook (HTTP ${res.status}).`);
-    const data = (await res.json()) as { notebook: Notebook };
-    setNb(data.notebook);
-    setError(null);
+    try {
+      const res = await fetch(`/api/notebooks/${id}`);
+      if (res.status === 404) return setError("Notebook not found.");
+      if (!res.ok) return setError(`Couldn't load notebook (HTTP ${res.status}).`);
+      const data = (await res.json()) as { notebook: Notebook };
+      setNb(data.notebook);
+      setError(null);
+    } catch {
+      setError("Couldn't reach the server. Reload to retry.");
+    }
   }, [id]);
 
   useEffect(() => {
@@ -48,14 +53,24 @@ export function NotebookDetail({ id }: { id: string }) {
 
   const patch = useCallback(
     async (body: Record<string, unknown>) => {
-      const res = await fetch(`/api/notebooks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { notebook: Notebook };
-        setNb(data.notebook);
+      setActionError(null);
+      try {
+        const res = await fetch(`/api/notebooks/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { notebook: Notebook };
+          setNb(data.notebook);
+        } else {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          setActionError(
+            data.error === "notebook_full" ? "This notebook is full." : "That change didn't save. Try again."
+          );
+        }
+      } catch {
+        setActionError("Couldn't reach the server. Try again.");
       }
     },
     [id]
@@ -77,11 +92,16 @@ export function NotebookDetail({ id }: { id: string }) {
   const summarize = useCallback(async () => {
     setSummarizing(true);
     setSummary(null);
+    setActionError(null);
     try {
       const res = await fetch(`/api/notebooks/${id}/summary`, { method: "POST" });
-      const data = (await res.json()) as { summary?: SummaryResult; error?: string };
+      const data = (await res.json().catch(() => ({}))) as { summary?: SummaryResult; error?: string };
       if (res.ok && data.summary) setSummary(data.summary);
-      else setError(data.error === "ai_not_configured" ? "AI summary isn't configured on this server." : `Summary failed: ${data.error}`);
+      else if (data.error === "ai_not_configured") setActionError("AI summary isn't configured on this server.");
+      else if (data.error === "quota_exceeded") setActionError("You've used up this month's AI summaries.");
+      else setActionError("Couldn't generate a summary. Try again.");
+    } catch {
+      setActionError("Couldn't reach the server. Try again.");
     } finally {
       setSummarizing(false);
     }
@@ -121,6 +141,8 @@ export function NotebookDetail({ id }: { id: string }) {
           </button>
         </div>
       </div>
+
+      {actionError && <p className="sync-message" role="alert">{actionError}</p>}
 
       {summary && (
         <div style={{ margin: "12px 0", padding: "12px", border: "1px solid var(--line)", borderRadius: 8 }}>

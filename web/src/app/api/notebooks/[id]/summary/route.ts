@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveProfile } from "@/lib/auth";
+import { resolveProfile, resolvePlan } from "@/lib/auth";
 import { getNotebookStore } from "@/lib/notebook-store";
 import { runNotebookSummary } from "@/lib/notebook-ai";
 import { currentMonth, getCoachConfig, getOpenAiKey, getUsage, incrementUsage } from "@/lib/ai-store";
@@ -27,7 +27,8 @@ export async function POST(req: Request, { params }: Params) {
 
   const { model, freeLimit, proLimit, launchLimit, launchUntil } = await getCoachConfig();
   const isLaunch = launchActive(launchUntil);
-  const limit = isLaunch ? launchLimit : aiLimitForPlan("free", freeLimit, proLimit);
+  const plan = await resolvePlan(req);
+  const limit = isLaunch ? launchLimit : aiLimitForPlan(plan, freeLimit, proLimit);
   const month = currentMonth();
   const used = await getUsage(profile.id, month);
   if (used >= limit) {
