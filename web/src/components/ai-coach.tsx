@@ -129,7 +129,7 @@ export function AiCoach() {
       {error && (
         <p className="ai-error">
           {error}{" "}
-          {usage && quotaLeft === 0 && usage.plan !== "launch" && (
+          {usage && quotaLeft === 0 && usage.plan !== "launch" && promo.checkoutConfigured && (
             <a href={promo.checkoutUrl} rel="noopener noreferrer">
               Upgrade to Pro
             </a>

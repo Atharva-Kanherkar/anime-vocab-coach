@@ -110,7 +110,16 @@ function initProSection(settings: Settings): void {
     priceEl.textContent = `(${promo.priceLabel})`;
   }
 
-  byId<HTMLAnchorElement>("pro-buy").href = promo.checkoutUrl;
+  const proBuy = byId<HTMLAnchorElement>("pro-buy");
+  if (promo.checkoutConfigured) {
+    proBuy.href = promo.checkoutUrl;
+  } else {
+    // Don't show a checkout link that dead-ends on a REPLACE_ placeholder.
+    proBuy.removeAttribute("href");
+    proBuy.textContent = "Pro — coming soon";
+    proBuy.style.opacity = "0.6";
+    proBuy.style.pointerEvents = "none";
+  }
   byId<HTMLInputElement>("licenseKey").value = settings.licenseKey || "";
   if (settings.licenseKey) refreshLicenseStatus(settings.licenseKey);
 

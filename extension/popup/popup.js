@@ -310,7 +310,8 @@
       daysLeft,
       checkoutUrl: active ? PROMO_CHECKOUT_URL : CHECKOUT_URL,
       priceLabel: active ? PRO_PROMO.label : PRO_REGULAR.label,
-      regularLabel: PRO_REGULAR.label
+      regularLabel: PRO_REGULAR.label,
+      checkoutConfigured: !(active ? PROMO_CHECKOUT_URL : CHECKOUT_URL).includes("REPLACE_")
     };
   }
   function promoBannerText(state) {

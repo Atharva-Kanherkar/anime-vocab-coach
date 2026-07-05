@@ -312,7 +312,8 @@
       daysLeft,
       checkoutUrl: active ? PROMO_CHECKOUT_URL : CHECKOUT_URL,
       priceLabel: active ? PRO_PROMO.label : PRO_REGULAR.label,
-      regularLabel: PRO_REGULAR.label
+      regularLabel: PRO_REGULAR.label,
+      checkoutConfigured: !(active ? PROMO_CHECKOUT_URL : CHECKOUT_URL).includes("REPLACE_")
     };
   }
   function promoBannerText(state) {
@@ -414,7 +415,15 @@
     } else {
       priceEl.textContent = `(${promo.priceLabel})`;
     }
-    byId("pro-buy").href = promo.checkoutUrl;
+    const proBuy = byId("pro-buy");
+    if (promo.checkoutConfigured) {
+      proBuy.href = promo.checkoutUrl;
+    } else {
+      proBuy.removeAttribute("href");
+      proBuy.textContent = "Pro \u2014 coming soon";
+      proBuy.style.opacity = "0.6";
+      proBuy.style.pointerEvents = "none";
+    }
     byId("licenseKey").value = settings.licenseKey || "";
     if (settings.licenseKey) refreshLicenseStatus(settings.licenseKey);
     byId("license-activate").addEventListener("click", async () => {

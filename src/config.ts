@@ -31,6 +31,8 @@ export interface PromoState {
   checkoutUrl: string;
   priceLabel: string;
   regularLabel: string;
+  /** False while the Dodo product ids are still REPLACE_ placeholders. */
+  checkoutConfigured: boolean;
 }
 
 export function promoState(now = Date.now()): PromoState {
@@ -43,7 +45,8 @@ export function promoState(now = Date.now()): PromoState {
     daysLeft,
     checkoutUrl: active ? PROMO_CHECKOUT_URL : CHECKOUT_URL,
     priceLabel: active ? PRO_PROMO.label : PRO_REGULAR.label,
-    regularLabel: PRO_REGULAR.label
+    regularLabel: PRO_REGULAR.label,
+    checkoutConfigured: !(active ? PROMO_CHECKOUT_URL : CHECKOUT_URL).includes("REPLACE_")
   };
 }
 

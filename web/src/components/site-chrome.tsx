@@ -254,13 +254,19 @@ export function PricingSection({ initialPromo }: { initialPromo: PromoState }) {
               <li>45 hours of listening / month</li>
               <li>Cancel anytime</li>
             </ul>
-            <a
-              className="btn btn-accent"
-              href={promo.checkoutUrl}
-              rel="noopener noreferrer"
-            >
-              {promo.active ? "Get Pro at launch price" : "Get Pro"}
-            </a>
+            {promo.checkoutConfigured ? (
+              <a
+                className="btn btn-accent"
+                href={promo.checkoutUrl}
+                rel="noopener noreferrer"
+              >
+                {promo.active ? "Get Pro at launch price" : "Get Pro"}
+              </a>
+            ) : (
+              <span className="btn btn-accent" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
+                Pro coming soon
+              </span>
+            )}
             <p className="price-ownership-note">
               Your data stays local and exportable. Pro is optional hosted convenience.
             </p>
