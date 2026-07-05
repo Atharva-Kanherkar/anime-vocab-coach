@@ -2,7 +2,7 @@ import { warn } from "./log";
 import { checkEligibility } from "./scoring";
 import { lookup } from "./dictionary";
 import { DEFAULTS, SRS_INTERVALS } from "../types";
-import type { Judgment, JudgmentMeta, Settings, Stats, Token, VocabMap, VocabRecord, WordState } from "../types";
+import type { Judgment, JudgmentMeta, Settings, Stats, Token, VocabMap, VocabRecord, WordSource, WordState } from "../types";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -135,7 +135,7 @@ export function recordSeen(tokens: Token[], wordStates: VocabMap, targetedSet: S
   });
 }
 
-export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta): Promise<VocabRecord> {
+export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
@@ -165,6 +165,11 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta):
       rec.gloss = meta.gloss;
       rec.level = meta.level;
       rec.freqRank = meta.freqRank;
+    }
+    // Capture where the word was first learned, once. Only fill if we have real
+    // content and the record doesn't already carry a source.
+    if (source && !rec.source && (source.title || source.line)) {
+      rec.source = source;
     }
 
     if (judgment === "know") {

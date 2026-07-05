@@ -55,7 +55,7 @@ try {
         export: {
           exportedAt: "2026-07-05T00:00:00.000Z",
           settings: { targetLevel: 3 },
-          vocab: { "猫": { state: "learning", reading: "ねこ", gloss: "cat", level: 5, freqRank: 900, seenCount: 3, shownCount: 1, firstSeenAt: 1704067200000, lastSeenAt: 1704067200000, srs: { stage: 2, dueAt: 1704153600000, lapses: 0 } } },
+          vocab: { "猫": { state: "learning", reading: "ねこ", gloss: "cat", level: 5, freqRank: 900, seenCount: 3, shownCount: 1, firstSeenAt: 1704067200000, lastSeenAt: 1704067200000, srs: { stage: 2, dueAt: 1704153600000, lapses: 0 }, source: { title: "Spirited Away", line: "猫が好き", en: "I like cats" } } },
           stats: { daily: { "2026-07-05": { met: 1, judged: 1, reviews: 0, watchMin: 12 } }, cardTimestamps: [1704067200000] },
         },
         expectedRevision,
@@ -63,11 +63,14 @@ try {
     });
     const get = await fetch("/api/sync/snapshot", { headers: { Authorization: "Bearer " + token } });
     const getBody = await get.json();
-    return { hasToken: !!token, putStatus: put.status, getWords: (getBody.envelope?.snapshot?.words || []).map((w) => w.base) };
+    const words = getBody.envelope?.snapshot?.words || [];
+    const cat = words.find((w) => w.base === "猫");
+    return { hasToken: !!token, putStatus: put.status, getWords: words.map((w) => w.base), catSourceTitle: cat?.source?.title ?? null };
   });
   check("token minted", loop.hasToken);
   check("snapshot PUT ok", loop.putStatus === 200, `status ${loop.putStatus}`);
   check("snapshot round-trips the word", loop.getWords.includes("猫"), JSON.stringify(loop.getWords));
+  check("word capture context (source) survives sync", loop.catSourceTitle === "Spirited Away", `title ${loop.catSourceTitle}`);
 
   // 4. AI coach (explain) returns structured output. Skippable + self-skips when
   // no OpenAI key is configured, so the harness stays hermetic and free to run.

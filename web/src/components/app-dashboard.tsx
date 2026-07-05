@@ -37,6 +37,7 @@ export function AppDashboard() {
                   <span className="word-base">{word.base}</span>
                   <span className="word-meta">
                     {word.reading || word.gloss ? `${word.reading}${word.gloss ? ` · ${word.gloss}` : ""}` : word.state}
+                    {word.source?.title ? ` · from ${word.source.title}` : ""}
                   </span>
                 </li>
               ))}

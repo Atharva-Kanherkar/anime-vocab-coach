@@ -23,6 +23,15 @@ export interface Srs {
   lapses: number;
 }
 
+/** Where a word was first learned — the anime title and the line it appeared in.
+ * Captured once (at first judgment) so reviews, notebooks, and per-show stats
+ * keep the scene context instead of showing a bare word. */
+export interface WordSource {
+  title: string | null; // anime / video title
+  line: string | null; // the Japanese line the word appeared in
+  en: string | null; // the on-screen English (or other) context line
+}
+
 export interface VocabRecord {
   state: WordState;
   reading: string;
@@ -34,6 +43,7 @@ export interface VocabRecord {
   firstSeenAt: number;
   lastSeenAt: number;
   srs: Srs | null;
+  source?: WordSource | null;
 }
 
 export type VocabMap = Record<string, VocabRecord>;

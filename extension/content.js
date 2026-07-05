@@ -211,7 +211,7 @@
       }
     });
   }
-  function judgeWord(base, judgment, meta) {
+  function judgeWord(base, judgment, meta, source) {
     return enqueue(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = r.vocab || {};
@@ -239,6 +239,9 @@
         rec.gloss = meta.gloss;
         rec.level = meta.level;
         rec.freqRank = meta.freqRank;
+      }
+      if (source && !rec.source && (source.title || source.line)) {
+        rec.source = source;
       }
       if (judgment === "know") {
         rec.state = "known";
@@ -1432,9 +1435,22 @@
         judgment = await showCard(target, sentence, video, cardOptions);
       }
       if (judgment && judgment !== "dismiss") {
-        await judgeWord(target.token.base, judgment, meta);
+        const source = {
+          title: currentTitle(),
+          line: sentence,
+          en: context?.en || null
+        };
+        await judgeWord(target.token.base, judgment, meta, source);
         await refreshState();
       }
+    }
+    function currentTitle() {
+      const raw = (document.title || "").trim();
+      if (!raw) return null;
+      const cleaned = raw.replace(/\s*[-|·—]\s*(YouTube|Netflix|Crunchyroll).*$/i, "").replace(/^\(\d+\)\s*/, "").replace(/^Watch\s+/i, "").trim();
+      const candidate = cleaned || raw;
+      if (/^(youtube|netflix|crunchyroll)$/i.test(candidate)) return null;
+      return candidate;
     }
     async function onLine(text, context) {
       if (pipelineDisabled) return;
