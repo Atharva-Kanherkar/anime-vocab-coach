@@ -4,7 +4,7 @@
 // server revision and re-push once. (v1 has no field-level merge; the extension
 // is treated as the source of truth for a signed-in user's own data.)
 import { WEB_URL } from "../config";
-import { exportAll, getSyncToken } from "./storage";
+import { exportAll, getSyncToken, setSyncToken } from "./storage";
 import { log, warn } from "./log";
 
 const SNAPSHOT_URL = WEB_URL + "/api/sync/snapshot";
@@ -53,7 +53,10 @@ export async function pushSnapshot(): Promise<void> {
         continue; // retry once with the server's revision
       }
       if (res.status === 401) {
+        // Token is invalid/expired — actually clear it so we stop retrying a
+        // dead credential every change/alarm until the web app hands a new one.
         warn("cloud sync: token rejected (signed out or expired) — clearing");
+        await setSyncToken("");
         return;
       }
       if (!res.ok) {

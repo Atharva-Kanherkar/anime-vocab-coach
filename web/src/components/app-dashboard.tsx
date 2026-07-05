@@ -44,7 +44,7 @@ export function AppDashboard() {
           ) : (
             <EmptyState
               title="No words in Cloud yet"
-              body="Install the extension, save words while you watch, then import your JSON export here to see recent picks."
+              body="Install the extension and sign in — your words sync here automatically as you learn. (You can also import a JSON export manually below.)"
               primary={{ href: GITHUB_URL, label: "Install free extension", external: true }}
               secondary={{ href: "#sync", label: "Jump to sync" }}
             />
@@ -100,10 +100,15 @@ function PlanStatusBar() {
         </p>
       </div>
       <div className="plan-actions">
-        <span className="status-pill status-disconnected">billing placeholder</span>
-        <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
-          Upgrade to Pro
-        </a>
+        {promo.checkoutConfigured ? (
+          <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
+            Upgrade to Pro
+          </a>
+        ) : (
+          <span className="status-pill status-disconnected" title="Pro checkout opens soon">
+            Pro coming soon
+          </span>
+        )}
         <Link className="btn btn-line" href="/#pricing">
           Compare plans
         </Link>

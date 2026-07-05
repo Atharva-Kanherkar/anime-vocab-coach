@@ -17,17 +17,22 @@ export type PromoState = {
   checkoutUrl: string;
   regularLabel: string;
   promoLabel: string;
+  /** False while the Dodo product ids are still placeholders — don't show a
+   * checkout link that dead-ends on REPLACE_PRODUCT_ID. */
+  checkoutConfigured: boolean;
 };
 
 export function getPromoState(now = Date.now()): PromoState {
   const ends = Date.parse(promoConfig.endUtc);
   const active = now < ends;
   const daysLeft = active ? Math.max(0, Math.ceil((ends - now) / 86400000)) : 0;
+  const checkoutUrl = active ? promoConfig.promoCheckoutUrl : promoConfig.checkoutUrl;
   return {
     active,
     daysLeft,
-    checkoutUrl: active ? promoConfig.promoCheckoutUrl : promoConfig.checkoutUrl,
+    checkoutUrl,
     regularLabel: promoConfig.regularLabel,
     promoLabel: promoConfig.promoLabel,
+    checkoutConfigured: !checkoutUrl.includes("REPLACE_"),
   };
 }
