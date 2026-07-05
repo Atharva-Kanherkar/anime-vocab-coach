@@ -1,6 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getCloudSyncEnvelope, getSyncTokenProfile, putCloudSyncEnvelope } from "@/lib/sync-store";
+import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import {
   applyCloudSyncUpdate,
   normalizeAnimeVocabExport,
@@ -24,6 +25,8 @@ async function resolveProfile(req: Request): Promise<CloudUserProfile | null> {
   const auth = req.headers.get("authorization") || "";
   const match = auth.match(/^Bearer\s+(avc_st_[A-Za-z0-9]+)$/);
   if (match) return getSyncTokenProfile(match[1]);
+
+  if (DEV_NO_CLERK) return { ...DEV_PROFILE };
 
   const user = await currentUser();
   if (!user) return null;

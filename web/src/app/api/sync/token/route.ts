@@ -1,6 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { putSyncToken } from "@/lib/sync-store";
+import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,14 +9,16 @@ export const dynamic = "force-dynamic";
 // long-lived bearer token the extension uses to push snapshots in the
 // background. The page hands the token to the extension via postMessage.
 export async function POST() {
-  const user = await currentUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const user = DEV_NO_CLERK ? null : await currentUser();
+  if (!DEV_NO_CLERK && !user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const profile = {
-    id: user.id,
-    email: user.primaryEmailAddress?.emailAddress ?? null,
-    name: user.firstName || user.username || null,
-  };
+  const profile = user
+    ? {
+        id: user.id,
+        email: user.primaryEmailAddress?.emailAddress ?? null,
+        name: user.firstName || user.username || null,
+      }
+    : { ...DEV_PROFILE };
   const token = "avc_st_" + crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 
   try {

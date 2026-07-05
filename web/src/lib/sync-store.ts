@@ -23,10 +23,19 @@ async function getKV(): Promise<SyncKV | null> {
   }
 }
 
+// In-memory stand-in for `next dev`, where there is no KV binding. Never used in
+// production: there we require the real binding so data can't silently vanish.
+const devStore = new Map<string, string>();
+const devKV: SyncKV = {
+  get: async (k) => devStore.get(k) ?? null,
+  put: async (k, v) => void devStore.set(k, v),
+};
+
 async function resolveStore(): Promise<SyncKV> {
   const kv = await getKV();
-  if (!kv) throw new Error("AVC_SYNC_KV binding is required for cloud sync.");
-  return kv;
+  if (kv) return kv;
+  if (process.env.NODE_ENV !== "production") return devKV;
+  throw new Error("AVC_SYNC_KV binding is required for cloud sync.");
 }
 
 export async function getCloudSyncEnvelope(userId: string): Promise<CloudSyncEnvelope | null> {

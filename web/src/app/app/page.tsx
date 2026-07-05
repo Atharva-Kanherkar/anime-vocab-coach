@@ -5,6 +5,7 @@ import { AppTopNav } from "@/components/app-shell";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { ExtensionConnector } from "@/components/extension-connector";
 import { SiteFooter } from "@/components/site-chrome";
+import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,10 @@ export const metadata: Metadata = {
 };
 
 export default async function AppPage() {
-  const user = await currentUser();
-  const name = user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress || "learner";
+  const user = DEV_NO_CLERK ? null : await currentUser();
+  const name = DEV_NO_CLERK
+    ? DEV_PROFILE.name
+    : user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress || "learner";
 
   return (
     <>
