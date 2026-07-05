@@ -25,6 +25,9 @@ kv_namespaces = [
 ]
 
 [vars]
+# Pre-launch: hosted Listening Mode + transcript cache open to everyone — no
+# license, no usage cap (owner eats the OpenAI cost). Set "0" to re-gate at launch.
+AVC_OPEN_ACCESS = "1"
 CAP_MINUTES = "2700"
 FREE_AI_CALLS_PER_MONTH = "5"
 PRO_AI_CALLS_PER_MONTH = "300"
