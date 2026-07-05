@@ -330,6 +330,22 @@
     return due.slice(0, limit);
   }
 
+  // src/lib/levels.ts
+  function commonnessShort(level) {
+    switch (level) {
+      case 5:
+        return "Top";
+      case 4:
+        return "Common";
+      case 3:
+        return "Mid";
+      case 2:
+        return "Uncommon";
+      default:
+        return "Rare";
+    }
+  }
+
   // src/entries/dashboard.ts
   var SVGNS = "http://www.w3.org/2000/svg";
   var C = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -523,7 +539,7 @@
     const data = levels.map((lv) => {
       const words = Object.values(vocab).filter((r) => r.level === lv);
       return {
-        n: "N" + lv,
+        n: commonnessShort(lv),
         known: words.filter((r) => r.state === "known").length,
         learning: words.filter((r) => r.state === "learning").length
       };
@@ -691,7 +707,7 @@
       <td class="jp">${r.reading || ""}</td>
       <td class="jp">${w}</td>
       <td class="meaning">${r.gloss || ""}</td>
-      <td>N${r.level}</td>
+      <td>${commonnessShort(r.level)}</td>
       <td>${r.seenCount || 0}</td>
       <td><span class="state-tag ${r.state}">${r.state}</span></td>
       <td>${due}</td></tr>`;

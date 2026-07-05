@@ -116,7 +116,7 @@ function contextBlock(req: CoachRequest): string {
     req.reading ? `Reading: ${req.reading}` : "",
     req.gloss ? `Known gloss: ${req.gloss}` : "",
     req.title ? `Anime: ${req.title}` : "",
-    req.level ? `Learner JLPT-ish target level: N${req.level}` : "",
+    req.level ? `Learner target difficulty (5 = beginner/common words … 1 = advanced/rare): ${req.level}` : "",
     `Line from the scene: ${req.line}`,
   ].filter(Boolean);
   return bits.join("\n");

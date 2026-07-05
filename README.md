@@ -22,13 +22,13 @@ the Japanese actually being spoken, and when a common, level-appropriate word
 comes up, it pauses on a card:
 
 - the word in **romaji first** (*taikutsu*), with kana and kanji alongside — complete beginners can start from episode one
-- its meaning, JLPT level, and the exact line it came from
+- its meaning, how common the word is, and the exact line it came from
 - one keystroke to judge it: **I know it · Learn it · Ignore**
 
-Words you're learning come back as quick memory checks in later episodes,
-timed by a spaced-repetition scheduler — no flashcard app, no separate study
-session. A dashboard tracks your streak, hours watched, and vocabulary by
-JLPT level, computed entirely from local data.
+Words you're learning come back as quick memory checks — in a standalone review
+session or in later episodes — timed by a spaced-repetition scheduler. A
+dashboard tracks your streak, hours watched, and vocabulary by word frequency,
+computed entirely from local data.
 
 **Supported sources**
 
@@ -53,9 +53,10 @@ A Chrome Web Store listing is in progress. See
 
 - **Tokenization** runs locally with [kuromoji.js](https://github.com/takuyaa/kuromoji.js);
   the dictionary is a bundled [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html)-derived
-  JSON (~30k common words) with frequency ranks and JLPT levels.
+  JSON with frequency ranks and frequency-based difficulty bands. (Real JLPT
+  levels are a planned overlay — see the `--jlpt` path in the build script.)
 - **Word picking** scores each token by frequency, distance from your target
-  JLPT level, and how often you've met it — one card per line at most, with
+  difficulty band, and how often you've met it — one card per line at most, with
   cooldowns and an hourly cap so it never becomes a quiz.
 - **Listening Mode** captures tab audio and streams it to OpenAI's Realtime
   transcription API; cards appear within a couple of seconds of a line being

@@ -554,6 +554,22 @@
     }));
   }
 
+  // src/lib/levels.ts
+  function commonnessLabel(level) {
+    switch (level) {
+      case 5:
+        return "Very common";
+      case 4:
+        return "Common";
+      case 3:
+        return "Mid-frequency";
+      case 2:
+        return "Uncommon";
+      default:
+        return "Rare";
+    }
+  }
+
   // src/lib/overlay.ts
   var open = false;
   var resolveFn = null;
@@ -935,7 +951,7 @@
     card.setAttribute("role", "dialog");
     const chip = document.createElement("div");
     chip.className = isReview ? "avc-chip avc-chip-review" : "avc-chip";
-    chip.textContent = isReview ? "Review \u2014 you learned this word. Remember it?" : `N${entry.level} \xB7 #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " \xB7 heard just now" : ""}`;
+    chip.textContent = isReview ? "Review \u2014 you learned this word. Remember it?" : `${commonnessLabel(entry.level)} \xB7 #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " \xB7 heard just now" : ""}`;
     const displays = wordDisplays(token, entry, displayScript);
     const wordRow = document.createElement("div");
     wordRow.className = "avc-word-row";
