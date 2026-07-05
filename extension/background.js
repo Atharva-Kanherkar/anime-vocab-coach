@@ -26,6 +26,11 @@
 
   // src/lib/storage.ts
   var queue = Promise.resolve();
+  function enqueue(fn) {
+    const next = queue.then(fn, fn);
+    queue = next.catch((err) => warn("storage error:", err));
+    return next;
+  }
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
   }
@@ -44,6 +49,11 @@
   function getSyncToken() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
+    });
+  }
+  function setSyncToken(token) {
+    return enqueue(async () => {
+      await chrome.storage.local.set({ syncToken: token });
     });
   }
 
@@ -81,6 +91,7 @@
         }
         if (res.status === 401) {
           warn("cloud sync: token rejected (signed out or expired) \u2014 clearing");
+          await setSyncToken("");
           return;
         }
         if (!res.ok) {

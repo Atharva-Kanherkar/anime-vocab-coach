@@ -216,9 +216,15 @@ export function FxSlider({
                   <li>45 hours of listening / month</li>
                   <li>Cancel anytime</li>
                 </ul>
-                <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
-                  {promo.active ? "Get Pro at launch price" : "Get Pro"}
-                </a>
+                {promo.checkoutConfigured ? (
+                  <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
+                    {promo.active ? "Get Pro at launch price" : "Get Pro"}
+                  </a>
+                ) : (
+                  <span className="btn btn-accent" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
+                    Pro coming soon
+                  </span>
+                )}
                 <p className="promo-note">
                   {promo.active
                     ? `Launch pricing ends in ${promo.daysLeft} ${promo.daysLeft === 1 ? "day" : "days"}`

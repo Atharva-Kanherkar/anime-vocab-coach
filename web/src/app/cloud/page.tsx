@@ -85,9 +85,15 @@ export default function CloudPage() {
               </p>
             </div>
             <div className="cloud-pro-actions">
-              <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
-                {promo.active ? "Get Pro at launch price" : "Get Pro"}
-              </a>
+              {promo.checkoutConfigured ? (
+                <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
+                  {promo.active ? "Get Pro at launch price" : "Get Pro"}
+                </a>
+              ) : (
+                <span className="btn btn-accent" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
+                  Pro coming soon
+                </span>
+              )}
               <Link className="btn btn-line" href="/#pricing">
                 Compare Free vs Pro
               </Link>
