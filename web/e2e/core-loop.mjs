@@ -69,19 +69,30 @@ try {
   check("snapshot PUT ok", loop.putStatus === 200, `status ${loop.putStatus}`);
   check("snapshot round-trips the word", loop.getWords.includes("猫"), JSON.stringify(loop.getWords));
 
-  // 4. AI coach (explain) returns structured output.
-  const coach = await page.evaluate(async () => {
-    const res = await fetch("/api/ai/coach", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "explain", word: "食べる", reading: "たべる", gloss: "to eat", line: "ご飯を食べる。", level: 5 }),
+  // 4. AI coach (explain) returns structured output. Skippable + self-skips when
+  // no OpenAI key is configured, so the harness stays hermetic and free to run.
+  if (process.env.SKIP_AI === "1") {
+    check("AI coach (skipped via SKIP_AI)", true);
+  } else {
+    const coach = await page.evaluate(async () => {
+      const res = await fetch("/api/ai/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "explain", word: "食べる", reading: "たべる", gloss: "to eat", line: "ご飯を食べる。", level: 5 }),
+      });
+      return { status: res.status, body: await res.json() };
     });
-    return { status: res.status, body: await res.json() };
-  });
-  check("AI coach explain returns meaning", coach.status === 200 && !!coach.body?.result?.meaning,
-    coach.status === 200 ? "" : `status ${coach.status} ${JSON.stringify(coach.body)}`);
+    if (coach.status === 503 && coach.body?.error === "ai_not_configured") {
+      check("AI coach (skipped — no OPENAI_API_KEY)", true);
+    } else {
+      check("AI coach explain returns meaning", coach.status === 200 && !!coach.body?.result?.meaning,
+        coach.status === 200 ? "" : `status ${coach.status} ${JSON.stringify(coach.body)}`);
+    }
+  }
 
-  // 5. Marketing homepage renders with no Clerk crash.
+  // 5. Marketing homepage renders with no Clerk crash. Reset the error buffer so
+  // this check reflects only the homepage load, matching its label.
+  consoleErrors.length = 0;
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   const homeText = await page.locator("body").innerText();
   check("homepage renders", homeText.length > 200);

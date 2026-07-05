@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 const nextConfig: NextConfig = {
   async redirects() {
@@ -19,4 +20,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const config = (phase: string) => {
+  // Hard stop: the dev Clerk bypass must never be inlined into a production
+  // build. It's only ever needed under `next dev`. Throwing here turns the
+  // "dev flag + overridden NODE_ENV" accident into an impossible build state.
+  if (phase === PHASE_PRODUCTION_BUILD && process.env.NEXT_PUBLIC_AVC_DEV_NO_CLERK === "1") {
+    throw new Error(
+      "NEXT_PUBLIC_AVC_DEV_NO_CLERK=1 is set during a production build. This dev-only " +
+        "auth bypass must never ship. Unset it before building/deploying."
+    );
+  }
+  return nextConfig;
+};
+
+export default config;
