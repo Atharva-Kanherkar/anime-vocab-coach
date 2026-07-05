@@ -1,16 +1,40 @@
 "use strict";
 (() => {
+  // src/lib/log.ts
+  var warn = (...args) => console.warn("[AVC]", ...args);
+
   // src/types.ts
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
   // src/lib/storage.ts
   var queue = Promise.resolve();
+  function todayKey() {
+    return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
+  }
+  function enqueue(fn) {
+    const next = queue.then(fn, fn);
+    queue = next.catch((err) => warn("storage error:", err));
+    return next;
+  }
+  function ensureDaily(stats, day) {
+    if (!stats.daily) stats.daily = {};
+    if (!stats.daily[day]) {
+      stats.daily[day] = { met: 0, judged: 0, reviews: 0, watchMin: 0 };
+    }
+    return stats.daily[day];
+  }
   function pruneTimestamps(timestamps) {
     const cutoff = Date.now() - 36e5;
     return (timestamps || []).filter((t) => t >= cutoff);
   }
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
+  }
+  function sendBadge(stats) {
+    const day = todayKey();
+    const judged = stats.daily?.[day]?.judged || 0;
+    chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
+    });
   }
   function getVocab() {
     return new Promise((resolve) => {
@@ -24,6 +48,75 @@
         stats.cardTimestamps = pruneTimestamps(stats.cardTimestamps);
         resolve(stats);
       });
+    });
+  }
+  function judgeWord(base, judgment, meta, source) {
+    return enqueue(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      const now = Date.now();
+      if (!vocab[base]) {
+        vocab[base] = {
+          state: "new",
+          reading: meta.reading,
+          gloss: meta.gloss,
+          level: meta.level,
+          freqRank: meta.freqRank,
+          seenCount: 1,
+          shownCount: 0,
+          firstSeenAt: now,
+          lastSeenAt: now,
+          srs: null
+        };
+      }
+      const rec = vocab[base];
+      if (meta) {
+        rec.reading = meta.reading;
+        rec.gloss = meta.gloss;
+        rec.level = meta.level;
+        rec.freqRank = meta.freqRank;
+      }
+      if (source && !rec.source && (source.title || source.line)) {
+        rec.source = source;
+      }
+      if (judgment === "know") {
+        rec.state = "known";
+        rec.srs = null;
+      } else if (judgment === "learn") {
+        rec.state = "learning";
+        rec.srs = { stage: 1, dueAt: now + SRS_INTERVALS[1], lapses: 0 };
+      } else if (judgment === "ignore") {
+        rec.state = "ignored";
+        rec.srs = null;
+      } else if (judgment === "review-pass") {
+        if (rec.srs) {
+          const newStage = rec.srs.stage + 1;
+          if (newStage > 5) {
+            rec.state = "known";
+            rec.srs = null;
+          } else {
+            rec.srs.stage = newStage;
+            rec.srs.dueAt = now + SRS_INTERVALS[newStage];
+          }
+        }
+        daily.reviews += 1;
+      } else if (judgment === "review-fail") {
+        if (rec.srs) {
+          rec.srs.stage = 1;
+          rec.srs.lapses += 1;
+          rec.srs.dueAt = now + SRS_INTERVALS[1];
+        }
+        daily.reviews += 1;
+      }
+      if (judgment !== "dismiss") {
+        daily.judged += 1;
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      sendBadge(stats);
+      return vocab[base];
     });
   }
 
@@ -224,6 +317,19 @@
     return out.replace(/\s+/g, " ").trim();
   }
 
+  // src/lib/review.ts
+  function getDueWords(vocab, now = Date.now(), limit = 50) {
+    const due = [];
+    for (const base of Object.keys(vocab)) {
+      const record = vocab[base];
+      if (record.state === "learning" && record.srs && record.srs.dueAt <= now) {
+        due.push({ base, record });
+      }
+    }
+    due.sort((a, b) => a.record.srs.dueAt - b.record.srs.dueAt);
+    return due.slice(0, limit);
+  }
+
   // src/entries/dashboard.ts
   var SVGNS = "http://www.w3.org/2000/svg";
   var C = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -266,12 +372,12 @@
     t.textContent = s;
     return t;
   }
-  var todayKey = () => (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
+  var todayKey2 = () => (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
   var nf = (n) => n.toLocaleString();
   function computeStreak(daily) {
     const days = Object.keys(daily || {}).filter((d) => daily[d].judged >= 1).sort().reverse();
     if (!days.length) return 0;
-    const today = todayKey();
+    const today = todayKey2();
     const yest = new Date(Date.now() - 864e5).toLocaleDateString("sv");
     if (days[0] !== today && days[0] !== yest) return 0;
     let streak = 0, expect = days[0];
@@ -502,7 +608,7 @@
     const note = document.createElement("p");
     note.className = "cap-note";
     note.style.textAlign = "center";
-    note.textContent = dueTotal ? `${dueTotal} word${dueTotal > 1 ? "s" : ""} due for review \u2014 they'll pop up as you watch.` : "Nothing due right now.";
+    note.textContent = dueTotal ? `${dueTotal} word${dueTotal > 1 ? "s" : ""} due for review \u2014 use Review above, or they'll also surface as you watch.` : "Nothing due right now.";
     host.appendChild(note);
   }
   function renderCalendar(stats) {
@@ -510,7 +616,7 @@
     const daily = stats.daily || {};
     const WEEKS = 18, cell = 15, gap = 4, W = WEEKS * (cell + gap) + 30, H = 7 * (cell + gap) + 24;
     const s = svg(W, H);
-    const end = /* @__PURE__ */ new Date(todayKey() + "T12:00:00");
+    const end = /* @__PURE__ */ new Date(todayKey2() + "T12:00:00");
     const start = new Date(end.getTime() - (WEEKS * 7 - 1) * 864e5);
     start.setDate(start.getDate() - start.getDay());
     let max = 1;
@@ -591,6 +697,50 @@
       <td>${due}</td></tr>`;
     }).join("");
   }
+  function renderReview(vocab) {
+    const host = document.getElementById("review");
+    const due = getDueWords(vocab);
+    if (!due.length) {
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML = `<div class="review-intro"><h2>Review</h2><p>${due.length} word${due.length > 1 ? "s" : ""} due now.</p><button class="review-btn review-start" id="review-start" type="button">Start review</button></div>`;
+    document.getElementById("review-start").addEventListener("click", () => runReviewSession(host, due));
+  }
+  function runReviewSession(host, due) {
+    let i = 0;
+    let reviewed = 0;
+    const showCard = () => {
+      if (i >= due.length) {
+        host.innerHTML = `<div class="review-intro"><h2>Review complete</h2><p>${reviewed} reviewed. Nice work.</p></div>`;
+        setTimeout(() => location.reload(), 900);
+        return;
+      }
+      const { base, record } = due[i];
+      const romaji = record.reading ? toRomaji(record.reading) : "";
+      host.innerHTML = `<div class="review-session"><p class="review-progress">${i + 1} / ${due.length}</p><div class="review-word">${base}</div><div class="review-answer" id="review-answer" hidden><div class="review-reading">${record.reading || ""}${romaji ? ` \xB7 ${romaji}` : ""}</div><div class="review-gloss">${record.gloss || ""}</div>` + (record.source?.line ? `<div class="review-source">${record.source.line}${record.source.title ? ` \u2014 ${record.source.title}` : ""}</div>` : "") + `</div><div class="review-controls"><button class="review-btn" id="review-show" type="button">Show answer</button><span id="review-grade" hidden><button class="review-btn review-fail" id="review-miss" type="button">Missed it</button><button class="review-btn review-pass" id="review-got" type="button">Got it</button></span></div></div>`;
+      document.getElementById("review-show").addEventListener("click", () => {
+        document.getElementById("review-answer").hidden = false;
+        document.getElementById("review-show").setAttribute("hidden", "");
+        document.getElementById("review-grade").hidden = false;
+      });
+      const grade = async (judgment) => {
+        await judgeWord(base, judgment, {
+          reading: record.reading,
+          gloss: record.gloss,
+          level: record.level,
+          freqRank: record.freqRank
+        });
+        reviewed++;
+        i++;
+        showCard();
+      };
+      document.getElementById("review-got").addEventListener("click", () => void grade("review-pass"));
+      document.getElementById("review-miss").addEventListener("click", () => void grade("review-fail"));
+    };
+    showCard();
+  }
   async function boot() {
     const vocab = await getVocab();
     const stats = await getStats();
@@ -598,6 +748,7 @@
     if (!Object.keys(vocab).length) {
       document.getElementById("empty").hidden = false;
     }
+    renderReview(vocab);
     renderTiles(vocab, stats);
     renderTime(stats);
     renderDonut(vocab);

@@ -320,6 +320,16 @@
     return `Launch pricing \u2014 ${PRO_PROMO.label} (${state.daysLeft} ${dayWord} left)`;
   }
 
+  // src/lib/review.ts
+  function dueCount(vocab, now = Date.now()) {
+    let n = 0;
+    for (const base of Object.keys(vocab)) {
+      const r = vocab[base];
+      if (r.state === "learning" && r.srs && r.srs.dueAt <= now) n++;
+    }
+    return n;
+  }
+
   // src/entries/popup.ts
   function todayKey() {
     return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
@@ -368,6 +378,14 @@
     byId("totals-row").innerHTML = `<span><span class="t-known">${totals.known}</span> known</span><span><span class="t-learning">${totals.learning}</span> learning</span><span><span class="t-num">${totals.seen}</span> seen</span>`;
     const streak = computeStreak(stats.daily);
     byId("streak").innerHTML = streak > 0 ? `<b>${streak}-day</b> streak` : "No streak yet";
+    const due = dueCount(vocab);
+    const reviewBtn = byId("review-due");
+    if (due > 0) {
+      reviewBtn.hidden = false;
+      reviewBtn.textContent = `Review ${due} due word${due > 1 ? "s" : ""}`;
+    } else {
+      reviewBtn.hidden = true;
+    }
     const recent = Object.entries(vocab).sort((a, b) => (b[1].lastSeenAt || 0) - (a[1].lastSeenAt || 0)).slice(0, 10);
     const list = byId("recent-list");
     list.innerHTML = "";
@@ -445,6 +463,9 @@
     byId("dashboard-link").addEventListener("click", (e) => {
       e.preventDefault();
       chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
+    });
+    byId("review-due").addEventListener("click", () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
     });
     byId("settings-link").addEventListener("click", (e) => {
       e.preventDefault();
