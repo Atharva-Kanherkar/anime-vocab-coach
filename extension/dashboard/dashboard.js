@@ -697,6 +697,9 @@
       <td>${due}</td></tr>`;
     }).join("");
   }
+  function esc(s) {
+    return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  }
   function renderReview(vocab) {
     const host = document.getElementById("review");
     const due = getDueWords(vocab);
@@ -705,6 +708,10 @@
       return;
     }
     host.hidden = false;
+    if (location.hash === "#review") {
+      runReviewSession(host, due);
+      return;
+    }
     host.innerHTML = `<div class="review-intro"><h2>Review</h2><p>${due.length} word${due.length > 1 ? "s" : ""} due now.</p><button class="review-btn review-start" id="review-start" type="button">Start review</button></div>`;
     document.getElementById("review-start").addEventListener("click", () => runReviewSession(host, due));
   }
@@ -719,13 +726,18 @@
       }
       const { base, record } = due[i];
       const romaji = record.reading ? toRomaji(record.reading) : "";
-      host.innerHTML = `<div class="review-session"><p class="review-progress">${i + 1} / ${due.length}</p><div class="review-word">${base}</div><div class="review-answer" id="review-answer" hidden><div class="review-reading">${record.reading || ""}${romaji ? ` \xB7 ${romaji}` : ""}</div><div class="review-gloss">${record.gloss || ""}</div>` + (record.source?.line ? `<div class="review-source">${record.source.line}${record.source.title ? ` \u2014 ${record.source.title}` : ""}</div>` : "") + `</div><div class="review-controls"><button class="review-btn" id="review-show" type="button">Show answer</button><span id="review-grade" hidden><button class="review-btn review-fail" id="review-miss" type="button">Missed it</button><button class="review-btn review-pass" id="review-got" type="button">Got it</button></span></div></div>`;
+      host.innerHTML = `<div class="review-session"><p class="review-progress">${i + 1} / ${due.length}</p><div class="review-word">${esc(base)}</div><div class="review-answer" id="review-answer" hidden><div class="review-reading">${esc(record.reading || "")}${romaji ? ` \xB7 ${esc(romaji)}` : ""}</div><div class="review-gloss">${esc(record.gloss || "")}</div>` + (record.source?.line ? `<div class="review-source">${esc(record.source.line)}${record.source.title ? ` \u2014 ${esc(record.source.title)}` : ""}</div>` : "") + `</div><div class="review-controls"><button class="review-btn" id="review-show" type="button">Show answer</button><span id="review-grade" hidden><button class="review-btn review-fail" id="review-miss" type="button">Missed it</button><button class="review-btn review-pass" id="review-got" type="button">Got it</button></span></div></div>`;
       document.getElementById("review-show").addEventListener("click", () => {
         document.getElementById("review-answer").hidden = false;
         document.getElementById("review-show").setAttribute("hidden", "");
         document.getElementById("review-grade").hidden = false;
       });
+      let graded = false;
       const grade = async (judgment) => {
+        if (graded) return;
+        graded = true;
+        document.getElementById("review-got")?.setAttribute("disabled", "");
+        document.getElementById("review-miss")?.setAttribute("disabled", "");
         await judgeWord(base, judgment, {
           reading: record.reading,
           gloss: record.gloss,

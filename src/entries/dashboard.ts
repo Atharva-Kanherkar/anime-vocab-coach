@@ -356,11 +356,21 @@ function renderList(): void {
 // ---------- review session ----------
 // A standalone review: surfaces due words directly instead of waiting for one to
 // reappear on screen. Reveal the answer, then grade Got it / Missed it.
+
+// Escape page-sourced text (subtitle lines, video titles) before it's injected
+// into this privileged extension page. A caption like `<img src=evil>` must not
+// render here.
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
 function renderReview(vocab: VocabMap): void {
   const host = document.getElementById("review") as HTMLElement;
   const due = getDueWords(vocab);
   if (!due.length) { host.hidden = true; return; }
   host.hidden = false;
+  // Deep-linked from the popup's "Review N due" button — start immediately.
+  if (location.hash === "#review") { runReviewSession(host, due); return; }
   host.innerHTML =
     `<div class="review-intro"><h2>Review</h2>` +
     `<p>${due.length} word${due.length > 1 ? "s" : ""} due now.</p>` +
@@ -385,11 +395,11 @@ function runReviewSession(host: HTMLElement, due: ReturnType<typeof getDueWords>
     host.innerHTML =
       `<div class="review-session">` +
       `<p class="review-progress">${i + 1} / ${due.length}</p>` +
-      `<div class="review-word">${base}</div>` +
+      `<div class="review-word">${esc(base)}</div>` +
       `<div class="review-answer" id="review-answer" hidden>` +
-        `<div class="review-reading">${record.reading || ""}${romaji ? ` · ${romaji}` : ""}</div>` +
-        `<div class="review-gloss">${record.gloss || ""}</div>` +
-        (record.source?.line ? `<div class="review-source">${record.source.line}${record.source.title ? ` — ${record.source.title}` : ""}</div>` : "") +
+        `<div class="review-reading">${esc(record.reading || "")}${romaji ? ` · ${esc(romaji)}` : ""}</div>` +
+        `<div class="review-gloss">${esc(record.gloss || "")}</div>` +
+        (record.source?.line ? `<div class="review-source">${esc(record.source.line)}${record.source.title ? ` — ${esc(record.source.title)}` : ""}</div>` : "") +
       `</div>` +
       `<div class="review-controls">` +
         `<button class="review-btn" id="review-show" type="button">Show answer</button>` +
@@ -405,7 +415,12 @@ function runReviewSession(host: HTMLElement, due: ReturnType<typeof getDueWords>
       document.getElementById("review-grade")!.hidden = false;
     });
 
+    let graded = false;
     const grade = async (judgment: "review-pass" | "review-fail"): Promise<void> => {
+      if (graded) return; // guard against double-click / key-repeat double-grading
+      graded = true;
+      (document.getElementById("review-got") as HTMLButtonElement | null)?.setAttribute("disabled", "");
+      (document.getElementById("review-miss") as HTMLButtonElement | null)?.setAttribute("disabled", "");
       await storage.judgeWord(base, judgment, {
         reading: record.reading,
         gloss: record.gloss,

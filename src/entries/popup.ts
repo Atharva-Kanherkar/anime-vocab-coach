@@ -176,7 +176,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   byId("review-due").addEventListener("click", () => {
-    // The review session lives on the dashboard; #review auto-starts the panel.
+    // The review session lives on the dashboard; the #review hash makes
+    // renderReview start the session immediately on load.
     chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
   });
 
