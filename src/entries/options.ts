@@ -1,7 +1,7 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
 import { commonnessShort } from "../lib/levels";
-import { promoState, promoBannerText, BACKEND_URL, PRO_HOURS_PER_MONTH } from "../config";
+import { WEB_URL } from "../config";
 import type { DisplayScript, PauseMode, Settings, VocabMap, WordState } from "../types";
 
 let vocab: VocabMap = {};
@@ -56,102 +56,17 @@ async function savePartial(partial: Partial<Settings>): Promise<void> {
   showSaved();
 }
 
-// ---------- Pro license ----------
-
-interface LicenseStatus {
-  active?: boolean;
-  usedMinutes?: number;
-  capMinutes?: number;
-  error?: string;
-}
-
-function setLicenseStatus(text: string, ok: boolean | null): void {
-  const el = byId("license-status");
-  el.textContent = text;
-  el.style.color = ok === null ? "" : ok ? "var(--known, #4f9e78)" : "#c96a5a";
-}
-
-async function refreshLicenseStatus(licenseKey: string): Promise<void> {
-  if (!licenseKey) { setLicenseStatus("", null); return; }
-  setLicenseStatus("Checking…", null);
-  try {
-    const res = await fetch(BACKEND_URL + "/v1/license/status", {
-      headers: { Authorization: "Bearer " + licenseKey }
-    });
-    const data = (await res.json()) as LicenseStatus;
-    if (data.active) {
-      const usedH = ((data.usedMinutes || 0) / 60).toFixed(1);
-      const capH = Math.round((data.capMinutes || 0) / 60);
-      setLicenseStatus(`Pro active — ${usedH}h of ${capH}h used this month`, true);
-    } else {
-      setLicenseStatus(data.error || "License inactive", false);
-    }
-  } catch {
-    setLicenseStatus("Couldn't reach the Pro server — try again later.", false);
-  }
-}
-
-function initProSection(settings: Settings): void {
-  const promo = promoState();
-  byId("pro-hours").textContent = String(PRO_HOURS_PER_MONTH);
-
-  const banner = byId("pro-promo-banner");
-  const bannerText = promoBannerText(promo);
-  if (bannerText) {
-    banner.hidden = false;
-    banner.textContent = bannerText;
+async function refreshCloudStatus(): Promise<void> {
+  const el = byId("cloud-status");
+  const token = await storage.getSyncToken();
+  if (token) {
+    el.textContent = "Linked to your account — sync and cloud Listening Mode are ready.";
+    el.style.color = "var(--known, #4f9e78)";
   } else {
-    banner.hidden = true;
+    el.innerHTML =
+      `Not linked yet. <a href="${WEB_URL}/app" target="_blank" rel="noopener">Sign in at animevocab.com</a> and keep the tab open briefly.`;
+    el.style.color = "";
   }
-
-  const priceEl = byId("pro-price");
-  if (promo.active) {
-    priceEl.innerHTML = `<s>${promo.regularLabel}</s> <strong>${promo.priceLabel}</strong>`;
-  } else {
-    priceEl.textContent = `(${promo.priceLabel})`;
-  }
-
-  const proBuy = byId<HTMLAnchorElement>("pro-buy");
-  if (promo.checkoutConfigured) {
-    proBuy.href = promo.checkoutUrl;
-  } else {
-    // Don't show a checkout link that dead-ends on a REPLACE_ placeholder.
-    proBuy.removeAttribute("href");
-    proBuy.textContent = "Pro — coming soon";
-    proBuy.style.opacity = "0.6";
-    proBuy.style.pointerEvents = "none";
-  }
-  byId<HTMLInputElement>("licenseKey").value = settings.licenseKey || "";
-  if (settings.licenseKey) refreshLicenseStatus(settings.licenseKey);
-
-  byId("license-activate").addEventListener("click", async () => {
-    const key = byId<HTMLInputElement>("licenseKey").value.trim();
-    if (!key) {
-      await storage.setSettings({ licenseKey: "" });
-      setLicenseStatus("License removed.", null);
-      showSaved();
-      return;
-    }
-    setLicenseStatus("Activating…", null);
-    try {
-      const res = await fetch(BACKEND_URL + "/v1/license/activate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ licenseKey: key })
-      });
-      const data = (await res.json()) as LicenseStatus;
-      if (data.active) {
-        await storage.setSettings({ licenseKey: key });
-        showSaved();
-        const capH = Math.round((data.capMinutes || 0) / 60);
-        setLicenseStatus(`Pro active — ${capH}h of listening per month. Enjoy!`, true);
-      } else {
-        setLicenseStatus(data.error || "That license key isn't valid.", false);
-      }
-    } catch {
-      setLicenseStatus("Couldn't reach the Pro server — check your connection and try again.", false);
-    }
-  });
 }
 
 function renderTable(): void {
@@ -213,7 +128,10 @@ function renderTable(): void {
 
 document.addEventListener("DOMContentLoaded", async () => {
   await loadSettingsForm();
-  initProSection(await storage.getSettings());
+  await refreshCloudStatus();
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.syncToken) void refreshCloudStatus();
+  });
   vocab = await storage.getVocab();
   renderTable();
 

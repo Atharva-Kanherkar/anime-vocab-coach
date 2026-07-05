@@ -1,7 +1,7 @@
 // Offscreen document: captures tab audio for Listening Mode.
 //
-// BYO key: streams audio to OpenAI Realtime WebSocket (unchanged).
-// Pro (hosted): shared transcript cache — lookup first, transcribe on miss.
+// BYO key: streams audio to OpenAI Realtime WebSocket.
+// Cloud (signed in): shared transcript cache — lookup first, transcribe on miss.
 
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
@@ -11,7 +11,7 @@ const MIN_PCM_SAMPLES = OUT_RATE; // ~1s minimum before transcribing
 
 export type SessionAuth =
   | { kind: "byo"; key: string }
-  | { kind: "hosted"; licenseKey: string; backendUrl: string };
+  | { kind: "cloud"; syncToken: string; backendUrl: string };
 
 interface Session {
   ws: WebSocket | null;
@@ -43,14 +43,14 @@ async function getWsKey(session: Session): Promise<string> {
   if (session.auth.kind === "byo") return session.auth.key;
   const res = await fetch(session.auth.backendUrl + "/v1/session", {
     method: "POST",
-    headers: { Authorization: "Bearer " + session.auth.licenseKey }
+    headers: { Authorization: "Bearer " + session.auth.syncToken }
   });
   const data = (await res.json().catch(() => ({}))) as {
     token?: { value: string };
     model?: string;
     error?: string;
   };
-  if (res.status === 402) throw new CodedError("subscription-inactive", data.error || "subscription inactive");
+  if (res.status === 401) throw new CodedError("not-signed-in", data.error || "sign in at animevocab.com");
   if (res.status === 429) throw new CodedError("quota-exceeded", data.error || "monthly listening hours used up");
   if (!res.ok || !data.token) throw new CodedError("capture-failed", data.error || ("backend HTTP " + res.status));
   if (data.model) session.model = data.model;
@@ -66,14 +66,14 @@ class CodedError extends Error {
 }
 
 function startHeartbeat(session: Session): void {
-  if (session.auth.kind !== "hosted") return;
-  const { backendUrl, licenseKey } = session.auth;
+  if (session.auth.kind !== "cloud") return;
+  const { backendUrl, syncToken } = session.auth;
   session.heartbeat = setInterval(async () => {
     if (!session.active) return;
     try {
       const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + licenseKey },
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + syncToken },
         body: JSON.stringify({ minutes: 5 })
       });
       if (res.status === 429) {
@@ -200,7 +200,7 @@ function pcmSampleCount(chunks: Int16Array[]): number {
 }
 
 async function flushChunk(session: Session): Promise<void> {
-  if (session.transcribing || !session.cacheKey || session.auth.kind !== "hosted") return;
+  if (session.transcribing || !session.cacheKey || session.auth.kind !== "cloud") return;
   if (session.playbackPaused) return;
   if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
 
@@ -215,7 +215,7 @@ async function flushChunk(session: Session): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + session.auth.licenseKey
+        Authorization: "Bearer " + session.auth.syncToken
       },
       body: JSON.stringify({ key: session.cacheKey, startSec, audio: base64Int16(pcm) })
     });
@@ -269,7 +269,7 @@ async function start({ streamId, tabId, auth, model, cacheKey }: StartMsg): Prom
   proc.connect(sink);
   sink.connect(ctx.destination);
 
-  const useCache = auth.kind === "hosted" && !!cacheKey;
+  const useCache = auth.kind === "cloud" && !!cacheKey;
   const session: Session = {
     ws: null, ctx, stream, proc, sink, source,
     active: true, ready: false, auth, model, tabId,

@@ -59,8 +59,8 @@ export function promoBannerText(state: PromoState): string | null {
 // Cloudflare Worker URL (custom domain routed to the avc-api Worker).
 export const BACKEND_URL = "https://api.animevocab.com";
 
-// Hosted web app (Next.js). Serves the cloud sync API and hands the extension a
-// sync token when the user is signed in. Distinct from BACKEND_URL (Pro API).
+// Hosted web app (Next.js). Sign in here — the extension receives a sync token
+// via postMessage and uses it for cloud sync and Listening Mode transcription.
 export const WEB_URL = "https://animevocab.com";
 
 export const PRO_HOURS_PER_MONTH = 45;

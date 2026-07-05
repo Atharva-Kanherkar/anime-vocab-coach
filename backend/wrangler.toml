@@ -5,7 +5,6 @@
 #   npx wrangler login
 #   npx wrangler kv namespace create AVC_KV        # paste the id below
 #   npx wrangler secret put OPENAI_API_KEY          # required — batch + Realtime transcription
-#   npx wrangler secret put DODO_API_KEY            # Dodo Payments API key
 #   npx wrangler deploy
 #
 # Optional (only when switching off OpenAI credits — see README "Transcription providers"):
@@ -25,9 +24,6 @@ kv_namespaces = [
 ]
 
 [vars]
-# Pre-launch: hosted Listening Mode + transcript cache open to everyone — no
-# license, no usage cap (owner eats the OpenAI cost). Set "0" to re-gate at launch.
-AVC_OPEN_ACCESS = "1"
 CAP_MINUTES = "2700"
 FREE_AI_CALLS_PER_MONTH = "5"
 PRO_AI_CALLS_PER_MONTH = "300"
@@ -44,7 +40,4 @@ DEEPINFRA_WHISPER_MODEL = "openai/whisper-large-v3"
 # TRANSCRIBE_PROVIDERS = "groq,deepinfra,openai"
 TRANSCRIBE_PROVIDERS = "openai"
 TRANSCRIPT_MODEL_VERSION = "1"
-DODO_API_BASE = "https://live.dodopayments.com"
-CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID"
-PROMO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID"
 PROMO_END_UTC = "2026-08-03T23:59:59.000Z"

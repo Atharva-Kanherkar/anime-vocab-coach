@@ -13,7 +13,6 @@
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
-    licenseKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
   };
@@ -286,40 +285,6 @@
     return out.replace(/\s+/g, " ").trim();
   }
 
-  // src/config.ts
-  var PROMO_END_UTC = "2026-08-03T23:59:59.000Z";
-  var CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID";
-  var PROMO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID";
-  var PRO_REGULAR = {
-    monthlyUsd: 10,
-    yearlyUsd: 84,
-    label: "$10/month or $84/year"
-  };
-  var PRO_PROMO = {
-    monthlyUsd: 7,
-    yearlyUsd: 59,
-    label: "$7/month or $59/year"
-  };
-  function promoState(now = Date.now()) {
-    const ends = Date.parse(PROMO_END_UTC);
-    const active = now < ends;
-    const daysLeft = active ? Math.max(0, Math.ceil((ends - now) / 864e5)) : 0;
-    return {
-      active,
-      endsAt: PROMO_END_UTC,
-      daysLeft,
-      checkoutUrl: active ? PROMO_CHECKOUT_URL : CHECKOUT_URL,
-      priceLabel: active ? PRO_PROMO.label : PRO_REGULAR.label,
-      regularLabel: PRO_REGULAR.label,
-      checkoutConfigured: !(active ? PROMO_CHECKOUT_URL : CHECKOUT_URL).includes("REPLACE_")
-    };
-  }
-  function promoBannerText(state) {
-    if (!state.active) return null;
-    const dayWord = state.daysLeft === 1 ? "day" : "days";
-    return `Launch pricing \u2014 ${PRO_PROMO.label} (${state.daysLeft} ${dayWord} left)`;
-  }
-
   // src/lib/review.ts
   function dueCount(vocab, now = Date.now()) {
     let n = 0;
@@ -443,13 +408,6 @@
     });
   }
   document.addEventListener("DOMContentLoaded", () => {
-    const promo = promoState();
-    const pill = byId("popup-promo");
-    const banner = promoBannerText(promo);
-    if (banner) {
-      pill.hidden = false;
-      pill.textContent = banner;
-    }
     render();
     initListening();
     const modes = ["pause", "notify", "off"];

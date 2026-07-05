@@ -10,7 +10,6 @@
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
-    licenseKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
   };
@@ -130,7 +129,9 @@
   // src/entries/background.ts
   chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(["settings"], (result) => {
-      chrome.storage.local.set({ settings: { ...DEFAULTS, ...result.settings || {} } });
+      const raw = result.settings || {};
+      delete raw.licenseKey;
+      chrome.storage.local.set({ settings: { ...DEFAULTS, ...raw } });
     });
   });
   var SYNC_ALARM = "avc-cloud-sync";
@@ -207,16 +208,26 @@
       return null;
     }
   }
+  var NOT_LINKED_MSG = "Sign in at animevocab.com/app, keep that tab open briefly, then try again. Or add your OpenAI key in Settings for local-only Listening Mode.";
   async function startListening(tabId) {
     const r = await chrome.storage.local.get(["settings"]);
     const settings = r.settings || {};
-    const auth = settings.openaiKey ? { kind: "byo", key: settings.openaiKey } : { kind: "hosted", licenseKey: settings.licenseKey || "", backendUrl: BACKEND_URL };
+    let auth;
+    if (settings.openaiKey?.trim()) {
+      auth = { kind: "byo", key: settings.openaiKey.trim() };
+    } else {
+      const syncToken = await getSyncToken();
+      if (!syncToken) {
+        return { ok: false, error: NOT_LINKED_MSG };
+      }
+      auth = { kind: "cloud", syncToken, backendUrl: BACKEND_URL };
+    }
     const injected = await ensureContentScript(tabId);
     if (!injected) {
       return { ok: false, error: "Couldn't load the extension into this tab. Try reloading the page, then Start again." };
     }
-    const cacheKey = auth.kind === "hosted" ? await getCacheKeyFromTab(tabId) : null;
-    if (auth.kind === "hosted" && !cacheKey) {
+    const cacheKey = auth.kind === "cloud" ? await getCacheKeyFromTab(tabId) : null;
+    if (auth.kind === "cloud" && !cacheKey) {
       console.warn("[AVC] no cache key yet \u2014 listening will wait for fingerprint or page ID");
     }
     let streamId;
@@ -311,7 +322,7 @@
     }
     if (msg.type === "avc-listen-error") {
       getListening().then(async (tabs) => {
-        if (msg.code === "invalid-key" || msg.code === "capture-failed" || msg.code === "quota-exceeded" || msg.code === "subscription-inactive") {
+        if (msg.code === "invalid-key" || msg.code === "capture-failed" || msg.code === "quota-exceeded" || msg.code === "not-signed-in") {
           delete tabs[msg.tabId];
           await setListening(tabs);
           chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });

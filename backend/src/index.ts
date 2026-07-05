@@ -1,30 +1,23 @@
-// AnimeVocab Pro backend.
+// AnimeVocab transcription backend.
 //
-// Pro users: shared transcript cache (GET /v1/transcript). Cache misses are
-// transcribed server-side once via Whisper, metered against the monthly cap.
-// Client-supplied transcript writes are NOT accepted (v1 — server-only cache).
-//
-// BYO-key users stream audio directly to OpenAI Realtime (no cache).
+// Authenticates extension callers via Clerk-linked sync tokens (avc_st_*).
+// BYO-key users stream audio directly to OpenAI Realtime and never hit this API.
 
-import { activateLicense, validateLicense } from "./dodo";
 import { economicsSnapshot } from "./economics";
 import { getMetrics } from "./metrics";
 import { mintTranscriptionToken } from "./openai";
 import { publicConfig } from "./promo";
 import { lookupTranscript, transcribeAndStore } from "./transcript";
 import { getProviderMetrics } from "./transcribe/index";
+import { requireAuth } from "./sync-auth";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
 export interface Env {
   AVC_KV: KVNamespace;
   OPENAI_API_KEY: string;
-  // "1" = open access: no license required, no usage cap. For pre-launch
-  // testing where the owner eats the cost. Set to "0" (or remove) to re-gate.
-  AVC_OPEN_ACCESS?: string;
   GROQ_API_KEY?: string;
   DEEPINFRA_API_KEY?: string;
-  DODO_API_KEY: string;
   CAP_MINUTES: string;
   TRANSCRIBE_MODEL: string;
   OPENAI_WHISPER_MODEL: string;
@@ -32,10 +25,6 @@ export interface Env {
   DEEPINFRA_WHISPER_MODEL: string;
   TRANSCRIBE_PROVIDERS: string;
   TRANSCRIPT_MODEL_VERSION: string;
-  DODO_API_BASE: string;
-  CHECKOUT_URL: string;
-  PROMO_CHECKOUT_URL: string;
-  PROMO_END_UTC: string;
   PAYMENT_FEE_RATE?: string;
   PAYMENT_FIXED_FEE_USD?: string;
   AI_COST_USD_PER_CALL?: string;
@@ -64,58 +53,9 @@ function json(req: Request, body: unknown, status = 200): Response {
   });
 }
 
-function bearer(req: Request): string | null {
-  const h = req.headers.get("Authorization") || "";
-  const t = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
-  return t.length ? t : null;
-}
-
-// Pre-launch open access: no license, no cap (owner eats the cost).
-function openAccess(env: Env): boolean {
-  return env.AVC_OPEN_ACCESS === "1";
-}
-
-// The credential to meter/authorize against: the presented license, or a shared
-// synthetic id when open access is on and none was sent.
-function callerLicense(env: Env, req: Request): string | null {
-  return bearer(req) || (openAccess(env) ? "open-access" : null);
-}
-
-async function keyId(licenseKey: string): Promise<string> {
-  const data = new TextEncoder().encode(licenseKey);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
-}
-
-async function checkLicense(env: Env, licenseKey: string): Promise<{ valid: boolean; reason?: string }> {
-  if (openAccess(env)) return { valid: true };
-  const id = await keyId(licenseKey);
-  const cacheKey = `lic:${id}`;
-  const cached = await env.AVC_KV.get(cacheKey);
-  if (cached === "valid") return { valid: true };
-
-  const result = await validateLicense(env, licenseKey);
-  if (result.valid) {
-    await env.AVC_KV.put(cacheKey, "valid", { expirationTtl: 6 * 3600 });
-  }
-  return result;
-}
-
-async function requireLicense(env: Env, req: Request): Promise<
-  { ok: true; licenseKey: string; id: string } | { ok: false; response: Response }
-> {
-  const licenseKey = callerLicense(env, req);
-  if (!licenseKey) return { ok: false, response: json(req, { error: "missing Authorization: Bearer <license key>" }, 401) };
-  const check = await checkLicense(env, licenseKey);
-  if (!check.valid) return { ok: false, response: json(req, { error: check.reason || "subscription inactive" }, 402) };
-  const id = await keyId(licenseKey);
-  return { ok: true, licenseKey, id };
-}
-
-async function checkUsageCap(env: Env, req: Request, id: string): Promise<Response | null> {
-  if (openAccess(env)) return null; // no cap in open-access testing
+async function checkUsageCap(env: Env, req: Request, userId: string): Promise<Response | null> {
   const cap = Number(env.CAP_MINUTES);
-  const used = await getUsage(env, id);
+  const used = await getUsage(env, userId);
   if (used >= cap) {
     return json(req, { error: "monthly listening hours used up", usedMinutes: Math.floor(used), capMinutes: cap }, 429);
   }
@@ -136,61 +76,30 @@ export default {
         return json(req, publicConfig(env));
       }
 
-      if (path === "/v1/license/activate" && req.method === "POST") {
-        const body = (await req.json().catch(() => ({}))) as { licenseKey?: string };
-        const licenseKey = (body.licenseKey || "").trim();
-        if (!licenseKey) return json(req, { error: "missing licenseKey" }, 400);
-
-        const result = await activateLicense(env, licenseKey);
-        if (!result.valid) return json(req, { active: false, error: result.reason || "invalid license" }, 402);
-
-        const id = await keyId(licenseKey);
-        await env.AVC_KV.put(`lic:${id}`, "valid", { expirationTtl: 6 * 3600 });
-        const usage = await getUsage(env, id);
-        return json(req, { active: true, capMinutes: Number(env.CAP_MINUTES), usedMinutes: Math.floor(usage) });
-      }
-
-      const licenseKey = callerLicense(env, req);
-      if (!licenseKey) return json(req, { error: "missing Authorization: Bearer <license key>" }, 401);
-      const id = await keyId(licenseKey);
-
-      if (path === "/v1/license/status" && req.method === "GET") {
-        const check = await checkLicense(env, licenseKey);
-        const usage = await getUsage(env, id);
-        const metrics = await getMetrics(env);
-        return json(req, {
-          active: check.valid,
-          error: check.valid ? undefined : check.reason,
-          capMinutes: Number(env.CAP_MINUTES),
-          usedMinutes: Math.floor(usage),
-          cacheHitRate: metrics.transcribeHitRate,
-          cacheHits: metrics.transcribeHits,
-          cacheMisses: metrics.transcribeMisses,
-          lookupHits: metrics.lookupHits
-        }, check.valid ? 200 : 402);
-      }
-
       if (path === "/v1/session" && req.method === "POST") {
-        const check = await checkLicense(env, licenseKey);
-        if (!check.valid) return json(req, { error: check.reason || "subscription inactive" }, 402);
+        const auth = await requireAuth(env.AVC_KV, req, json);
+        if (!auth.ok) return auth.response;
 
-        const capErr = await checkUsageCap(env, req, id);
+        const capErr = await checkUsageCap(env, req, auth.userId);
         if (capErr) return capErr;
 
         const token = await mintTranscriptionToken(env);
         return json(req, {
           token,
           model: env.TRANSCRIBE_MODEL,
-          usedMinutes: Math.floor(await getUsage(env, id)),
+          usedMinutes: Math.floor(await getUsage(env, auth.userId)),
           capMinutes: Number(env.CAP_MINUTES)
         });
       }
 
       if (path === "/v1/usage/heartbeat" && req.method === "POST") {
+        const auth = await requireAuth(env.AVC_KV, req, json);
+        if (!auth.ok) return auth.response;
+
         const body = (await req.json().catch(() => ({}))) as { minutes?: number };
         const minutes = Math.max(0, Math.min(10, Math.round(Number(body.minutes) || 0)));
         const cap = Number(env.CAP_MINUTES);
-        const used = await addMinutes(env, id, minutes);
+        const used = await addMinutes(env, auth.userId, minutes);
         return json(req, {
           usedMinutes: Math.floor(used),
           capMinutes: cap,
@@ -199,8 +108,9 @@ export default {
       }
 
       if (path === "/v1/transcript/stats" && req.method === "GET") {
-        const check = await checkLicense(env, licenseKey);
-        if (!check.valid) return json(req, { error: check.reason || "subscription inactive" }, 402);
+        const auth = await requireAuth(env.AVC_KV, req, json);
+        if (!auth.ok) return auth.response;
+
         const cache = await getMetrics(env);
         const providers = await getProviderMetrics(env);
         return json(req, {
@@ -212,7 +122,7 @@ export default {
       }
 
       if (path === "/v1/transcript" && req.method === "GET") {
-        const auth = await requireLicense(env, req);
+        const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
 
         const cacheKey = url.searchParams.get("key") || "";
@@ -227,16 +137,15 @@ export default {
         return json(req, await lookupTranscript(env, cacheKey, t, windowSec));
       }
 
-      // Client transcript writes disabled — cache is populated only by server-side Whisper.
       if (path === "/v1/transcript" && req.method === "POST") {
         return json(req, { error: "client transcript upload not supported" }, 403);
       }
 
       if (path === "/v1/transcript/transcribe" && req.method === "POST") {
-        const auth = await requireLicense(env, req);
+        const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
 
-        const capErr = await checkUsageCap(env, req, auth.id);
+        const capErr = await checkUsageCap(env, req, auth.userId);
         if (capErr) return capErr;
 
         const body = (await req.json().catch(() => ({}))) as {
@@ -255,7 +164,7 @@ export default {
         const audio = body.audio || "";
         if (!audio) return json(req, { error: "missing audio" }, 400);
 
-        const result = await transcribeAndStore(env, auth.id, cacheKey, audio, startSec);
+        const result = await transcribeAndStore(env, auth.userId, cacheKey, audio, startSec);
         return json(req, result);
       }
 

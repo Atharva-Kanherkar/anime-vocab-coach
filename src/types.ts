@@ -12,7 +12,6 @@ export interface Settings {
   displayScript: DisplayScript;
   autoSpeak: boolean;
   openaiKey: string;
-  licenseKey: string;
   transcribeModel: string;
   sites: { youtube: boolean; netflix: boolean; generic: boolean };
 }
@@ -117,7 +116,6 @@ export const DEFAULTS: Settings = {
   displayScript: "romaji",
   autoSpeak: true,
   openaiKey: "",
-  licenseKey: "",
   transcribeModel: "gpt-4o-mini-transcribe",
   sites: { youtube: true, netflix: true, generic: true }
 };

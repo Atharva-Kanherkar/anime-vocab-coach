@@ -48,10 +48,10 @@ export function ExtensionConnector() {
   return (
     <p className="sync-message" aria-live="polite">
       {state === "sent"
-        ? "Extension linked — your progress syncs to this account automatically in the background."
+        ? "Extension linked — your progress syncs automatically and Listening Mode uses your account."
         : state === "error"
-          ? "Couldn't link the extension for background sync. Reload to retry."
-          : "Linking the extension for background sync…"}
+          ? "Couldn't link the extension. Reload this page while signed in to retry."
+          : "Linking extension to your account…"}
     </p>
   );
 }

@@ -10,10 +10,10 @@
     if (session.auth.kind === "byo") return session.auth.key;
     const res = await fetch(session.auth.backendUrl + "/v1/session", {
       method: "POST",
-      headers: { Authorization: "Bearer " + session.auth.licenseKey }
+      headers: { Authorization: "Bearer " + session.auth.syncToken }
     });
     const data = await res.json().catch(() => ({}));
-    if (res.status === 402) throw new CodedError("subscription-inactive", data.error || "subscription inactive");
+    if (res.status === 401) throw new CodedError("not-signed-in", data.error || "sign in at animevocab.com");
     if (res.status === 429) throw new CodedError("quota-exceeded", data.error || "monthly listening hours used up");
     if (!res.ok || !data.token) throw new CodedError("capture-failed", data.error || "backend HTTP " + res.status);
     if (data.model) session.model = data.model;
@@ -26,14 +26,14 @@
     }
   };
   function startHeartbeat(session) {
-    if (session.auth.kind !== "hosted") return;
-    const { backendUrl, licenseKey } = session.auth;
+    if (session.auth.kind !== "cloud") return;
+    const { backendUrl, syncToken } = session.auth;
     session.heartbeat = setInterval(async () => {
       if (!session.active) return;
       try {
         const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + licenseKey },
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + syncToken },
           body: JSON.stringify({ minutes: 5 })
         });
         if (res.status === 429) {
@@ -136,7 +136,7 @@
     return chunks.reduce((n, c) => n + c.length, 0);
   }
   async function flushChunk(session) {
-    if (session.transcribing || !session.cacheKey || session.auth.kind !== "hosted") return;
+    if (session.transcribing || !session.cacheKey || session.auth.kind !== "cloud") return;
     if (session.playbackPaused) return;
     if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
     const pcm = concatPcm(session.pcmBuffer);
@@ -149,7 +149,7 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer " + session.auth.licenseKey
+          Authorization: "Bearer " + session.auth.syncToken
         },
         body: JSON.stringify({ key: session.cacheKey, startSec, audio: base64Int16(pcm) })
       });
@@ -195,7 +195,7 @@
     source.connect(proc);
     proc.connect(sink);
     sink.connect(ctx.destination);
-    const useCache = auth.kind === "hosted" && !!cacheKey;
+    const useCache = auth.kind === "cloud" && !!cacheKey;
     const session = {
       ws: null,
       ctx,

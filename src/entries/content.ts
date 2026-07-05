@@ -99,11 +99,12 @@ declare global {
     const video = a?.getVideo();
     if (!video || video.paused) return;
     settings = await storage.getSettings();
-    if (!settings.licenseKey) return;
+    const syncToken = await storage.getSyncToken();
+    if (!syncToken) return;
 
     const t = video.currentTime;
     try {
-      const result = await lookupTranscript(settings.licenseKey, cacheKey, t);
+      const result = await lookupTranscript(syncToken, cacheKey, t);
       if (!result.hit || !result.segments.length) return;
       for (const seg of result.segments) {
         const key = `${seg.start}:${seg.text}`;

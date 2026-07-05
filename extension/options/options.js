@@ -13,7 +13,6 @@
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
-    licenseKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
   };
@@ -82,6 +81,11 @@
           exportedAt: (/* @__PURE__ */ new Date()).toISOString()
         });
       });
+    });
+  }
+  function getSyncToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
     });
   }
   function resetProgress() {
@@ -305,40 +309,7 @@
   }
 
   // src/config.ts
-  var PROMO_END_UTC = "2026-08-03T23:59:59.000Z";
-  var CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID";
-  var PROMO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID";
-  var PRO_REGULAR = {
-    monthlyUsd: 10,
-    yearlyUsd: 84,
-    label: "$10/month or $84/year"
-  };
-  var PRO_PROMO = {
-    monthlyUsd: 7,
-    yearlyUsd: 59,
-    label: "$7/month or $59/year"
-  };
-  function promoState(now = Date.now()) {
-    const ends = Date.parse(PROMO_END_UTC);
-    const active = now < ends;
-    const daysLeft = active ? Math.max(0, Math.ceil((ends - now) / 864e5)) : 0;
-    return {
-      active,
-      endsAt: PROMO_END_UTC,
-      daysLeft,
-      checkoutUrl: active ? PROMO_CHECKOUT_URL : CHECKOUT_URL,
-      priceLabel: active ? PRO_PROMO.label : PRO_REGULAR.label,
-      regularLabel: PRO_REGULAR.label,
-      checkoutConfigured: !(active ? PROMO_CHECKOUT_URL : CHECKOUT_URL).includes("REPLACE_")
-    };
-  }
-  function promoBannerText(state) {
-    if (!state.active) return null;
-    const dayWord = state.daysLeft === 1 ? "day" : "days";
-    return `Launch pricing \u2014 ${PRO_PROMO.label} (${state.daysLeft} ${dayWord} left)`;
-  }
-  var BACKEND_URL = "https://api.animevocab.com";
-  var PRO_HOURS_PER_MONTH = 45;
+  var WEB_URL = "https://animevocab.com";
 
   // src/entries/options.ts
   var vocab = {};
@@ -387,89 +358,16 @@
     await setSettings(partial);
     showSaved();
   }
-  function setLicenseStatus(text, ok) {
-    const el = byId("license-status");
-    el.textContent = text;
-    el.style.color = ok === null ? "" : ok ? "var(--known, #4f9e78)" : "#c96a5a";
-  }
-  async function refreshLicenseStatus(licenseKey) {
-    if (!licenseKey) {
-      setLicenseStatus("", null);
-      return;
-    }
-    setLicenseStatus("Checking\u2026", null);
-    try {
-      const res = await fetch(BACKEND_URL + "/v1/license/status", {
-        headers: { Authorization: "Bearer " + licenseKey }
-      });
-      const data = await res.json();
-      if (data.active) {
-        const usedH = ((data.usedMinutes || 0) / 60).toFixed(1);
-        const capH = Math.round((data.capMinutes || 0) / 60);
-        setLicenseStatus(`Pro active \u2014 ${usedH}h of ${capH}h used this month`, true);
-      } else {
-        setLicenseStatus(data.error || "License inactive", false);
-      }
-    } catch {
-      setLicenseStatus("Couldn't reach the Pro server \u2014 try again later.", false);
-    }
-  }
-  function initProSection(settings) {
-    const promo = promoState();
-    byId("pro-hours").textContent = String(PRO_HOURS_PER_MONTH);
-    const banner = byId("pro-promo-banner");
-    const bannerText = promoBannerText(promo);
-    if (bannerText) {
-      banner.hidden = false;
-      banner.textContent = bannerText;
+  async function refreshCloudStatus() {
+    const el = byId("cloud-status");
+    const token = await getSyncToken();
+    if (token) {
+      el.textContent = "Linked to your account \u2014 sync and cloud Listening Mode are ready.";
+      el.style.color = "var(--known, #4f9e78)";
     } else {
-      banner.hidden = true;
+      el.innerHTML = `Not linked yet. <a href="${WEB_URL}/app" target="_blank" rel="noopener">Sign in at animevocab.com</a> and keep the tab open briefly.`;
+      el.style.color = "";
     }
-    const priceEl = byId("pro-price");
-    if (promo.active) {
-      priceEl.innerHTML = `<s>${promo.regularLabel}</s> <strong>${promo.priceLabel}</strong>`;
-    } else {
-      priceEl.textContent = `(${promo.priceLabel})`;
-    }
-    const proBuy = byId("pro-buy");
-    if (promo.checkoutConfigured) {
-      proBuy.href = promo.checkoutUrl;
-    } else {
-      proBuy.removeAttribute("href");
-      proBuy.textContent = "Pro \u2014 coming soon";
-      proBuy.style.opacity = "0.6";
-      proBuy.style.pointerEvents = "none";
-    }
-    byId("licenseKey").value = settings.licenseKey || "";
-    if (settings.licenseKey) refreshLicenseStatus(settings.licenseKey);
-    byId("license-activate").addEventListener("click", async () => {
-      const key = byId("licenseKey").value.trim();
-      if (!key) {
-        await setSettings({ licenseKey: "" });
-        setLicenseStatus("License removed.", null);
-        showSaved();
-        return;
-      }
-      setLicenseStatus("Activating\u2026", null);
-      try {
-        const res = await fetch(BACKEND_URL + "/v1/license/activate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ licenseKey: key })
-        });
-        const data = await res.json();
-        if (data.active) {
-          await setSettings({ licenseKey: key });
-          showSaved();
-          const capH = Math.round((data.capMinutes || 0) / 60);
-          setLicenseStatus(`Pro active \u2014 ${capH}h of listening per month. Enjoy!`, true);
-        } else {
-          setLicenseStatus(data.error || "That license key isn't valid.", false);
-        }
-      } catch {
-        setLicenseStatus("Couldn't reach the Pro server \u2014 check your connection and try again.", false);
-      }
-    });
   }
   function renderTable() {
     const tbody = byId("word-tbody");
@@ -519,7 +417,10 @@
   }
   document.addEventListener("DOMContentLoaded", async () => {
     await loadSettingsForm();
-    initProSection(await getSettings());
+    await refreshCloudStatus();
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && changes.syncToken) void refreshCloudStatus();
+    });
     vocab = await getVocab();
     renderTable();
     document.querySelectorAll('input[name="pauseMode"]').forEach((el) => {

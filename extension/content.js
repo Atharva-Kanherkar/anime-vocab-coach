@@ -115,7 +115,6 @@
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
-    licenseKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
   };
@@ -302,6 +301,11 @@
       const daily = ensureDaily(stats, day);
       daily.watchMin += 1;
       await chrome.storage.local.set({ stats });
+    });
+  }
+  function getSyncToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
     });
   }
 
@@ -1427,15 +1431,15 @@
   var BACKEND_URL = "https://api.animevocab.com";
 
   // src/lib/transcript-client.ts
-  async function lookupTranscript(licenseKey, cacheKey2, t, windowSec = 8) {
+  async function lookupTranscript(syncToken, cacheKey2, t, windowSec = 8) {
     const url = new URL(BACKEND_URL + "/v1/transcript");
     url.searchParams.set("key", cacheKey2);
     url.searchParams.set("t", String(t));
     url.searchParams.set("window", String(windowSec));
     const res = await fetch(url.toString(), {
-      headers: { Authorization: "Bearer " + licenseKey }
+      headers: { Authorization: "Bearer " + syncToken }
     });
-    if (res.status === 402) throw new Error("subscription inactive");
+    if (res.status === 401) throw new Error("not signed in");
     if (res.status === 429) throw new Error("monthly listening hours used up");
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -1511,10 +1515,11 @@
       const video = a?.getVideo();
       if (!video || video.paused) return;
       settings = await getSettings();
-      if (!settings.licenseKey) return;
+      const syncToken = await getSyncToken();
+      if (!syncToken) return;
       const t = video.currentTime;
       try {
-        const result = await lookupTranscript(settings.licenseKey, cacheKey2, t);
+        const result = await lookupTranscript(syncToken, cacheKey2, t);
         if (!result.hit || !result.segments.length) return;
         for (const seg of result.segments) {
           const key = `${seg.start}:${seg.text}`;

@@ -61,33 +61,22 @@
       </fieldset>
     </section>
 
-    <section class="panel panel-pro">
-      <div class="promo-banner" id="pro-promo-banner" hidden></div>
-      <h2>Pro — Listening Mode without setup</h2>
+    <section class="panel">
+      <h2>Cloud account</h2>
       <p class="note">
-        Listening Mode transcribes the audio of whatever you're watching (Netflix,
-        Crunchyroll, any video) and shows cards from what's spoken. Pro makes it one
-        click: no OpenAI account, no API key — we handle transcription, up to
-        <span id="pro-hours">45</span> hours of listening per month.
-        <a href="#" id="pro-buy" target="_blank" rel="noopener">Get Pro</a>
-        <span id="pro-price"></span>, then paste the license key from your email below.
+        Sign in at <a href="https://animevocab.com/app" target="_blank" rel="noopener">animevocab.com</a>
+        to sync your progress and use Listening Mode without your own OpenAI key.
+        Keep that tab open briefly after signing in so the extension links automatically.
       </p>
-      <label>License key
-        <input type="password" id="licenseKey" placeholder="paste your Pro license key">
-      </label>
-      <div class="pro-row">
-        <button type="button" id="license-activate">Activate</button>
-        <span class="note" id="license-status"></span>
-      </div>
+      <p class="note" id="cloud-status"></p>
     </section>
 
     <section class="panel">
-      <h2>Listening mode with your own key (free)</h2>
+      <h2>Local-only Listening Mode</h2>
       <p class="note">
-        Prefer not to subscribe? Bring your own OpenAI API key — audio goes straight
+        Prefer to stay fully local? Add your own OpenAI API key — audio goes straight
         from your browser to api.openai.com and OpenAI bills you directly (roughly
-        $0.10–0.20 per episode). The key is stored locally. If a Pro license is
-        active, it takes priority over this key.
+        $0.10–0.20 per episode). The key is stored on this device only.
       </p>
       <label>OpenAI API key
         <input type="password" id="openaiKey" placeholder="sk-...">

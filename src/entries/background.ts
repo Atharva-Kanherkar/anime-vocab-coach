@@ -2,11 +2,14 @@ import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
 import { pushSnapshot } from "../lib/cloud-sync";
 import { fetchCoach, type CoachMode, type CoachPayload } from "../lib/coach-client";
+import { getSyncToken } from "../lib/storage";
 import type { Settings } from "../types";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(["settings"], (result) => {
-    chrome.storage.local.set({ settings: { ...DEFAULTS, ...(result.settings || {}) } });
+    const raw = (result.settings || {}) as Record<string, unknown>;
+    delete raw.licenseKey;
+    chrome.storage.local.set({ settings: { ...DEFAULTS, ...raw } });
   });
 });
 
@@ -109,24 +112,32 @@ async function getCacheKeyFromTab(tabId: number): Promise<string | null> {
   }
 }
 
+const NOT_LINKED_MSG =
+  "Sign in at animevocab.com/app, keep that tab open briefly, then try again. " +
+  "Or add your OpenAI key in Settings for local-only Listening Mode.";
+
 async function startListening(tabId: number): Promise<Ack> {
   const r = await chrome.storage.local.get(["settings"]);
   const settings = (r.settings as Partial<Settings> | undefined) || {};
 
-  // Hosted is the default and needs no license (the backend is open-access
-  // pre-launch). A BYO OpenAI key stays an explicit opt-in; a license, if set,
-  // still routes hosted. So: click Start → it just works, server-side.
-  const auth = settings.openaiKey
-    ? { kind: "byo" as const, key: settings.openaiKey }
-    : { kind: "hosted" as const, licenseKey: settings.licenseKey || "", backendUrl: BACKEND_URL };
+  let auth;
+  if (settings.openaiKey?.trim()) {
+    auth = { kind: "byo" as const, key: settings.openaiKey.trim() };
+  } else {
+    const syncToken = await getSyncToken();
+    if (!syncToken) {
+      return { ok: false, error: NOT_LINKED_MSG };
+    }
+    auth = { kind: "cloud" as const, syncToken, backendUrl: BACKEND_URL };
+  }
 
   const injected = await ensureContentScript(tabId);
   if (!injected) {
     return { ok: false, error: "Couldn't load the extension into this tab. Try reloading the page, then Start again." };
   }
 
-  const cacheKey = auth.kind === "hosted" ? await getCacheKeyFromTab(tabId) : null;
-  if (auth.kind === "hosted" && !cacheKey) {
+  const cacheKey = auth.kind === "cloud" ? await getCacheKeyFromTab(tabId) : null;
+  if (auth.kind === "cloud" && !cacheKey) {
     console.warn("[AVC] no cache key yet — listening will wait for fingerprint or page ID");
   }
 
@@ -250,7 +261,7 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   if (msg.type === "avc-listen-error") {
     getListening().then(async (tabs) => {
       if (msg.code === "invalid-key" || msg.code === "capture-failed" ||
-          msg.code === "quota-exceeded" || msg.code === "subscription-inactive") {
+          msg.code === "quota-exceeded" || msg.code === "not-signed-in") {
         delete tabs[msg.tabId!];
         await setListening(tabs);
         chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });
