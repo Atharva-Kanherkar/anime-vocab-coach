@@ -23,7 +23,8 @@ export type PublicEntry = Omit<LeaderboardEntry, "userId">;
 
 interface LbKV {
   get(key: string): Promise<string | null>;
-  put(key: string, value: string): Promise<void>;
+  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
   list(opts: { prefix: string }): Promise<{ keys: { name: string }[] }>;
 }
 
@@ -32,10 +33,14 @@ const devMap = new Map<string, string>();
 const devKV: LbKV = {
   get: async (k) => devMap.get(k) ?? null,
   put: async (k, v) => void devMap.set(k, v),
+  delete: async (k) => void devMap.delete(k),
   list: async ({ prefix }) => ({
     keys: [...devMap.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })),
   }),
 };
+
+// Weekly keys are ephemeral — expire old weeks so KV doesn't grow forever.
+const ENTRY_TTL_SECONDS = 40 * 24 * 60 * 60; // ~40 days
 
 async function kv(): Promise<LbKV> {
   try {
@@ -73,17 +78,21 @@ export async function putPrefs(userId: string, prefs: LeaderboardPrefs): Promise
   await store.put(prefsKey(userId), JSON.stringify(prefs));
 }
 
-/** Write (or remove) a user's entry for a week. Removes it when opted out. */
+/** Write (or delete) a user's entry for a week. Deletes it when opted out. */
 export async function upsertEntry(week: string, entry: LeaderboardEntry, optOut: boolean): Promise<void> {
   const store = await kv();
   const key = entryKey(week, entry.userId);
   if (optOut) {
-    // No delete in the minimal KV interface; zero it out so it sorts to the
-    // bottom and reads as inactive. (A real delete is a fast-follow.)
-    await store.put(key, JSON.stringify({ ...entry, wordsReviewed: 0, minutes: 0, streak: 0, name: "" }));
+    await store.delete(key); // fully removed — nothing (name/id/scores) lingers
     return;
   }
-  await store.put(key, JSON.stringify(entry));
+  await store.put(key, JSON.stringify(entry), { expirationTtl: ENTRY_TTL_SECONDS });
+}
+
+/** Immediately drop a user's entry for a week (used the moment they opt out). */
+export async function removeEntry(week: string, userId: string): Promise<void> {
+  const store = await kv();
+  await store.delete(entryKey(week, userId));
 }
 
 // Cap how many keys we pull to build a board — this is a niche app; a big global
@@ -93,9 +102,10 @@ const MAX_BOARD = 200;
 export async function listWeek(week: string): Promise<LeaderboardEntry[]> {
   const store = await kv();
   const { keys } = await store.list({ prefix: `lb:v1:${week}:` });
+  // Parallel reads — avoids N serialized KV round-trips per board view.
+  const raws = await Promise.all(keys.slice(0, MAX_BOARD).map(({ name }) => store.get(name)));
   const out: LeaderboardEntry[] = [];
-  for (const { name } of keys.slice(0, MAX_BOARD)) {
-    const raw = await store.get(name);
+  for (const raw of raws) {
     if (!raw) continue;
     try {
       out.push(JSON.parse(raw) as LeaderboardEntry);

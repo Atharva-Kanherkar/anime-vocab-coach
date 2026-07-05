@@ -35,28 +35,39 @@ export interface Streak {
   longest: number;
 }
 
+// Hard cap so a forged snapshot (thousands of back-dated daily rows) can't put
+// an absurd streak on the board. Generous enough to never bite a real learner.
+export const MAX_STREAK_DAYS = 366;
+
 /**
- * Current streak = consecutive active days ending today or yesterday (a day
- * isn't "missed" until it fully passes). Longest = best run ever.
+ * Current streak = the consecutive run ending at the learner's most recent
+ * active day, as long as that day is today or later-by-tz (day keys are the
+ * learner's LOCAL date, which for e.g. JST can read one UTC day ahead) or
+ * yesterday (a day isn't "missed" until it fully passes). Longest = best run.
+ *
+ * Days more than one day in the future (UTC) are ignored so a fabricated
+ * snapshot can't anchor the streak far ahead; the result is clamped too.
  */
 export function computeStreak(daily: CloudDailyStats[], now: Date): Streak {
+  const today = Math.floor(now.getTime() / DAY_MS);
   const active = new Set<number>();
   for (const d of daily) {
     if (!isActiveDay(d)) continue;
     const n = dayNumber(d.day);
-    if (n !== null) active.add(n);
+    if (n === null || n > today + 1) continue; // drop implausible future dates
+    active.add(n);
   }
   if (active.size === 0) return { current: 0, longest: 0 };
 
-  const today = Math.floor(now.getTime() / DAY_MS);
-
-  // Current: anchor at today if active, else yesterday, else broken.
+  // Current: start from the most recent active day, but only if it's recent
+  // enough not to be a miss (>= yesterday). Then walk back while consecutive.
+  const latest = Math.max(...active);
   let current = 0;
-  let anchor = active.has(today) ? today : active.has(today - 1) ? today - 1 : null;
-  if (anchor !== null) {
-    while (active.has(anchor)) {
+  if (latest >= today - 1) {
+    let a = latest;
+    while (active.has(a)) {
       current++;
-      anchor--;
+      a--;
     }
   }
 
@@ -69,7 +80,7 @@ export function computeStreak(daily: CloudDailyStats[], now: Date): Streak {
     if (run > longest) longest = run;
   }
 
-  return { current, longest };
+  return { current: Math.min(current, MAX_STREAK_DAYS), longest: Math.min(longest, MAX_STREAK_DAYS) };
 }
 
 export interface WeeklyMetrics {

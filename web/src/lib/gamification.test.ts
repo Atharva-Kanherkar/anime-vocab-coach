@@ -9,6 +9,7 @@ import {
   CHALLENGES,
   MAX_WEEKLY_REVIEWS,
   MAX_WEEKLY_MINUTES,
+  MAX_STREAK_DAYS,
 } from "./gamification";
 
 function day(d: string, over: Partial<CloudDailyStats> = {}): CloudDailyStats {
@@ -71,6 +72,24 @@ describe("computeStreak", () => {
     const daily = [day("2026-07-08", { met: 9 }), day("2026-07-07", { reviews: 1 })];
     // today has only 'met' (not active) → anchor falls to yesterday
     expect(computeStreak(daily, now).current).toBe(1);
+  });
+
+  it("counts a local date that reads one UTC day ahead (JST users)", () => {
+    // A JST learner's newest day key can be UTC-tomorrow; it must still count.
+    const daily = [day("2026-07-09", { reviews: 1 }), day("2026-07-08", { reviews: 1 })];
+    expect(computeStreak(daily, now).current).toBe(2);
+  });
+
+  it("ignores implausible far-future dates (can't anchor a forged streak)", () => {
+    const daily = [day("2027-01-01", { reviews: 1 }), day("2026-12-31", { reviews: 1 })];
+    expect(computeStreak(daily, now).current).toBe(0);
+  });
+
+  it("clamps an absurd back-dated run to the cap", () => {
+    const daily = Array.from({ length: 900 }, (_, i) => day(new Date((Math.floor(now.getTime() / 86400000) - i) * 86400000).toISOString().slice(0, 10), { reviews: 1 }));
+    const s = computeStreak(daily, now);
+    expect(s.current).toBe(MAX_STREAK_DAYS);
+    expect(s.longest).toBe(MAX_STREAK_DAYS);
   });
 });
 

@@ -1,6 +1,6 @@
 # Streaks, challenges & leaderboards — what counts
 
-AnimeVocab's social loop rewards **real learning practice**, not vanity metrics. Everything below is computed **server-side from your synced progress**, so leaderboard scores can't be forged by a client.
+AnimeVocab's social loop rewards **real learning practice**, not vanity metrics. There is **no score-submission endpoint** — every metric below is computed **server-side from your synced learning history**, then clamped to plausible ceilings. Scores can't be injected directly; they're derived from your own synced stats.
 
 ## What counts
 
@@ -40,8 +40,14 @@ Anime-specific arc challenges ("learn 20 words from one arc") build on the same 
 - **Display name** — optional, up to 24 characters.
 - **Opt out / local-only** — leave the leaderboard entirely; your entry is removed on the next sync and nothing about you is shown.
 
+## Timezone note
+
+Day and week boundaries are evaluated in **UTC**. Your daily rows use your local
+date, and the streak logic accepts a day that reads up to one UTC day ahead (so
+JST and other ahead-of-UTC learners aren't undercounted).
+
 ## Anti-cheat (v1)
 
-- Scores are server-computed from the synced snapshot — no score-submission endpoint exists.
-- Weekly totals are clamped to plausible ceilings (≤ 5,000 reviews, ≤ 10,080 minutes) before ranking.
-- Future: per-account rate limits and shard/pagination for large boards.
+- **No score-submission endpoint** — metrics are computed server-side from your synced history, so scores can't be injected directly. They are still derived from self-reported stats, so:
+- Weekly totals are **clamped** (≤ 5,000 reviews, ≤ 10,080 minutes) and streaks are capped (≤ 366 days); far-future daily rows are ignored so a fabricated history can't anchor a streak.
+- Future: per-account rate limits, anomaly detection, and shard/pagination for large boards.

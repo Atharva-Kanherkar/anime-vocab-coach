@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveProfile } from "@/lib/auth";
-import { getPrefs, putPrefs } from "@/lib/leaderboard-store";
+import { getPrefs, putPrefs, removeEntry } from "@/lib/leaderboard-store";
+import { currentWeekId } from "@/lib/gamification";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +33,21 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const displayName =
-    typeof body.displayName === "string" ? body.displayName.trim().slice(0, MAX_DISPLAY_NAME) : "";
-  const optOut = !!body.optOut;
-
   try {
+    // Merge onto existing prefs so a partial PUT (e.g. just optOut) doesn't wipe
+    // a saved display name.
+    const current = await getPrefs(profile.id);
+    const displayName =
+      typeof body.displayName === "string"
+        ? body.displayName.trim().slice(0, MAX_DISPLAY_NAME)
+        : current.displayName;
+    const optOut = typeof body.optOut === "boolean" ? body.optOut : current.optOut;
+
     await putPrefs(profile.id, { displayName, optOut });
+    // Opting out must take effect NOW, not on some future sync that may never
+    // come — remove this week's entry immediately.
+    if (optOut) await removeEntry(currentWeekId(new Date()), profile.id);
+
     return NextResponse.json({ prefs: { displayName, optOut } });
   } catch (err) {
     console.error("[leaderboard-prefs]", err);

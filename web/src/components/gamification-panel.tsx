@@ -67,16 +67,24 @@ export function GamificationPanel() {
     return () => clearTimeout(t);
   }, [load]);
 
+  const [saveError, setSaveError] = useState(false);
   const savePrefs = useCallback(async () => {
     setSaved(false);
-    const res = await fetch("/api/leaderboard/prefs", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(prefs),
-    });
-    if (res.ok) {
-      setSaved(true);
-      load();
+    setSaveError(false);
+    try {
+      const res = await fetch("/api/leaderboard/prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prefs),
+      });
+      if (res.ok) {
+        setSaved(true);
+        load();
+      } else {
+        setSaveError(true);
+      }
+    } catch {
+      setSaveError(true);
     }
   }, [prefs, load]);
 
@@ -151,7 +159,8 @@ export function GamificationPanel() {
           </label>
           <button className="btn btn-line btn-sm" type="button" onClick={savePrefs}>Save</button>
         </div>
-        {saved && <p className="sync-message">Saved. Takes effect on your next sync.</p>}
+        {saved && <p className="sync-message">Saved. Opting out removes you now; a new name shows on your next sync.</p>}
+        {saveError && <p className="sync-message" role="alert">Couldn&apos;t save your privacy settings. Try again.</p>}
         <p className="sync-message" style={{ opacity: 0.7 }}>
           Only words reviewed, minutes watched, and streak length count. Watched titles are never shared.
         </p>
