@@ -32,6 +32,59 @@
     };
   }
 
+  // src/lib/priority-words.ts
+  var ESSENTIAL_WORDS = {
+    \u3042\u308A\u304C\u3068\u3046: { boost: 0.38, jlpt: "N5" },
+    \u3069\u3046\u3082: { boost: 0.28, jlpt: "N5" },
+    \u3059\u307F\u307E\u305B\u3093: { boost: 0.36, jlpt: "N5" },
+    \u3054\u3081\u3093: { boost: 0.3, jlpt: "N5" },
+    \u3054\u3081\u3093\u306A\u3055\u3044: { boost: 0.34, jlpt: "N5" },
+    \u304A\u9858\u3044: { boost: 0.34, jlpt: "N5" },
+    \u304A\u9858\u3044\u3057\u307E\u3059: { boost: 0.4, jlpt: "N5" },
+    \u304F\u3060\u3055\u3044: { boost: 0.32, jlpt: "N5" },
+    \u304A\u306F\u3088\u3046: { boost: 0.3, jlpt: "N5" },
+    \u3053\u3093\u306B\u3061\u306F: { boost: 0.3, jlpt: "N5" },
+    \u3053\u3093\u3070\u3093\u306F: { boost: 0.28, jlpt: "N5" },
+    \u3055\u3088\u3046\u306A\u3089: { boost: 0.26, jlpt: "N5" },
+    \u3058\u3083\u3042\u306D: { boost: 0.24, jlpt: "N5" },
+    \u304A\u3084\u3059\u307F: { boost: 0.28, jlpt: "N5" },
+    \u306F\u3044: { boost: 0.22, jlpt: "N5" },
+    \u3044\u3044\u3048: { boost: 0.22, jlpt: "N5" },
+    \u5927\u4E08\u592B: { boost: 0.32, jlpt: "N5" },
+    \u5206\u304B\u308B: { boost: 0.3, jlpt: "N5" },
+    \u5206\u304B\u3089\u306A\u3044: { boost: 0.3, jlpt: "N5" },
+    \u597D\u304D: { boost: 0.28, jlpt: "N5" },
+    \u5ACC\u3044: { boost: 0.24, jlpt: "N5" },
+    \u6B32\u3057\u3044: { boost: 0.28, jlpt: "N5" },
+    \u884C\u304F: { boost: 0.26, jlpt: "N5" },
+    \u6765\u308B: { boost: 0.26, jlpt: "N5" },
+    \u898B\u308B: { boost: 0.24, jlpt: "N5" },
+    \u805E\u304F: { boost: 0.26, jlpt: "N5" },
+    \u8A00\u3046: { boost: 0.26, jlpt: "N5" },
+    \u98DF\u3079\u308B: { boost: 0.28, jlpt: "N5" },
+    \u98F2\u3080: { boost: 0.26, jlpt: "N5" },
+    \u52C9\u5F37: { boost: 0.24, jlpt: "N5" },
+    \u5B66\u6821: { boost: 0.24, jlpt: "N5" },
+    \u5148\u751F: { boost: 0.26, jlpt: "N5" },
+    \u53CB\u9054: { boost: 0.26, jlpt: "N5" },
+    \u540D\u524D: { boost: 0.24, jlpt: "N5" },
+    \u672C\u5F53: { boost: 0.28, jlpt: "N5" },
+    \u30DE\u30B8: { boost: 0.22, jlpt: "N5" },
+    \u3084\u3070\u3044: { boost: 0.24, jlpt: "N5" },
+    \u9811\u5F35\u308B: { boost: 0.28, jlpt: "N5" },
+    \u5F85\u3064: { boost: 0.24, jlpt: "N4" },
+    \u601D\u3046: { boost: 0.24, jlpt: "N4" },
+    \u77E5\u308B: { boost: 0.26, jlpt: "N5" },
+    \u4F1A\u3046: { boost: 0.24, jlpt: "N5" }
+  };
+  function essentialBoost(base, targetLevel) {
+    if (targetLevel < 4) return 0;
+    return ESSENTIAL_WORDS[base]?.boost ?? 0;
+  }
+  function isEssentialWord(base) {
+    return base in ESSENTIAL_WORDS;
+  }
+
   // src/lib/scoring.ts
   var ELIGIBLE_POS = ["\u540D\u8A5E", "\u52D5\u8A5E", "\u5F62\u5BB9\u8A5E", "\u526F\u8A5E"];
   var EXCLUDED_NOUN_POS1 = ["\u4EE3\u540D\u8A5E", "\u6570", "\u63A5\u5C3E", "\u975E\u81EA\u7ACB", "\u56FA\u6709\u540D\u8A5E"];
@@ -46,7 +99,7 @@
     if (pos === "\u540D\u8A5E" && EXCLUDED_NOUN_POS1.includes(pos1)) {
       return { eligible: false, countSeen: false };
     }
-    if (base.length < 2 && !hasKanji(base)) {
+    if (base.length < 2 && !hasKanji(base) && !isEssentialWord(base)) {
       return { eligible: false, countSeen: false };
     }
     const entry = lookup(base);
@@ -92,11 +145,13 @@
     let best = null;
     let bestScore = -1;
     for (const { token, entry } of survivors) {
+      const essential = essentialBoost(token.base, settings.targetLevel);
       const freqScore = 1 - Math.min(entry.freqRank, 2e4) / 2e4;
       const levelScore = 1 - Math.abs(entry.level - settings.targetLevel) / 4;
       const familiarity = Math.min(wordStates[token.base]?.seenCount || 0, 5) / 5;
-      const score = 0.45 * freqScore + 0.35 * levelScore + 0.2 * familiarity;
-      if (score < 0.35) continue;
+      const score = 0.35 * freqScore + 0.3 * levelScore + 0.15 * familiarity + essential;
+      const minScore = essential > 0 ? 0.22 : 0.35;
+      if (score < minScore) continue;
       if (!best || score > bestScore || score === bestScore && entry.freqRank < best.entry.freqRank) {
         bestScore = score;
         best = { token, entry, isReview: false };
@@ -335,6 +390,71 @@
     });
   }
 
+  // src/config.ts
+  var BACKEND_URL = "https://api.animevocab.com";
+  var WEB_URL = "https://animevocab.com";
+
+  // src/lib/tts-client.ts
+  var activeAudio = null;
+  async function playBlob(blob) {
+    if (activeAudio) {
+      activeAudio.pause();
+      URL.revokeObjectURL(activeAudio.src);
+      activeAudio = null;
+    }
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    activeAudio = audio;
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      if (activeAudio === audio) activeAudio = null;
+    };
+    await audio.play();
+  }
+  async function fetchCloudTts(text, token) {
+    const res = await fetch(WEB_URL + "/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) return null;
+    return res.blob();
+  }
+  async function fetchByoTts(text, key) {
+    const res = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+      body: JSON.stringify({ model: "tts-1", voice: "nova", input: text, response_format: "mp3" })
+    });
+    if (!res.ok) return null;
+    return res.blob();
+  }
+  async function speakText(text) {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return { ok: false, error: "empty" };
+    try {
+      const settings = await getSettings();
+      if (settings.openaiKey?.trim()) {
+        const blob = await fetchByoTts(trimmed, settings.openaiKey.trim());
+        if (blob) {
+          await playBlob(blob);
+          return { ok: true };
+        }
+      }
+      const token = await getSyncToken();
+      if (token) {
+        const blob = await fetchCloudTts(trimmed, token);
+        if (blob) {
+          await playBlob(blob);
+          return { ok: true };
+        }
+      }
+      return { ok: false, error: "not_linked" };
+    } catch {
+      return { ok: false, error: "playback_failed" };
+    }
+  }
+
   // src/lib/romaji.ts
   var DIGRAPHS = {
     "\u304D\u3083": "kya",
@@ -543,6 +663,8 @@
   async function speakAsync(raw) {
     const text = (raw || "").trim();
     if (!text) return;
+    const cloud = await speakText(text);
+    if (cloud.ok) return;
     try {
       const synth = window.top?.speechSynthesis ?? speechSynthesis;
       const voices = await loadVoices(synth);
@@ -555,6 +677,13 @@
       synth.speak(u);
     } catch (err) {
       warn("tts failed:", err);
+    }
+  }
+  function preloadVoices() {
+    try {
+      const synth = window.top?.speechSynthesis ?? speechSynthesis;
+      void loadVoices(synth);
+    } catch {
     }
   }
   function loadVoices(synth) {
@@ -1253,7 +1382,10 @@
       gloss: ctx.entry.glosses[0] || "",
       line: ctx.sentence,
       level: ctx.entry.level,
-      title: ctx.title
+      title: ctx.title,
+      animeContext: ctx.options.animeContext ?? null,
+      learnerLevel: ctx.options.learnerLevel ?? null,
+      wordsKnown: ctx.options.wordsKnown ?? null
     };
   }
   function clearWordTimers() {
@@ -1430,21 +1562,21 @@
     chatPayload = payloadFromCtx(ctx);
     const chip = document.createElement("div");
     chip.className = isReview ? "avc-agent-chip avc-agent-chip-review" : "avc-agent-chip";
-    chip.textContent = isReview ? "Review" : `${commonnessLabel(entry.level)} \xB7 #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " \xB7 heard" : ""}`;
+    chip.textContent = isReview ? "Review" : `${isEssentialWord(token.base) ? "Essential \xB7 " : ""}${commonnessLabel(entry.level)} \xB7 #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " \xB7 heard" : ""}`;
     const displays = wordDisplays(token, entry, displayScript);
     const wordRow = document.createElement("div");
     wordRow.className = "avc-agent-word-row";
     const wordEl = document.createElement("div");
     wordEl.className = "avc-agent-word";
     wordEl.textContent = displays.big;
-    const speakText = entry.reading || token.reading || token.surface;
+    const speakText2 = entry.reading || token.reading || token.surface;
     const speakBtn = document.createElement("button");
     speakBtn.className = "avc-agent-speak";
     speakBtn.type = "button";
     speakBtn.textContent = "Hear word";
     speakBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      speak(speakText);
+      speak(speakText2);
     });
     wordRow.appendChild(wordEl);
     wordRow.appendChild(speakBtn);
@@ -1656,6 +1788,7 @@
     if (mounted && shell) return;
     shell = buildShell(root);
     mounted = true;
+    preloadVoices();
     void Promise.all([getSettings(), getAgentPanelWidth()]).then(([s, w]) => {
       if (!shell) return;
       shell.modeSelect.value = s.pauseMode;
@@ -1709,6 +1842,35 @@
     return new Promise((resolve) => {
       wordResolve = resolve;
     });
+  }
+
+  // src/lib/anime-context-client.ts
+  var sessionCache = /* @__PURE__ */ new Map();
+  async function fetchAnimeContext(title) {
+    const clean = (title || "").trim();
+    if (!clean) return null;
+    const cached = sessionCache.get(clean.toLowerCase());
+    if (cached) return cached;
+    const token = await getSyncToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(
+        WEB_URL + "/api/anime/context?title=" + encodeURIComponent(clean),
+        { headers: { Authorization: "Bearer " + token } }
+      );
+      if (!res.ok) return null;
+      const data2 = await res.json();
+      const ctx = (data2.context || "").trim();
+      if (ctx) sessionCache.set(clean.toLowerCase(), ctx);
+      return ctx || null;
+    } catch {
+      return null;
+    }
+  }
+  function peekAnimeContext(title) {
+    const clean = (title || "").trim();
+    if (!clean) return null;
+    return sessionCache.get(clean.toLowerCase()) || null;
   }
 
   // src/lib/adapters/util.ts
@@ -2025,9 +2187,6 @@
     return id ? `${platform}:${id}:${lang}` : location.pathname;
   }
 
-  // src/config.ts
-  var BACKEND_URL = "https://api.animevocab.com";
-
   // src/lib/transcript-client.ts
   async function lookupTranscript(syncToken, cacheKey2, t, windowSec = 8) {
     const url = new URL(BACKEND_URL + "/v1/transcript");
@@ -2169,6 +2328,19 @@
         await recordWatchTick();
       }, 6e4);
     }
+    let lastContextTitle = "";
+    function countProgress(vocab) {
+      let n = 0;
+      for (const rec of Object.values(vocab)) {
+        if (rec.state === "known" || rec.state === "learning") n++;
+      }
+      return n;
+    }
+    function prefetchAnimeContext(title) {
+      if (!title || title === lastContextTitle) return;
+      lastContextTitle = title;
+      void fetchAnimeContext(title);
+    }
     async function refreshState() {
       settings = await getSettings();
       wordStates = await getVocab();
@@ -2186,6 +2358,8 @@
         level: target.entry.level,
         freqRank: target.entry.freqRank
       };
+      const title = currentTitle();
+      prefetchAnimeContext(title);
       const cardOptions = {
         interaction: mode === "pause" ? "focus" : "ambient",
         autoResumeSec: settings.autoResumeSec,
@@ -2195,7 +2369,10 @@
         fromAudio: !!context?.fromAudio,
         tokens,
         targetIndex: tokens.indexOf(target.token),
-        title: currentTitle()
+        title,
+        animeContext: peekAnimeContext(title),
+        learnerLevel: settings.targetLevel,
+        wordsKnown: countProgress(wordStates)
       };
       const judgment = await showAgentPanel(target, sentence, video, cardOptions);
       if (judgment && judgment !== "dismiss") {
@@ -2306,8 +2483,10 @@
         targetedThisSession.clear();
         lastLine = "";
         lastCacheCueKey = "";
+        lastContextTitle = "";
         refreshCacheKey();
         log("session reset for new video:", sid);
+        prefetchAnimeContext(currentTitle());
       }
     }, 2e3);
     window.addEventListener("message", (e) => {

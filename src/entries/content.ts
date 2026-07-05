@@ -6,6 +6,7 @@ import * as dict from "../lib/dictionary";
 import * as tokenizer from "../lib/tokenizer";
 import * as scoring from "../lib/scoring";
 import * as overlay from "../lib/agent-panel";
+import { fetchAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
@@ -161,6 +162,22 @@ declare global {
     }, 60000);
   }
 
+  let lastContextTitle = "";
+
+  function countProgress(vocab: VocabMap): number {
+    let n = 0;
+    for (const rec of Object.values(vocab)) {
+      if (rec.state === "known" || rec.state === "learning") n++;
+    }
+    return n;
+  }
+
+  function prefetchAnimeContext(title: string | null): void {
+    if (!title || title === lastContextTitle) return;
+    lastContextTitle = title;
+    void fetchAnimeContext(title);
+  }
+
   async function refreshState(): Promise<void> {
     settings = await storage.getSettings();
     wordStates = await storage.getVocab();
@@ -182,6 +199,9 @@ declare global {
       freqRank: target.entry.freqRank
     };
 
+    const title = currentTitle();
+    prefetchAnimeContext(title);
+
     const cardOptions: overlay.AgentPanelOptions = {
       interaction: mode === "pause" ? "focus" : "ambient",
       autoResumeSec: settings!.autoResumeSec,
@@ -191,7 +211,10 @@ declare global {
       fromAudio: !!context?.fromAudio,
       tokens,
       targetIndex: tokens.indexOf(target.token),
-      title: currentTitle()
+      title,
+      animeContext: peekAnimeContext(title),
+      learnerLevel: settings!.targetLevel,
+      wordsKnown: countProgress(wordStates),
     };
 
     const judgment = await overlay.showAgentPanel(target, sentence, video, cardOptions);
@@ -325,8 +348,10 @@ declare global {
       targetedThisSession.clear();
       lastLine = "";
       lastCacheCueKey = "";
+      lastContextTitle = "";
       refreshCacheKey();
       log("session reset for new video:", sid);
+      prefetchAnimeContext(currentTitle());
     }
   }, 2000);
 

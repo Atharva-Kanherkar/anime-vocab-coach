@@ -117,11 +117,15 @@ export async function getCachedResult(cacheKey: string): Promise<unknown | null>
   }
 }
 
-export async function putCachedResult(cacheKey: string, value: unknown): Promise<void> {
+export async function putCachedResult(
+  cacheKey: string,
+  value: unknown,
+  expirationTtl = CACHE_TTL_SECONDS
+): Promise<void> {
   const raw = JSON.stringify(value);
   const kv = await getKV();
   if (kv) {
-    await kv.put(cacheKey, raw, { expirationTtl: CACHE_TTL_SECONDS });
+    await kv.put(cacheKey, raw, { expirationTtl });
   } else {
     localStore.set(cacheKey, raw);
   }

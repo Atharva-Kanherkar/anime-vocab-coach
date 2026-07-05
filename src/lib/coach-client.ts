@@ -10,6 +10,9 @@ export interface CoachPayload {
   line: string;
   level?: number | null;
   title?: string | null;
+  animeContext?: string | null;
+  learnerLevel?: number | null;
+  wordsKnown?: number | null;
 }
 
 export interface ChatMessage {

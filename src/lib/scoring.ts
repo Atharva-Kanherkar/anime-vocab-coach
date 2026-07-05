@@ -1,4 +1,5 @@
 import { lookup } from "./dictionary";
+import { essentialBoost, isEssentialWord } from "./priority-words";
 import type { DictEntry, Settings, Target, Token, VocabMap } from "../types";
 
 const ELIGIBLE_POS = ["名詞", "動詞", "形容詞", "副詞"];
@@ -28,7 +29,7 @@ export function checkEligibility(
   if (pos === "名詞" && EXCLUDED_NOUN_POS1.includes(pos1)) {
     return { eligible: false, countSeen: false };
   }
-  if (base.length < 2 && !hasKanji(base)) {
+  if (base.length < 2 && !hasKanji(base) && !isEssentialWord(base)) {
     return { eligible: false, countSeen: false };
   }
 
@@ -91,12 +92,14 @@ export function pickTarget(
   let bestScore = -1;
 
   for (const { token, entry } of survivors) {
+    const essential = essentialBoost(token.base, settings.targetLevel);
     const freqScore = 1 - Math.min(entry.freqRank, 20000) / 20000;
     const levelScore = 1 - Math.abs(entry.level - settings.targetLevel) / 4;
     const familiarity = Math.min(wordStates[token.base]?.seenCount || 0, 5) / 5;
-    const score = 0.45 * freqScore + 0.35 * levelScore + 0.2 * familiarity;
+    const score = 0.35 * freqScore + 0.30 * levelScore + 0.15 * familiarity + essential;
+    const minScore = essential > 0 ? 0.22 : 0.35;
 
-    if (score < 0.35) continue;
+    if (score < minScore) continue;
 
     if (!best || score > bestScore || (score === bestScore && entry.freqRank < best.entry.freqRank)) {
       bestScore = score;

@@ -95,6 +95,9 @@
     });
   }
 
+  // src/config.ts
+  var WEB_URL = "https://animevocab.com";
+
   // src/lib/romaji.ts
   var DIGRAPHS = {
     "\u304D\u3083": "kya",
@@ -307,9 +310,6 @@
         return "Rare";
     }
   }
-
-  // src/config.ts
-  var WEB_URL = "https://animevocab.com";
 
   // src/entries/options.ts
   var vocab = {};

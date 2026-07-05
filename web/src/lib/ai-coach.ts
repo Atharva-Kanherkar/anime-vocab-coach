@@ -28,6 +28,9 @@ export interface CoachRequest {
   line: string;
   level?: number | null;
   title?: string;
+  animeContext?: string;
+  learnerLevel?: number | null;
+  wordsKnown?: number | null;
   /** chat mode only */
   message?: string;
   history?: ChatMessage[];
@@ -76,6 +79,7 @@ export const MAX_LINE_LEN = 400;
 export const MAX_TITLE_LEN = 120;
 export const MAX_CHAT_MESSAGE_LEN = 500;
 export const MAX_CHAT_HISTORY = 12;
+export const MAX_ANIME_CONTEXT_LEN = 600;
 
 export function aiLimitForPlan(plan: Plan, free: number, pro: number): number {
   return plan === "pro" ? pro : free;
@@ -133,6 +137,18 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
       line,
       level,
       title: typeof body.title === "string" ? clamp(body.title, MAX_TITLE_LEN) : undefined,
+      animeContext:
+        typeof body.animeContext === "string"
+          ? clamp(body.animeContext, MAX_ANIME_CONTEXT_LEN)
+          : undefined,
+      learnerLevel:
+        Number.isFinite(Number(body.learnerLevel)) && Number(body.learnerLevel) > 0
+          ? Math.round(Number(body.learnerLevel))
+          : null,
+      wordsKnown:
+        Number.isFinite(Number(body.wordsKnown)) && Number(body.wordsKnown) >= 0
+          ? Math.round(Number(body.wordsKnown))
+          : null,
       message,
       history,
     },
@@ -141,10 +157,32 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
 
 /** Stable cache key: same word+line+level (across users) reuses one answer. */
 export async function coachCacheKey(req: CoachRequest): Promise<string> {
-  const basis = `${req.word}${req.line}${req.level ?? 0}`;
+  const ctxPart = req.animeContext ? req.animeContext.slice(0, 80) : "";
+  const basis = `${req.word}\u0001${req.line}\u0001${req.level ?? 0}\u0001${ctxPart}`;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(basis));
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
   return `ai:v1:${req.mode}:${hex}`;
+}
+
+function learnerProfileLine(req: CoachRequest): string {
+  const parts: string[] = [];
+  if (req.learnerLevel) {
+    const band =
+      req.learnerLevel >= 5
+        ? "beginner (N5 — prioritize everyday spoken essentials)"
+        : req.learnerLevel >= 4
+          ? "elementary (N4)"
+          : req.learnerLevel >= 3
+            ? "intermediate (N3)"
+            : req.learnerLevel >= 2
+              ? "upper intermediate (N2)"
+              : "advanced (N1)";
+    parts.push(`Learner band: ${band}`);
+  }
+  if (typeof req.wordsKnown === "number" && req.wordsKnown >= 0) {
+    parts.push(`Words marked known/learning so far: ${req.wordsKnown}`);
+  }
+  return parts.join("\n");
 }
 
 function contextBlock(req: CoachRequest): string {
@@ -153,7 +191,9 @@ function contextBlock(req: CoachRequest): string {
     req.reading ? `Reading: ${req.reading}` : "",
     req.gloss ? `Known gloss: ${req.gloss}` : "",
     req.title ? `Anime: ${req.title}` : "",
-    req.level ? `Learner target difficulty (5 = beginner/common words … 1 = advanced/rare): ${req.level}` : "",
+    req.animeContext ? `Show context:\n${req.animeContext}` : "",
+    learnerProfileLine(req),
+    req.level ? `Word frequency band (5 = very common … 1 = rare): ${req.level}` : "",
     `Line from the scene: ${req.line}`,
   ].filter(Boolean);
   return bits.join("\n");

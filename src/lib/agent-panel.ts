@@ -4,6 +4,7 @@
 import * as romaji from "./romaji";
 import { lookup } from "./dictionary";
 import { commonnessLabel } from "./levels";
+import { isEssentialWord } from "./priority-words";
 import { renderMarkdown } from "./markdown-lite";
 import { getSettings, setSettings, getAgentPanelWidth, setAgentPanelWidth } from "./storage";
 import type { DictEntry, DisplayScript, Judgment, PauseMode, Target, Token } from "../types";
@@ -19,6 +20,9 @@ export interface CardOptions {
   tokens?: Token[];
   targetIndex?: number;
   title?: string | null;
+  animeContext?: string | null;
+  learnerLevel?: number;
+  wordsKnown?: number;
 }
 
 export interface AgentPanelOptions extends CardOptions {
@@ -93,6 +97,9 @@ interface CoachPayload {
   line: string;
   level?: number | null;
   title?: string | null;
+  animeContext?: string | null;
+  learnerLevel?: number | null;
+  wordsKnown?: number | null;
 }
 
 const STYLES = `
@@ -651,6 +658,9 @@ function payloadFromCtx(ctx: WordContext): CoachPayload {
     line: ctx.sentence,
     level: ctx.entry.level,
     title: ctx.title,
+    animeContext: ctx.options.animeContext ?? null,
+    learnerLevel: ctx.options.learnerLevel ?? null,
+    wordsKnown: ctx.options.wordsKnown ?? null,
   };
 }
 
@@ -840,7 +850,7 @@ function populateWordSection(ctx: WordContext): void {
   chip.className = isReview ? "avc-agent-chip avc-agent-chip-review" : "avc-agent-chip";
   chip.textContent = isReview
     ? "Review"
-    : `${commonnessLabel(entry.level)} · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · heard" : ""}`;
+    : `${isEssentialWord(token.base) ? "Essential · " : ""}${commonnessLabel(entry.level)} · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · heard" : ""}`;
 
   const displays = wordDisplays(token, entry, displayScript);
   const wordRow = document.createElement("div");

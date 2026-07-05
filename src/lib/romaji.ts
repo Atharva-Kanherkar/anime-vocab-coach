@@ -1,4 +1,5 @@
 import { warn } from "./log";
+import { speakText } from "./tts-client";
 import type { Token } from "../types";
 
 const DIGRAPHS: Record<string, string> = {
@@ -46,7 +47,6 @@ export function kataToHira(s: string): string {
   return (s || "").replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 }
 
-// Wapuro-style Hepburn: そう → "sou", っち → "tchi", ー doubles the previous vowel.
 export function toRomaji(kana: string): string {
   const s = kataToHira(kana);
   let out = "";
@@ -65,7 +65,7 @@ export function toRomaji(kana: string): string {
     const pair = s.slice(i, i + 2);
     if (DIGRAPHS[pair]) { roma = DIGRAPHS[pair]; i += 2; }
     else if (MONOGRAPHS[ch]) { roma = MONOGRAPHS[ch]; i += 1; }
-    else { out += ch; i += 1; sokuon = false; continue; } // kanji/latin/punct pass through
+    else { out += ch; i += 1; sokuon = false; continue; }
     if (sokuon) {
       out += roma.startsWith("ch") ? "t" : roma[0];
       sokuon = false;
@@ -80,8 +80,6 @@ export interface SentencePiece {
   highlight: boolean;
 }
 
-// Romaji for a full tokenized sentence; highlightIndex wraps that token in markers.
-// Returns array of {text, highlight} pieces so callers can build DOM safely.
 export function sentencePieces(tokens: Token[], highlightIndex: number): SentencePiece[] {
   return tokens
     .map((t, idx) => ({
@@ -95,19 +93,13 @@ export function speak(text: string): void {
   void speakAsync(text);
 }
 
-/** Warm up voices so the first Hear click works immediately. */
-export function preloadVoices(): void {
-  try {
-    const synth = window.top?.speechSynthesis ?? speechSynthesis;
-    void loadVoices(synth);
-  } catch {
-    /* ignore */
-  }
-}
-
 async function speakAsync(raw: string): Promise<void> {
   const text = (raw || "").trim();
   if (!text) return;
+
+  const cloud = await speakText(text);
+  if (cloud.ok) return;
+
   try {
     const synth = window.top?.speechSynthesis ?? speechSynthesis;
     const voices = await loadVoices(synth);
@@ -123,6 +115,16 @@ async function speakAsync(raw: string): Promise<void> {
     synth.speak(u);
   } catch (err) {
     warn("tts failed:", err);
+  }
+}
+
+/** Warm up browser voices as a last-resort fallback. */
+export function preloadVoices(): void {
+  try {
+    const synth = window.top?.speechSynthesis ?? speechSynthesis;
+    void loadVoices(synth);
+  } catch {
+    /* ignore */
   }
 }
 

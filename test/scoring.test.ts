@@ -13,6 +13,7 @@ const { dict } = vi.hoisted(() => ({
     憂鬱: { reading: "ゆううつ", glosses: ["melancholy"], level: 1, freqRank: 18000 },
     学校: { reading: "がっこう", glosses: ["school"], level: 5, freqRank: 300 },
     目: { reading: "め", glosses: ["eye"], level: 5, freqRank: 1000 }, // single-kanji
+    お願いします: { reading: "おねがいします", glosses: ["please"], level: 3, freqRank: 5000 },
   } as Record<string, DictEntry>,
 }));
 
@@ -177,5 +178,10 @@ describe("pickTarget", () => {
   it("drops candidates below the score threshold", () => {
     // 憂鬱 alone: 0.045 << 0.35 → no target.
     expect(pickTarget([tok("憂鬱")], {}, settings, new Set())).toBeNull();
+  });
+
+  it("boosts essential beginner phrases like お願いします", () => {
+    const target = pickTarget([tok("学校"), tok("お願いします")], {}, settings, new Set());
+    expect(target!.token.base).toBe("お願いします");
   });
 });
