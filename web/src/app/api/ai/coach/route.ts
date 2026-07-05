@@ -1,13 +1,11 @@
-import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
+import { resolveProfile, resolvePlan } from "@/lib/auth";
 import {
   aiLimitForPlan,
   coachCacheKey,
   launchActive,
   normalizeCoachRequest,
   runCoach,
-  type Plan,
   type Tier,
 } from "@/lib/ai-coach";
 import {
@@ -22,21 +20,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
-async function resolveUser(): Promise<{ id: string; plan: Plan } | null> {
-  if (DEV_NO_CLERK) return { id: DEV_PROFILE.id, plan: "free" };
-
-  const user = await currentUser();
-  if (!user) return null;
-
-  // Pro is set via Clerk publicMetadata.plan once a Dodo subscription is linked
-  // (webhook wiring is a follow-up). Everyone defaults to the free taste tier.
-  const plan: Plan = user.publicMetadata?.plan === "pro" ? "pro" : "free";
-  return { id: user.id, plan };
-}
-
 export async function POST(req: Request) {
-  const user = await resolveUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // Accept a signed-in web session, the dev bypass, OR the extension's sync
+  // token (Authorization: Bearer) — so the overlay card can call the coach.
+  const profile = await resolveProfile(req);
+  if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const user = { id: profile.id, plan: await resolvePlan(req) };
 
   let body: unknown;
   try {
