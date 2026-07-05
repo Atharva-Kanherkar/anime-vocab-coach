@@ -1,5 +1,6 @@
 import * as romaji from "./romaji";
 import { lookup } from "./dictionary";
+import { commonnessLabel } from "./levels";
 import type { DictEntry, DisplayScript, Judgment, Target, Token } from "../types";
 
 let open = false;
@@ -431,7 +432,7 @@ export function showCard(
   chip.className = isReview ? "avc-chip avc-chip-review" : "avc-chip";
   chip.textContent = isReview
     ? "Review — you learned this word. Remember it?"
-    : `N${entry.level} · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · heard just now" : ""}`;
+    : `${commonnessLabel(entry.level)} · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · heard just now" : ""}`;
 
   const displays = wordDisplays(token, entry, displayScript);
 

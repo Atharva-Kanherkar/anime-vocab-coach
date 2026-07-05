@@ -113,7 +113,7 @@ export default function VsLanguageReactorPage() {
                     <th scope="row">Pushes one curated word per line</th>
                     <td className="us">
                       <span className="yes">Yes</span>
-                      <span className="cell-note">Frequency + JLPT filtered</span>
+                      <span className="cell-note">Frequency-filtered</span>
                     </td>
                     <td>
                       <span className="no">No</span> (you hover and save words yourself)
@@ -215,7 +215,7 @@ export default function VsLanguageReactorPage() {
               </li>
               <li>
                 <strong>It decides for you.</strong> Instead of hovering and choosing what to save,
-                AnimeVocab surfaces one useful word per line, filtered by frequency and JLPT level. Lower
+                AnimeVocab surfaces one useful word per line, filtered by how common the word is. Lower
                 effort, fewer decisions mid-episode.
               </li>
               <li>

@@ -1,6 +1,7 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
 import { getDueWords } from "../lib/review";
+import { commonnessShort } from "../lib/levels";
 import type { DailyStats, Stats, VocabMap } from "../types";
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -175,12 +176,12 @@ function renderDonut(vocab: VocabMap): void {
 
 function renderLevel(vocab: VocabMap): void {
   const host = document.getElementById("chart-level")!;
-  // N5..N1  (stored level 5..1 → N = level)
+  // Frequency bands 5..1 (most common → rarest). NOT JLPT — see lib/levels.ts.
   const levels = [5, 4, 3, 2, 1];
   const data = levels.map((lv) => {
     const words = Object.values(vocab).filter((r) => r.level === lv);
     return {
-      n: "N" + lv,
+      n: commonnessShort(lv),
       known: words.filter((r) => r.state === "known").length,
       learning: words.filter((r) => r.state === "learning").length
     };
@@ -346,7 +347,7 @@ function renderList(): void {
       <td class="jp">${r.reading || ""}</td>
       <td class="jp">${w}</td>
       <td class="meaning">${r.gloss || ""}</td>
-      <td>N${r.level}</td>
+      <td>${commonnessShort(r.level)}</td>
       <td>${r.seenCount || 0}</td>
       <td><span class="state-tag ${r.state}">${r.state}</span></td>
       <td>${due}</td></tr>`;
