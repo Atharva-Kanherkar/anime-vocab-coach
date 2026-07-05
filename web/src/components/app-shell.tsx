@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { GITHUB_URL } from "@/lib/site";
+import { DEV_NO_CLERK } from "@/lib/dev-auth";
 
 export function AppTopNav() {
   return (
@@ -16,7 +17,7 @@ export function AppTopNav() {
           Install
         </a>
       </nav>
-      <UserButton />
+      {!DEV_NO_CLERK && <UserButton />}
     </header>
   );
 }

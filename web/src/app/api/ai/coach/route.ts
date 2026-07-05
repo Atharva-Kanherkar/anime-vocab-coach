@@ -1,5 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import {
   aiLimitForPlan,
   coachCacheKey,
@@ -22,6 +23,8 @@ import {
 export const dynamic = "force-dynamic";
 
 async function resolveUser(): Promise<{ id: string; plan: Plan } | null> {
+  if (DEV_NO_CLERK) return { id: DEV_PROFILE.id, plan: "free" };
+
   const user = await currentUser();
   if (!user) return null;
 

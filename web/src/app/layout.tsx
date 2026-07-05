@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
+import { DEV_NO_CLERK } from "@/lib/dev-auth";
 import { FxAudioPrimer } from "@/components/fx-audio-primer";
 import { ScrollEffects } from "@/components/site-chrome";
 import {
@@ -130,7 +131,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${newsreader.variable} ${ibmPlex.variable} ${notoJp.variable}`}>
       <body>
-        <ClerkProvider appearance={clerkAppearance}>{shell}</ClerkProvider>
+        {DEV_NO_CLERK ? shell : <ClerkProvider appearance={clerkAppearance}>{shell}</ClerkProvider>}
       </body>
     </html>
   );

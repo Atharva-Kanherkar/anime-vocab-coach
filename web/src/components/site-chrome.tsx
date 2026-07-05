@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { useEffect, useState, type CSSProperties } from "react";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
+import { DEV_NO_CLERK } from "@/lib/dev-auth";
 
 export function SiteHeader({ compact = false }: { compact?: boolean }) {
   return (
@@ -47,6 +48,16 @@ export function HomeNav() {
 export function AuthControls({ size = "md" }: { size?: "sm" | "md" }) {
   const lineClass = size === "sm" ? "btn btn-sm btn-line" : "btn btn-line";
   const accentClass = size === "sm" ? "btn btn-sm btn-accent" : "btn btn-accent";
+
+  // Dev bypass: no ClerkProvider is mounted, so Clerk components would throw.
+  // Show a plain link to the app instead.
+  if (DEV_NO_CLERK) {
+    return (
+      <Link className={lineClass} href="/app" prefetch={false}>
+        Cloud app
+      </Link>
+    );
+  }
 
   return (
     <>
