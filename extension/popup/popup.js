@@ -9,7 +9,7 @@
     cooldownSec: 20,
     maxCardsPerHour: 12,
     targetLevel: 5,
-    autoResumeSec: 0,
+    autoResumeSec: 15,
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
@@ -31,18 +31,6 @@
   }
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
-  }
-  function getSettings() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(["settings"], (r) => {
-        resolve({ ...DEFAULTS, ...r.settings || {} });
-      });
-    });
-  }
-  function setAgentPinned(pinned) {
-    return new Promise((resolve) => {
-      chrome.storage.local.set({ agentPinned: pinned }, () => resolve());
-    });
   }
   function getVocab() {
     return new Promise((resolve) => {
@@ -327,7 +315,6 @@
     return document.getElementById(id);
   }
   async function render() {
-    const settings = await getSettings();
     const vocab = await getVocab();
     const stats = await getStats();
     const day = todayKey();
@@ -372,7 +359,7 @@
         await setWordState(target.dataset.word, target.value);
       });
     });
-    byId("mode-note").textContent = "Mode in copilot panel";
+    byId("mode-note").textContent = "This tab only";
   }
   async function activeTabId() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -404,16 +391,33 @@
       });
     });
   }
-  async function pinAgentPanel() {
+  async function initCopilotToggle() {
+    const btn = byId("copilot-btn");
     const tabId = await activeTabId();
-    if (tabId == null) return;
-    await setAgentPinned(true);
-    chrome.runtime.sendMessage({ type: "avc-agent-pin", tabId });
+    if (tabId == null) {
+      btn.disabled = true;
+      btn.textContent = "Open Copilot (no active tab)";
+      return;
+    }
+    const refresh = () => {
+      chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
+        const on = !!res?.visible;
+        btn.textContent = on ? "Hide Copilot on this tab" : "Open Copilot on this tab";
+        btn.classList.toggle("active", on);
+      });
+    };
+    btn.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
+        const type = res?.visible ? "avc-agent-hide" : "avc-agent-show";
+        chrome.runtime.sendMessage({ type, tabId }, () => refresh());
+      });
+    });
+    refresh();
   }
   document.addEventListener("DOMContentLoaded", () => {
     render();
     initListening();
-    void pinAgentPanel();
+    void initCopilotToggle();
     byId("dashboard-link").addEventListener("click", (e) => {
       e.preventDefault();
       chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });

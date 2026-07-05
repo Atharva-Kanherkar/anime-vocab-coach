@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { AiCoach } from "@/components/ai-coach";
 import { useCloudSnapshot } from "@/components/cloud-sync-panel";
 import { GITHUB_URL } from "@/lib/site";
 import { pickDueReviews, pickRecentWords, summarizeSyncSnapshot } from "@/lib/sync";
@@ -17,111 +16,105 @@ export function AppDashboard() {
 
   return (
     <>
-      <PlanStatusBar />
-
-      <section className="dash-overview" aria-label="Progress overview">
-        <div className="metric-grid">
+      <section className="dash-overview" aria-label="Your progress">
+        <div className="metric-grid metric-grid--home">
           <Metric label="Words saved" value={summary.totalWords} />
           <Metric label="Learning" value={summary.learningWords} />
-          <Metric label="Reviews due" value={summary.reviewsDue} />
-          <Metric label="Watch minutes" value={summary.watchMinutes} />
+          <Metric label="Due today" value={summary.reviewsDue} />
+          <Metric label="Watch time (min)" value={summary.watchMinutes} />
         </div>
       </section>
 
       <div className="dash-split">
-        <DashPanel title="Recent anime words" eyebrow="From your extension">
+        <DashPanel title="Recent words">
           {recentWords.length > 0 ? (
             <ul className="word-list">
               {recentWords.map((word) => (
                 <li key={word.base}>
                   <span className="word-base">{word.base}</span>
                   <span className="word-meta">
-                    {word.reading || word.gloss ? `${word.reading}${word.gloss ? ` · ${word.gloss}` : ""}` : word.state}
-                    {word.source?.title ? ` · from ${word.source.title}` : ""}
+                    {word.reading || word.gloss
+                      ? `${word.reading}${word.gloss ? ` · ${word.gloss}` : ""}`
+                      : word.state}
+                    {word.source?.title ? ` · ${word.source.title}` : ""}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
             <EmptyState
-              title="No words in Cloud yet"
-              body="Install the extension and sign in — your words sync here automatically as you learn. (You can also import a JSON export manually below.)"
-              primary={{ href: GITHUB_URL, label: "Install free extension", external: true }}
-              secondary={{ href: "#sync", label: "Jump to sync" }}
+              title="No words yet"
+              body="Install the extension and watch something with subtitles. Tap Know or Learn on words as they appear — they'll show up here."
+              primary={{ href: GITHUB_URL, label: "Get the extension", external: true }}
             />
           )}
         </DashPanel>
 
-        <DashPanel title="Reviews due" eyebrow="Spaced repetition">
+        <DashPanel title="Reviews due">
           {dueReviews.length > 0 ? (
             <ul className="word-list">
               {dueReviews.map((word) => (
                 <li key={word.base}>
                   <span className="word-base">{word.base}</span>
                   <span className="word-meta">
-                    stage {word.review?.stage ?? 0}
-                    {word.review?.dueAt ? ` · due ${formatDue(word.review.dueAt)}` : ""}
+                    {word.reading || word.gloss || "review"}
+                    {word.review?.dueAt ? ` · ${formatDue(word.review.dueAt)}` : ""}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
             <EmptyState
-              title={hasData ? "You're caught up" : "Reviews live in the extension first"}
+              title={hasData ? "All caught up" : "Reviews run in the extension"}
               body={
                 hasData
-                  ? "Great timing — review in the extension or sync again after your next watch session."
-                  : "The Chrome extension runs your daily review loop locally. Import progress to preview due cards here."
+                  ? "Open the extension popup to run your review session."
+                  : "Once you save words while watching, spaced repetition keeps them fresh."
               }
-              primary={{ href: GITHUB_URL, label: "Review in extension", external: true }}
-              secondary={{ href: "#sync", label: "Import progress" }}
+              primary={{ href: GITHUB_URL, label: "Open extension", external: true }}
             />
           )}
         </DashPanel>
       </div>
 
-      <AiCoach />
-      {/* Notebooks and the leaderboard now render as live panels on the /app
-          page (NotebooksPanel, GamificationPanel) — the old "coming soon"
-          placeholders were removed so the page doesn't contradict itself. */}
+      <section className="app-quick-links" aria-label="Quick links">
+        <p className="app-quick-links__label">Go to</p>
+        <div className="app-quick-links__grid">
+          <QuickLink emoji="🤖" title="AI coach" body="Explain a word from the exact line it appeared in." tab="coach" />
+          <QuickLink emoji="📓" title="Notebooks" body="Collect words and scenes by show or topic." tab="notebooks" />
+          <QuickLink emoji="🔥" title="Progress" body="Streaks, weekly challenges, and the leaderboard." tab="progress" />
+        </div>
+      </section>
     </>
   );
 }
 
-function PlanStatusBar() {
+function QuickLink({
+  emoji,
+  title,
+  body,
+  tab,
+}: {
+  emoji: string;
+  title: string;
+  body: string;
+  tab: string;
+}) {
   return (
-    <section className="plan-bar" aria-label="Plan status">
-      <div>
-        <p className="eyebrow">Current plan</p>
-        <h2>Pro · open to everyone</h2>
-        <p className="plan-copy">
-          Pro features — the AI coach, cloud sync, notebooks, and leaderboard — are free for everyone right now, no checkout needed. Your local extension data stays yours until you import or sync.
-        </p>
-      </div>
-      <div className="plan-actions">
-        <span className="status-pill status-connected" title="Pro is free for everyone right now">
-          Pro active · free
-        </span>
-        <Link className="btn btn-line" href="/#pricing">
-          Compare plans
-        </Link>
-      </div>
-    </section>
+    <a className="quick-link-card" href={`#${tab}`} onClick={(e) => {
+      e.preventDefault();
+      document.getElementById(`tab-${tab}`)?.click();
+    }}>
+      <span className="quick-link-card__emoji" aria-hidden>{emoji}</span>
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </a>
   );
 }
 
-function DashPanel({
-  title,
-  eyebrow,
-  children,
-}: {
-  title: string;
-  eyebrow: string;
-  children: ReactNode;
-}) {
+function DashPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <article className="dash-panel">
-      <p className="eyebrow">{eyebrow}</p>
       <h2>{title}</h2>
       {children}
     </article>
@@ -132,12 +125,10 @@ function EmptyState({
   title,
   body,
   primary,
-  secondary,
 }: {
   title: string;
   body: string;
   primary: { href: string; label: string; external?: boolean };
-  secondary: { href: string; label: string };
 }) {
   return (
     <div className="empty-state">
@@ -145,17 +136,14 @@ function EmptyState({
       <p>{body}</p>
       <div className="empty-actions">
         {primary.external ? (
-          <a className="btn btn-accent" href={primary.href} rel="noopener noreferrer">
+          <a className="btn btn-accent btn-sm" href={primary.href} rel="noopener noreferrer">
             {primary.label}
           </a>
         ) : (
-          <Link className="btn btn-accent" href={primary.href}>
+          <Link className="btn btn-accent btn-sm" href={primary.href}>
             {primary.label}
           </Link>
         )}
-        <Link className="btn btn-line" href={secondary.href}>
-          {secondary.label}
-        </Link>
       </div>
     </div>
   );
@@ -177,6 +165,6 @@ function formatDue(iso: string): string {
     date.getFullYear() === now.getFullYear() &&
     date.getMonth() === now.getMonth() &&
     date.getDate() === now.getDate();
-  if (sameDay) return "today";
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (sameDay) return "due today";
+  return `due ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }

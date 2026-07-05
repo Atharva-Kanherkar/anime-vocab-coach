@@ -74,8 +74,9 @@ export function AiCoach() {
     <section className="ai-coach" aria-label="AI anime coach">
       <div className="panel-head">
         <div>
-          <p className="eyebrow">AI coach · anime-native</p>
-          <h2>Explain a word from the exact scene it appeared in.</h2>
+          <p className="eyebrow">AI coach</p>
+          <h2>Ask about a word from the scene it appeared in</h2>
+          <p className="panel-lede">Paste the subtitle line and get a scene-native explanation or memory hooks.</p>
         </div>
         {usage && (
           <span className="status-pill">

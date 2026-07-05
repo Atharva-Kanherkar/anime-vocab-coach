@@ -85,19 +85,61 @@ async function sendToOffscreen(msg: object, tries = 15): Promise<Ack> {
 // loaded (Chrome only auto-injects on navigation after install).
 const CONTENT_SCRIPTS = ["vendor/kuromoji.js", "content.js"];
 
-async function ensureContentScript(tabId: number): Promise<boolean> {
+async function tabNeedsAllFrames(tabId: number): Promise<boolean> {
   try {
-    const [probe] = await chrome.scripting.executeScript({
-      target: { tabId },
+    const tab = await chrome.tabs.get(tabId);
+    return !!tab.url && /crunchyroll\.com/i.test(tab.url);
+  } catch {
+    return false;
+  }
+}
+
+async function deliverTranscript(tabId: number, text: string): Promise<void> {
+  const payload = { type: "avc-transcript", text };
+  let delivered = false;
+  try {
+    const frames = await chrome.webNavigation.getAllFrames({ tabId });
+    if (frames?.length) {
+      await Promise.all(
+        frames.map(async (f) => {
+          if (f.frameId == null) return;
+          try {
+            await chrome.tabs.sendMessage(tabId, payload, { frameId: f.frameId });
+            delivered = true;
+          } catch {
+            /* no content script in this frame */
+          }
+        })
+      );
+    }
+  } catch (err) {
+    console.warn("[AVC] getAllFrames failed:", String(err));
+  }
+  if (delivered) return;
+  try {
+    await chrome.tabs.sendMessage(tabId, payload);
+  } catch (err) {
+    console.warn("[AVC] could not deliver transcript to tab (content script not loaded?):", String(err));
+  }
+}
+
+async function ensureContentScript(tabId: number): Promise<boolean> {
+  const allFrames = await tabNeedsAllFrames(tabId);
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId, allFrames },
       func: () => !!(window as Window & { __avcMainLoaded?: boolean }).__avcMainLoaded
     });
-    if (probe && probe.result) return true; // already there
+    if (results.some((r) => r.result)) return true;
   } catch (err) {
     // probe failed (no host access etc.) — injection below will surface it
   }
   try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_SCRIPTS });
-    console.log("[AVC] injected content scripts into tab", tabId);
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames },
+      files: CONTENT_SCRIPTS
+    });
+    console.log("[AVC] injected content scripts into tab", tabId, allFrames ? "(all frames)" : "");
     return true;
   } catch (err) {
     console.warn("[AVC] content-script injection failed:", String(err));
@@ -258,15 +300,21 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     return true;
   }
 
-  if (msg.type === "avc-agent-pin") {
-    ensureContentScript(msg.tabId!)
+  if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status") {
+    const tabId = msg.tabId!;
+    const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;
+    ensureContentScript(tabId)
       .then((ok) => {
         if (!ok) {
           sendResponse({ ok: false, error: "Could not load into this tab." });
           return;
         }
-        chrome.tabs.sendMessage(msg.tabId!, { type: "avc-agent-show" }, () => {
-          sendResponse({ ok: !chrome.runtime.lastError });
+        chrome.tabs.sendMessage(tabId, { type: outType }, (res) => {
+          if (chrome.runtime.lastError) {
+            sendResponse({ ok: false, error: chrome.runtime.lastError.message });
+            return;
+          }
+          sendResponse(res ?? { ok: true });
         });
       })
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
@@ -275,9 +323,7 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
 
   if (msg.type === "avc-transcript") {
     console.log("[AVC] relaying transcript to tab", msg.tabId, "→", msg.text);
-    chrome.tabs.sendMessage(msg.tabId!, { type: "avc-transcript", text: msg.text }).catch((err) => {
-      console.warn("[AVC] could not deliver transcript to tab (content script not loaded?):", String(err));
-    });
+    void deliverTranscript(msg.tabId!, msg.text!);
     return;
   }
 

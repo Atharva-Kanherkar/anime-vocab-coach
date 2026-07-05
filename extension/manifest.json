@@ -4,7 +4,7 @@
   "short_name": "AnimeVocab",
   "version": "0.5.1",
   "description": "Learn Japanese from the anime you watch — even if you can't read it yet. Watches with you, pauses on words worth learning, tracks progress.",
-  "permissions": ["storage", "tabCapture", "offscreen", "scripting", "alarms"],
+  "permissions": ["storage", "tabCapture", "offscreen", "scripting", "alarms", "webNavigation"],
   "host_permissions": [
     "*://*.youtube.com/*",
     "*://*.netflix.com/*",

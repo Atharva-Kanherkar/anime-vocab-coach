@@ -11,6 +11,11 @@ import type { DictEntry, DisplayScript, Judgment, PauseMode, Target, Token } fro
 
 export type InteractionMode = "ambient" | "focus";
 
+/** Ambient: ~3 subtitle lines at typical anime pace before moving on. */
+const AMBIENT_AUTO_DISMISS_SEC = 15;
+/** Focus (video paused): enough to read + tap a button. */
+const FOCUS_AUTO_DISMISS_SEC = 30;
+
 export interface CardOptions {
   autoResumeSec?: number;
   displayScript?: DisplayScript;
@@ -80,6 +85,7 @@ let chatPayload: CoachPayload | null = null;
 
 let keyHandler: ((e: KeyboardEvent) => void) | null = null;
 let autoTimer: ReturnType<typeof setTimeout> | null = null;
+let autoTimerMax: ReturnType<typeof setTimeout> | null = null;
 let playHandler: (() => void) | null = null;
 let userResumed = false;
 let activeVideo: HTMLVideoElement | null = null;
@@ -204,6 +210,22 @@ const STYLES = `
   .avc-agent-mode-select:focus {
     outline: none; border-color: rgba(227, 186, 99, 0.3);
   }
+  .avc-agent-head-actions {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .avc-agent-close {
+    width: 26px; height: 26px; padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(236, 234, 228, 0.55);
+    font-size: 16px; line-height: 1;
+    cursor: pointer; font-family: inherit;
+  }
+  .avc-agent-close:hover {
+    color: rgba(236, 234, 228, 0.92);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
   .avc-agent-scroll {
     overflow-y: auto; padding: 12px 16px 8px;
     flex: 1; min-height: 0;
@@ -219,6 +241,86 @@ const STYLES = `
   .avc-agent-idle strong { color: rgba(227, 186, 99, 0.5); font-weight: 500; }
   .avc-agent-word-block { display: none; }
   .avc-agent-word-block.avc-active { display: block; }
+  /* Ambient: readable text on a small local card — sidebar background stays glassy */
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active {
+    padding: 14px 12px 12px;
+    margin: 0 -2px 10px;
+    border-radius: 12px;
+    background: linear-gradient(
+      165deg,
+      rgba(6, 5, 9, 0.78) 0%,
+      rgba(6, 5, 9, 0.52) 55%,
+      rgba(6, 5, 9, 0.42) 100%
+    );
+    backdrop-filter: blur(14px) saturate(1.08);
+    -webkit-backdrop-filter: blur(14px) saturate(1.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 4px 20px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-chip {
+    color: rgba(236, 234, 228, 0.62);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-word {
+    color: rgba(255, 252, 245, 0.97);
+    text-shadow:
+      0 0 1px rgba(0, 0, 0, 0.95),
+      0 1px 2px rgba(0, 0, 0, 0.9),
+      0 2px 10px rgba(0, 0, 0, 0.65),
+      0 0 24px rgba(0, 0, 0, 0.4);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-reading {
+    color: rgba(248, 244, 236, 0.82);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-gloss {
+    color: rgba(248, 244, 236, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-context,
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-sentence {
+    color: rgba(240, 237, 230, 0.82);
+    background: rgba(0, 0, 0, 0.22);
+    border-left-color: rgba(227, 186, 99, 0.45);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-label {
+    color: rgba(236, 234, 228, 0.55);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-romaji-line {
+    color: rgba(236, 234, 228, 0.78);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-sentence mark,
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-romaji-line mark {
+    color: rgba(255, 220, 140, 0.98);
+    text-shadow:
+      0 0 1px rgba(0, 0, 0, 0.9),
+      0 1px 4px rgba(0, 0, 0, 0.75),
+      0 0 16px rgba(227, 168, 72, 0.35);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-foot.avc-active {
+    margin: 0 -2px 4px;
+    padding: 10px 10px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(6, 5, 9, 0.62);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.22);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-foot.avc-active .avc-agent-know {
+    color: rgba(248, 244, 236, 0.88);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-foot.avc-active .avc-agent-ignore {
+    color: rgba(236, 234, 228, 0.62);
+  }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-foot.avc-active .avc-agent-hint {
+    color: rgba(236, 234, 228, 0.45);
+  }
   .avc-agent-chip {
     display: inline-block; font-size: 9px; letter-spacing: 0.08em;
     text-transform: uppercase; color: rgba(236, 234, 228, 0.35);
@@ -666,6 +768,7 @@ function payloadFromCtx(ctx: WordContext): CoachPayload {
 
 function clearWordTimers(): void {
   if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  if (autoTimerMax) { clearTimeout(autoTimerMax); autoTimerMax = null; }
   if (playHandler && activeVideo) {
     activeVideo.removeEventListener("play", playHandler);
     playHandler = null;
@@ -702,11 +805,20 @@ function finishWord(judgment: Judgment | "dismiss"): void {
   if (fn) fn(judgment);
 }
 
+function effectiveAutoDismissSec(opts: AgentPanelOptions): number {
+  const configured = opts.autoResumeSec ?? 0;
+  if (configured > 0) return configured;
+  return opts.interaction === "focus" ? FOCUS_AUTO_DISMISS_SEC : AMBIENT_AUTO_DISMISS_SEC;
+}
+
 function bumpAutoTimer(opts: AgentPanelOptions): void {
   if (autoTimer) clearTimeout(autoTimer);
-  const sec = opts.autoResumeSec || 0;
-  if (opts.interaction === "focus" && sec > 0) {
-    autoTimer = setTimeout(() => finishWord("dismiss"), sec * 1000);
+  const sec = effectiveAutoDismissSec(opts);
+  autoTimer = setTimeout(() => finishWord("dismiss"), sec * 1000);
+  // Hard cap — never block the next word indefinitely (e.g. mouse parked on sidebar).
+  if (!autoTimerMax) {
+    const capSec = Math.max(sec + 10, 45);
+    autoTimerMax = setTimeout(() => finishWord("dismiss"), capSec * 1000);
   }
 }
 
@@ -968,8 +1080,24 @@ function buildShell(root: ShadowRoot): Shell {
   });
   modeSelect.addEventListener("click", (e) => e.stopPropagation());
 
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "avc-agent-close";
+  closeBtn.type = "button";
+  closeBtn.setAttribute("aria-label", "Close copilot");
+  closeBtn.title = "Close copilot";
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    hideAgent();
+  });
+
+  const headActions = document.createElement("div");
+  headActions.className = "avc-agent-head-actions";
+  headActions.appendChild(modeSelect);
+  headActions.appendChild(closeBtn);
+
   head.appendChild(brand);
-  head.appendChild(modeSelect);
+  head.appendChild(headActions);
 
   const scrollArea = document.createElement("div");
   scrollArea.className = "avc-agent-scroll";
@@ -1095,6 +1223,17 @@ export function ensureAgentMounted(): void {
     applyInteractionMode(pauseModeToInteraction(s.pauseMode));
     setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
   });
+}
+
+/** Remove the sidebar from this tab until opened again. */
+export function hideAgent(): void {
+  if (wordPending) finishWord("dismiss");
+  chatHistory = [];
+  chatPayload = null;
+  const host = document.getElementById("avc-overlay-host");
+  if (host) host.remove();
+  shell = null;
+  mounted = false;
 }
 
 export function isAgentActive(): boolean {

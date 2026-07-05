@@ -50,7 +50,6 @@ function byId<T extends HTMLElement>(id: string): T {
 }
 
 async function render(): Promise<void> {
-  const settings = await storage.getSettings();
   const vocab = await storage.getVocab();
   const stats = await storage.getStats();
   const day = todayKey();
@@ -110,7 +109,7 @@ async function render(): Promise<void> {
     });
   });
 
-  byId("mode-note").textContent = "Mode in copilot panel";
+  byId("mode-note").textContent = "This tab only";
 }
 
 async function activeTabId(): Promise<number | null> {
@@ -148,17 +147,37 @@ async function initListening(): Promise<void> {
   });
 }
 
-async function pinAgentPanel(): Promise<void> {
+async function initCopilotToggle(): Promise<void> {
+  const btn = byId<HTMLButtonElement>("copilot-btn");
   const tabId = await activeTabId();
-  if (tabId == null) return;
-  await storage.setAgentPinned(true);
-  chrome.runtime.sendMessage({ type: "avc-agent-pin", tabId });
+  if (tabId == null) {
+    btn.disabled = true;
+    btn.textContent = "Open Copilot (no active tab)";
+    return;
+  }
+
+  const refresh = (): void => {
+    chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
+      const on = !!res?.visible;
+      btn.textContent = on ? "Hide Copilot on this tab" : "Open Copilot on this tab";
+      btn.classList.toggle("active", on);
+    });
+  };
+
+  btn.addEventListener("click", () => {
+    chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
+      const type = res?.visible ? "avc-agent-hide" : "avc-agent-show";
+      chrome.runtime.sendMessage({ type, tabId }, () => refresh());
+    });
+  });
+
+  refresh();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   render();
   initListening();
-  void pinAgentPanel();
+  void initCopilotToggle();
 
   byId("dashboard-link").addEventListener("click", (e) => {
     e.preventDefault();

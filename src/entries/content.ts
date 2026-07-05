@@ -5,7 +5,7 @@ import * as storage from "../lib/storage";
 import * as dict from "../lib/dictionary";
 import * as tokenizer from "../lib/tokenizer";
 import { pickTargetSmart } from "../lib/pick-target";
-import * as overlay from "../lib/agent-panel";
+import * as overlay from "../lib/overlay";
 import { fetchAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
@@ -268,7 +268,10 @@ declare global {
     await storage.recordSeen(tokens, wordStates, targetedThisSession);
     wordStates = await storage.getVocab();
 
-    if (overlay.isOpen()) return;
+    if (overlay.isOpen()) {
+      log("skipped line (word card still open):", normalized.slice(0, 40));
+      return;
+    }
 
     const target = await pickTargetSmart(
       tokens,
@@ -297,7 +300,10 @@ declare global {
     }
     log("showing card for:", target.token.base);
 
-    await handleCard(target, normalized, tokens, context);
+    void handleCard(target, normalized, tokens, context).catch((err) => {
+      warn("handleCard failed:", err);
+      overlay.dismissAgent();
+    });
   }
 
   // Listening mode: the offscreen document transcribes this tab's audio and the
@@ -311,7 +317,16 @@ declare global {
     }
     if (msg.type === "avc-agent-show") {
       overlay.ensureAgentMounted();
-      sendResponse({ ok: true });
+      sendResponse({ ok: true, visible: true });
+      return true;
+    }
+    if (msg.type === "avc-agent-hide") {
+      overlay.hideAgent();
+      sendResponse({ ok: true, visible: false });
+      return true;
+    }
+    if (msg.type === "avc-agent-status") {
+      sendResponse({ ok: true, visible: overlay.isAgentActive() });
       return true;
     }
     if (msg.type === "avc-listening-state") {
@@ -375,7 +390,6 @@ declare global {
   const initial = pickAdapter();
   lastSessionId = initial ? sessionIdentity(platformForAdapter(initial)) : location.pathname;
 
-  void storage.getAgentPinned().then((pinned) => {
-    if (pinned) overlay.ensureAgentMounted();
-  });
+  // Legacy: stop auto-opening the sidebar on every page after an old popup session pinned it.
+  void storage.setAgentPinned(false);
 })();

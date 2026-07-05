@@ -9,7 +9,7 @@
     cooldownSec: 20,
     maxCardsPerHour: 12,
     targetLevel: 5,
-    autoResumeSec: 0,
+    autoResumeSec: 15,
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",

@@ -33,7 +33,6 @@ export function GamificationPanel() {
 
   const load = useCallback(async () => {
     try {
-      // Streak + challenges come from the caller's own synced snapshot.
       const snapRes = await fetch("/api/sync/snapshot");
       if (snapRes.ok) {
         const data = (await snapRes.json()) as { envelope?: { snapshot?: { daily?: CloudDailyStats[] } } };
@@ -89,81 +88,92 @@ export function GamificationPanel() {
   }, [prefs, load]);
 
   return (
-    <section className="cloud-panel" aria-label="Streaks, challenges, and leaderboard">
+    <section className="cloud-panel" aria-label="Streaks and leaderboard">
       <div className="panel-head">
         <div>
-          <p className="eyebrow">Momentum</p>
-          <h2>Streaks, challenges & the weekly board</h2>
+          <p className="eyebrow">Progress</p>
+          <h2>Streaks & weekly challenges</h2>
+          {streak && streak.current > 0 && (
+            <p className="panel-lede">
+              🔥 {streak.current}-day streak
+              {streak.longest > streak.current ? ` · personal best ${streak.longest}` : ""}
+            </p>
+          )}
         </div>
-        {streak && (
-          <span className="status-pill" title="Consecutive days reviewing or watching">
-            🔥 {streak.current}-day streak{streak.longest > streak.current ? ` · best ${streak.longest}` : ""}
-          </span>
-        )}
       </div>
 
       {!hasData && (
         <p className="sync-message">
-          Sync your progress to light up your streak, take on weekly challenges, and join the leaderboard.
-          It all rewards real practice — reviews and minutes watched, never vanity metrics.
+          Sync your progress to unlock streaks and weekly challenges. They track real practice — reviews and watch
+          time, not vanity clicks.
         </p>
       )}
 
       {challenges.length > 0 && (
-        <div style={{ display: "grid", gap: 8, margin: "12px 0" }}>
+        <div className="challenge-list">
           {challenges.map((c) => (
-            <div key={c.id} style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div key={c.id} className={`challenge-card${c.done ? " challenge-card--done" : ""}`}>
+              <div className="challenge-card__head">
                 <strong>{c.title}</strong>
-                <span className="eyebrow">{c.done ? "✅ done" : `${c.current}/${c.target}`}</span>
+                <span className="eyebrow">{c.done ? "Done" : `${c.current}/${c.target}`}</span>
               </div>
-              <div style={{ opacity: 0.75, fontSize: 14 }}>{c.description}</div>
+              <p>{c.description}</p>
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ margin: "12px 0" }}>
-        <p className="eyebrow">This week&apos;s leaderboard · words reviewed</p>
+      <div className="leaderboard-block">
+        <h3>This week&apos;s board</h3>
         {board === null ? (
           <p className="sync-message">Loading…</p>
         ) : board.length === 0 ? (
-          <p className="sync-message">No one&apos;s on the board yet this week. Review some words to be first.</p>
+          <p className="sync-message">No one on the board yet. Review some words to be first.</p>
         ) : (
-          <ol style={{ margin: "8px 0", paddingLeft: 20 }}>
+          <ol className="leaderboard-list">
             {board.map((e, i) => (
-              <li key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <span>{e.name}</span>
-                <span className="eyebrow">{e.wordsReviewed} reviewed · {e.minutes}m · 🔥{e.streak}</span>
+              <li key={i}>
+                <span className="leaderboard-list__name">{e.name}</span>
+                <span className="leaderboard-list__stats">
+                  {e.wordsReviewed} reviewed · {e.minutes}m · 🔥{e.streak}
+                </span>
               </li>
             ))}
           </ol>
         )}
-        {me && <p className="sync-message">Your rank this week: #{me.rank} ({me.wordsReviewed} reviewed).</p>}
+        {me && (
+          <p className="sync-message">
+            You&apos;re #{me.rank} this week ({me.wordsReviewed} reviewed).
+          </p>
+        )}
       </div>
 
-      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
-        <p className="eyebrow">Privacy</p>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="privacy-block">
+        <h3>Leaderboard privacy</h3>
+        <div className="privacy-row">
           <input
+            className="app-input"
             aria-label="Display name"
             placeholder="Display name (blank = anonymous)"
             value={prefs.displayName}
             onChange={(e) => setPrefs({ ...prefs, displayName: e.target.value })}
             disabled={prefs.optOut}
-            style={{ flex: 1, minWidth: 180 }}
           />
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 14 }}>
+          <label className="privacy-check">
             <input type="checkbox" checked={prefs.optOut} onChange={(e) => setPrefs({ ...prefs, optOut: e.target.checked })} />
-            Leave the leaderboard (local-only)
+            Hide me from the board
           </label>
-          <button className="btn btn-line btn-sm" type="button" onClick={savePrefs}>Save</button>
+          <button className="btn btn-line btn-sm" type="button" onClick={savePrefs}>
+            Save
+          </button>
         </div>
-        {saved && <p className="sync-message">Saved. Opting out removes you now; a new name shows on your next sync.</p>}
-        {saveError && <p className="sync-message" role="alert">Couldn&apos;t save your privacy settings. Try again.</p>}
-        <p className="sync-message" style={{ opacity: 0.7 }}>
-          Only words reviewed, minutes watched, and streak length count. Watched titles are never shared.
-        </p>
+        {saved && <p className="sync-message">Saved.</p>}
+        {saveError && (
+          <p className="sync-message" role="alert">
+            Couldn&apos;t save. Try again.
+          </p>
+        )}
+        <p className="sync-note">Only review count, watch minutes, and streak are shared — never what you watched.</p>
       </div>
     </section>
   );

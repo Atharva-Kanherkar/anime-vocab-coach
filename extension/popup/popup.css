@@ -42,6 +42,39 @@ body {
   text-transform: uppercase;
 }
 
+.copilot-row {
+  margin-bottom: 14px;
+}
+
+.copilot-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.copilot-btn:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.copilot-btn.active {
+  border-color: rgba(217, 108, 79, 0.45);
+  color: var(--accent);
+}
+
+.copilot-note {
+  margin-top: 6px;
+  color: var(--ink-3);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .today-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

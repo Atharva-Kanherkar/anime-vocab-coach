@@ -28,16 +28,16 @@ try {
   // innerText reflects CSS text-transform (the eyebrow is uppercased), so match
   // case-insensitively.
   const appText = (await page.locator("body").innerText()).toLowerCase();
-  check("dashboard shows dev identity", appText.includes("signed in as dev learner"));
-  check("dashboard shows reviews-due tile", appText.includes("reviews due"));
+  check("dashboard greets dev user", appText.includes("hey, dev learner"));
+  check("dashboard shows due-today tile", appText.includes("due today"));
 
-  // 2. ExtensionConnector minted + broadcast a token in-browser.
+  // 2. Connection banner minted + broadcast a token in-browser.
   await page.waitForFunction(
-    () => document.body.innerText.includes("Extension linked") ||
-          document.body.innerText.includes("Couldn't link"),
+    () => document.body.innerText.includes("Extension connected") ||
+          document.body.innerText.includes("Extension not linked"),
     { timeout: 10000 }
   );
-  const linked = (await page.locator("body").innerText()).includes("Extension linked");
+  const linked = (await page.locator("body").innerText()).includes("Extension connected");
   check("extension connector links (token minted client-side)", linked);
 
   // 3. Sync loop the extension uses: mint token → push raw export → read back.
@@ -130,14 +130,17 @@ try {
   check("notebook shows in list with count", nbFlow.listedCount === 1, `listed ${nbFlow.listedCount}`);
   check("notebook deleted", nbFlow.delStatus === 200, `status ${nbFlow.delStatus}`);
 
-  // NotebooksPanel renders on /app.
+  // NotebooksPanel renders on /app (Notebooks tab).
   await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
+  await page.getByRole("tab", { name: "Notebooks" }).click();
   check("notebooks panel renders on /app",
     (await page.locator("body").innerText()).toLowerCase().includes("notebooks"));
 
-  // Anki/CSV export button renders (the synced 猫 is a "learning" card → count >= 1).
+  // Anki/CSV export lives under Sync → Advanced (the synced 猫 is a "learning" card → count >= 1).
+  await page.getByRole("tab", { name: "Sync" }).click();
+  await page.locator("details.sync-advanced summary").click();
   check("Anki export button renders on /app",
-    (await page.locator("body").innerText()).includes("Export to Anki"));
+    (await page.locator("body").innerText()).includes("Export for Anki"));
 
   // 4c. Gamification (issue #17): opt in, sync activity → server-computed
   // leaderboard entry + rank; prefs round-trip. Deterministic regardless of
@@ -162,7 +165,8 @@ try {
   check("leaderboard has an entry after opt-in sync", gam.count >= 1, `count ${gam.count}`);
   check("caller has a leaderboard rank", gam.meRank === 1, `rank ${gam.meRank}`);
   check("leaderboard reflects server-computed reviews", gam.meReviewed === 7, `reviewed ${gam.meReviewed}`);
-  check("momentum panel renders on /app",
+  await page.getByRole("tab", { name: "Progress" }).click();
+  check("progress panel renders on /app",
     (await page.locator("body").innerText()).toLowerCase().includes("leaderboard"));
 
   // 5. Marketing homepage renders with no Clerk crash. Reset the error buffer so

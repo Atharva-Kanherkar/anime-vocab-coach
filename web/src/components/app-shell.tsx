@@ -10,11 +10,9 @@ export function AppTopNav() {
         アニメ<b>Vocab</b>
       </Link>
       <nav aria-label="App">
-        <Link href="/">Home</Link>
-        <Link href="/cloud">Cloud</Link>
-        <Link href="/#pricing">Pricing</Link>
+        <Link href="/app">Dashboard</Link>
         <a href={GITHUB_URL} rel="noopener noreferrer">
-          Install
+          Extension
         </a>
       </nav>
       {!DEV_NO_CLERK && <UserButton />}

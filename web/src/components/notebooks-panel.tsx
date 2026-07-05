@@ -10,8 +10,6 @@ interface Summary {
   updatedAt: string;
 }
 
-// Notebooks list + create, shown on /app. Detail/entries live on
-// /app/notebooks/[id]. UX is intentionally plain — styling comes later.
 export function NotebooksPanel() {
   const [notebooks, setNotebooks] = useState<Summary[] | null>(null);
   const [name, setName] = useState("");
@@ -61,18 +59,19 @@ export function NotebooksPanel() {
       <div className="panel-head">
         <div>
           <p className="eyebrow">Notebooks</p>
-          <h2>Save words, lines, and scenes to study later</h2>
+          <h2>Save words and scenes to study later</h2>
+          <p className="panel-lede">Group vocabulary by show, arc, or whatever helps you review.</p>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
+      <div className="notebook-create">
         <input
+          className="app-input"
           aria-label="New notebook name"
-          placeholder="New notebook (e.g. Attack on Titan S1)"
+          placeholder="e.g. Attack on Titan S1"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && create()}
-          style={{ flex: 1, minWidth: 0 }}
         />
         <button className="btn btn-accent" type="button" onClick={create} disabled={busy || !name.trim()}>
           Create
@@ -84,20 +83,16 @@ export function NotebooksPanel() {
       {notebooks === null ? (
         <p className="sync-message">Loading…</p>
       ) : notebooks.length === 0 ? (
-        <p className="sync-message">
-          No notebooks yet. Create one above, then save words and lines into it while you learn.
-        </p>
+        <p className="sync-message">No notebooks yet. Create one above to start collecting entries.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+        <ul className="notebook-list">
           {notebooks.map((nb) => (
             <li key={nb.id}>
-              <Link
-                href={`/app/notebooks/${nb.id}`}
-                prefetch={false}
-                style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", border: "1px solid var(--line)", borderRadius: "8px", textDecoration: "none" }}
-              >
+              <Link className="notebook-list__link" href={`/app/notebooks/${nb.id}`} prefetch={false}>
                 <span>{nb.name}</span>
-                <span className="eyebrow">{nb.entryCount} {nb.entryCount === 1 ? "entry" : "entries"}</span>
+                <span className="eyebrow">
+                  {nb.entryCount} {nb.entryCount === 1 ? "entry" : "entries"}
+                </span>
               </Link>
             </li>
           ))}

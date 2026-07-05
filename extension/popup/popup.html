@@ -9,7 +9,7 @@
 <body>
   <header class="header">
     <h1>アニメVocab</h1>
-    <span id="mode-note" class="mode-note">Copilot on tab</span>
+    <span id="mode-note" class="mode-note">This tab only</span>
   </header>
 
   <section class="today-row">
@@ -23,6 +23,11 @@
   <section class="streak" id="streak"></section>
 
   <button id="review-due" class="review-due" type="button" hidden></button>
+
+  <section class="copilot-row">
+    <button id="copilot-btn" type="button" class="copilot-btn">Open Copilot on this tab</button>
+    <p class="copilot-note">Shows the learning sidebar on the current page only. Close with × on the panel.</p>
+  </section>
 
   <section class="listen">
     <button id="listen-btn" type="button">Start Listening Mode</button>

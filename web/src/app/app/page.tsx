@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import { currentUser } from "@clerk/nextjs/server";
-import { AppDashboard } from "@/components/app-dashboard";
+import { AppWorkspace } from "@/components/app-workspace";
 import { AppTopNav } from "@/components/app-shell";
-import { CloudSyncPanel } from "@/components/cloud-sync-panel";
-import { ExtensionConnector } from "@/components/extension-connector";
-import { GamificationPanel } from "@/components/gamification-panel";
-import { NotebooksPanel } from "@/components/notebooks-panel";
 import { SiteFooter } from "@/components/site-chrome";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 
@@ -13,42 +9,28 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "AnimeVocab Cloud App",
-  description: "Signed-in AnimeVocab Cloud dashboard for sync, AI learning, notebooks, and challenges.",
+  description: "Your anime vocabulary — words, reviews, AI coach, and progress.",
 };
 
 export default async function AppPage() {
   const user = DEV_NO_CLERK ? null : await currentUser();
   const name = DEV_NO_CLERK
     ? DEV_PROFILE.name
-    : user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress || "learner";
+    : user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress || "there";
 
   return (
     <>
       <AppTopNav />
       <main id="main" className="app-shell">
-        <section className="app-hero">
-          <p className="eyebrow">{`Signed in as ${name}`}</p>
-          <h1>Your anime vocabulary dashboard</h1>
-          <p>
-            Progress, reviews, notebooks, AI coach, and leaderboards live here when you want Cloud —
-            but the free extension still runs locally by default until you import or sync.
+        <header className="app-hero app-hero--compact">
+          <p className="eyebrow">AnimeVocab Cloud</p>
+          <h1>Hey, {name}</h1>
+          <p className="app-hero-lede">
+            Words you pick up while watching anime — saved, reviewed, and explained in one place.
           </p>
-        </section>
+        </header>
 
-        <AppDashboard />
-
-        <div id="sync">
-          <CloudSyncPanel />
-          <ExtensionConnector />
-        </div>
-
-        <div id="notebooks">
-          <NotebooksPanel />
-        </div>
-
-        <div id="momentum">
-          <GamificationPanel />
-        </div>
+        <AppWorkspace />
       </main>
       <SiteFooter />
     </>

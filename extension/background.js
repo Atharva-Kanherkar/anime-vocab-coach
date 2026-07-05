@@ -6,7 +6,7 @@
     cooldownSec: 20,
     maxCardsPerHour: 12,
     targetLevel: 5,
-    autoResumeSec: 0,
+    autoResumeSec: 15,
     displayScript: "romaji",
     autoSpeak: true,
     openaiKey: "",
@@ -257,18 +257,57 @@
     throw new Error("offscreen document never acknowledged (audio capture could not start)");
   }
   var CONTENT_SCRIPTS = ["vendor/kuromoji.js", "content.js"];
-  async function ensureContentScript(tabId) {
+  async function tabNeedsAllFrames(tabId) {
     try {
-      const [probe] = await chrome.scripting.executeScript({
-        target: { tabId },
+      const tab = await chrome.tabs.get(tabId);
+      return !!tab.url && /crunchyroll\.com/i.test(tab.url);
+    } catch {
+      return false;
+    }
+  }
+  async function deliverTranscript(tabId, text) {
+    const payload = { type: "avc-transcript", text };
+    let delivered = false;
+    try {
+      const frames = await chrome.webNavigation.getAllFrames({ tabId });
+      if (frames?.length) {
+        await Promise.all(
+          frames.map(async (f) => {
+            if (f.frameId == null) return;
+            try {
+              await chrome.tabs.sendMessage(tabId, payload, { frameId: f.frameId });
+              delivered = true;
+            } catch {
+            }
+          })
+        );
+      }
+    } catch (err) {
+      console.warn("[AVC] getAllFrames failed:", String(err));
+    }
+    if (delivered) return;
+    try {
+      await chrome.tabs.sendMessage(tabId, payload);
+    } catch (err) {
+      console.warn("[AVC] could not deliver transcript to tab (content script not loaded?):", String(err));
+    }
+  }
+  async function ensureContentScript(tabId) {
+    const allFrames = await tabNeedsAllFrames(tabId);
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId, allFrames },
         func: () => !!window.__avcMainLoaded
       });
-      if (probe && probe.result) return true;
+      if (results.some((r) => r.result)) return true;
     } catch (err) {
     }
     try {
-      await chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_SCRIPTS });
-      console.log("[AVC] injected content scripts into tab", tabId);
+      await chrome.scripting.executeScript({
+        target: { tabId, allFrames },
+        files: CONTENT_SCRIPTS
+      });
+      console.log("[AVC] injected content scripts into tab", tabId, allFrames ? "(all frames)" : "");
       return true;
     } catch (err) {
       console.warn("[AVC] content-script injection failed:", String(err));
@@ -386,23 +425,27 @@
       fetchWordPick(msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
     }
-    if (msg.type === "avc-agent-pin") {
-      ensureContentScript(msg.tabId).then((ok) => {
+    if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status") {
+      const tabId = msg.tabId;
+      const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;
+      ensureContentScript(tabId).then((ok) => {
         if (!ok) {
           sendResponse({ ok: false, error: "Could not load into this tab." });
           return;
         }
-        chrome.tabs.sendMessage(msg.tabId, { type: "avc-agent-show" }, () => {
-          sendResponse({ ok: !chrome.runtime.lastError });
+        chrome.tabs.sendMessage(tabId, { type: outType }, (res) => {
+          if (chrome.runtime.lastError) {
+            sendResponse({ ok: false, error: chrome.runtime.lastError.message });
+            return;
+          }
+          sendResponse(res ?? { ok: true });
         });
       }).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
     }
     if (msg.type === "avc-transcript") {
       console.log("[AVC] relaying transcript to tab", msg.tabId, "\u2192", msg.text);
-      chrome.tabs.sendMessage(msg.tabId, { type: "avc-transcript", text: msg.text }).catch((err) => {
-        console.warn("[AVC] could not deliver transcript to tab (content script not loaded?):", String(err));
-      });
+      void deliverTranscript(msg.tabId, msg.text);
       return;
     }
     if (msg.type === "avc-playback-time" && sender.tab?.id != null) {
