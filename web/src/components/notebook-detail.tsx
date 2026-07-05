@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { commonnessShort } from "@/lib/levels";
 
 interface Entry {
   id: string;
@@ -183,7 +184,7 @@ export function NotebookDetail({ id }: { id: string }) {
                   {e.gloss && <span> — {e.gloss}</span>}
                   {e.line && <div className="jp" style={{ marginTop: 4 }}>{e.line}</div>}
                   {e.note && <div style={{ marginTop: 4, opacity: 0.8 }}>{e.note}</div>}
-                  {e.title && <div className="eyebrow" style={{ marginTop: 4 }}>{e.title}{e.level ? ` · N${e.level}` : ""}</div>}
+                  {e.title && <div className="eyebrow" style={{ marginTop: 4 }}>{e.title}{e.level ? ` · ${commonnessShort(e.level)}` : ""}</div>}
                 </div>
                 <button className="btn btn-line btn-sm" type="button" aria-label="Remove entry" onClick={() => patch({ op: "removeEntry", entryId: e.id })}>Remove</button>
               </div>

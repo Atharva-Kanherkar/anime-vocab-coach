@@ -47,7 +47,7 @@ describe("makeEntry", () => {
     expect(makeEntry({ note: "x", level: "abc" }, "i", "t").level).toBeNull();
   });
 
-  it("clamps level to the JLPT 1-5 range", () => {
+  it("clamps level to the 1-5 frequency-band range", () => {
     expect(makeEntry({ note: "x", level: 999999 }, "i", "t").level).toBe(5);
     expect(makeEntry({ note: "x", level: 0.4 }, "i", "t").level).toBeNull();
   });

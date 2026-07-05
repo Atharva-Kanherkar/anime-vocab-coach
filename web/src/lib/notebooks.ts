@@ -16,7 +16,7 @@ export interface NotebookEntry {
   line: string | null; // the sentence/scene line
   note: string | null; // free-text learner note
   title: string | null; // anime title
-  level: number | null; // JLPT-ish target level
+  level: number | null; // frequency band 5..1 (5 = very common)
   tags: string[];
   createdAt: string; // ISO
 }
@@ -79,7 +79,7 @@ function normTags(value: unknown): string[] {
 function asNumberOrNull(value: unknown): number | null {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 1) return null;
-  return Math.min(5, Math.round(n)); // JLPT-ish levels are N1–N5
+  return Math.min(5, Math.round(n)); // frequency band 1..5
 }
 
 /** Build a validated entry from untrusted input. `id`/`createdAt` are injected. */

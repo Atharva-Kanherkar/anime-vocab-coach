@@ -288,6 +288,22 @@
     return out.replace(/\s+/g, " ").trim();
   }
 
+  // src/lib/levels.ts
+  function commonnessShort(level) {
+    switch (level) {
+      case 5:
+        return "Top";
+      case 4:
+        return "Common";
+      case 3:
+        return "Mid";
+      case 2:
+        return "Uncommon";
+      default:
+        return "Rare";
+    }
+  }
+
   // src/config.ts
   var PROMO_END_UTC = "2026-08-03T23:59:59.000Z";
   var CHECKOUT_URL = "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID";
@@ -478,7 +494,7 @@
       <td>${word}</td>
       <td>${toRomaji(rec.reading || "")}<br><small>${rec.reading || ""}</small></td>
       <td>${rec.gloss || ""}</td>
-      <td>N${rec.level}</td>
+      <td>${commonnessShort(rec.level)}</td>
       <td>${rec.seenCount || 0}</td>
       <td><select data-word="${word}">
         <option value="new" ${rec.state === "new" ? "selected" : ""}>new</option>

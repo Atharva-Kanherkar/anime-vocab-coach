@@ -1,5 +1,6 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
+import { commonnessShort } from "../lib/levels";
 import { promoState, promoBannerText, BACKEND_URL, PRO_HOURS_PER_MONTH } from "../config";
 import type { DisplayScript, PauseMode, Settings, VocabMap, WordState } from "../types";
 
@@ -185,7 +186,7 @@ function renderTable(): void {
       <td>${word}</td>
       <td>${toRomaji(rec.reading || "")}<br><small>${rec.reading || ""}</small></td>
       <td>${rec.gloss || ""}</td>
-      <td>N${rec.level}</td>
+      <td>${commonnessShort(rec.level)}</td>
       <td>${rec.seenCount || 0}</td>
       <td><select data-word="${word}">
         <option value="new" ${rec.state === "new" ? "selected" : ""}>new</option>

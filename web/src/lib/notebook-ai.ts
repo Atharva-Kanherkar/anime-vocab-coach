@@ -15,7 +15,7 @@ function entriesBlock(nb: Notebook): string {
       e.word ? `word: ${e.word}${e.reading ? ` (${e.reading})` : ""}${e.gloss ? ` = ${e.gloss}` : ""}` : "",
       e.line ? `line: ${e.line}` : "",
       e.note ? `note: ${e.note}` : "",
-      e.title ? `[${e.title}${e.level ? `, N${e.level}` : ""}]` : "",
+      e.title ? `[${e.title}${e.level ? `, freq-band ${e.level}/5` : ""}]` : "",
     ].filter(Boolean);
     return "- " + bits.join(" | ");
   });
