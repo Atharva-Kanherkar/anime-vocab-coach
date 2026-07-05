@@ -1,13 +1,13 @@
 import type { CloudSyncSnapshot } from "./sync";
 
 // Anki (and most SRS apps) import CSV. Escape per RFC 4180: wrap every cell in
-// quotes and double any internal quotes; flatten newlines so one note = one row.
+// quotes and double any internal quotes; flatten CR/LF so one note = one row.
 function csvCell(value: string): string {
-  const s = (value ?? "").replace(/\r?\n/g, " ").trim();
+  const s = (value ?? "").replace(/\r\n?|\n/g, " ").trim();
   return `"${s.replace(/"/g, '""')}"`;
 }
 
-export const ANKI_HEADER = ["word", "reading", "meaning", "sentence", "source", "status"] as const;
+export const ANKI_COLUMNS = ["word", "reading", "meaning", "sentence", "source", "status"] as const;
 
 // Only words the learner has actually engaged with make useful cards.
 function isCardable(state: string): boolean {
@@ -21,10 +21,15 @@ export function ankiCardCount(snapshot: CloudSyncSnapshot): number {
 /**
  * Build an Anki-importable CSV: one note per learnable word, with the
  * mining-card fields (word / reading / meaning / sentence / source / status).
- * The first line is a header — Anki lets you map or skip it on import.
+ * Leads with Anki `#` directives, which modern Anki auto-skips AND uses to map
+ * columns to fields — a plain header row would instead import as a junk note.
  */
 export function toAnkiCsv(snapshot: CloudSyncSnapshot): string {
-  const rows = [ANKI_HEADER.map(csvCell).join(",")];
+  const rows = [
+    "#separator:Comma",
+    "#html:false",
+    `#columns:${ANKI_COLUMNS.join(",")}`,
+  ];
   for (const w of snapshot.words) {
     if (!isCardable(w.state)) continue;
     const source = [w.source?.title, w.source?.en].filter(Boolean).join(" — ");
