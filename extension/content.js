@@ -621,7 +621,13 @@
     border-radius: 0 6px 6px 0;
   }
   .avc-sentence .avc-label { display: block; font-size: 10px; color: rgba(240,239,236,.4); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
-  .avc-sentence .avc-ja-small { display: block; font-size: 12px; color: rgba(240,239,236,.4); margin-top: 5px; }
+  .avc-romaji-line { margin-bottom: 4px; }
+  .avc-ja-line { font-family: var(--jp, inherit); font-size: 15px; line-height: 1.7; }
+  .avc-tok { cursor: pointer; border-bottom: 1px dotted rgba(240,239,236,.35); }
+  .avc-tok:hover { color: #e3ba63; border-bottom-color: #e3ba63; }
+  .avc-lookup { margin-top: 8px; font-size: 13px; color: rgba(240,239,236,.9); }
+  .avc-lookup-word { font-weight: 600; }
+  .avc-lookup-gloss { color: rgba(240,239,236,.7); }
   .avc-sentence mark {
     background: transparent; color: #d96c4f; font-weight: 700;
   }
@@ -711,29 +717,73 @@
     const secondary = token.surface === entry.reading ? entry.reading : `${entry.reading} \xB7 ${token.surface}`;
     return { big: roma, secondary };
   }
+  function showLookup(out, tk, entry) {
+    out.textContent = "";
+    out.style.display = "";
+    const w = document.createElement("span");
+    w.className = "avc-lookup-word";
+    w.textContent = entry.reading && entry.reading !== tk.surface ? `${tk.surface}\uFF08${entry.reading}\uFF09` : tk.surface;
+    const g = document.createElement("span");
+    g.className = "avc-lookup-gloss";
+    g.textContent = " \u2014 " + entry.glosses.slice(0, 3).join("; ");
+    out.appendChild(w);
+    out.appendChild(g);
+  }
+  function buildTappableJa(tokens, targetIndex, lookupOut) {
+    const line = document.createElement("div");
+    line.className = "avc-ja-line";
+    tokens.forEach((tk, idx) => {
+      if (idx === targetIndex) {
+        const m = document.createElement("mark");
+        m.textContent = tk.surface;
+        line.appendChild(m);
+        return;
+      }
+      const entry = lookup(tk.base);
+      if (entry) {
+        const s = document.createElement("span");
+        s.className = "avc-tok";
+        s.textContent = tk.surface;
+        s.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showLookup(lookupOut, tk, entry);
+        });
+        line.appendChild(s);
+      } else {
+        line.appendChild(document.createTextNode(tk.surface));
+      }
+    });
+    return line;
+  }
   function buildSentence(sentence, tokens, targetIndex, surface, displayScript) {
     const el = document.createElement("div");
     el.className = "avc-sentence";
     const label = document.createElement("span");
     label.className = "avc-label";
-    label.textContent = "In this line";
+    label.textContent = tokens && tokens.length ? "In this line \u2014 tap any word to look it up" : "In this line";
     el.appendChild(label);
-    if (displayScript === "romaji" && tokens && tokens.length) {
-      const pieces = sentencePieces(tokens, targetIndex ?? -1);
-      pieces.forEach((p, idx) => {
-        if (p.highlight) {
-          const node = document.createElement("mark");
-          node.textContent = p.text;
-          el.appendChild(node);
-        } else {
-          el.appendChild(document.createTextNode(p.text));
-        }
-        if (idx < pieces.length - 1) el.appendChild(document.createTextNode(" "));
-      });
-      const jaSmall = document.createElement("span");
-      jaSmall.className = "avc-ja-small";
-      jaSmall.textContent = sentence;
-      el.appendChild(jaSmall);
+    if (tokens && tokens.length) {
+      if (displayScript === "romaji") {
+        const pieces = sentencePieces(tokens, targetIndex ?? -1);
+        const romajiLine = document.createElement("div");
+        romajiLine.className = "avc-romaji-line";
+        pieces.forEach((p, idx) => {
+          if (p.highlight) {
+            const node = document.createElement("mark");
+            node.textContent = p.text;
+            romajiLine.appendChild(node);
+          } else {
+            romajiLine.appendChild(document.createTextNode(p.text));
+          }
+          if (idx < pieces.length - 1) romajiLine.appendChild(document.createTextNode(" "));
+        });
+        el.appendChild(romajiLine);
+      }
+      const lookupOut = document.createElement("div");
+      lookupOut.className = "avc-lookup";
+      lookupOut.style.display = "none";
+      el.appendChild(buildTappableJa(tokens, targetIndex, lookupOut));
+      el.appendChild(lookupOut);
       return el;
     }
     const parts = sentence.split(surface);
