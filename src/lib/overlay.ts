@@ -69,7 +69,6 @@ const STYLES = `
     border-radius: 0 6px 6px 0;
   }
   .avc-sentence .avc-label { display: block; font-size: 10px; color: rgba(240,239,236,.4); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
-  .avc-sentence .avc-ja-small { display: block; font-size: 12px; color: rgba(240,239,236,.4); margin-top: 5px; }
   .avc-romaji-line { margin-bottom: 4px; }
   .avc-ja-line { font-family: var(--jp, inherit); font-size: 15px; line-height: 1.7; }
   .avc-tok { cursor: pointer; border-bottom: 1px dotted rgba(240,239,236,.35); }
@@ -227,7 +226,8 @@ function buildSentence(
 
   const label = document.createElement("span");
   label.className = "avc-label";
-  label.textContent = "In this line — tap any word to look it up";
+  // Only advertise tapping when we actually have tappable tokens.
+  label.textContent = tokens && tokens.length ? "In this line — tap any word to look it up" : "In this line";
   el.appendChild(label);
 
   if (tokens && tokens.length) {
