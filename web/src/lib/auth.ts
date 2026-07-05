@@ -32,12 +32,9 @@ export async function resolveProfile(req: Request): Promise<CloudUserProfile | n
   };
 }
 
-// Plan for AI metering. Mirrors the coach route (Clerk publicMetadata.plan).
-// Token/dev callers default to free (no plan info on a sync token).
-export async function resolvePlan(req: Request): Promise<Plan> {
-  const auth = req.headers.get("authorization") || "";
-  if (/^Bearer\s+avc_st_/.test(auth)) return "free";
-  if (DEV_NO_CLERK) return "free";
-  const user = await currentUser();
-  return user?.publicMetadata?.plan === "pro" ? "pro" : "free";
+// Plan for AI metering. Pro is currently OPEN TO EVERYONE (gate removed by owner
+// request — see entitlements.ts), so every caller resolves to "pro". Owners get
+// an even higher cap, applied per-route via isOwnerEmail(profile.email).
+export function resolvePlan(): Plan {
+  return "pro";
 }
