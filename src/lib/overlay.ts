@@ -1,4 +1,5 @@
 import * as romaji from "./romaji";
+import { lookup } from "./dictionary";
 import type { DictEntry, DisplayScript, Judgment, Target, Token } from "../types";
 
 let open = false;
@@ -69,6 +70,13 @@ const STYLES = `
   }
   .avc-sentence .avc-label { display: block; font-size: 10px; color: rgba(240,239,236,.4); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
   .avc-sentence .avc-ja-small { display: block; font-size: 12px; color: rgba(240,239,236,.4); margin-top: 5px; }
+  .avc-romaji-line { margin-bottom: 4px; }
+  .avc-ja-line { font-family: var(--jp, inherit); font-size: 15px; line-height: 1.7; }
+  .avc-tok { cursor: pointer; border-bottom: 1px dotted rgba(240,239,236,.35); }
+  .avc-tok:hover { color: #e3ba63; border-bottom-color: #e3ba63; }
+  .avc-lookup { margin-top: 8px; font-size: 13px; color: rgba(240,239,236,.9); }
+  .avc-lookup-word { font-weight: 600; }
+  .avc-lookup-gloss { color: rgba(240,239,236,.7); }
   .avc-sentence mark {
     background: transparent; color: #d96c4f; font-weight: 700;
   }
@@ -165,6 +173,47 @@ function wordDisplays(token: Token, entry: { reading: string }, displayScript: D
   return { big: roma, secondary };
 }
 
+// Show a tapped word's dictionary entry inline (textContent — safe).
+function showLookup(out: HTMLElement, tk: Token, entry: DictEntry): void {
+  out.textContent = "";
+  out.style.display = "";
+  const w = document.createElement("span");
+  w.className = "avc-lookup-word";
+  w.textContent = entry.reading && entry.reading !== tk.surface ? `${tk.surface}（${entry.reading}）` : tk.surface;
+  const g = document.createElement("span");
+  g.className = "avc-lookup-gloss";
+  g.textContent = " — " + entry.glosses.slice(0, 3).join("; ");
+  out.appendChild(w);
+  out.appendChild(g);
+}
+
+// A tappable Japanese line: every word the dictionary knows is clickable and
+// looks itself up (the Migaku "hover any word" behavior). The target word is
+// highlighted. Non-dictionary spans render as plain text.
+function buildTappableJa(tokens: Token[], targetIndex: number | undefined, lookupOut: HTMLElement): HTMLElement {
+  const line = document.createElement("div");
+  line.className = "avc-ja-line";
+  tokens.forEach((tk, idx) => {
+    if (idx === targetIndex) {
+      const m = document.createElement("mark");
+      m.textContent = tk.surface;
+      line.appendChild(m);
+      return;
+    }
+    const entry = lookup(tk.base);
+    if (entry) {
+      const s = document.createElement("span");
+      s.className = "avc-tok";
+      s.textContent = tk.surface;
+      s.addEventListener("click", (e) => { e.stopPropagation(); showLookup(lookupOut, tk, entry); });
+      line.appendChild(s);
+    } else {
+      line.appendChild(document.createTextNode(tk.surface));
+    }
+  });
+  return line;
+}
+
 // Build the sentence box safely (no innerHTML on subtitle/transcript text).
 function buildSentence(
   sentence: string,
@@ -178,25 +227,32 @@ function buildSentence(
 
   const label = document.createElement("span");
   label.className = "avc-label";
-  label.textContent = "In this line";
+  label.textContent = "In this line — tap any word to look it up";
   el.appendChild(label);
 
-  if (displayScript === "romaji" && tokens && tokens.length) {
-    const pieces = romaji.sentencePieces(tokens, targetIndex ?? -1);
-    pieces.forEach((p, idx) => {
-      if (p.highlight) {
-        const node = document.createElement("mark");
-        node.textContent = p.text;
-        el.appendChild(node);
-      } else {
-        el.appendChild(document.createTextNode(p.text));
-      }
-      if (idx < pieces.length - 1) el.appendChild(document.createTextNode(" "));
-    });
-    const jaSmall = document.createElement("span");
-    jaSmall.className = "avc-ja-small";
-    jaSmall.textContent = sentence;
-    el.appendChild(jaSmall);
+  if (tokens && tokens.length) {
+    // Beginner romaji reading line on top (kept), then the tappable JP line.
+    if (displayScript === "romaji") {
+      const pieces = romaji.sentencePieces(tokens, targetIndex ?? -1);
+      const romajiLine = document.createElement("div");
+      romajiLine.className = "avc-romaji-line";
+      pieces.forEach((p, idx) => {
+        if (p.highlight) {
+          const node = document.createElement("mark");
+          node.textContent = p.text;
+          romajiLine.appendChild(node);
+        } else {
+          romajiLine.appendChild(document.createTextNode(p.text));
+        }
+        if (idx < pieces.length - 1) romajiLine.appendChild(document.createTextNode(" "));
+      });
+      el.appendChild(romajiLine);
+    }
+    const lookupOut = document.createElement("div");
+    lookupOut.className = "avc-lookup";
+    lookupOut.style.display = "none";
+    el.appendChild(buildTappableJa(tokens, targetIndex, lookupOut));
+    el.appendChild(lookupOut);
     return el;
   }
 
