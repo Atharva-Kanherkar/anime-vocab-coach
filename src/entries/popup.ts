@@ -152,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
   render();
   initListening();
 
-  const modes: PauseMode[] = ["pause", "notify", "off"];
+  const modes: PauseMode[] = ["copilot", "pause", "off"];
   byId("mode-pill").addEventListener("click", async (e) => {
     const settings = await storage.getSettings();
     const idx = modes.indexOf(settings.pauseMode);

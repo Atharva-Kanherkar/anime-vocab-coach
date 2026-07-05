@@ -5,7 +5,7 @@ import * as storage from "../lib/storage";
 import * as dict from "../lib/dictionary";
 import * as tokenizer from "../lib/tokenizer";
 import * as scoring from "../lib/scoring";
-import * as overlay from "../lib/overlay";
+import * as overlay from "../lib/agent-panel";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
@@ -171,6 +171,10 @@ declare global {
     targetedThisSession.add(target.token.base);
     await storage.recordCardShown(target.token.base);
 
+    settings = await storage.getSettings();
+    const rawMode = settings!.pauseMode as string;
+    const mode: Settings["pauseMode"] = rawMode === "notify" ? "copilot" : settings!.pauseMode;
+
     const meta = {
       reading: target.entry.reading,
       gloss: target.entry.glosses[0] || "",
@@ -178,7 +182,8 @@ declare global {
       freqRank: target.entry.freqRank
     };
 
-    const cardOptions: overlay.CardOptions = {
+    const cardOptions: overlay.AgentPanelOptions = {
+      interaction: mode === "pause" ? "focus" : "ambient",
       autoResumeSec: settings!.autoResumeSec,
       displayScript: settings!.displayScript || "romaji",
       autoSpeak: settings!.autoSpeak !== false,
@@ -189,18 +194,7 @@ declare global {
       title: currentTitle()
     };
 
-    let judgment: Awaited<ReturnType<typeof overlay.showCard>>;
-    if (settings!.pauseMode === "notify") {
-      judgment = await new Promise((resolve) => {
-        overlay.showToast(target, sentence, video, async () => {
-          if (video && !video.paused) video.pause();
-          const j = await overlay.showCard(target, sentence, video, cardOptions);
-          resolve(j);
-        });
-      });
-    } else {
-      judgment = await overlay.showCard(target, sentence, video, cardOptions);
-    }
+    const judgment = await overlay.showAgentPanel(target, sentence, video, cardOptions);
 
     if (judgment && judgment !== "dismiss") {
       const source = {

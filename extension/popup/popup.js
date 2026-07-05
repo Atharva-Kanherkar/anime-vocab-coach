@@ -5,7 +5,7 @@
 
   // src/types.ts
   var DEFAULTS = {
-    pauseMode: "pause",
+    pauseMode: "copilot",
     cooldownSec: 20,
     maxCardsPerHour: 12,
     targetLevel: 5,
@@ -410,7 +410,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     render();
     initListening();
-    const modes = ["pause", "notify", "off"];
+    const modes = ["copilot", "pause", "off"];
     byId("mode-pill").addEventListener("click", async (e) => {
       const settings = await getSettings();
       const idx = modes.indexOf(settings.pauseMode);

@@ -1,7 +1,7 @@
 import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
 import { pushSnapshot } from "../lib/cloud-sync";
-import { fetchCoach, type CoachMode, type CoachPayload } from "../lib/coach-client";
+import { fetchCoach, fetchChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { getSyncToken } from "../lib/storage";
 import type { Settings } from "../types";
 
@@ -9,6 +9,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(["settings"], (result) => {
     const raw = (result.settings || {}) as Record<string, unknown>;
     delete raw.licenseKey;
+    if (raw.pauseMode === "notify") raw.pauseMode = "copilot";
     chrome.storage.local.set({ settings: { ...DEFAULTS, ...raw } });
   });
 });
@@ -192,8 +193,10 @@ interface RuntimeMsg {
   detail?: string;
   time?: number;
   paused?: boolean;
-  mode?: string;
-  payload?: unknown;
+  mode?: "explain" | "hooks";
+  message?: string;
+  history?: ChatMessage[];
+  payload?: CoachPayload;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
@@ -234,7 +237,14 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   // Overlay card AI: content scripts can't call the hosted API cross-origin, so
   // they ask us. We hold the sync token and the host permission.
   if (msg.type === "avc-coach") {
-    fetchCoach(msg.mode as CoachMode, msg.payload as CoachPayload)
+    fetchCoach(msg.mode as "explain" | "hooks", msg.payload as CoachPayload)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
+  if (msg.type === "avc-coach-chat") {
+    fetchChat(msg.message as string, (msg.history as ChatMessage[]) || [], msg.payload as CoachPayload)
       .then(sendResponse)
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
     return true;

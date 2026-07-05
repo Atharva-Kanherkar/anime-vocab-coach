@@ -5,7 +5,7 @@
 
   // src/types.ts
   var DEFAULTS = {
-    pauseMode: "pause",
+    pauseMode: "copilot",
     cooldownSec: 20,
     maxCardsPerHour: 12,
     targetLevel: 5,

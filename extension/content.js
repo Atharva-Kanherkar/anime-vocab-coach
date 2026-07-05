@@ -107,7 +107,7 @@
 
   // src/types.ts
   var DEFAULTS = {
-    pauseMode: "pause",
+    pauseMode: "copilot",
     cooldownSec: 20,
     maxCardsPerHour: 12,
     targetLevel: 5,
@@ -574,145 +574,256 @@
     }
   }
 
-  // src/lib/overlay.ts
-  var open = false;
-  var resolveFn = null;
+  // src/lib/agent-panel.ts
+  var agentOpen = false;
+  var agentResolve = null;
   var keyHandler = null;
   var autoTimer = null;
   var playHandler = null;
   var userResumed = false;
+  var activeVideo = null;
+  var wasPlaying = false;
   var STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  .avc-scrim {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.5);
+  .avc-agent-layer {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  }
+  .avc-agent-ambient {
+    position: absolute; inset: 0; opacity: 0;
+    transition: opacity 520ms ease;
+  }
+  .avc-agent-ambient.avc-ambient { opacity: 1; }
+  .avc-agent-ambient.avc-focus {
+    opacity: 1;
+    background:
+      radial-gradient(ellipse 100% 80% at 50% 100%, rgba(8, 6, 4, 0.55) 0%, transparent 62%),
+      radial-gradient(ellipse 70% 50% at 92% 88%, rgba(227, 168, 72, 0.14) 0%, transparent 55%);
+  }
+  .avc-agent-ambient.avc-ambient-tone {
+    background:
+      radial-gradient(ellipse 85% 65% at 90% 92%, rgba(227, 168, 72, 0.16) 0%, transparent 58%),
+      radial-gradient(ellipse 50% 40% at 8% 90%, rgba(217, 108, 79, 0.04) 0%, transparent 50%);
+  }
+  .avc-agent-panel {
+    position: fixed; right: 20px; bottom: 22px;
+    width: min(420px, calc(100vw - 40px));
+    max-height: min(78vh, 640px);
+    display: flex; flex-direction: column;
+    pointer-events: auto;
+    background: rgba(10, 9, 8, 0.62);
+    backdrop-filter: blur(24px) saturate(1.2);
+    -webkit-backdrop-filter: blur(24px) saturate(1.2);
+    border: 1px solid rgba(227, 186, 99, 0.22);
+    border-radius: 16px;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+      0 24px 64px rgba(0, 0, 0, 0.45),
+      0 0 100px rgba(227, 168, 72, 0.08);
+    color: rgba(248, 244, 236, 0.96);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    transform: translateY(16px) scale(0.98);
+    opacity: 0;
+    transition: opacity 320ms ease, transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+    overflow: hidden;
+  }
+  .avc-agent-panel.avc-visible { opacity: 1; transform: translateY(0) scale(1); }
+  .avc-agent-panel.avc-focus-panel {
+    border-color: rgba(227, 186, 99, 0.32);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+      0 28px 72px rgba(0, 0, 0, 0.52),
+      0 0 120px rgba(227, 168, 72, 0.12);
+  }
+  .avc-agent-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 14px 16px 10px;
+    border-bottom: 1px solid rgba(227, 186, 99, 0.12);
+    flex-shrink: 0;
+  }
+  .avc-agent-brand {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: rgba(227, 186, 99, 0.75);
+  }
+  .avc-agent-mode {
+    font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+    border: 1px solid rgba(227, 186, 99, 0.28);
+    color: rgba(240, 239, 236, 0.65);
+    background: rgba(227, 186, 99, 0.08);
+  }
+  .avc-agent-mode.avc-focus-mode {
+    border-color: rgba(217, 108, 79, 0.35);
+    color: rgba(217, 140, 110, 0.9);
+    background: rgba(217, 108, 79, 0.1);
+  }
+  .avc-agent-close {
+    width: 28px; height: 28px; border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(240, 239, 236, 0.5);
+    font-size: 17px; line-height: 1; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    pointer-events: auto;
-    font-family: system-ui, -apple-system, sans-serif;
+    transition: color 120ms, border-color 120ms, background 120ms;
   }
-  .avc-card {
-    background: #101012; color: rgba(240,239,236,.95);
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: 12px; padding: 26px 26px 20px;
-    width: min(440px, 90vw);
-    pointer-events: auto;
-    opacity: 0; transform: translateY(6px);
-    transition: opacity 160ms ease, transform 160ms ease;
-    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
-    box-shadow: 0 24px 60px rgba(0,0,0,.55);
+  .avc-agent-close:hover {
+    color: rgba(240, 239, 236, 0.9);
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
   }
-  .avc-card.avc-visible { opacity: 1; transform: translateY(0); }
-  @media (prefers-reduced-motion: reduce) {
-    .avc-card { transition: none; transform: none; }
+  .avc-agent-body {
+    overflow-y: auto; padding: 12px 16px 14px;
+    flex: 1; min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(227,186,99,.25) transparent;
   }
-  .avc-chip {
-    display: inline-block; font-size: 10.5px; letter-spacing: .06em;
-    text-transform: uppercase; color: rgba(240,239,236,.5);
-    border: 1px solid rgba(255,255,255,.12); padding: 3px 9px;
-    border-radius: 4px; margin-bottom: 16px;
+  .avc-agent-chip {
+    display: inline-block; font-size: 10px; letter-spacing: 0.07em;
+    text-transform: uppercase; color: rgba(240, 239, 236, 0.45);
+    margin-bottom: 10px;
   }
-  .avc-chip.avc-chip-review { color: #d96c4f; border-color: rgba(217,108,79,.45); }
-  .avc-word-row { display: flex; align-items: baseline; gap: 14px; }
-  .avc-word { font-size: 42px; font-weight: 700; line-height: 1.1; letter-spacing: .01em; }
-  .avc-speak {
-    background: transparent; color: rgba(240,239,236,.55);
-    border: 1px solid rgba(255,255,255,.16); border-radius: 6px;
-    padding: 4px 12px; cursor: pointer;
-    font-size: 11.5px; letter-spacing: .04em; line-height: 1.6;
-    font-family: system-ui, sans-serif;
-    transition: color 120ms ease, border-color 120ms ease;
+  .avc-agent-chip-review { color: rgba(217, 108, 79, 0.85); }
+  .avc-agent-word-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  .avc-agent-word {
+    font-size: 32px; font-weight: 650; line-height: 1.1;
+    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
   }
-  .avc-speak:hover { color: rgba(240,239,236,.9); border-color: rgba(255,255,255,.35); }
-  .avc-secondary { font-size: 17px; color: rgba(240,239,236,.6); margin: 8px 0 10px; }
-  .avc-gloss { font-size: 16px; color: rgba(240,239,236,.9); margin-bottom: 16px; line-height: 1.45; }
-  .avc-context {
-    font-size: 14px; color: rgba(240,239,236,.85); line-height: 1.55;
-    margin-bottom: 10px; padding: 10px 14px;
-    background: rgba(255,255,255,.03);
-    border-left: 2px solid rgba(240,239,236,.3);
-    border-radius: 0 6px 6px 0;
+  .avc-agent-speak {
+    background: transparent; color: rgba(240, 239, 236, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px;
+    padding: 3px 10px; cursor: pointer; font-size: 11px;
+    letter-spacing: 0.04em; transition: color 120ms, border-color 120ms;
   }
-  .avc-context .avc-label { display: block; font-size: 10px; color: rgba(240,239,236,.4); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
-  .avc-sentence {
-    font-size: 15px; color: rgba(240,239,236,.6); line-height: 1.65;
-    margin-bottom: 20px; padding: 10px 14px;
-    background: rgba(255,255,255,.03);
-    border-left: 2px solid rgba(255,255,255,.1);
-    border-radius: 0 6px 6px 0;
+  .avc-agent-speak:hover { color: rgba(240, 239, 236, 0.9); border-color: rgba(255, 255, 255, 0.3); }
+  .avc-agent-reading { font-size: 14px; color: rgba(240, 239, 236, 0.52); margin-bottom: 8px; }
+  .avc-agent-gloss { font-size: 15px; line-height: 1.45; color: rgba(240, 239, 236, 0.88); margin-bottom: 12px; }
+  .avc-agent-context, .avc-agent-sentence {
+    font-size: 13px; line-height: 1.55; color: rgba(240, 239, 236, 0.72);
+    margin-bottom: 10px; padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 2px solid rgba(227, 186, 99, 0.22);
+    border-radius: 0 8px 8px 0;
   }
-  .avc-sentence .avc-label { display: block; font-size: 10px; color: rgba(240,239,236,.4); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
-  .avc-romaji-line { margin-bottom: 4px; }
-  .avc-ja-line { font-family: var(--jp, inherit); font-size: 15px; line-height: 1.7; }
-  .avc-tok { cursor: pointer; border-bottom: 1px dotted rgba(240,239,236,.35); }
-  .avc-tok:hover { color: #e3ba63; border-bottom-color: #e3ba63; }
-  .avc-lookup { margin-top: 8px; font-size: 13px; color: rgba(240,239,236,.9); }
-  .avc-lookup-word { font-weight: 600; }
-  .avc-lookup-gloss { color: rgba(240,239,236,.7); }
-  .avc-sentence mark {
-    background: transparent; color: #d96c4f; font-weight: 700;
+  .avc-agent-label {
+    display: block; font-size: 9px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: rgba(240, 239, 236, 0.35); margin-bottom: 4px;
   }
-  .avc-ai { margin: 4px 0 14px; }
-  .avc-ai-btns { display: flex; gap: 8px; }
-  .avc-ai-btn {
-    flex: 1; padding: 7px 10px; font-size: 13px; cursor: pointer;
-    background: rgba(227,186,99,.12); color: #f0efec;
-    border: 1px solid rgba(227,186,99,.4); border-radius: 8px;
+  .avc-agent-ja-line { font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif; font-size: 14px; line-height: 1.65; }
+  .avc-agent-romaji-line { margin-bottom: 4px; font-size: 13px; }
+  .avc-agent-tok { cursor: pointer; border-bottom: 1px dotted rgba(240, 239, 236, 0.3); }
+  .avc-agent-tok:hover { color: #e3ba63; }
+  .avc-agent-sentence mark, .avc-agent-romaji-line mark {
+    background: transparent; color: #e3ba63; font-weight: 650;
   }
-  .avc-ai-btn:hover { background: rgba(227,186,99,.2); }
-  .avc-ai-btn:disabled { opacity: .5; cursor: default; }
-  .avc-ai-out { margin-top: 8px; font-size: 13px; line-height: 1.5; color: rgba(240,239,236,.9); }
-  .avc-ai-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: rgba(240,239,236,.45); margin-top: 8px; }
-  .avc-ai-hooks { margin: 4px 0 0 16px; }
-  .avc-ai-hooks li { margin: 3px 0; }
-  .avc-buttons { display: flex; gap: 8px; margin-bottom: 12px; }
-  .avc-buttons button {
-    flex: 1; border-radius: 7px; padding: 10px 6px 8px; cursor: pointer;
-    border: 1px solid transparent; font-family: inherit;
-    transition: filter 120ms ease, border-color 120ms ease;
+  .avc-agent-lookup { margin-top: 6px; font-size: 12px; }
+  .avc-agent-ai { margin: 12px 0 10px; }
+  .avc-agent-ai-btns { display: flex; gap: 6px; margin-bottom: 8px; }
+  .avc-agent-ai-btn {
+    flex: 1; padding: 6px 8px; font-size: 12px; cursor: pointer;
+    background: rgba(227, 186, 99, 0.08); color: rgba(240, 239, 236, 0.85);
+    border: 1px solid rgba(227, 186, 99, 0.22); border-radius: 8px;
+    transition: background 120ms, border-color 120ms;
   }
-  .avc-buttons button:hover { filter: brightness(1.15); }
-  .avc-buttons button span { display: block; font-size: 10.5px; margin-top: 3px; letter-spacing: .02em; }
-  .avc-know {
-    background: transparent; color: rgba(240,239,236,.85);
-    border-color: rgba(255,255,255,.18); font-size: 16px;
+  .avc-agent-ai-btn:hover { background: rgba(227, 186, 99, 0.14); border-color: rgba(227, 186, 99, 0.35); }
+  .avc-agent-ai-btn:disabled { opacity: 0.45; cursor: default; }
+  .avc-agent-ai-out { font-size: 12px; line-height: 1.5; color: rgba(240, 239, 236, 0.82); }
+  .avc-agent-ai-label {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: rgba(240, 239, 236, 0.38); margin-top: 6px;
   }
-  .avc-know span { color: rgba(240,239,236,.45); }
-  .avc-learn { background: #c4553a; color: #fff; font-size: 16px; }
-  .avc-learn span { color: rgba(255,255,255,.65); }
-  .avc-ignore {
-    background: transparent; color: rgba(240,239,236,.45);
-    border-color: rgba(255,255,255,.1); font-size: 16px;
+  .avc-agent-ai-hooks { margin: 4px 0 0 14px; font-size: 12px; }
+  .avc-agent-chat {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(227, 186, 99, 0.12);
   }
-  .avc-ignore span { color: rgba(240,239,236,.3); }
-  .avc-review-pass { background: #3d8a63; color: #fff; font-size: 16px; }
-  .avc-review-pass span { color: rgba(255,255,255,.65); }
-  .avc-review-fail {
+  .avc-agent-chat-label {
+    font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: rgba(227, 186, 99, 0.6); margin-bottom: 8px;
+  }
+  .avc-agent-chat-log {
+    max-height: 132px; overflow-y: auto; margin-bottom: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+    scrollbar-width: thin;
+  }
+  .avc-agent-chat-msg {
+    font-size: 12px; line-height: 1.45; padding: 7px 10px;
+    border-radius: 8px; max-width: 95%;
+  }
+  .avc-agent-chat-msg.avc-user {
+    align-self: flex-end;
+    background: rgba(227, 186, 99, 0.12);
+    border: 1px solid rgba(227, 186, 99, 0.2);
+    color: rgba(248, 244, 236, 0.92);
+  }
+  .avc-agent-chat-msg.avc-assistant {
+    align-self: flex-start;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(240, 239, 236, 0.82);
+  }
+  .avc-agent-chat-row { display: flex; gap: 6px; }
+  .avc-agent-chat-input {
+    flex: 1; resize: none; min-height: 36px; max-height: 72px;
+    padding: 8px 10px; font-size: 12px; line-height: 1.4;
+    border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.25); color: rgba(248, 244, 236, 0.92);
+    font-family: inherit;
+  }
+  .avc-agent-chat-input:focus {
+    outline: none; border-color: rgba(227, 186, 99, 0.35);
+  }
+  .avc-agent-chat-input::placeholder { color: rgba(240, 239, 236, 0.3); }
+  .avc-agent-chat-send {
+    padding: 0 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(227, 186, 99, 0.28);
+    background: rgba(227, 186, 99, 0.12);
+    color: rgba(248, 244, 236, 0.9); font-size: 12px;
+    transition: background 120ms;
+  }
+  .avc-agent-chat-send:hover { background: rgba(227, 186, 99, 0.2); }
+  .avc-agent-chat-send:disabled { opacity: 0.4; cursor: default; }
+  .avc-agent-foot {
+    padding: 10px 16px 14px; flex-shrink: 0;
+    border-top: 1px solid rgba(227, 186, 99, 0.1);
+    background: rgba(0, 0, 0, 0.15);
+  }
+  .avc-agent-buttons { display: flex; gap: 6px; margin-bottom: 8px; }
+  .avc-agent-buttons button {
+    flex: 1; border-radius: 8px; padding: 9px 4px 7px; cursor: pointer;
+    border: 1px solid transparent; font-family: inherit; font-size: 14px;
+    transition: filter 120ms, border-color 120ms;
+  }
+  .avc-agent-buttons button:hover { filter: brightness(1.12); }
+  .avc-agent-buttons button span {
+    display: block; font-size: 9.5px; margin-top: 2px;
+    letter-spacing: 0.02em; opacity: 0.55;
+  }
+  .avc-agent-know {
+    background: rgba(255,255,255,.04); color: rgba(240,239,236,.85);
+    border-color: rgba(255,255,255,.14);
+  }
+  .avc-agent-learn { background: rgba(196, 85, 58, 0.85); color: #fff; }
+  .avc-agent-ignore {
+    background: transparent; color: rgba(240,239,236,.4);
+    border-color: rgba(255,255,255,.08);
+  }
+  .avc-agent-review-pass { background: rgba(61, 138, 99, 0.85); color: #fff; }
+  .avc-agent-review-fail {
     background: transparent; color: #c96a5a;
-    border-color: rgba(201,106,90,.5); font-size: 16px;
+    border-color: rgba(201,106,90,.4);
   }
-  .avc-review-fail span { color: rgba(201,106,90,.6); }
-  .avc-show-answer {
-    background: transparent; color: rgba(240,239,236,.85);
-    border: 1px solid rgba(255,255,255,.2);
-    border-radius: 7px; padding: 10px 16px; cursor: pointer; font-size: 14px;
-    margin-bottom: 16px; width: 100%;
-    font-family: system-ui, sans-serif;
-    transition: border-color 120ms ease;
+  .avc-agent-show-answer {
+    width: 100%; margin-bottom: 10px; padding: 8px 12px;
+    border-radius: 8px; border: 1px solid rgba(255,255,255,.16);
+    background: transparent; color: rgba(240,239,236,.8);
+    font-size: 13px; cursor: pointer;
   }
-  .avc-show-answer:hover { border-color: rgba(255,255,255,.4); }
-  .avc-hint { font-size: 10.5px; color: rgba(240,239,236,.35); text-align: center; letter-spacing: .02em; }
-  .avc-toast {
-    position: fixed; bottom: 14px; left: 14px;
-    background: #101012; color: rgba(240,239,236,.95);
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 8px;
-    padding: 10px 16px; font-size: 14px; pointer-events: auto;
-    cursor: pointer; max-width: 360px;
-    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
-    opacity: 0; transition: opacity 200ms ease;
-    box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  .avc-agent-hint {
+    font-size: 10px; color: rgba(240, 239, 236, 0.28);
+    text-align: center; letter-spacing: 0.03em;
   }
-  .avc-toast.avc-visible { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    .avc-agent-panel, .avc-agent-ambient { transition: none; transform: none; }
+  }
 `;
   function mountHost() {
     let host = document.getElementById("avc-overlay-host");
@@ -728,12 +839,8 @@
   }
   function wordDisplays(token, entry, displayScript) {
     const roma = toRomaji(entry.reading);
-    if (displayScript === "kana") {
-      return { big: entry.reading, secondary: `${roma} \xB7 ${token.surface}` };
-    }
-    if (displayScript === "kanji") {
-      return { big: token.surface, secondary: `${entry.reading} \xB7 ${roma}` };
-    }
+    if (displayScript === "kana") return { big: entry.reading, secondary: `${roma} \xB7 ${token.surface}` };
+    if (displayScript === "kanji") return { big: token.surface, secondary: `${entry.reading} \xB7 ${roma}` };
     const secondary = token.surface === entry.reading ? entry.reading : `${entry.reading} \xB7 ${token.surface}`;
     return { big: roma, secondary };
   }
@@ -741,17 +848,17 @@
     out.textContent = "";
     out.style.display = "";
     const w = document.createElement("span");
-    w.className = "avc-lookup-word";
     w.textContent = entry.reading && entry.reading !== tk.surface ? `${tk.surface}\uFF08${entry.reading}\uFF09` : tk.surface;
+    w.style.fontWeight = "600";
     const g = document.createElement("span");
-    g.className = "avc-lookup-gloss";
     g.textContent = " \u2014 " + entry.glosses.slice(0, 3).join("; ");
+    g.style.opacity = "0.7";
     out.appendChild(w);
     out.appendChild(g);
   }
   function buildTappableJa(tokens, targetIndex, lookupOut) {
     const line = document.createElement("div");
-    line.className = "avc-ja-line";
+    line.className = "avc-agent-ja-line";
     tokens.forEach((tk, idx) => {
       if (idx === targetIndex) {
         const m = document.createElement("mark");
@@ -762,7 +869,7 @@
       const entry = lookup(tk.base);
       if (entry) {
         const s = document.createElement("span");
-        s.className = "avc-tok";
+        s.className = "avc-agent-tok";
         s.textContent = tk.surface;
         s.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -777,16 +884,16 @@
   }
   function buildSentence(sentence, tokens, targetIndex, surface, displayScript) {
     const el = document.createElement("div");
-    el.className = "avc-sentence";
+    el.className = "avc-agent-sentence";
     const label = document.createElement("span");
-    label.className = "avc-label";
-    label.textContent = tokens && tokens.length ? "In this line \u2014 tap any word to look it up" : "In this line";
+    label.className = "avc-agent-label";
+    label.textContent = tokens?.length ? "In this line" : "Line";
     el.appendChild(label);
-    if (tokens && tokens.length) {
+    if (tokens?.length) {
       if (displayScript === "romaji") {
         const pieces = sentencePieces(tokens, targetIndex ?? -1);
         const romajiLine = document.createElement("div");
-        romajiLine.className = "avc-romaji-line";
+        romajiLine.className = "avc-agent-romaji-line";
         pieces.forEach((p, idx) => {
           if (p.highlight) {
             const node = document.createElement("mark");
@@ -800,7 +907,7 @@
         el.appendChild(romajiLine);
       }
       const lookupOut = document.createElement("div");
-      lookupOut.className = "avc-lookup";
+      lookupOut.className = "avc-agent-lookup";
       lookupOut.style.display = "none";
       el.appendChild(buildTappableJa(tokens, targetIndex, lookupOut));
       el.appendChild(lookupOut);
@@ -817,57 +924,36 @@
     });
     return el;
   }
-  function cleanup(root, video) {
-    open = false;
-    if (keyHandler) {
-      window.removeEventListener("keydown", keyHandler, true);
-      keyHandler = null;
-    }
-    if (autoTimer) {
-      clearTimeout(autoTimer);
-      autoTimer = null;
-    }
-    if (playHandler && video) {
-      video.removeEventListener("play", playHandler);
-      playHandler = null;
-    }
-    userResumed = false;
-    if (root) root.innerHTML = "";
-  }
-  function finish(root, video, wasPlaying, judgment) {
-    const fn = resolveFn;
-    cleanup(root, video);
-    resolveFn = null;
-    if (fn) fn(judgment);
-    if (wasPlaying && !userResumed && video && video.paused) {
-      video.play().catch(() => {
-      });
-    }
+  function coachErrorText(resp) {
+    if (!resp || resp.ok) return "";
+    if (resp.error === "not_linked" || resp.error === "unauthorized") return "Sign in at animevocab.com to use AI.";
+    if (resp.error === "quota_exceeded" || resp.error === "ai_quota_exhausted") return "Monthly AI limit reached.";
+    if (resp.error === "ai_not_configured") return "AI is not configured on the server yet.";
+    return "AI unavailable. Try again.";
   }
   function appendAiLine(out, label, body) {
     const l = document.createElement("div");
-    l.className = "avc-ai-label";
+    l.className = "avc-agent-ai-label";
     l.textContent = label;
     const p = document.createElement("div");
-    p.className = "avc-ai-body";
     p.textContent = body;
     out.appendChild(l);
     out.appendChild(p);
   }
-  function renderAi(out, mode, resp) {
+  function renderCoachOut(out, mode, resp) {
     out.textContent = "";
-    if (!resp || !resp.ok) {
-      out.textContent = resp?.error === "not_linked" || resp?.error === "unauthorized" ? "Sign in at animevocab.com to use the AI coach." : resp?.error === "quota_exceeded" || resp?.error === "ai_quota_exhausted" ? "You've used this month's AI coach calls." : resp?.error === "ai_not_configured" ? "AI coach isn't set up on the server yet." : "AI coach unavailable. Try again.";
+    if (!resp?.ok) {
+      out.textContent = coachErrorText(resp) || "AI unavailable.";
       return;
     }
     const r = resp.result || {};
     if (mode === "explain") {
       if (r.meaning) appendAiLine(out, "Meaning", r.meaning);
-      if (r.nuance) appendAiLine(out, "Why said this way", r.nuance);
-      if (!r.meaning && !r.nuance) out.textContent = "No explanation came back.";
+      if (r.nuance) appendAiLine(out, "In this scene", r.nuance);
+      if (!r.meaning && !r.nuance) out.textContent = "No explanation returned.";
     } else if (Array.isArray(r.hooks) && r.hooks.length) {
       const ul = document.createElement("ul");
-      ul.className = "avc-ai-hooks";
+      ul.className = "avc-agent-ai-hooks";
       for (const h of r.hooks) {
         const li = document.createElement("li");
         li.textContent = h;
@@ -875,34 +961,113 @@
       }
       out.appendChild(ul);
     } else {
-      out.textContent = "No hooks came back.";
+      out.textContent = "No hooks returned.";
     }
   }
-  function buildAiSection(token, entry, sentence, title) {
+  function appendChatBubble(log2, role, text) {
+    const bubble = document.createElement("div");
+    bubble.className = `avc-agent-chat-msg avc-${role}`;
+    bubble.textContent = text;
+    log2.appendChild(bubble);
+    log2.scrollTop = log2.scrollHeight;
+  }
+  function buildChatSection(token, entry, sentence, title, onActivity) {
+    const chat = document.createElement("div");
+    chat.className = "avc-agent-chat";
+    const label = document.createElement("div");
+    label.className = "avc-agent-chat-label";
+    label.textContent = "Ask about this word";
+    const log2 = document.createElement("div");
+    log2.className = "avc-agent-chat-log";
+    const row = document.createElement("div");
+    row.className = "avc-agent-chat-row";
+    const input = document.createElement("textarea");
+    input.className = "avc-agent-chat-input";
+    input.rows = 1;
+    input.placeholder = "Why did they say it this way?";
+    const send = document.createElement("button");
+    send.className = "avc-agent-chat-send";
+    send.type = "button";
+    send.textContent = "Send";
+    const history = [];
+    const submit = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      onActivity();
+      appendChatBubble(log2, "user", text);
+      history.push({ role: "user", content: text });
+      send.disabled = true;
+      input.disabled = true;
+      try {
+        const resp = await chrome.runtime.sendMessage({
+          type: "avc-coach-chat",
+          message: text,
+          history: history.slice(0, -1),
+          payload: {
+            word: token.base,
+            reading: entry.reading,
+            gloss: entry.glosses[0] || "",
+            line: sentence,
+            level: entry.level,
+            title
+          }
+        });
+        if (!resp?.ok || !resp.result?.reply) {
+          appendChatBubble(log2, "assistant", coachErrorText(resp) || "No reply.");
+          return;
+        }
+        history.push({ role: "assistant", content: resp.result.reply });
+        appendChatBubble(log2, "assistant", resp.result.reply);
+      } catch {
+        appendChatBubble(log2, "assistant", "Network error.");
+      } finally {
+        send.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    };
+    send.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void submit();
+    });
+    input.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        void submit();
+      }
+    });
+    input.addEventListener("click", (e) => e.stopPropagation());
+    row.appendChild(input);
+    row.appendChild(send);
+    chat.appendChild(label);
+    chat.appendChild(log2);
+    chat.appendChild(row);
+    return chat;
+  }
+  function buildAiQuickSection(token, entry, sentence, title, onActivity) {
     const ai = document.createElement("div");
-    ai.className = "avc-ai";
+    ai.className = "avc-agent-ai";
     const btns = document.createElement("div");
-    btns.className = "avc-ai-btns";
+    btns.className = "avc-agent-ai-btns";
     const explainBtn = document.createElement("button");
-    explainBtn.className = "avc-ai-btn";
+    explainBtn.className = "avc-agent-ai-btn";
     explainBtn.type = "button";
-    explainBtn.textContent = "\u2728 Explain";
+    explainBtn.textContent = "Explain";
     const hookBtn = document.createElement("button");
-    hookBtn.className = "avc-ai-btn";
+    hookBtn.className = "avc-agent-ai-btn";
     hookBtn.type = "button";
-    hookBtn.textContent = "\u{1F4A1} Hooks";
+    hookBtn.textContent = "Memory hooks";
     const out = document.createElement("div");
-    out.className = "avc-ai-out";
+    out.className = "avc-agent-ai-out";
     out.style.display = "none";
     btns.appendChild(explainBtn);
     btns.appendChild(hookBtn);
     ai.appendChild(btns);
     ai.appendChild(out);
     const ask = async (mode) => {
-      if (autoTimer) {
-        clearTimeout(autoTimer);
-        autoTimer = null;
-      }
+      onActivity();
       explainBtn.disabled = true;
       hookBtn.disabled = true;
       out.style.display = "";
@@ -913,9 +1078,9 @@
           mode,
           payload: { word: token.base, reading: entry.reading, gloss: entry.glosses[0] || "", line: sentence, level: entry.level, title }
         });
-        renderAi(out, mode, resp);
+        renderCoachOut(out, mode, resp);
       } catch {
-        out.textContent = "AI coach unavailable. Try again.";
+        out.textContent = "AI unavailable.";
       } finally {
         explainBtn.disabled = false;
         hookBtn.disabled = false;
@@ -931,186 +1096,233 @@
     });
     return ai;
   }
-  function showCard(target, sentence, video, options) {
-    if (open) return Promise.resolve("dismiss");
-    open = true;
+  function cleanupAgent(root) {
+    agentOpen = false;
+    if (autoTimer) {
+      clearTimeout(autoTimer);
+      autoTimer = null;
+    }
+    if (keyHandler) {
+      window.removeEventListener("keydown", keyHandler, true);
+      keyHandler = null;
+    }
+    if (playHandler && activeVideo) {
+      activeVideo.removeEventListener("play", playHandler);
+      playHandler = null;
+    }
     userResumed = false;
-    const opts = options || {};
+    if (root) root.querySelector(".avc-agent-layer")?.remove();
+    if (wasPlaying && !userResumed && activeVideo?.paused) {
+      activeVideo.play().catch(() => {
+      });
+    }
+    activeVideo = null;
+    wasPlaying = false;
+  }
+  function finishAgent(root, judgment) {
+    const fn = agentResolve;
+    cleanupAgent(root);
+    agentResolve = null;
+    if (fn) fn(judgment);
+  }
+  function dismissAgent() {
+    if (!agentOpen) return;
+    finishAgent(mountHost(), "dismiss");
+  }
+  function isOpen() {
+    return agentOpen;
+  }
+  function showAgentPanel(target, sentence, video, options) {
+    if (agentOpen) dismissAgent();
+    const opts = options;
     const displayScript = opts.displayScript || "romaji";
     const { token, entry, isReview } = target;
-    const wasPlaying = !!(video && !video.paused && !video.ended);
-    if (wasPlaying && video) video.pause();
+    const focus = opts.interaction === "focus";
+    wasPlaying = !!(video && !video.paused && !video.ended);
+    activeVideo = video;
+    userResumed = false;
+    if (focus && wasPlaying && video) video.pause();
     if (video) {
       playHandler = () => {
         userResumed = true;
       };
       video.addEventListener("play", playHandler);
     }
-    const root = mountHost();
-    root.innerHTML = `<style>${STYLES}</style>`;
-    const scrim = document.createElement("div");
-    scrim.className = "avc-scrim";
-    const card = document.createElement("div");
-    card.className = "avc-card";
-    card.setAttribute("role", "dialog");
-    const chip = document.createElement("div");
-    chip.className = isReview ? "avc-chip avc-chip-review" : "avc-chip";
-    chip.textContent = isReview ? "Review \u2014 you learned this word. Remember it?" : `${commonnessLabel(entry.level)} \xB7 #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " \xB7 heard just now" : ""}`;
-    const displays = wordDisplays(token, entry, displayScript);
-    const wordRow = document.createElement("div");
-    wordRow.className = "avc-word-row";
-    const wordEl = document.createElement("div");
-    wordEl.className = "avc-word";
-    wordEl.textContent = displays.big;
-    const speakBtn = document.createElement("button");
-    speakBtn.className = "avc-speak";
-    speakBtn.textContent = "Listen";
-    speakBtn.title = "Hear it";
-    speakBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      speak(token.surface);
-    });
-    wordRow.appendChild(wordEl);
-    wordRow.appendChild(speakBtn);
-    const secondaryEl = document.createElement("div");
-    secondaryEl.className = "avc-secondary";
-    secondaryEl.textContent = displays.secondary;
-    const glossEl = document.createElement("div");
-    glossEl.className = "avc-gloss";
-    glossEl.textContent = entry.glosses.join(" \xB7 ");
-    let contextEl = null;
-    if (opts.contextEn) {
-      contextEl = document.createElement("div");
-      contextEl.className = "avc-context";
-      const label = document.createElement("span");
-      label.className = "avc-label";
-      label.textContent = "English subtitle";
-      contextEl.appendChild(label);
-      contextEl.appendChild(document.createTextNode(opts.contextEn));
-    }
-    const sentenceEl = buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript);
-    const buttons = document.createElement("div");
-    buttons.className = "avc-buttons";
-    const hint = document.createElement("div");
-    hint.className = "avc-hint";
-    card.appendChild(chip);
-    card.appendChild(wordRow);
-    if (isReview) {
-      secondaryEl.style.display = "none";
-      glossEl.style.display = "none";
-      const showBtn = document.createElement("button");
-      showBtn.className = "avc-show-answer";
-      showBtn.textContent = "Show answer";
-      showBtn.addEventListener("click", () => {
-        secondaryEl.style.display = "";
-        glossEl.style.display = "";
-        showBtn.remove();
-      });
-      card.appendChild(showBtn);
-    }
-    card.appendChild(secondaryEl);
-    card.appendChild(glossEl);
-    if (contextEl) card.appendChild(contextEl);
-    card.appendChild(sentenceEl);
-    card.appendChild(buildAiSection(token, entry, sentence, opts.title || null));
-    let judgments;
-    if (isReview) {
-      judgments = [
-        { cls: "avc-review-pass", ja: "\u899A\u3048\u3066\u305F", en: "Got it", val: "review-pass", key: "1" },
-        { cls: "avc-review-fail", ja: "\u5FD8\u308C\u305F", en: "Forgot", val: "review-fail", key: "2" }
-      ];
-      hint.textContent = "Esc to close \xB7 1 / 2 keys work too";
-    } else {
-      judgments = [
-        { cls: "avc-know", ja: "\u77E5\u3063\u3066\u308B", en: "I know it", val: "know", key: "1" },
-        { cls: "avc-learn", ja: "\u5B66\u3076", en: "Learn it", val: "learn", key: "2" },
-        { cls: "avc-ignore", ja: "\u7121\u8996", en: "Ignore", val: "ignore", key: "3" }
-      ];
-      hint.textContent = "Esc to close \xB7 1 / 2 / 3 keys work too";
-    }
-    judgments.forEach((j) => {
-      const btn = document.createElement("button");
-      btn.className = j.cls;
-      btn.innerHTML = `${j.ja}<span>${j.en}</span>`;
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        finish(root, video, wasPlaying, j.val);
-      });
-      buttons.appendChild(btn);
-    });
-    card.appendChild(buttons);
-    card.appendChild(hint);
-    scrim.appendChild(card);
-    root.appendChild(scrim);
-    scrim.addEventListener("click", (e) => {
-      if (e.target === scrim) finish(root, video, wasPlaying, "dismiss");
-    });
-    card.addEventListener("click", (e) => e.stopPropagation());
-    keyHandler = (e) => {
-      if (!open) return;
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        finish(root, video, wasPlaying, "dismiss");
-        return;
-      }
-      const match = judgments.find((j) => j.key === e.key);
-      if (match) {
-        e.preventDefault();
-        e.stopPropagation();
-        finish(root, video, wasPlaying, match.val);
-      }
-    };
-    window.addEventListener("keydown", keyHandler, true);
-    const onFsChange = () => {
-      if (open) mountHost();
-    };
-    document.addEventListener("fullscreenchange", onFsChange);
-    requestAnimationFrame(() => card.classList.add("avc-visible"));
-    if (opts.autoSpeak) {
-      setTimeout(() => speak(token.surface), 250);
-    }
-    const autoSec = opts.autoResumeSec || 0;
-    if (autoSec > 0) {
-      autoTimer = setTimeout(() => {
-        finish(root, video, wasPlaying, "dismiss");
-      }, autoSec * 1e3);
-    }
     return new Promise((resolve) => {
-      resolveFn = (judgment) => {
+      agentOpen = true;
+      agentResolve = resolve;
+      const root = mountHost();
+      if (!root.querySelector("style")) root.innerHTML = `<style>${STYLES}</style>`;
+      root.querySelector(".avc-agent-layer")?.remove();
+      const layer = document.createElement("div");
+      layer.className = "avc-agent-layer";
+      const ambient = document.createElement("div");
+      ambient.className = `avc-agent-ambient avc-visible ${focus ? "avc-focus" : "avc-ambient-tone"}`;
+      const panel = document.createElement("div");
+      panel.className = `avc-agent-panel ${focus ? "avc-focus-panel" : ""}`;
+      panel.setAttribute("role", "dialog");
+      panel.setAttribute("aria-label", "AnimeVocab learning agent");
+      const head = document.createElement("div");
+      head.className = "avc-agent-head";
+      const brand = document.createElement("div");
+      brand.className = "avc-agent-brand";
+      brand.textContent = "AnimeVocab";
+      const modeBadge = document.createElement("div");
+      modeBadge.className = `avc-agent-mode ${focus ? "avc-focus-mode" : ""}`;
+      modeBadge.textContent = focus ? "Focus" : "Ambient";
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "avc-agent-close";
+      closeBtn.type = "button";
+      closeBtn.setAttribute("aria-label", "Dismiss");
+      closeBtn.textContent = "\xD7";
+      const headLeft = document.createElement("div");
+      headLeft.style.display = "flex";
+      headLeft.style.alignItems = "center";
+      headLeft.style.gap = "10px";
+      headLeft.appendChild(brand);
+      headLeft.appendChild(modeBadge);
+      head.appendChild(headLeft);
+      head.appendChild(closeBtn);
+      const body = document.createElement("div");
+      body.className = "avc-agent-body";
+      const chip = document.createElement("div");
+      chip.className = isReview ? "avc-agent-chip avc-agent-chip-review" : "avc-agent-chip";
+      chip.textContent = isReview ? "Review" : `${commonnessLabel(entry.level)} \xB7 #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " \xB7 heard" : ""}`;
+      const displays = wordDisplays(token, entry, displayScript);
+      const wordRow = document.createElement("div");
+      wordRow.className = "avc-agent-word-row";
+      const wordEl = document.createElement("div");
+      wordEl.className = "avc-agent-word";
+      wordEl.textContent = displays.big;
+      const speakBtn = document.createElement("button");
+      speakBtn.className = "avc-agent-speak";
+      speakBtn.type = "button";
+      speakBtn.textContent = "Listen";
+      speakBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        speak(token.surface);
+      });
+      wordRow.appendChild(wordEl);
+      wordRow.appendChild(speakBtn);
+      const readingEl = document.createElement("div");
+      readingEl.className = "avc-agent-reading";
+      readingEl.textContent = displays.secondary;
+      const glossEl = document.createElement("div");
+      glossEl.className = "avc-agent-gloss";
+      glossEl.textContent = entry.glosses.join(" \xB7 ");
+      body.appendChild(chip);
+      body.appendChild(wordRow);
+      if (isReview) {
+        readingEl.style.display = "none";
+        glossEl.style.display = "none";
+        const showBtn = document.createElement("button");
+        showBtn.className = "avc-agent-show-answer";
+        showBtn.type = "button";
+        showBtn.textContent = "Show answer";
+        showBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          readingEl.style.display = "";
+          glossEl.style.display = "";
+          showBtn.remove();
+        });
+        body.appendChild(showBtn);
+      }
+      body.appendChild(readingEl);
+      body.appendChild(glossEl);
+      if (opts.contextEn) {
+        const ctx = document.createElement("div");
+        ctx.className = "avc-agent-context";
+        const lbl = document.createElement("span");
+        lbl.className = "avc-agent-label";
+        lbl.textContent = "English subtitle";
+        ctx.appendChild(lbl);
+        ctx.appendChild(document.createTextNode(opts.contextEn));
+        body.appendChild(ctx);
+      }
+      body.appendChild(buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript));
+      const bumpAutoTimer = () => {
+        if (autoTimer) clearTimeout(autoTimer);
+        const sec = opts.autoResumeSec || 0;
+        if (focus && sec > 0) {
+          autoTimer = setTimeout(() => finishAgent(root, "dismiss"), sec * 1e3);
+        }
+      };
+      body.appendChild(buildAiQuickSection(token, entry, sentence, opts.title || null, bumpAutoTimer));
+      body.appendChild(buildChatSection(token, entry, sentence, opts.title || null, bumpAutoTimer));
+      const foot = document.createElement("div");
+      foot.className = "avc-agent-foot";
+      const buttons = document.createElement("div");
+      buttons.className = "avc-agent-buttons";
+      const hint = document.createElement("div");
+      hint.className = "avc-agent-hint";
+      let judgments;
+      if (isReview) {
+        judgments = [
+          { cls: "avc-agent-review-pass", ja: "\u899A\u3048\u3066\u305F", en: "Got it", val: "review-pass", key: "1" },
+          { cls: "avc-agent-review-fail", ja: "\u5FD8\u308C\u305F", en: "Forgot", val: "review-fail", key: "2" }
+        ];
+        hint.textContent = "Esc dismiss \xB7 1 / 2";
+      } else {
+        judgments = [
+          { cls: "avc-agent-know", ja: "\u77E5\u3063\u3066\u308B", en: "Know it", val: "know", key: "1" },
+          { cls: "avc-agent-learn", ja: "\u5B66\u3076", en: "Learn", val: "learn", key: "2" },
+          { cls: "avc-agent-ignore", ja: "\u7121\u8996", en: "Skip", val: "ignore", key: "3" }
+        ];
+        hint.textContent = "Esc dismiss \xB7 1 / 2 / 3";
+      }
+      judgments.forEach((j) => {
+        const btn = document.createElement("button");
+        btn.className = j.cls;
+        btn.innerHTML = `${j.ja}<span>${j.en}</span>`;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          finishAgent(root, j.val);
+        });
+        buttons.appendChild(btn);
+      });
+      foot.appendChild(buttons);
+      foot.appendChild(hint);
+      panel.appendChild(head);
+      panel.appendChild(body);
+      panel.appendChild(foot);
+      layer.appendChild(ambient);
+      layer.appendChild(panel);
+      root.appendChild(layer);
+      closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        finishAgent(root, "dismiss");
+      });
+      panel.addEventListener("click", (e) => e.stopPropagation());
+      keyHandler = (e) => {
+        if (!agentOpen) return;
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          finishAgent(root, "dismiss");
+          return;
+        }
+        const match = judgments.find((j) => j.key === e.key);
+        if (match && !(e.target instanceof HTMLTextAreaElement)) {
+          e.preventDefault();
+          e.stopPropagation();
+          finishAgent(root, match.val);
+        }
+      };
+      window.addEventListener("keydown", keyHandler, true);
+      const onFsChange = () => {
+        if (agentOpen) mountHost();
+      };
+      document.addEventListener("fullscreenchange", onFsChange);
+      requestAnimationFrame(() => panel.classList.add("avc-visible"));
+      if (opts.autoSpeak && focus) {
+        setTimeout(() => speak(token.surface), 250);
+      }
+      if (focus && (opts.autoResumeSec || 0) > 0) bumpAutoTimer();
+      agentResolve = (judgment) => {
         document.removeEventListener("fullscreenchange", onFsChange);
         resolve(judgment);
       };
     });
-  }
-  var toastTimer = null;
-  function showToast(target, _sentence, _video, onOpen) {
-    const root = mountHost();
-    if (!root.querySelector("style")) {
-      root.innerHTML = `<style>${STYLES}</style>`;
-    }
-    let toast = root.querySelector(".avc-toast");
-    if (!toast) {
-      toast = document.createElement("div");
-      toast.className = "avc-toast";
-      root.appendChild(toast);
-    }
-    const { token, entry } = target;
-    const roma = toRomaji(entry.reading);
-    toast.textContent = `${roma} (${token.surface}) \u2014 ${entry.glosses[0] || ""}`;
-    toast.onclick = () => {
-      if (toastTimer) clearTimeout(toastTimer);
-      toast.classList.remove("avc-visible");
-      if (onOpen) onOpen();
-    };
-    requestAnimationFrame(() => toast.classList.add("avc-visible"));
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      toast.classList.remove("avc-visible");
-    }, 5e3);
-  }
-  function isOpen() {
-    return open;
   }
 
   // src/lib/adapters/util.ts
@@ -1579,6 +1791,9 @@
       const video = adapter ? adapter.getVideo() : null;
       targetedThisSession.add(target.token.base);
       await recordCardShown(target.token.base);
+      settings = await getSettings();
+      const rawMode = settings.pauseMode;
+      const mode = rawMode === "notify" ? "copilot" : settings.pauseMode;
       const meta = {
         reading: target.entry.reading,
         gloss: target.entry.glosses[0] || "",
@@ -1586,6 +1801,7 @@
         freqRank: target.entry.freqRank
       };
       const cardOptions = {
+        interaction: mode === "pause" ? "focus" : "ambient",
         autoResumeSec: settings.autoResumeSec,
         displayScript: settings.displayScript || "romaji",
         autoSpeak: settings.autoSpeak !== false,
@@ -1595,18 +1811,7 @@
         targetIndex: tokens.indexOf(target.token),
         title: currentTitle()
       };
-      let judgment;
-      if (settings.pauseMode === "notify") {
-        judgment = await new Promise((resolve) => {
-          showToast(target, sentence, video, async () => {
-            if (video && !video.paused) video.pause();
-            const j = await showCard(target, sentence, video, cardOptions);
-            resolve(j);
-          });
-        });
-      } else {
-        judgment = await showCard(target, sentence, video, cardOptions);
-      }
+      const judgment = await showAgentPanel(target, sentence, video, cardOptions);
       if (judgment && judgment !== "dismiss") {
         const source = {
           title: currentTitle(),

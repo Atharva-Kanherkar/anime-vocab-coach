@@ -54,16 +54,18 @@ export async function POST(req: Request) {
   const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit);
   const month = currentMonth();
 
-  // Cache hit: free to serve, does not consume quota.
-  const cacheKey = await coachCacheKey(coachReq);
-  const cached = await getCachedResult(cacheKey);
-  if (cached) {
-    const used = await getUsage(user.id, month);
-    return NextResponse.json({
-      result: cached,
-      cached: true,
-      usage: { used, limit, plan: tier },
-    });
+  // Cache hit: free to serve, does not consume quota. Chat is never cached.
+  if (coachReq.mode !== "chat") {
+    const cacheKey = await coachCacheKey(coachReq);
+    const cached = await getCachedResult(cacheKey);
+    if (cached) {
+      const used = await getUsage(user.id, month);
+      return NextResponse.json({
+        result: cached,
+        cached: true,
+        usage: { used, limit, plan: tier },
+      });
+    }
   }
 
   const used = await getUsage(user.id, month);
@@ -82,7 +84,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: detail }, { status: 502 });
   }
 
-  await putCachedResult(cacheKey, result);
+  if (coachReq.mode !== "chat") {
+    const cacheKey = await coachCacheKey(coachReq);
+    await putCachedResult(cacheKey, result);
+  }
   const newUsed = await incrementUsage(user.id, month);
 
   return NextResponse.json({

@@ -1,4 +1,4 @@
-export type PauseMode = "pause" | "notify" | "off";
+export type PauseMode = "copilot" | "pause" | "off";
 export type DisplayScript = "romaji" | "kana" | "kanji";
 export type WordState = "new" | "learning" | "known" | "ignored";
 export type Judgment = "know" | "learn" | "ignore" | "review-pass" | "review-fail" | "dismiss";
@@ -108,7 +108,7 @@ export interface SiteAdapter {
 }
 
 export const DEFAULTS: Settings = {
-  pauseMode: "pause",
+  pauseMode: "copilot",
   cooldownSec: 20,
   maxCardsPerHour: 12,
   targetLevel: 5,

@@ -11,11 +11,14 @@
 // single line, never a whole transcript. Responses are cached by word+line+level
 // so repeated explanations cost nothing and do not consume a user's quota.
 
-export type CoachMode = "explain" | "hooks";
+export type CoachMode = "explain" | "hooks" | "chat";
 export type Plan = "free" | "pro";
-// "launch" is the tier reported while the free launch window is open: everyone
-// signed in gets all features at one capped limit, no Dodo/plan gating.
 export type Tier = "free" | "pro" | "launch";
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
 export interface CoachRequest {
   mode: CoachMode;
@@ -25,6 +28,9 @@ export interface CoachRequest {
   line: string;
   level?: number | null;
   title?: string;
+  /** chat mode only */
+  message?: string;
+  history?: ChatMessage[];
 }
 
 export interface ExplainResult {
@@ -38,7 +44,12 @@ export interface HooksResult {
   hooks: string[];
 }
 
-export type CoachResult = ExplainResult | HooksResult;
+export interface ChatResult {
+  mode: "chat";
+  reply: string;
+}
+
+export type CoachResult = ExplainResult | HooksResult | ChatResult;
 
 // Verified July 2026: gpt-4.1-nano is $0.10 / 1M input, $0.40 / 1M output. A coach
 // call (~350 input + ~250 output tokens) costs about $0.00014 — roughly 15x under
@@ -63,6 +74,8 @@ export function launchActive(until: string | undefined, now = Date.now()): boole
 export const MAX_WORD_LEN = 80;
 export const MAX_LINE_LEN = 400;
 export const MAX_TITLE_LEN = 120;
+export const MAX_CHAT_MESSAGE_LEN = 500;
+export const MAX_CHAT_HISTORY = 12;
 
 export function aiLimitForPlan(plan: Plan, free: number, pro: number): number {
   return plan === "pro" ? pro : free;
@@ -78,7 +91,7 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
   const body = input as Record<string, unknown>;
 
   const mode = body.mode;
-  if (mode !== "explain" && mode !== "hooks") return { error: "invalid_mode" };
+  if (mode !== "explain" && mode !== "hooks" && mode !== "chat") return { error: "invalid_mode" };
 
   const word = typeof body.word === "string" ? clamp(body.word, MAX_WORD_LEN) : "";
   if (!word) return { error: "missing_word" };
@@ -89,6 +102,28 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
   const levelRaw = Number(body.level);
   const level = Number.isFinite(levelRaw) && levelRaw > 0 ? Math.round(levelRaw) : null;
 
+  let message: string | undefined;
+  let history: ChatMessage[] | undefined;
+  if (mode === "chat") {
+    message = typeof body.message === "string" ? clamp(body.message, MAX_CHAT_MESSAGE_LEN) : "";
+    if (!message) return { error: "missing_message" };
+    if (Array.isArray(body.history)) {
+      history = body.history
+        .filter(
+          (m): m is ChatMessage =>
+            !!m &&
+            typeof m === "object" &&
+            ((m as ChatMessage).role === "user" || (m as ChatMessage).role === "assistant")
+        )
+        .slice(-MAX_CHAT_HISTORY)
+        .map((m) => ({
+          role: m.role,
+          content: clamp(String(m.content || ""), MAX_CHAT_MESSAGE_LEN),
+        }))
+        .filter((m) => m.content.length > 0);
+    }
+  }
+
   return {
     req: {
       mode,
@@ -98,6 +133,8 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
       line,
       level,
       title: typeof body.title === "string" ? clamp(body.title, MAX_TITLE_LEN) : undefined,
+      message,
+      history,
     },
   };
 }
@@ -150,6 +187,10 @@ export async function runCoach(
   model: string,
   req: CoachRequest
 ): Promise<CoachResult> {
+  if (req.mode === "chat") {
+    return runChatCoach(apiKey, model, req);
+  }
+
   const { system, user } = buildPrompt(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -193,4 +234,45 @@ export async function runCoach(
     : [];
   if (hooks.length === 0) throw new Error("openai_empty");
   return { mode: "hooks", hooks };
+}
+
+async function runChatCoach(apiKey: string, model: string, req: CoachRequest): Promise<ChatResult> {
+  const message = (req.message || "").trim();
+  if (!message) throw new Error("missing_message");
+
+  const system =
+    "You are a concise anime Japanese tutor embedded in a learner's video player. " +
+    "The learner is watching anime with subtitles. Answer in clear beginner-friendly English. " +
+    "Stay focused on the highlighted word and the exact line from the scene. " +
+    "Keep replies under 120 words unless they ask for more detail. " +
+    "Use romaji for Japanese readings when helpful. No markdown, no emoji.";
+
+  const contextUser =
+    `[Scene context]\n${contextBlock(req)}\n\n[Learner question]\n${message}`;
+
+  const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    { role: "system", content: system },
+  ];
+  for (const turn of req.history || []) {
+    messages.push({ role: turn.role, content: turn.content });
+  }
+  messages.push({ role: "user", content: contextUser });
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.55,
+      max_tokens: 320,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`openai_${res.status}`);
+
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const reply = (data.choices?.[0]?.message?.content || "").trim();
+  if (!reply) throw new Error("openai_empty");
+  return { mode: "chat", reply };
 }

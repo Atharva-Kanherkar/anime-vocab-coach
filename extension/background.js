@@ -2,7 +2,7 @@
 (() => {
   // src/types.ts
   var DEFAULTS = {
-    pauseMode: "pause",
+    pauseMode: "copilot",
     cooldownSec: 20,
     maxCardsPerHour: 12,
     targetLevel: 5,
@@ -109,14 +109,14 @@
   }
 
   // src/lib/coach-client.ts
-  async function fetchCoach(mode, payload) {
+  async function postCoach(body) {
     const token = await getSyncToken();
     if (!token) return { ok: false, error: "not_linked" };
     try {
       const res = await fetch(WEB_URL + "/api/ai/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify({ mode, ...payload })
+        body: JSON.stringify(body)
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
@@ -125,12 +125,19 @@
       return { ok: false, error: "network" };
     }
   }
+  async function fetchCoach(mode, payload) {
+    return postCoach({ mode, ...payload });
+  }
+  async function fetchChat(message, history, payload) {
+    return postCoach({ mode: "chat", message, history, ...payload });
+  }
 
   // src/entries/background.ts
   chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(["settings"], (result) => {
       const raw = result.settings || {};
       delete raw.licenseKey;
+      if (raw.pauseMode === "notify") raw.pauseMode = "copilot";
       chrome.storage.local.set({ settings: { ...DEFAULTS, ...raw } });
     });
   });
@@ -301,6 +308,10 @@
     }
     if (msg.type === "avc-coach") {
       fetchCoach(msg.mode, msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
+    if (msg.type === "avc-coach-chat") {
+      fetchChat(msg.message, msg.history || [], msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
     }
     if (msg.type === "avc-transcript") {
