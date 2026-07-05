@@ -210,10 +210,7 @@
   async function startListening(tabId) {
     const r = await chrome.storage.local.get(["settings"]);
     const settings = r.settings || {};
-    const auth = settings.licenseKey ? { kind: "hosted", licenseKey: settings.licenseKey, backendUrl: BACKEND_URL } : settings.openaiKey ? { kind: "byo", key: settings.openaiKey } : null;
-    if (!auth) {
-      return { ok: false, error: "Listening Mode needs Pro (license key) or your own OpenAI API key \u2014 set either in Settings." };
-    }
+    const auth = settings.openaiKey ? { kind: "byo", key: settings.openaiKey } : { kind: "hosted", licenseKey: settings.licenseKey || "", backendUrl: BACKEND_URL };
     const injected = await ensureContentScript(tabId);
     if (!injected) {
       return { ok: false, error: "Couldn't load the extension into this tab. Try reloading the page, then Start again." };

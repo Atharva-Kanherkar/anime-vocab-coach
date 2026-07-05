@@ -19,6 +19,9 @@ import { validateCacheKey, validateStartSec, validateWindowSec } from "./validat
 export interface Env {
   AVC_KV: KVNamespace;
   OPENAI_API_KEY: string;
+  // "1" = open access: no license required, no usage cap. For pre-launch
+  // testing where the owner eats the cost. Set to "0" (or remove) to re-gate.
+  AVC_OPEN_ACCESS?: string;
   GROQ_API_KEY?: string;
   DEEPINFRA_API_KEY?: string;
   DODO_API_KEY: string;
@@ -63,7 +66,19 @@ function json(req: Request, body: unknown, status = 200): Response {
 
 function bearer(req: Request): string | null {
   const h = req.headers.get("Authorization") || "";
-  return h.startsWith("Bearer ") ? h.slice(7).trim() : null;
+  const t = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
+  return t.length ? t : null;
+}
+
+// Pre-launch open access: no license, no cap (owner eats the cost).
+function openAccess(env: Env): boolean {
+  return env.AVC_OPEN_ACCESS === "1";
+}
+
+// The credential to meter/authorize against: the presented license, or a shared
+// synthetic id when open access is on and none was sent.
+function callerLicense(env: Env, req: Request): string | null {
+  return bearer(req) || (openAccess(env) ? "open-access" : null);
 }
 
 async function keyId(licenseKey: string): Promise<string> {
@@ -73,6 +88,7 @@ async function keyId(licenseKey: string): Promise<string> {
 }
 
 async function checkLicense(env: Env, licenseKey: string): Promise<{ valid: boolean; reason?: string }> {
+  if (openAccess(env)) return { valid: true };
   const id = await keyId(licenseKey);
   const cacheKey = `lic:${id}`;
   const cached = await env.AVC_KV.get(cacheKey);
@@ -88,7 +104,7 @@ async function checkLicense(env: Env, licenseKey: string): Promise<{ valid: bool
 async function requireLicense(env: Env, req: Request): Promise<
   { ok: true; licenseKey: string; id: string } | { ok: false; response: Response }
 > {
-  const licenseKey = bearer(req);
+  const licenseKey = callerLicense(env, req);
   if (!licenseKey) return { ok: false, response: json(req, { error: "missing Authorization: Bearer <license key>" }, 401) };
   const check = await checkLicense(env, licenseKey);
   if (!check.valid) return { ok: false, response: json(req, { error: check.reason || "subscription inactive" }, 402) };
@@ -97,6 +113,7 @@ async function requireLicense(env: Env, req: Request): Promise<
 }
 
 async function checkUsageCap(env: Env, req: Request, id: string): Promise<Response | null> {
+  if (openAccess(env)) return null; // no cap in open-access testing
   const cap = Number(env.CAP_MINUTES);
   const used = await getUsage(env, id);
   if (used >= cap) {
@@ -133,7 +150,7 @@ export default {
         return json(req, { active: true, capMinutes: Number(env.CAP_MINUTES), usedMinutes: Math.floor(usage) });
       }
 
-      const licenseKey = bearer(req);
+      const licenseKey = callerLicense(env, req);
       if (!licenseKey) return json(req, { error: "missing Authorization: Bearer <license key>" }, 401);
       const id = await keyId(licenseKey);
 

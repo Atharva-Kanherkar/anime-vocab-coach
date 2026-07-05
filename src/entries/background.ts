@@ -113,14 +113,12 @@ async function startListening(tabId: number): Promise<Ack> {
   const r = await chrome.storage.local.get(["settings"]);
   const settings = (r.settings as Partial<Settings> | undefined) || {};
 
-  const auth = settings.licenseKey
-    ? { kind: "hosted" as const, licenseKey: settings.licenseKey, backendUrl: BACKEND_URL }
-    : settings.openaiKey
-      ? { kind: "byo" as const, key: settings.openaiKey }
-      : null;
-  if (!auth) {
-    return { ok: false, error: "Listening Mode needs Pro (license key) or your own OpenAI API key — set either in Settings." };
-  }
+  // Hosted is the default and needs no license (the backend is open-access
+  // pre-launch). A BYO OpenAI key stays an explicit opt-in; a license, if set,
+  // still routes hosted. So: click Start → it just works, server-side.
+  const auth = settings.openaiKey
+    ? { kind: "byo" as const, key: settings.openaiKey }
+    : { kind: "hosted" as const, licenseKey: settings.licenseKey || "", backendUrl: BACKEND_URL };
 
   const injected = await ensureContentScript(tabId);
   if (!injected) {
