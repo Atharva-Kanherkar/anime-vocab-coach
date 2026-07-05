@@ -68,6 +68,21 @@ export function setAgentPinned(pinned: boolean): Promise<void> {
   });
 }
 
+export function getAgentPanelWidth(): Promise<number> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["agentPanelWidth"], (r) => {
+      const w = Number(r.agentPanelWidth);
+      resolve(Number.isFinite(w) && w > 0 ? w : 340);
+    });
+  });
+}
+
+export function setAgentPanelWidth(width: number): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ agentPanelWidth: width }, () => resolve());
+  });
+}
+
 export function getVocab(): Promise<VocabMap> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["vocab"], (r) => resolve((r.vocab as VocabMap | undefined) || {}));

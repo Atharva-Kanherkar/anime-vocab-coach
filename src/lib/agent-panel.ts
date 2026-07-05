@@ -5,7 +5,7 @@ import * as romaji from "./romaji";
 import { lookup } from "./dictionary";
 import { commonnessLabel } from "./levels";
 import { renderMarkdown } from "./markdown-lite";
-import { getSettings, setSettings } from "./storage";
+import { getSettings, setSettings, getAgentPanelWidth, setAgentPanelWidth } from "./storage";
 import type { DictEntry, DisplayScript, Judgment, PauseMode, Target, Token } from "../types";
 
 export type InteractionMode = "ambient" | "focus";
@@ -48,9 +48,11 @@ interface CoachResp {
 interface Shell {
   root: ShadowRoot;
   ambient: HTMLElement;
+  sidebar: HTMLElement;
   panel: HTMLElement;
   modeSelect: HTMLSelectElement;
   wordSection: HTMLElement;
+  scrollArea: HTMLElement;
   wordIdle: HTMLElement;
   wordActive: HTMLElement;
   foot: HTMLElement;
@@ -80,6 +82,10 @@ let activeVideo: HTMLVideoElement | null = null;
 let wasPlaying = false;
 let currentJudgments: { val: Judgment; key: string }[] = [];
 
+const PANEL_MIN_W = 280;
+const PANEL_MAX_W = 560;
+const PANEL_DEFAULT_W = 340;
+
 interface CoachPayload {
   word: string;
   reading?: string;
@@ -95,251 +101,270 @@ const STYLES = `
     position: fixed; inset: 0; pointer-events: none; z-index: 0;
   }
   .avc-agent-ambient {
-    position: absolute; inset: 0; opacity: 1;
-    transition: background 520ms ease;
+    position: absolute; inset: 0; pointer-events: none;
+    transition: background 480ms ease;
   }
   .avc-agent-ambient.avc-focus {
-    background:
-      radial-gradient(ellipse 100% 80% at 50% 100%, rgba(8, 6, 4, 0.55) 0%, transparent 62%),
-      radial-gradient(ellipse 70% 50% at 92% 88%, rgba(227, 168, 72, 0.14) 0%, transparent 55%);
+    background: linear-gradient(
+      to left,
+      rgba(0, 0, 0, 0.22) 0%,
+      rgba(0, 0, 0, 0.08) calc(var(--avc-panel-w, 340px) * 0.6),
+      transparent var(--avc-panel-w, 340px)
+    );
   }
-  .avc-agent-ambient.avc-ambient-tone {
-    background:
-      radial-gradient(ellipse 85% 65% at 90% 92%, rgba(227, 168, 72, 0.16) 0%, transparent 58%),
-      radial-gradient(ellipse 50% 40% at 8% 90%, rgba(217, 108, 79, 0.04) 0%, transparent 50%);
-  }
-  .avc-agent-panel {
-    position: fixed; right: 20px; bottom: 22px;
-    width: min(440px, calc(100vw - 40px));
-    height: min(85vh, 720px);
-    min-height: 520px;
+  .avc-agent-sidebar {
+    --avc-panel-w: 340px;
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: var(--avc-panel-w);
+    min-width: ${PANEL_MIN_W}px;
+    max-width: min(${PANEL_MAX_W}px, 42vw);
     display: flex; flex-direction: column;
     pointer-events: auto;
-    background: rgba(10, 9, 8, 0.58);
-    backdrop-filter: blur(24px) saturate(1.2);
-    -webkit-backdrop-filter: blur(24px) saturate(1.2);
-    border: 1px solid rgba(227, 186, 99, 0.22);
-    border-radius: 16px;
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-      0 24px 64px rgba(0, 0, 0, 0.45),
-      0 0 100px rgba(227, 168, 72, 0.08);
-    color: rgba(248, 244, 236, 0.96);
+    background: rgba(8, 7, 10, 0.28);
+    backdrop-filter: blur(18px) saturate(1.1);
+    -webkit-backdrop-filter: blur(18px) saturate(1.1);
+    border-left: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.08);
+    color: rgba(236, 234, 228, 0.72);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    opacity: 1;
-    transform: translateY(0) scale(1);
     overflow: hidden;
   }
-  .avc-agent-panel.avc-focus-panel {
-    border-color: rgba(227, 186, 99, 0.32);
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.06) inset,
-      0 28px 72px rgba(0, 0, 0, 0.52),
-      0 0 120px rgba(227, 168, 72, 0.12);
+  .avc-agent-sidebar.avc-focus-sidebar {
+    background: rgba(8, 7, 10, 0.36);
+    border-left-color: rgba(227, 186, 99, 0.12);
+  }
+  .avc-agent-resize {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 6px; cursor: col-resize; z-index: 4;
+    touch-action: none;
+  }
+  .avc-agent-resize::after {
+    content: ""; position: absolute; left: 2px; top: 50%;
+    width: 2px; height: 48px; margin-top: -24px;
+    border-radius: 2px; background: rgba(255, 255, 255, 0.08);
+    transition: background 120ms, height 120ms;
+  }
+  .avc-agent-resize:hover::after,
+  .avc-agent-resize.avc-dragging::after {
+    background: rgba(227, 186, 99, 0.45);
+    height: 72px; margin-top: -36px;
+  }
+  .avc-agent-panel {
+    display: flex; flex-direction: column;
+    flex: 1; min-height: 0; height: 100%;
+    background: transparent;
   }
   .avc-agent-head {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 10px; padding: 14px 16px 10px;
-    border-bottom: 1px solid rgba(227, 186, 99, 0.12);
+    gap: 10px; padding: 14px 16px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     flex-shrink: 0;
   }
   .avc-agent-brand {
-    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
-    color: rgba(227, 186, 99, 0.75);
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(227, 186, 99, 0.55);
   }
   .avc-agent-mode-select {
     font-size: 11px; letter-spacing: 0.04em;
-    padding: 5px 28px 5px 10px; border-radius: 8px;
-    border: 1px solid rgba(227, 186, 99, 0.28);
-    background: rgba(227, 186, 99, 0.08) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23e3ba63' d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 8px center;
-    color: rgba(240, 239, 236, 0.85);
+    padding: 5px 28px 5px 10px; border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23b8b4aa' d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 8px center;
+    color: rgba(236, 234, 228, 0.75);
     cursor: pointer; appearance: none; -webkit-appearance: none;
     font-family: inherit;
   }
   .avc-agent-mode-select:focus {
-    outline: none; border-color: rgba(227, 186, 99, 0.45);
+    outline: none; border-color: rgba(227, 186, 99, 0.3);
   }
-  .avc-agent-body {
-    overflow-y: auto; padding: 12px 16px 14px;
+  .avc-agent-scroll {
+    overflow-y: auto; padding: 12px 16px 8px;
     flex: 1; min-height: 0;
     display: flex; flex-direction: column;
     scrollbar-width: thin;
-    scrollbar-color: rgba(227,186,99,.25) transparent;
+    scrollbar-color: rgba(255,255,255,.12) transparent;
   }
   .avc-agent-idle {
-    padding: 20px 4px 16px; text-align: center;
-    color: rgba(240, 239, 236, 0.38);
-    font-size: 13px; line-height: 1.55;
+    padding: 24px 8px 20px; text-align: center;
+    color: rgba(236, 234, 228, 0.32);
+    font-size: 12px; line-height: 1.6;
   }
-  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.65); font-weight: 500; }
+  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.5); font-weight: 500; }
   .avc-agent-word-block { display: none; }
   .avc-agent-word-block.avc-active { display: block; }
   .avc-agent-chip {
-    display: inline-block; font-size: 10px; letter-spacing: 0.07em;
-    text-transform: uppercase; color: rgba(240, 239, 236, 0.45);
+    display: inline-block; font-size: 9px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: rgba(236, 234, 228, 0.35);
     margin-bottom: 10px;
   }
-  .avc-agent-chip-review { color: rgba(217, 108, 79, 0.85); }
-  .avc-agent-word-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+  .avc-agent-chip-review { color: rgba(217, 108, 79, 0.65); }
+  .avc-agent-word-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
   .avc-agent-word {
-    font-size: 34px; font-weight: 650; line-height: 1.1;
+    font-size: 28px; font-weight: 600; line-height: 1.15;
+    color: rgba(248, 244, 236, 0.82);
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
     font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
   }
   .avc-agent-speak {
-    background: rgba(227, 186, 99, 0.1); color: rgba(248, 244, 236, 0.88);
-    border: 1px solid rgba(227, 186, 99, 0.32); border-radius: 8px;
-    padding: 7px 14px; cursor: pointer; font-size: 12px;
-    letter-spacing: 0.04em; transition: background 120ms, border-color 120ms;
+    background: rgba(255, 255, 255, 0.05); color: rgba(236, 234, 228, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;
+    padding: 5px 12px; cursor: pointer; font-size: 11px;
+    letter-spacing: 0.04em; transition: background 120ms, color 120ms;
     font-family: inherit;
   }
-  .avc-agent-speak:hover { background: rgba(227, 186, 99, 0.18); border-color: rgba(227, 186, 99, 0.5); }
-  .avc-agent-reading { font-size: 14px; color: rgba(240, 239, 236, 0.52); margin-bottom: 8px; }
-  .avc-agent-gloss { font-size: 15px; line-height: 1.45; color: rgba(240, 239, 236, 0.88); margin-bottom: 12px; }
+  .avc-agent-speak:hover { background: rgba(255, 255, 255, 0.1); color: rgba(248, 244, 236, 0.9); }
+  .avc-agent-reading { font-size: 13px; color: rgba(236, 234, 228, 0.42); margin-bottom: 6px; }
+  .avc-agent-gloss { font-size: 14px; line-height: 1.45; color: rgba(236, 234, 228, 0.62); margin-bottom: 12px; }
   .avc-agent-context, .avc-agent-sentence {
-    font-size: 13px; line-height: 1.55; color: rgba(240, 239, 236, 0.72);
-    margin-bottom: 10px; padding: 9px 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border-left: 2px solid rgba(227, 186, 99, 0.22);
-    border-radius: 0 8px 8px 0;
+    font-size: 12px; line-height: 1.55; color: rgba(236, 234, 228, 0.52);
+    margin-bottom: 10px; padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.025);
+    border-left: 1px solid rgba(227, 186, 99, 0.18);
+    border-radius: 0 6px 6px 0;
   }
   .avc-agent-label {
     display: block; font-size: 9px; letter-spacing: 0.08em;
-    text-transform: uppercase; color: rgba(240, 239, 236, 0.35); margin-bottom: 4px;
+    text-transform: uppercase; color: rgba(236, 234, 228, 0.28); margin-bottom: 4px;
   }
-  .avc-agent-ja-line { font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif; font-size: 14px; line-height: 1.65; }
-  .avc-agent-romaji-line { margin-bottom: 4px; font-size: 13px; }
-  .avc-agent-tok { cursor: pointer; border-bottom: 1px dotted rgba(240, 239, 236, 0.3); }
-  .avc-agent-tok:hover { color: #e3ba63; }
+  .avc-agent-ja-line { font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif; font-size: 13px; line-height: 1.65; }
+  .avc-agent-romaji-line { margin-bottom: 4px; font-size: 12px; color: rgba(236, 234, 228, 0.55); }
+  .avc-agent-tok { cursor: pointer; border-bottom: 1px dotted rgba(236, 234, 228, 0.22); }
+  .avc-agent-tok:hover { color: rgba(227, 186, 99, 0.85); }
   .avc-agent-sentence mark, .avc-agent-romaji-line mark {
-    background: transparent; color: #e3ba63; font-weight: 650;
+    background: transparent; color: rgba(227, 186, 99, 0.88); font-weight: 600;
+    text-shadow: 0 0 20px rgba(227, 168, 72, 0.25);
   }
-  .avc-agent-lookup { margin-top: 6px; font-size: 12px; }
+  .avc-agent-lookup { margin-top: 6px; font-size: 11px; color: rgba(236, 234, 228, 0.5); }
   .avc-agent-ai { margin: 12px 0 10px; }
   .avc-agent-ai-btns { display: flex; gap: 6px; margin-bottom: 8px; }
   .avc-agent-ai-btn {
-    flex: 1; padding: 6px 8px; font-size: 12px; cursor: pointer;
-    background: rgba(227, 186, 99, 0.08); color: rgba(240, 239, 236, 0.85);
-    border: 1px solid rgba(227, 186, 99, 0.22); border-radius: 8px;
-    transition: background 120ms, border-color 120ms; font-family: inherit;
+    flex: 1; padding: 6px 8px; font-size: 11px; cursor: pointer;
+    background: rgba(255, 255, 255, 0.04); color: rgba(236, 234, 228, 0.68);
+    border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;
+    transition: background 120ms; font-family: inherit;
   }
-  .avc-agent-ai-btn:hover { background: rgba(227, 186, 99, 0.14); border-color: rgba(227, 186, 99, 0.35); }
-  .avc-agent-ai-btn:disabled { opacity: 0.45; cursor: default; }
-  .avc-agent-ai-out { font-size: 12px; line-height: 1.5; color: rgba(240, 239, 236, 0.82); display: none; }
+  .avc-agent-ai-btn:hover { background: rgba(255, 255, 255, 0.08); }
+  .avc-agent-ai-btn:disabled { opacity: 0.4; cursor: default; }
+  .avc-agent-ai-out { font-size: 12px; line-height: 1.5; color: rgba(236, 234, 228, 0.62); display: none; }
   .avc-agent-ai-out.avc-visible { display: block; }
   .avc-agent-ai-label {
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
-    color: rgba(240, 239, 236, 0.38); margin-top: 6px;
+    color: rgba(236, 234, 228, 0.3); margin-top: 6px;
   }
   .avc-agent-ai-hooks { margin: 4px 0 0 14px; font-size: 12px; }
   .avc-agent-chat {
-    margin-top: auto; padding-top: 12px;
-    border-top: 1px solid rgba(227, 186, 99, 0.12);
+    margin-top: auto; padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     flex-shrink: 0;
   }
   .avc-agent-chat-label {
     font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: rgba(227, 186, 99, 0.6); margin-bottom: 8px;
+    color: rgba(236, 234, 228, 0.32); margin-bottom: 8px;
   }
   .avc-agent-chat-log {
-    min-height: 120px; max-height: 280px; overflow-y: auto; margin-bottom: 8px;
+    flex: 1; min-height: 80px; overflow-y: auto; margin-bottom: 0;
     display: flex; flex-direction: column; gap: 8px;
     scrollbar-width: thin;
   }
   .avc-agent-chat-msg {
-    font-size: 12px; line-height: 1.5; padding: 9px 12px;
-    border-radius: 12px; max-width: 88%; word-break: break-word;
+    font-size: 12px; line-height: 1.52; padding: 8px 11px;
+    border-radius: 10px; max-width: 92%; word-break: break-word;
   }
   .avc-agent-chat-msg.avc-user {
     align-self: flex-end;
-    background: rgba(227, 186, 99, 0.14);
-    border: 1px solid rgba(227, 186, 99, 0.22);
-    color: rgba(248, 244, 236, 0.94);
-    border-bottom-right-radius: 4px;
+    background: rgba(227, 186, 99, 0.1);
+    border: 1px solid rgba(227, 186, 99, 0.14);
+    color: rgba(248, 244, 236, 0.82);
+    border-bottom-right-radius: 3px;
   }
   .avc-agent-chat-msg.avc-assistant {
     align-self: flex-start;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(240, 239, 236, 0.88);
-    border-bottom-left-radius: 4px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: rgba(236, 234, 228, 0.72);
+    border-bottom-left-radius: 3px;
   }
   .avc-agent-chat-msg.avc-streaming::after {
-    content: ""; display: inline-block; width: 6px; height: 12px;
-    margin-left: 2px; background: rgba(227, 186, 99, 0.6);
+    content: ""; display: inline-block; width: 5px; height: 11px;
+    margin-left: 2px; background: rgba(227, 186, 99, 0.5);
     animation: avc-blink 900ms step-end infinite;
   }
   @keyframes avc-blink { 50% { opacity: 0; } }
   .avc-md-p { margin: 0 0 6px; }
   .avc-md-p:last-child { margin-bottom: 0; }
-  .avc-md-h2 { font-weight: 600; font-size: 13px; margin: 8px 0 4px; color: rgba(227, 186, 99, 0.85); }
-  .avc-md-h3 { font-weight: 600; font-size: 12px; margin: 6px 0 3px; }
+  .avc-md-h2 { font-weight: 600; font-size: 12px; margin: 8px 0 4px; color: rgba(227, 186, 99, 0.7); }
+  .avc-md-h3 { font-weight: 600; font-size: 11px; margin: 6px 0 3px; color: rgba(236, 234, 228, 0.65); }
   .avc-md-ul { margin: 4px 0 6px 16px; }
   .avc-md-ul li { margin-bottom: 3px; }
   .avc-md-code {
     font-family: ui-monospace, monospace; font-size: 11px;
-    background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px;
+    background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px;
   }
-  .avc-agent-chat-row { display: flex; gap: 6px; }
+  .avc-agent-composer {
+    flex-shrink: 0; padding: 10px 14px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.08);
+  }
+  .avc-agent-chat-row { display: flex; gap: 6px; align-items: flex-end; }
   .avc-agent-chat-input {
-    flex: 1; resize: none; min-height: 38px; max-height: 80px;
-    padding: 9px 11px; font-size: 12px; line-height: 1.4;
-    border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(0, 0, 0, 0.25); color: rgba(248, 244, 236, 0.92);
+    flex: 1; resize: none; min-height: 36px; max-height: 96px;
+    padding: 8px 10px; font-size: 12px; line-height: 1.4;
+    border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.18); color: rgba(248, 244, 236, 0.85);
     font-family: inherit;
   }
   .avc-agent-chat-input:focus {
-    outline: none; border-color: rgba(227, 186, 99, 0.35);
+    outline: none; border-color: rgba(227, 186, 99, 0.25);
+    background: rgba(0, 0, 0, 0.22);
   }
-  .avc-agent-chat-input::placeholder { color: rgba(240, 239, 236, 0.3); }
+  .avc-agent-chat-input::placeholder { color: rgba(236, 234, 228, 0.28); }
   .avc-agent-chat-send {
-    padding: 0 14px; border-radius: 8px; cursor: pointer;
-    border: 1px solid rgba(227, 186, 99, 0.28);
-    background: rgba(227, 186, 99, 0.12);
-    color: rgba(248, 244, 236, 0.9); font-size: 12px;
+    padding: 0 12px; height: 36px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(236, 234, 228, 0.78); font-size: 11px;
     transition: background 120ms; font-family: inherit;
   }
-  .avc-agent-chat-send:hover { background: rgba(227, 186, 99, 0.2); }
-  .avc-agent-chat-send:disabled { opacity: 0.4; cursor: default; }
+  .avc-agent-chat-send:hover { background: rgba(255, 255, 255, 0.1); }
+  .avc-agent-chat-send:disabled { opacity: 0.35; cursor: default; }
   .avc-agent-foot {
-    padding: 10px 16px 14px; flex-shrink: 0;
-    border-top: 1px solid rgba(227, 186, 99, 0.1);
-    background: rgba(0, 0, 0, 0.15);
+    padding: 10px 14px; flex-shrink: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: none;
   }
   .avc-agent-foot.avc-active { display: block; }
-  .avc-agent-buttons { display: flex; gap: 6px; margin-bottom: 8px; }
+  .avc-agent-buttons { display: flex; gap: 5px; margin-bottom: 6px; }
   .avc-agent-buttons button {
-    flex: 1; border-radius: 8px; padding: 9px 4px 7px; cursor: pointer;
-    border: 1px solid transparent; font-family: inherit; font-size: 14px;
-    transition: filter 120ms, border-color 120ms;
+    flex: 1; border-radius: 6px; padding: 8px 4px 6px; cursor: pointer;
+    border: 1px solid transparent; font-family: inherit; font-size: 13px;
+    transition: filter 120ms, background 120ms;
   }
-  .avc-agent-buttons button:hover { filter: brightness(1.12); }
+  .avc-agent-buttons button:hover { filter: brightness(1.1); }
   .avc-agent-buttons button span {
-    display: block; font-size: 9.5px; margin-top: 2px;
-    letter-spacing: 0.02em; opacity: 0.55;
+    display: block; font-size: 9px; margin-top: 2px;
+    letter-spacing: 0.02em; opacity: 0.5;
   }
   .avc-agent-know {
-    background: rgba(255,255,255,.04); color: rgba(240,239,236,.85);
-    border-color: rgba(255,255,255,.14);
+    background: rgba(255,255,255,.04); color: rgba(236,234,228,.7);
+    border-color: rgba(255,255,255,.1);
   }
-  .avc-agent-learn { background: rgba(196, 85, 58, 0.85); color: #fff; }
+  .avc-agent-learn { background: rgba(196, 85, 58, 0.65); color: rgba(255,255,255,.92); }
   .avc-agent-ignore {
-    background: transparent; color: rgba(240,239,236,.4);
-    border-color: rgba(255,255,255,.08);
+    background: transparent; color: rgba(236,234,228,.35);
+    border-color: rgba(255,255,255,.06);
   }
-  .avc-agent-review-pass { background: rgba(61, 138, 99, 0.85); color: #fff; }
+  .avc-agent-review-pass { background: rgba(61, 138, 99, 0.65); color: rgba(255,255,255,.92); }
   .avc-agent-review-fail {
-    background: transparent; color: #c96a5a;
-    border-color: rgba(201,106,90,.4);
+    background: transparent; color: rgba(201,106,90,.75);
+    border-color: rgba(201,106,90,.25);
   }
   .avc-agent-show-answer {
-    width: 100%; margin-bottom: 10px; padding: 8px 12px;
-    border-radius: 8px; border: 1px solid rgba(255,255,255,.16);
-    background: transparent; color: rgba(240,239,236,.8);
-    font-size: 13px; cursor: pointer; font-family: inherit;
+    width: 100%; margin-bottom: 10px; padding: 7px 12px;
+    border-radius: 6px; border: 1px solid rgba(255,255,255,.1);
+    background: transparent; color: rgba(236,234,228,.65);
+    font-size: 12px; cursor: pointer; font-family: inherit;
   }
   .avc-agent-hint {
-    font-size: 10px; color: rgba(240, 239, 236, 0.28);
+    font-size: 9px; color: rgba(236, 234, 228, 0.22);
     text-align: center; letter-spacing: 0.03em;
   }
   @media (prefers-reduced-motion: reduce) {
@@ -368,8 +393,56 @@ function pauseModeToInteraction(mode: PauseMode): InteractionMode {
 function applyInteractionMode(interaction: InteractionMode): void {
   if (!shell) return;
   const focus = interaction === "focus";
-  shell.ambient.className = `avc-agent-ambient avc-visible ${focus ? "avc-focus" : "avc-ambient-tone"}`;
-  shell.panel.classList.toggle("avc-focus-panel", focus);
+  shell.ambient.className = focus ? "avc-agent-ambient avc-focus" : "avc-agent-ambient";
+  shell.sidebar.classList.toggle("avc-focus-sidebar", focus);
+}
+
+function clampPanelWidth(w: number): number {
+  return Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, Math.round(w)));
+}
+
+function setPanelWidth(sidebar: HTMLElement, w: number): void {
+  const clamped = clampPanelWidth(w);
+  sidebar.style.setProperty("--avc-panel-w", `${clamped}px`);
+  sidebar.style.width = `${clamped}px`;
+  sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
+}
+
+function attachResizeHandle(sidebar: HTMLElement, grip: HTMLElement): void {
+  let dragging = false;
+  let startX = 0;
+  let startW = 0;
+
+  const onMove = (e: MouseEvent): void => {
+    if (!dragging) return;
+    e.preventDefault();
+    setPanelWidth(sidebar, startW + (startX - e.clientX));
+  };
+
+  const onUp = (): void => {
+    if (!dragging) return;
+    dragging = false;
+    grip.classList.remove("avc-dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    const w = sidebar.offsetWidth;
+    void setAgentPanelWidth(w);
+  };
+
+  grip.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    startX = e.clientX;
+    startW = sidebar.offsetWidth;
+    grip.classList.add("avc-dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
 }
 
 function wordDisplays(token: Token, entry: { reading: string }, displayScript: DisplayScript) {
@@ -807,12 +880,21 @@ function buildShell(root: ShadowRoot): Shell {
   layer.className = "avc-agent-layer";
 
   const ambient = document.createElement("div");
-  ambient.className = "avc-agent-ambient avc-ambient-tone";
+  ambient.className = "avc-agent-ambient";
+
+  const sidebar = document.createElement("div");
+  sidebar.className = "avc-agent-sidebar";
+  sidebar.setAttribute("role", "complementary");
+  sidebar.setAttribute("aria-label", "AnimeVocab learning agent");
+
+  const resize = document.createElement("div");
+  resize.className = "avc-agent-resize";
+  resize.setAttribute("aria-label", "Resize panel");
+  resize.title = "Drag to resize";
+  attachResizeHandle(sidebar, resize);
 
   const panel = document.createElement("div");
   panel.className = "avc-agent-panel";
-  panel.setAttribute("role", "complementary");
-  panel.setAttribute("aria-label", "AnimeVocab learning agent");
 
   const head = document.createElement("div");
   head.className = "avc-agent-head";
@@ -844,8 +926,8 @@ function buildShell(root: ShadowRoot): Shell {
   head.appendChild(brand);
   head.appendChild(modeSelect);
 
-  const body = document.createElement("div");
-  body.className = "avc-agent-body";
+  const scrollArea = document.createElement("div");
+  scrollArea.className = "avc-agent-scroll";
 
   const wordIdle = document.createElement("div");
   wordIdle.className = "avc-agent-idle";
@@ -883,6 +965,24 @@ function buildShell(root: ShadowRoot): Shell {
   chatLabel.textContent = "Copilot chat";
   const chatLog = document.createElement("div");
   chatLog.className = "avc-agent-chat-log";
+  chat.appendChild(chatLabel);
+  chat.appendChild(chatLog);
+
+  scrollArea.appendChild(wordIdle);
+  scrollArea.appendChild(wordActive);
+  scrollArea.appendChild(chat);
+
+  const foot = document.createElement("div");
+  foot.className = "avc-agent-foot";
+  const buttons = document.createElement("div");
+  buttons.className = "avc-agent-buttons";
+  const hint = document.createElement("div");
+  hint.className = "avc-agent-hint";
+  foot.appendChild(buttons);
+  foot.appendChild(hint);
+
+  const composer = document.createElement("div");
+  composer.className = "avc-agent-composer";
   const chatRow = document.createElement("div");
   chatRow.className = "avc-agent-chat-row";
   const chatInput = document.createElement("textarea");
@@ -904,39 +1004,28 @@ function buildShell(root: ShadowRoot): Shell {
   chatInput.addEventListener("click", (e) => e.stopPropagation());
   chatRow.appendChild(chatInput);
   chatRow.appendChild(chatSend);
-  chat.appendChild(chatLabel);
-  chat.appendChild(chatLog);
-  chat.appendChild(chatRow);
-
-  body.appendChild(wordIdle);
-  body.appendChild(wordActive);
-  body.appendChild(chat);
-
-  const foot = document.createElement("div");
-  foot.className = "avc-agent-foot";
-  const buttons = document.createElement("div");
-  buttons.className = "avc-agent-buttons";
-  const hint = document.createElement("div");
-  hint.className = "avc-agent-hint";
-  foot.appendChild(buttons);
-  foot.appendChild(hint);
+  composer.appendChild(chatRow);
 
   panel.appendChild(head);
-  panel.appendChild(body);
+  panel.appendChild(scrollArea);
   panel.appendChild(foot);
+  panel.appendChild(composer);
+  sidebar.appendChild(resize);
+  sidebar.appendChild(panel);
   layer.appendChild(ambient);
-  layer.appendChild(panel);
+  layer.appendChild(sidebar);
   root.appendChild(layer);
 
-  panel.addEventListener("click", (e) => e.stopPropagation());
+  sidebar.addEventListener("click", (e) => e.stopPropagation());
 
   document.addEventListener("fullscreenchange", () => {
     if (mounted) mountHost();
   });
 
   return {
-    root, ambient, panel, modeSelect, wordSection: body, wordIdle, wordActive,
-    foot, buttons, hint, chatLog, chatInput, chatSend, aiOut, explainBtn, hookBtn,
+    root, ambient, sidebar, panel, modeSelect, wordSection: scrollArea, scrollArea,
+    wordIdle, wordActive, foot, buttons, hint, chatLog, chatInput, chatSend,
+    aiOut, explainBtn, hookBtn,
   };
 }
 
@@ -954,10 +1043,11 @@ export function ensureAgentMounted(): void {
   shell = buildShell(root);
   mounted = true;
 
-  void getSettings().then((s) => {
+  void Promise.all([getSettings(), getAgentPanelWidth()]).then(([s, w]) => {
     if (!shell) return;
     shell.modeSelect.value = s.pauseMode;
     applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+    setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
   });
 }
 
