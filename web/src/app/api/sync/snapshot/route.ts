@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { getCloudSyncEnvelope, putCloudSyncEnvelope } from "@/lib/sync-store";
 import { resolveProfile } from "@/lib/auth";
+import { getPrefs, upsertEntry } from "@/lib/leaderboard-store";
+import { computeStreak, currentWeekId, weeklyMetrics } from "@/lib/gamification";
 import {
   applyCloudSyncUpdate,
   normalizeAnimeVocabExport,
   normalizeCloudSyncSnapshot,
   type AnimeVocabExport,
   type CloudSyncSnapshot,
+  type CloudUserProfile,
 } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +88,12 @@ export async function PUT(req: Request) {
     }
 
     await putCloudSyncEnvelope(profile.id, next);
+    // Update the weekly leaderboard from the just-validated snapshot (metrics
+    // are computed server-side, so scores can't be forged). Best-effort — a
+    // leaderboard hiccup must never fail the sync itself.
+    await updateLeaderboard(profile, snapshot).catch((err) =>
+      console.error("[leaderboard] update failed", err)
+    );
     return NextResponse.json({ envelope: next });
   } catch (err) {
     return NextResponse.json(
@@ -92,4 +101,23 @@ export async function PUT(req: Request) {
       { status: 503 }
     );
   }
+}
+
+// Anonymous-by-default display name derived from the user id (no PII leaked).
+function anonName(userId: string): string {
+  return `Learner-${userId.replace(/[^a-zA-Z0-9]/g, "").slice(-4).padStart(4, "0")}`;
+}
+
+async function updateLeaderboard(profile: CloudUserProfile, snapshot: CloudSyncSnapshot): Promise<void> {
+  const now = new Date();
+  const week = currentWeekId(now);
+  const metrics = weeklyMetrics(snapshot.daily, week);
+  const streak = computeStreak(snapshot.daily, now).current;
+  const prefs = await getPrefs(profile.id);
+  const name = prefs.displayName || anonName(profile.id);
+  await upsertEntry(
+    week,
+    { userId: profile.id, name, wordsReviewed: metrics.wordsReviewed, minutes: metrics.minutes, streak, updatedAt: now.toISOString() },
+    prefs.optOut
+  );
 }
