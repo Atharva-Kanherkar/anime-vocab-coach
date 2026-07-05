@@ -219,8 +219,13 @@ declare global {
     const cleaned = raw
       .replace(/\s*[-|·—]\s*(YouTube|Netflix|Crunchyroll).*$/i, "")
       .replace(/^\(\d+\)\s*/, "") // YouTube unread-count prefix like "(3) "
+      .replace(/^Watch\s+/i, "") // Crunchyroll "Watch <title>"
       .trim();
-    return cleaned || raw;
+    const candidate = cleaned || raw;
+    // A bare site name (e.g. Netflix sets document.title to just "Netflix"
+    // during playback) is useless context — better to store no title than that.
+    if (/^(youtube|netflix|crunchyroll)$/i.test(candidate)) return null;
+    return candidate;
   }
 
   async function onLine(text: string, context?: LineContext): Promise<void> {

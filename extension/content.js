@@ -1447,8 +1447,10 @@
     function currentTitle() {
       const raw = (document.title || "").trim();
       if (!raw) return null;
-      const cleaned = raw.replace(/\s*[-|·—]\s*(YouTube|Netflix|Crunchyroll).*$/i, "").replace(/^\(\d+\)\s*/, "").trim();
-      return cleaned || raw;
+      const cleaned = raw.replace(/\s*[-|·—]\s*(YouTube|Netflix|Crunchyroll).*$/i, "").replace(/^\(\d+\)\s*/, "").replace(/^Watch\s+/i, "").trim();
+      const candidate = cleaned || raw;
+      if (/^(youtube|netflix|crunchyroll)$/i.test(candidate)) return null;
+      return candidate;
     }
     async function onLine(text, context) {
       if (pipelineDisabled) return;
