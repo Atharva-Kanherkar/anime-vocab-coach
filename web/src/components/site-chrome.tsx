@@ -104,6 +104,8 @@ export function HomeBrandBar() {
 
 export function SiteFooter({ links }: { links?: { href: string; label: string }[] }) {
   const defaultLinks = [
+    { href: "/blog", label: "Blog" },
+    { href: "/learn-japanese-with-anime", label: "Guides" },
     { href: GITHUB_URL, label: "GitHub" },
     { href: "/privacy", label: "Privacy" },
     { href: "/without-extension", label: "No extension?" },

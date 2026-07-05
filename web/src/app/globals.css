@@ -491,6 +491,123 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 }
 .prose a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
 
+.article-ol {
+  margin: 0 0 16px;
+  padding-left: 22px;
+  color: var(--ink-2);
+}
+.article-ol li { margin-bottom: 8px; }
+
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 36px;
+}
+
+.blog-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px 24px;
+  background: linear-gradient(165deg, rgba(32, 41, 63, 0.45), rgba(10, 13, 22, 0.55));
+}
+
+.blog-card h2 {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.15;
+  margin: 8px 0 10px;
+}
+
+.blog-card h2 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.blog-card h2 a:hover {
+  color: var(--accent);
+}
+
+.blog-card > p {
+  color: var(--ink-2);
+  font-size: 14.5px;
+  margin-bottom: 12px;
+}
+
+.blog-hub-links {
+  border-top: 1px solid var(--line);
+  padding-top: 28px;
+}
+
+.blog-hub-links h2 {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+.blog-hub-links ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.blog-hub-links a {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.related-posts {
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.related-posts h2 {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.related-posts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.related-posts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.related-posts a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.related-posts span {
+  color: var(--ink-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .blog-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 22px 0 8px; }
 .pick .card {
   border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; background: var(--bg-2);

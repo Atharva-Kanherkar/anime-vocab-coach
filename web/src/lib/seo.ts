@@ -16,12 +16,20 @@ export const SEO_KEYWORDS = [
   "romaji Japanese",
   "Netflix Japanese learning",
   "Crunchyroll vocabulary",
+  "learn Japanese Crunchyroll",
+  "best anime to learn Japanese",
   "spaced repetition Japanese",
   "Language Reactor alternative",
   "Migaku alternative",
+  "Lexirise alternative",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
+  "learn Japanese Netflix anime",
+  "romaji Japanese learning",
+  "anime spaced repetition",
+  "Japanese shadowing anime",
+  "passive anime watching Japanese",
 ];
 
 export const defaultOpenGraph = {
@@ -50,6 +58,56 @@ export const defaultTwitter = {
   description: SITE_OG_DESCRIPTION,
   images: ["/og.png"],
 };
+
+export function articleJsonLd(input: {
+  title: string;
+  description: string;
+  url: string;
+  publishedAt: string;
+  updatedAt: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: input.title,
+    description: input.description,
+    url: input.url,
+    datePublished: input.publishedAt,
+    dateModified: input.updatedAt,
+    author: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/icon-512.png`,
+      },
+    },
+    mainEntityOfPage: input.url,
+    inLanguage: "en-US",
+  };
+}
+
+export function blogJsonLd(posts: { title: string; url: string; publishedAt: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: `${SITE_NAME} Blog`,
+    url: `${SITE_URL}/blog`,
+    description: "Guides for learning Japanese from anime — Crunchyroll, Netflix, spaced repetition, and tool comparisons.",
+    blogPost: posts.map((p) => ({
+      "@type": "BlogPosting",
+      headline: p.title,
+      url: p.url,
+      datePublished: p.publishedAt,
+    })),
+  };
+}
 
 export function homeJsonLd() {
   return {
