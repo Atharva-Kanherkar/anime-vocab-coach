@@ -57,12 +57,11 @@ export function checkEligibility(
   return { eligible: true, countSeen: true, entry };
 }
 
-export function pickTarget(
+export function collectEligible(
   tokens: Token[],
   wordStates: VocabMap,
-  settings: Settings,
   targetedSet: Set<string>
-): Target | null {
+): { dueReview: Target | null; newWords: Target[] } {
   const survivors: { token: Token; entry: DictEntry }[] = [];
   const now = Date.now();
 
@@ -85,13 +84,28 @@ export function pickTarget(
       return aDue - bDue;
     });
     const pick = dueReviews[0];
-    return { token: pick.token, entry: pick.entry, isReview: true };
+    return {
+      dueReview: { token: pick.token, entry: pick.entry, isReview: true },
+      newWords: [],
+    };
   }
 
+  return {
+    dueReview: null,
+    newWords: survivors.map(({ token, entry }) => ({ token, entry, isReview: false })),
+  };
+}
+
+/** Heuristic fallback when AI pick is unavailable. */
+export function pickTargetHeuristic(
+  newWords: Target[],
+  wordStates: VocabMap,
+  settings: Settings
+): Target | null {
   let best: Target | null = null;
   let bestScore = -1;
 
-  for (const { token, entry } of survivors) {
+  for (const { token, entry } of newWords) {
     const essential = essentialBoost(token.base, settings.targetLevel);
     const freqScore = 1 - Math.min(entry.freqRank, 20000) / 20000;
     const levelScore = 1 - Math.abs(entry.level - settings.targetLevel) / 4;
@@ -108,4 +122,15 @@ export function pickTarget(
   }
 
   return best;
+}
+
+export function pickTarget(
+  tokens: Token[],
+  wordStates: VocabMap,
+  settings: Settings,
+  targetedSet: Set<string>
+): Target | null {
+  const { dueReview, newWords } = collectEligible(tokens, wordStates, targetedSet);
+  if (dueReview) return dueReview;
+  return pickTargetHeuristic(newWords, wordStates, settings);
 }

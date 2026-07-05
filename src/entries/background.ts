@@ -2,6 +2,7 @@ import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
 import { pushSnapshot } from "../lib/cloud-sync";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
+import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
 import { getSyncToken } from "../lib/storage";
 import type { Settings } from "../types";
 
@@ -196,7 +197,7 @@ interface RuntimeMsg {
   mode?: "explain" | "hooks";
   message?: string;
   history?: ChatMessage[];
-  payload?: CoachPayload;
+  payload?: CoachPayload | WordPickRequest;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
@@ -245,6 +246,13 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
 
   if (msg.type === "avc-coach-chat") {
     fetchChat(msg.message as string, (msg.history as ChatMessage[]) || [], msg.payload as CoachPayload)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
+  if (msg.type === "avc-pick-word") {
+    fetchWordPick(msg.payload as WordPickRequest)
       .then(sendResponse)
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
     return true;

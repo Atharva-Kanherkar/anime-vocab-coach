@@ -4,7 +4,7 @@ import { log, warn } from "../lib/log";
 import * as storage from "../lib/storage";
 import * as dict from "../lib/dictionary";
 import * as tokenizer from "../lib/tokenizer";
-import * as scoring from "../lib/scoring";
+import { pickTargetSmart } from "../lib/pick-target";
 import * as overlay from "../lib/agent-panel";
 import { fetchAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
 import { youtubeAdapter } from "../lib/adapters/youtube";
@@ -270,7 +270,14 @@ declare global {
 
     if (overlay.isOpen()) return;
 
-    const target = scoring.pickTarget(tokens, wordStates, settings, targetedThisSession);
+    const target = await pickTargetSmart(
+      tokens,
+      wordStates,
+      settings,
+      targetedThisSession,
+      normalized,
+      currentTitle()
+    );
     if (!target) { log("no target word in:", normalized); return; }
 
     const stats = await storage.getStats();

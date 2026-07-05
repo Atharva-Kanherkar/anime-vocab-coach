@@ -120,7 +120,7 @@
     }
     return { eligible: true, countSeen: true, entry };
   }
-  function pickTarget(tokens, wordStates, settings, targetedSet) {
+  function collectEligible(tokens, wordStates, targetedSet) {
     const survivors = [];
     const now = Date.now();
     for (const token of tokens) {
@@ -140,11 +140,20 @@
         return aDue - bDue;
       });
       const pick = dueReviews[0];
-      return { token: pick.token, entry: pick.entry, isReview: true };
+      return {
+        dueReview: { token: pick.token, entry: pick.entry, isReview: true },
+        newWords: []
+      };
     }
+    return {
+      dueReview: null,
+      newWords: survivors.map(({ token, entry }) => ({ token, entry, isReview: false }))
+    };
+  }
+  function pickTargetHeuristic(newWords, wordStates, settings) {
     let best = null;
     let bestScore = -1;
-    for (const { token, entry } of survivors) {
+    for (const { token, entry } of newWords) {
       const essential = essentialBoost(token.base, settings.targetLevel);
       const freqScore = 1 - Math.min(entry.freqRank, 2e4) / 2e4;
       const levelScore = 1 - Math.abs(entry.level - settings.targetLevel) / 4;
@@ -737,6 +746,99 @@
       pos: t.pos,
       pos1: t.pos_detail_1
     }));
+  }
+
+  // src/lib/word-picker-client.ts
+  var sessionCache = /* @__PURE__ */ new Map();
+  function sessionKey(req) {
+    const bases = req.candidates.map((c) => c.word).sort().join("|");
+    return `${req.learnerLevel}:${req.line}:${bases}`;
+  }
+  async function fetchWordPick(req) {
+    const key = sessionKey(req);
+    const hit = sessionCache.get(key);
+    if (hit) return { ok: true, word: hit, cached: true };
+    const token = await getSyncToken();
+    if (!token) return { ok: false, error: "not_linked" };
+    try {
+      const res = await fetch(WEB_URL + "/api/ai/pick-word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify(req)
+      });
+      const data2 = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data2.error || `http_${res.status}` };
+      const word = data2.result?.word;
+      if (!word) return { ok: false, error: "empty_pick" };
+      sessionCache.set(key, word);
+      return { ok: true, word, cached: data2.cached };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
+
+  // src/lib/anime-context-client.ts
+  var sessionCache2 = /* @__PURE__ */ new Map();
+  async function fetchAnimeContext(title) {
+    const clean = (title || "").trim();
+    if (!clean) return null;
+    const cached = sessionCache2.get(clean.toLowerCase());
+    if (cached) return cached;
+    const token = await getSyncToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(
+        WEB_URL + "/api/anime/context?title=" + encodeURIComponent(clean),
+        { headers: { Authorization: "Bearer " + token } }
+      );
+      if (!res.ok) return null;
+      const data2 = await res.json();
+      const ctx = (data2.context || "").trim();
+      if (ctx) sessionCache2.set(clean.toLowerCase(), ctx);
+      return ctx || null;
+    } catch {
+      return null;
+    }
+  }
+  function peekAnimeContext(title) {
+    const clean = (title || "").trim();
+    if (!clean) return null;
+    return sessionCache2.get(clean.toLowerCase()) || null;
+  }
+
+  // src/lib/pick-target.ts
+  function countProgress(vocab) {
+    let n = 0;
+    for (const rec of Object.values(vocab)) {
+      if (rec.state === "known" || rec.state === "learning") n++;
+    }
+    return n;
+  }
+  async function pickTargetSmart(tokens, wordStates, settings, targetedSet, line, title) {
+    const { dueReview, newWords } = collectEligible(tokens, wordStates, targetedSet);
+    if (dueReview) return dueReview;
+    if (!newWords.length) return null;
+    if (newWords.length === 1) return newWords[0];
+    const candidates = newWords.slice(0, 12).map(({ token, entry }) => ({
+      word: token.base,
+      reading: entry.reading,
+      gloss: entry.glosses[0] || "",
+      level: entry.level,
+      essential: isEssentialWord(token.base)
+    }));
+    const ai = await fetchWordPick({
+      line,
+      candidates,
+      learnerLevel: settings.targetLevel,
+      wordsKnown: countProgress(wordStates),
+      title,
+      animeContext: peekAnimeContext(title)
+    });
+    if (ai.ok && ai.word) {
+      const match = newWords.find((t) => t.token.base === ai.word);
+      if (match) return match;
+    }
+    return pickTargetHeuristic(newWords, wordStates, settings);
   }
 
   // src/lib/levels.ts
@@ -1844,35 +1946,6 @@
     });
   }
 
-  // src/lib/anime-context-client.ts
-  var sessionCache = /* @__PURE__ */ new Map();
-  async function fetchAnimeContext(title) {
-    const clean = (title || "").trim();
-    if (!clean) return null;
-    const cached = sessionCache.get(clean.toLowerCase());
-    if (cached) return cached;
-    const token = await getSyncToken();
-    if (!token) return null;
-    try {
-      const res = await fetch(
-        WEB_URL + "/api/anime/context?title=" + encodeURIComponent(clean),
-        { headers: { Authorization: "Bearer " + token } }
-      );
-      if (!res.ok) return null;
-      const data2 = await res.json();
-      const ctx = (data2.context || "").trim();
-      if (ctx) sessionCache.set(clean.toLowerCase(), ctx);
-      return ctx || null;
-    } catch {
-      return null;
-    }
-  }
-  function peekAnimeContext(title) {
-    const clean = (title || "").trim();
-    if (!clean) return null;
-    return sessionCache.get(clean.toLowerCase()) || null;
-  }
-
   // src/lib/adapters/util.ts
   function normalize(text) {
     return text.replace(/\s+/g, " ").trim();
@@ -2329,7 +2402,7 @@
       }, 6e4);
     }
     let lastContextTitle = "";
-    function countProgress(vocab) {
+    function countProgress2(vocab) {
       let n = 0;
       for (const rec of Object.values(vocab)) {
         if (rec.state === "known" || rec.state === "learning") n++;
@@ -2372,7 +2445,7 @@
         title,
         animeContext: peekAnimeContext(title),
         learnerLevel: settings.targetLevel,
-        wordsKnown: countProgress(wordStates)
+        wordsKnown: countProgress2(wordStates)
       };
       const judgment = await showAgentPanel(target, sentence, video, cardOptions);
       if (judgment && judgment !== "dismiss") {
@@ -2408,7 +2481,14 @@
       await recordSeen(tokens, wordStates, targetedThisSession);
       wordStates = await getVocab();
       if (isOpen()) return;
-      const target = pickTarget(tokens, wordStates, settings, targetedThisSession);
+      const target = await pickTargetSmart(
+        tokens,
+        wordStates,
+        settings,
+        targetedThisSession,
+        normalized,
+        currentTitle()
+      );
       if (!target) {
         log("no target word in:", normalized);
         return;
