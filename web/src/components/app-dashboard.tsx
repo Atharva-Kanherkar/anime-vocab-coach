@@ -80,27 +80,9 @@ export function AppDashboard() {
       </div>
 
       <AiCoach />
-
-      <section className="app-grid dash-features" aria-label="Cloud features">
-        <FeatureEmpty
-          mark="ノート"
-          title="Notebooks"
-          body="Collect words, lines, and scene notes by anime title, episode, JLPT level, and your own tags."
-          status="Coming with Cloud persistence"
-          cta={
-            hasData
-              ? { href: "#sync", label: "Sync to unlock notebooks" }
-              : { href: GITHUB_URL, label: "Start in the extension", external: true }
-          }
-        />
-        <FeatureEmpty
-          mark="順位"
-          title="Leaderboard"
-          body="Opt-in weekly streaks and anime challenges reward real reviews and watch time — no vanity spam."
-          status="Opt-in social"
-          cta={{ href: "/cloud", label: "How Cloud social works" }}
-        />
-      </section>
+      {/* Notebooks and the leaderboard now render as live panels on the /app
+          page (NotebooksPanel, GamificationPanel) — the old "coming soon"
+          placeholders were removed so the page doesn't contradict itself. */}
     </>
   );
 }
@@ -144,40 +126,6 @@ function DashPanel({
       <p className="eyebrow">{eyebrow}</p>
       <h2>{title}</h2>
       {children}
-    </article>
-  );
-}
-
-function FeatureEmpty({
-  mark,
-  title,
-  body,
-  status,
-  cta,
-}: {
-  mark: string;
-  title: string;
-  body: string;
-  status: string;
-  cta: { href: string; label: string; external?: boolean };
-}) {
-  return (
-    <article>
-      <span className="jp-mark" aria-hidden="true">
-        {mark}
-      </span>
-      <h2>{title}</h2>
-      <p>{body}</p>
-      <span>{status}</span>
-      {cta.external ? (
-        <a className="dash-cta" href={cta.href} rel="noopener noreferrer">
-          {cta.label}
-        </a>
-      ) : (
-        <Link className="dash-cta" href={cta.href}>
-          {cta.label}
-        </Link>
-      )}
     </article>
   );
 }
