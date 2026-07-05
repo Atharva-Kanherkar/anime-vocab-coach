@@ -11,6 +11,7 @@ import {
   type ExtensionSyncConnectionState,
   type ExtensionSyncStatus,
 } from "@/lib/sync";
+import { toAnkiCsv, ankiCardCount } from "@/lib/anki-export";
 
 const STORAGE_KEY = "animevocab.cloudSyncSnapshot.v1";
 const STORAGE_EVENT = "animevocab-cloud-sync";
@@ -161,6 +162,16 @@ export function CloudSyncPanel() {
     URL.revokeObjectURL(url);
   };
 
+  const exportAnki = () => {
+    const blob = new Blob([toAnkiCsv(snapshot)], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `animevocab-anki-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <section className="cloud-panel" aria-label="Cloud sync foundation">
       <div className="panel-head">
@@ -189,6 +200,9 @@ export function CloudSyncPanel() {
         </label>
         <button className="btn btn-line" type="button" onClick={exportSnapshot}>
           Export cloud snapshot
+        </button>
+        <button className="btn btn-line" type="button" onClick={exportAnki} disabled={ankiCardCount(snapshot) === 0} title="Download a CSV of your words to import into Anki">
+          Export to Anki ({ankiCardCount(snapshot)})
         </button>
         <button className="btn btn-line" type="button" onClick={loadCloudSnapshot}>
           Load cloud

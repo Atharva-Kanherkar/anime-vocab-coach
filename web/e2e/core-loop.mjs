@@ -135,6 +135,10 @@ try {
   check("notebooks panel renders on /app",
     (await page.locator("body").innerText()).toLowerCase().includes("notebooks"));
 
+  // Anki/CSV export button renders (the synced 猫 is a "learning" card → count >= 1).
+  check("Anki export button renders on /app",
+    (await page.locator("body").innerText()).includes("Export to Anki"));
+
   // 4c. Gamification (issue #17): opt in, sync activity → server-computed
   // leaderboard entry + rank; prefs round-trip. Deterministic regardless of
   // prior dev-store state because we set prefs first.
