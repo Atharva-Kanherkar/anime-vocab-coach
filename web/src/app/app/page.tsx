@@ -4,6 +4,7 @@ import { AppDashboard } from "@/components/app-dashboard";
 import { AppTopNav } from "@/components/app-shell";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { ExtensionConnector } from "@/components/extension-connector";
+import { GamificationPanel } from "@/components/gamification-panel";
 import { NotebooksPanel } from "@/components/notebooks-panel";
 import { SiteFooter } from "@/components/site-chrome";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
@@ -43,6 +44,10 @@ export default async function AppPage() {
 
         <div id="notebooks">
           <NotebooksPanel />
+        </div>
+
+        <div id="momentum">
+          <GamificationPanel />
         </div>
       </main>
       <SiteFooter />

@@ -117,6 +117,32 @@ try {
   check("notebooks panel renders on /app",
     (await page.locator("body").innerText()).toLowerCase().includes("notebooks"));
 
+  // 4c. Gamification (issue #17): opt in, sync activity → server-computed
+  // leaderboard entry + rank; prefs round-trip. Deterministic regardless of
+  // prior dev-store state because we set prefs first.
+  const gam = await page.evaluate(async (today) => {
+    await fetch("/api/leaderboard/prefs", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "E2E Learner", optOut: false }),
+    });
+    const rev = (await (await fetch("/api/sync/snapshot")).json()).envelope?.revision ?? null;
+    await fetch("/api/sync/snapshot", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        export: { exportedAt: `${today}T00:00:00.000Z`, settings: {}, vocab: {},
+          stats: { daily: { [today]: { met: 2, judged: 7, reviews: 7, watchMin: 15 } }, cardTimestamps: [] } },
+        expectedRevision: rev,
+      }),
+    });
+    const board = await (await fetch("/api/leaderboard")).json();
+    return { count: board.entries?.length ?? 0, meRank: board.me?.rank ?? null, meReviewed: board.me?.wordsReviewed ?? null };
+  }, new Date().toISOString().slice(0, 10));
+  check("leaderboard has an entry after opt-in sync", gam.count >= 1, `count ${gam.count}`);
+  check("caller has a leaderboard rank", gam.meRank === 1, `rank ${gam.meRank}`);
+  check("leaderboard reflects server-computed reviews", gam.meReviewed === 7, `reviewed ${gam.meReviewed}`);
+  check("momentum panel renders on /app",
+    (await page.locator("body").innerText()).toLowerCase().includes("leaderboard"));
+
   // 5. Marketing homepage renders with no Clerk crash. Reset the error buffer so
   // this check reflects only the homepage load, matching its label.
   consoleErrors.length = 0;
