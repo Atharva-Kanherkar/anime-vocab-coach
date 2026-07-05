@@ -35,16 +35,21 @@ const notoJp = Noto_Sans_JP({
   display: "swap",
 });
 
+// Clerk core-2 variable names (themes 2.x): colorForeground / colorInput /
+// colorInputForeground / colorPrimaryForeground. The pre-2.x names (colorText,
+// colorInputText, colorInputBackground, colorTextSecondary) are silently
+// ignored, which is what left the sign-in/up text dark-on-dark. baseTheme: dark
+// covers everything else (dividers, muted text, icons).
 const clerkAppearance = {
   baseTheme: dark,
   variables: {
     colorPrimary: "#e3ba63",
+    colorPrimaryForeground: "#10141f",
     colorBackground: "#10141f",
-    colorInputBackground: "#171c2b",
-    colorInputText: "rgba(238, 242, 252, 0.95)",
-    colorText: "rgba(238, 242, 252, 0.95)",
-    colorTextSecondary: "rgba(224, 232, 250, 0.66)",
-    colorModalBackdrop: "rgba(4, 6, 12, 0.74)",
+    colorForeground: "#eef2fc",
+    colorInput: "#171c2b",
+    colorInputForeground: "#eef2fc",
+    colorNeutral: "#eef2fc",
     borderRadius: "0.625rem",
     fontFamily: "var(--sans)",
   },
@@ -56,11 +61,7 @@ const clerkAppearance = {
       border: "1px solid rgba(224, 232, 255, 0.11)",
     },
     formButtonPrimary: {
-      color: "#10141f",
       fontWeight: "600",
-    },
-    footerActionLink: {
-      color: "#e3ba63",
     },
   },
 };
