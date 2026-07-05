@@ -18,12 +18,111 @@
 
   // src/config.ts
   var BACKEND_URL = "https://api.animevocab.com";
+  var WEB_URL = "https://animevocab.com";
+
+  // src/lib/log.ts
+  var log = (...args) => console.log("[AVC]", ...args);
+  var warn = (...args) => console.warn("[AVC]", ...args);
+
+  // src/lib/storage.ts
+  var queue = Promise.resolve();
+  function emptyStats() {
+    return { daily: {}, cardTimestamps: [] };
+  }
+  function exportAll() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
+        resolve({
+          settings: { ...DEFAULTS, ...r.settings || {} },
+          vocab: r.vocab || {},
+          stats: r.stats || emptyStats(),
+          exportedAt: (/* @__PURE__ */ new Date()).toISOString()
+        });
+      });
+    });
+  }
+  function getSyncToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
+    });
+  }
+
+  // src/lib/cloud-sync.ts
+  var SNAPSHOT_URL = WEB_URL + "/api/sync/snapshot";
+  var syncing = false;
+  async function currentRevision(token) {
+    try {
+      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.envelope?.revision ?? null;
+    } catch {
+      return null;
+    }
+  }
+  async function pushSnapshot() {
+    if (syncing) return;
+    const token = await getSyncToken();
+    if (!token) return;
+    syncing = true;
+    try {
+      const exportData = await exportAll();
+      let expectedRevision = await currentRevision(token);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await fetch(SNAPSHOT_URL, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          body: JSON.stringify({ export: exportData, expectedRevision })
+        });
+        if (res.status === 409) {
+          const data = await res.json().catch(() => ({}));
+          expectedRevision = data.conflict?.currentRevision ?? null;
+          continue;
+        }
+        if (res.status === 401) {
+          warn("cloud sync: token rejected (signed out or expired) \u2014 clearing");
+          return;
+        }
+        if (!res.ok) {
+          warn("cloud sync failed: HTTP", res.status);
+          return;
+        }
+        log("cloud sync ok");
+        return;
+      }
+      warn("cloud sync: gave up after revision conflict");
+    } catch (err) {
+      warn("cloud sync error:", err);
+    } finally {
+      syncing = false;
+    }
+  }
 
   // src/entries/background.ts
   chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(["settings"], (result) => {
       chrome.storage.local.set({ settings: { ...DEFAULTS, ...result.settings || {} } });
     });
+  });
+  var SYNC_ALARM = "avc-cloud-sync";
+  var syncDebounce = null;
+  function scheduleSync(delayMs = 8e3) {
+    if (syncDebounce) clearTimeout(syncDebounce);
+    syncDebounce = setTimeout(() => {
+      syncDebounce = null;
+      pushSnapshot().catch(() => {
+      });
+    }, delayMs);
+  }
+  chrome.runtime.onStartup.addListener(() => pushSnapshot().catch(() => {
+  }));
+  chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === SYNC_ALARM) pushSnapshot().catch(() => {
+    });
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && (changes.vocab || changes.stats)) scheduleSync();
   });
   async function getListening() {
     const r = await chrome.storage.session.get(["listeningTabs"]);
@@ -156,6 +255,11 @@
     }
     if (msg.type === "avc-offscreen-log") {
       console.log("[AVC-audio]", msg.line);
+      return;
+    }
+    if (msg.type === "avc-sync-now") {
+      pushSnapshot().catch(() => {
+      });
       return;
     }
     if (msg.type === "avc-transcript") {

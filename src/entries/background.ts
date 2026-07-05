@@ -1,11 +1,36 @@
 import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
+import { pushSnapshot } from "../lib/cloud-sync";
 import type { Settings } from "../types";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(["settings"], (result) => {
     chrome.storage.local.set({ settings: { ...DEFAULTS, ...(result.settings || {}) } });
   });
+});
+
+// --- Background cloud sync -------------------------------------------------
+// When linked to an account (a sync token is present), push local progress to
+// the cloud: shortly after data changes (debounced), on a periodic alarm, and
+// on browser startup. A no-op when local-only.
+const SYNC_ALARM = "avc-cloud-sync";
+let syncDebounce: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleSync(delayMs = 8000): void {
+  if (syncDebounce) clearTimeout(syncDebounce);
+  syncDebounce = setTimeout(() => {
+    syncDebounce = null;
+    pushSnapshot().catch(() => {});
+  }, delayMs);
+}
+
+chrome.runtime.onStartup.addListener(() => pushSnapshot().catch(() => {}));
+chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === SYNC_ALARM) pushSnapshot().catch(() => {});
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && (changes.vocab || changes.stats)) scheduleSync();
 });
 
 // Listening-mode state lives in storage.session: the service worker can be
@@ -186,6 +211,11 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
 
   if (msg.type === "avc-offscreen-log") {
     console.log("[AVC-audio]", msg.line);
+    return;
+  }
+
+  if (msg.type === "avc-sync-now") {
+    pushSnapshot().catch(() => {});
     return;
   }
 

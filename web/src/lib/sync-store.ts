@@ -1,5 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { CloudSyncEnvelope } from "./sync";
+import type { CloudSyncEnvelope, CloudUserProfile } from "./sync";
 
 interface SyncKV {
   get(key: string): Promise<string | null>;
@@ -42,4 +42,24 @@ export async function putCloudSyncEnvelope(userId: string, envelope: CloudSyncEn
   const raw = JSON.stringify(envelope);
   const store = await resolveStore();
   await store.put(key, raw);
+}
+
+// Extension sync tokens: minted by a signed-in web session, then used by the
+// extension as a long-lived bearer credential so it can push in the background
+// without re-authing. The token maps to the profile it was minted for.
+function tokenKey(token: string): string {
+  return `synctoken:${token}:v1`;
+}
+
+export async function putSyncToken(token: string, profile: CloudUserProfile): Promise<void> {
+  const store = await resolveStore();
+  await store.put(tokenKey(token), JSON.stringify(profile));
+}
+
+export async function getSyncTokenProfile(token: string): Promise<CloudUserProfile | null> {
+  if (!token) return null;
+  const store = await resolveStore();
+  const raw = await store.get(tokenKey(token));
+  if (!raw) return null;
+  return JSON.parse(raw) as CloudUserProfile;
 }

@@ -256,6 +256,20 @@ export function exportAll(): Promise<ExportData> {
   });
 }
 
+// Cloud sync token, handed to the extension by the signed-in web app. Its
+// presence is what "linked to an account" means; absence = local-only.
+export function getSyncToken(): Promise<string> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["syncToken"], (r) => resolve((r.syncToken as string | undefined) || ""));
+  });
+}
+
+export function setSyncToken(token: string): Promise<void> {
+  return enqueue(async () => {
+    await chrome.storage.local.set({ syncToken: token });
+  });
+}
+
 export function resetProgress(): Promise<void> {
   return enqueue(async () => {
     await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });

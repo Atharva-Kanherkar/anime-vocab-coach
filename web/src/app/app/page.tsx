@@ -3,6 +3,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { AppDashboard } from "@/components/app-dashboard";
 import { AppTopNav } from "@/components/app-shell";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
+import { ExtensionConnector } from "@/components/extension-connector";
 import { SiteFooter } from "@/components/site-chrome";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export default async function AppPage() {
 
         <div id="sync">
           <CloudSyncPanel />
+          <ExtensionConnector />
         </div>
       </main>
       <SiteFooter />

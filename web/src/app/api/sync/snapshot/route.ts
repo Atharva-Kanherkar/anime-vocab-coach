@@ -1,9 +1,11 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getCloudSyncEnvelope, putCloudSyncEnvelope } from "@/lib/sync-store";
+import { getCloudSyncEnvelope, getSyncTokenProfile, putCloudSyncEnvelope } from "@/lib/sync-store";
 import {
   applyCloudSyncUpdate,
+  normalizeAnimeVocabExport,
   normalizeCloudSyncSnapshot,
+  type AnimeVocabExport,
   type CloudSyncSnapshot,
   type CloudUserProfile,
 } from "@/lib/sync";
@@ -15,7 +17,14 @@ const MAX_SYNC_WORDS = 20_000;
 const MAX_SYNC_DAILY_ROWS = 5_000;
 const MAX_SYNC_CARD_TIMESTAMPS = 10_000;
 
-async function resolveProfile(): Promise<CloudUserProfile | null> {
+// Two auth paths: a signed-in web session (Clerk cookie) OR a sync token in the
+// Authorization header (the extension's background credential). Token wins when
+// present so the extension never depends on cookies.
+async function resolveProfile(req: Request): Promise<CloudUserProfile | null> {
+  const auth = req.headers.get("authorization") || "";
+  const match = auth.match(/^Bearer\s+(avc_st_[A-Za-z0-9]+)$/);
+  if (match) return getSyncTokenProfile(match[1]);
+
   const user = await currentUser();
   if (!user) return null;
 
@@ -26,8 +35,8 @@ async function resolveProfile(): Promise<CloudUserProfile | null> {
   };
 }
 
-export async function GET() {
-  const profile = await resolveProfile();
+export async function GET(req: Request) {
+  const profile = await resolveProfile(req);
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   try {
@@ -42,11 +51,15 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const profile = await resolveProfile();
+  const profile = await resolveProfile(req);
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   let body: {
+    // Web import sends a pre-normalized cloud snapshot; the extension sends its
+    // raw export (settings/vocab/stats) and we normalize it here so both paths
+    // share one shape.
     snapshot?: CloudSyncSnapshot;
+    export?: AnimeVocabExport;
     expectedRevision?: number | null;
   };
   let snapshot: CloudSyncSnapshot;
@@ -62,7 +75,9 @@ export async function PUT(req: Request) {
   }
 
   try {
-    snapshot = normalizeCloudSyncSnapshot(body.snapshot);
+    snapshot = body.export
+      ? normalizeAnimeVocabExport(body.export)
+      : normalizeCloudSyncSnapshot(body.snapshot);
   } catch {
     return NextResponse.json({ error: "invalid_snapshot" }, { status: 400 });
   }

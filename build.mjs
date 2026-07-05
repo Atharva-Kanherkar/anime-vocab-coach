@@ -13,7 +13,8 @@ const entries = [
   { in: "src/entries/netflix-main.ts", out: "extension/page/netflix-main.js" },
   { in: "src/entries/popup.ts", out: "extension/popup/popup.js" },
   { in: "src/entries/options.ts", out: "extension/options/options.js" },
-  { in: "src/entries/dashboard.ts", out: "extension/dashboard/dashboard.js" }
+  { in: "src/entries/dashboard.ts", out: "extension/dashboard/dashboard.js" },
+  { in: "src/entries/sync-bridge.ts", out: "extension/sync-bridge.js" }
 ];
 
 const contexts = await Promise.all(entries.map((e) =>
