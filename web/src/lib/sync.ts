@@ -13,6 +13,13 @@ export interface CloudUserProfile {
   name: string | null;
 }
 
+/** Where a word was first learned (anime title + the line it appeared in). */
+export interface WordSource {
+  title: string | null;
+  line: string | null;
+  en: string | null;
+}
+
 export interface ExtensionVocabRecord {
   state: WordState;
   reading: string;
@@ -24,6 +31,7 @@ export interface ExtensionVocabRecord {
   firstSeenAt: number;
   lastSeenAt: number;
   srs: { stage: number; dueAt: number; lapses: number } | null;
+  source?: WordSource | null;
 }
 
 export interface ExtensionDailyStats {
@@ -54,6 +62,7 @@ export interface CloudWordRecord {
     dueAt: string | null;
     lapses: number;
   } | null;
+  source: WordSource | null;
 }
 
 export interface CloudDailyStats {
@@ -157,6 +166,26 @@ function asTimestampArray(value: unknown): number[] {
     : [];
 }
 
+const MAX_SOURCE_TITLE = 200;
+const MAX_SOURCE_LINE = 500;
+
+function clampOrNull(value: unknown, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const t = value.trim().slice(0, max);
+  return t.length ? t : null;
+}
+
+// Normalize a word's capture context. Returns null unless it carries something.
+function asWordSource(value: unknown): WordSource | null {
+  if (!value || typeof value !== "object") return null;
+  const s = value as Record<string, unknown>;
+  const title = clampOrNull(s.title, MAX_SOURCE_TITLE);
+  const line = clampOrNull(s.line, MAX_SOURCE_LINE);
+  const en = clampOrNull(s.en, MAX_SOURCE_LINE);
+  if (!title && !line && !en) return null;
+  return { title, line, en };
+}
+
 export function normalizeAnimeVocabExport(
   input: AnimeVocabExport,
   now = new Date()
@@ -195,6 +224,7 @@ export function normalizeAnimeVocabExport(
                 lapses: asNumber(srs.lapses),
               }
             : null,
+          source: asWordSource(rec.source),
         } satisfies CloudWordRecord;
       })
       .sort((a, b) => a.base.localeCompare(b.base)),
@@ -254,6 +284,7 @@ export function normalizeCloudSyncSnapshot(input: unknown, now = new Date()): Cl
                 lapses: asNumber(review.lapses),
               }
             : null,
+          source: asWordSource(rec.source),
         } satisfies CloudWordRecord;
       })
       .sort((a, b) => a.base.localeCompare(b.base)),
@@ -313,7 +344,7 @@ export function cloudSnapshotToAnimeVocabExport(snapshot: CloudSyncSnapshot): An
   const daily: Record<string, ExtensionDailyStats> = {};
 
   for (const word of snapshot.words) {
-    vocab[word.base] = {
+    const rec: ExtensionVocabRecord = {
       state: word.state,
       reading: word.reading,
       gloss: word.gloss,
@@ -331,6 +362,10 @@ export function cloudSnapshotToAnimeVocabExport(snapshot: CloudSyncSnapshot): An
           }
         : null,
     };
+    // Only attach source when there is one, so words without capture context
+    // don't gain a null key on export.
+    if (word.source) rec.source = word.source;
+    vocab[word.base] = rec;
   }
 
   for (const day of snapshot.daily) {

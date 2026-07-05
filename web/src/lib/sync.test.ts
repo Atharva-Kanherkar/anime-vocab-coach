@@ -261,3 +261,53 @@ describe("applyCloudSyncUpdate", () => {
     });
   });
 });
+
+describe("word capture context (source)", () => {
+  it("carries source from an extension export into the cloud snapshot", () => {
+    const snap = normalizeAnimeVocabExport({
+      exportedAt: "2026-07-05T00:00:00.000Z",
+      settings: {},
+      vocab: {
+        約束: {
+          state: "learning",
+          reading: "やくそく",
+          gloss: "promise",
+          level: 4,
+          freqRank: 500,
+          seenCount: 2,
+          shownCount: 1,
+          firstSeenAt: 1704067200000,
+          lastSeenAt: 1704067200000,
+          srs: { stage: 1, dueAt: 1704153600000, lapses: 0 },
+          source: { title: "Attack on Titan", line: "約束を守る", en: "Keep the promise" },
+        },
+      },
+      stats: { daily: {}, cardTimestamps: [] },
+    });
+    expect(snap.words[0].source).toEqual({ title: "Attack on Titan", line: "約束を守る", en: "Keep the promise" });
+  });
+
+  it("round-trips source cloud→extension and back, and drops empty sources", () => {
+    const snap = normalizeAnimeVocabExport({
+      exportedAt: "2026-07-05T00:00:00.000Z",
+      settings: {},
+      vocab: {
+        猫: { state: "known", reading: "ねこ", gloss: "cat", level: 5, freqRank: 900, seenCount: 1, shownCount: 0, firstSeenAt: 1, lastSeenAt: 1, srs: null, source: { title: "Frieren", line: "猫だ", en: "" } },
+        犬: { state: "known", reading: "いぬ", gloss: "dog", level: 5, freqRank: 900, seenCount: 1, shownCount: 0, firstSeenAt: 1, lastSeenAt: 1, srs: null, source: { title: "", line: "", en: "" } },
+      },
+      stats: { daily: {}, cardTimestamps: [] },
+    });
+    const cat = snap.words.find((w) => w.base === "猫")!;
+    const dog = snap.words.find((w) => w.base === "犬")!;
+    expect(cat.source).toEqual({ title: "Frieren", line: "猫だ", en: null }); // empty en → null
+    expect(dog.source).toBeNull(); // all-empty source → null
+
+    // cloud → extension export preserves it
+    const back = cloudSnapshotToAnimeVocabExport(snap);
+    expect(back.vocab?.["猫"]?.source).toEqual({ title: "Frieren", line: "猫だ", en: null });
+
+    // and re-normalizing survives the round trip
+    const snap2 = normalizeCloudSyncSnapshot(snap);
+    expect(snap2.words.find((w) => w.base === "猫")!.source?.title).toBe("Frieren");
+  });
+});

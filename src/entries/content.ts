@@ -201,9 +201,26 @@ declare global {
     }
 
     if (judgment && judgment !== "dismiss") {
-      await storage.judgeWord(target.token.base, judgment, meta);
+      const source = {
+        title: currentTitle(),
+        line: sentence,
+        en: context?.en || null
+      };
+      await storage.judgeWord(target.token.base, judgment, meta, source);
       await refreshState();
     }
+  }
+
+  // Best-effort anime/video title from the page, with the site's own suffix
+  // stripped. Good enough to attribute a learned word to what you were watching.
+  function currentTitle(): string | null {
+    const raw = (document.title || "").trim();
+    if (!raw) return null;
+    const cleaned = raw
+      .replace(/\s*[-|·—]\s*(YouTube|Netflix|Crunchyroll).*$/i, "")
+      .replace(/^\(\d+\)\s*/, "") // YouTube unread-count prefix like "(3) "
+      .trim();
+    return cleaned || raw;
   }
 
   async function onLine(text: string, context?: LineContext): Promise<void> {
