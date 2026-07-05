@@ -1,14 +1,12 @@
-import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getCloudSyncEnvelope, getSyncTokenProfile, putCloudSyncEnvelope } from "@/lib/sync-store";
-import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
+import { getCloudSyncEnvelope, putCloudSyncEnvelope } from "@/lib/sync-store";
+import { resolveProfile } from "@/lib/auth";
 import {
   applyCloudSyncUpdate,
   normalizeAnimeVocabExport,
   normalizeCloudSyncSnapshot,
   type AnimeVocabExport,
   type CloudSyncSnapshot,
-  type CloudUserProfile,
 } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
@@ -17,26 +15,6 @@ const MAX_SYNC_BODY_BYTES = 1_000_000;
 const MAX_SYNC_WORDS = 20_000;
 const MAX_SYNC_DAILY_ROWS = 5_000;
 const MAX_SYNC_CARD_TIMESTAMPS = 10_000;
-
-// Two auth paths: a signed-in web session (Clerk cookie) OR a sync token in the
-// Authorization header (the extension's background credential). Token wins when
-// present so the extension never depends on cookies.
-async function resolveProfile(req: Request): Promise<CloudUserProfile | null> {
-  const auth = req.headers.get("authorization") || "";
-  const match = auth.match(/^Bearer\s+(avc_st_[A-Za-z0-9]+)$/);
-  if (match) return getSyncTokenProfile(match[1]);
-
-  if (DEV_NO_CLERK) return { ...DEV_PROFILE };
-
-  const user = await currentUser();
-  if (!user) return null;
-
-  return {
-    id: user.id,
-    email: user.primaryEmailAddress?.emailAddress ?? null,
-    name: user.firstName || user.username || null,
-  };
-}
 
 export async function GET(req: Request) {
   const profile = await resolveProfile(req);

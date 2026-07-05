@@ -90,6 +90,33 @@ try {
     }
   }
 
+  // 4b. Notebooks CRUD (issue #14) — create → add entry → list → delete. No AI
+  // (that path is metered/costly and covered separately), so this stays hermetic.
+  const nbFlow = await page.evaluate(async () => {
+    const created = await (await fetch("/api/notebooks", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "E2E Notebook" }),
+    })).json();
+    const id = created.notebook?.id;
+    const added = await (await fetch(`/api/notebooks/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "addEntry", entry: { kind: "word", word: "約束", gloss: "promise" } }),
+    })).json();
+    const list = await (await fetch("/api/notebooks")).json();
+    const found = (list.notebooks || []).find((n) => n.id === id);
+    const del = await fetch(`/api/notebooks/${id}`, { method: "DELETE" });
+    return { id, entryCount: added.notebook?.entries?.length, listedCount: found?.entryCount, delStatus: del.status };
+  });
+  check("notebook created", !!nbFlow.id);
+  check("notebook entry added", nbFlow.entryCount === 1, `entries ${nbFlow.entryCount}`);
+  check("notebook shows in list with count", nbFlow.listedCount === 1, `listed ${nbFlow.listedCount}`);
+  check("notebook deleted", nbFlow.delStatus === 200, `status ${nbFlow.delStatus}`);
+
+  // NotebooksPanel renders on /app.
+  await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
+  check("notebooks panel renders on /app",
+    (await page.locator("body").innerText()).toLowerCase().includes("notebooks"));
+
   // 5. Marketing homepage renders with no Clerk crash. Reset the error buffer so
   // this check reflects only the homepage load, matching its label.
   consoleErrors.length = 0;
