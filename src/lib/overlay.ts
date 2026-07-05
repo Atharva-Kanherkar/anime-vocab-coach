@@ -1,5 +1,8 @@
 // Re-exports the unified agent panel (legacy overlay module path).
 export {
+  ensureAgentMounted,
+  isAgentMounted,
+  presentWord,
   showAgentPanel,
   dismissAgent,
   isAgentActive,

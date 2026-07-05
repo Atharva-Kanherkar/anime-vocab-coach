@@ -1,7 +1,7 @@
 import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
 import { dueCount } from "../lib/review";
-import type { DailyStats, PauseMode, VocabMap, WordState } from "../types";
+import type { DailyStats, VocabMap, WordState } from "../types";
 
 function todayKey(): string {
   return new Date().toLocaleDateString("sv");
@@ -110,7 +110,7 @@ async function render(): Promise<void> {
     });
   });
 
-  byId("mode-pill").textContent = settings.pauseMode;
+  byId("mode-note").textContent = "Mode in copilot panel";
 }
 
 async function activeTabId(): Promise<number | null> {
@@ -148,18 +148,17 @@ async function initListening(): Promise<void> {
   });
 }
 
+async function pinAgentPanel(): Promise<void> {
+  const tabId = await activeTabId();
+  if (tabId == null) return;
+  await storage.setAgentPinned(true);
+  chrome.runtime.sendMessage({ type: "avc-agent-pin", tabId });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   render();
   initListening();
-
-  const modes: PauseMode[] = ["copilot", "pause", "off"];
-  byId("mode-pill").addEventListener("click", async (e) => {
-    const settings = await storage.getSettings();
-    const idx = modes.indexOf(settings.pauseMode);
-    const next = modes[(idx + 1) % modes.length];
-    await storage.setSettings({ pauseMode: next });
-    (e.target as HTMLElement).textContent = next;
-  });
+  void pinAgentPanel();
 
   byId("dashboard-link").addEventListener("click", (e) => {
     e.preventDefault();

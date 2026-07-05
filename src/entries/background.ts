@@ -1,7 +1,7 @@
 import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
 import { pushSnapshot } from "../lib/cloud-sync";
-import { fetchCoach, fetchChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
+import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { getSyncToken } from "../lib/storage";
 import type { Settings } from "../types";
 
@@ -250,6 +250,21 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     return true;
   }
 
+  if (msg.type === "avc-agent-pin") {
+    ensureContentScript(msg.tabId!)
+      .then((ok) => {
+        if (!ok) {
+          sendResponse({ ok: false, error: "Could not load into this tab." });
+          return;
+        }
+        chrome.tabs.sendMessage(msg.tabId!, { type: "avc-agent-show" }, () => {
+          sendResponse({ ok: !chrome.runtime.lastError });
+        });
+      })
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
   if (msg.type === "avc-transcript") {
     console.log("[AVC] relaying transcript to tab", msg.tabId, "→", msg.text);
     chrome.tabs.sendMessage(msg.tabId!, { type: "avc-transcript", text: msg.text }).catch((err) => {
@@ -280,6 +295,29 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
       console.warn("[AVC] listening error:", msg.code, msg.detail || "");
     });
   }
+});
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "avc-chat-stream") return;
+  port.onMessage.addListener((msg: { message?: string; history?: ChatMessage[]; payload?: CoachPayload }) => {
+    void (async () => {
+      let full = "";
+      const result = await streamChat(
+        msg.message as string,
+        (msg.history as ChatMessage[]) || [],
+        msg.payload as CoachPayload,
+        (delta) => {
+          full += delta;
+          try { port.postMessage({ type: "chunk", delta }); } catch { /* disconnected */ }
+        }
+      );
+      if (result.ok) {
+        port.postMessage({ type: "done" });
+      } else {
+        port.postMessage({ type: "error", error: result.error || "stream_failed" });
+      }
+    })();
+  });
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {

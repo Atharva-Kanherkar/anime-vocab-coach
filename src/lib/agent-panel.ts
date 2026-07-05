@@ -1,10 +1,12 @@
-// Cursor-style learning agent: persistent transparent panel on the video.
-// ambient = watch uninterrupted (copilot). focus = pauses video (pause mode).
+// Cursor-style learning agent: always-on transparent panel on the video.
+// Mount once when the user opens the extension; word cards update inside it.
 
 import * as romaji from "./romaji";
 import { lookup } from "./dictionary";
 import { commonnessLabel } from "./levels";
-import type { DictEntry, DisplayScript, Judgment, Target, Token } from "../types";
+import { renderMarkdown } from "./markdown-lite";
+import { getSettings, setSettings } from "./storage";
+import type { DictEntry, DisplayScript, Judgment, PauseMode, Target, Token } from "../types";
 
 export type InteractionMode = "ambient" | "focus";
 
@@ -28,20 +30,64 @@ interface ChatTurn {
   content: string;
 }
 
+interface WordContext {
+  token: Token;
+  entry: DictEntry;
+  sentence: string;
+  title: string | null;
+  isReview: boolean;
+  options: AgentPanelOptions;
+}
+
 interface CoachResp {
   ok?: boolean;
   error?: string;
   result?: { meaning?: string; nuance?: string; hooks?: string[]; reply?: string };
 }
 
-let agentOpen = false;
-let agentResolve: ((judgment: Judgment | "dismiss") => void) | null = null;
+interface Shell {
+  root: ShadowRoot;
+  ambient: HTMLElement;
+  panel: HTMLElement;
+  modeSelect: HTMLSelectElement;
+  wordSection: HTMLElement;
+  wordIdle: HTMLElement;
+  wordActive: HTMLElement;
+  foot: HTMLElement;
+  buttons: HTMLElement;
+  hint: HTMLElement;
+  chatLog: HTMLElement;
+  chatInput: HTMLTextAreaElement;
+  chatSend: HTMLButtonElement;
+  aiOut: HTMLElement;
+  explainBtn: HTMLButtonElement;
+  hookBtn: HTMLButtonElement;
+}
+
+let shell: Shell | null = null;
+let mounted = false;
+let wordPending = false;
+let wordResolve: ((judgment: Judgment | "dismiss") => void) | null = null;
+let wordCtx: WordContext | null = null;
+let chatHistory: ChatTurn[] = [];
+let chatPayload: CoachPayload | null = null;
+
 let keyHandler: ((e: KeyboardEvent) => void) | null = null;
 let autoTimer: ReturnType<typeof setTimeout> | null = null;
 let playHandler: (() => void) | null = null;
 let userResumed = false;
 let activeVideo: HTMLVideoElement | null = null;
 let wasPlaying = false;
+let currentJudgments: { val: Judgment; key: string }[] = [];
+
+interface CoachPayload {
+  word: string;
+  reading?: string;
+  gloss?: string;
+  line: string;
+  level?: number | null;
+  title?: string | null;
+}
 
 const STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -49,12 +95,10 @@ const STYLES = `
     position: fixed; inset: 0; pointer-events: none; z-index: 0;
   }
   .avc-agent-ambient {
-    position: absolute; inset: 0; opacity: 0;
-    transition: opacity 520ms ease;
+    position: absolute; inset: 0; opacity: 1;
+    transition: background 520ms ease;
   }
-  .avc-agent-ambient.avc-ambient { opacity: 1; }
   .avc-agent-ambient.avc-focus {
-    opacity: 1;
     background:
       radial-gradient(ellipse 100% 80% at 50% 100%, rgba(8, 6, 4, 0.55) 0%, transparent 62%),
       radial-gradient(ellipse 70% 50% at 92% 88%, rgba(227, 168, 72, 0.14) 0%, transparent 55%);
@@ -66,11 +110,12 @@ const STYLES = `
   }
   .avc-agent-panel {
     position: fixed; right: 20px; bottom: 22px;
-    width: min(420px, calc(100vw - 40px));
-    max-height: min(78vh, 640px);
+    width: min(440px, calc(100vw - 40px));
+    height: min(85vh, 720px);
+    min-height: 520px;
     display: flex; flex-direction: column;
     pointer-events: auto;
-    background: rgba(10, 9, 8, 0.62);
+    background: rgba(10, 9, 8, 0.58);
     backdrop-filter: blur(24px) saturate(1.2);
     -webkit-backdrop-filter: blur(24px) saturate(1.2);
     border: 1px solid rgba(227, 186, 99, 0.22);
@@ -81,12 +126,10 @@ const STYLES = `
       0 0 100px rgba(227, 168, 72, 0.08);
     color: rgba(248, 244, 236, 0.96);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    transform: translateY(16px) scale(0.98);
-    opacity: 0;
-    transition: opacity 320ms ease, transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity: 1;
+    transform: translateY(0) scale(1);
     overflow: hidden;
   }
-  .avc-agent-panel.avc-visible { opacity: 1; transform: translateY(0) scale(1); }
   .avc-agent-panel.avc-focus-panel {
     border-color: rgba(227, 186, 99, 0.32);
     box-shadow:
@@ -104,56 +147,52 @@ const STYLES = `
     font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
     color: rgba(227, 186, 99, 0.75);
   }
-  .avc-agent-mode {
-    font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
-    padding: 3px 8px; border-radius: 999px;
+  .avc-agent-mode-select {
+    font-size: 11px; letter-spacing: 0.04em;
+    padding: 5px 28px 5px 10px; border-radius: 8px;
     border: 1px solid rgba(227, 186, 99, 0.28);
-    color: rgba(240, 239, 236, 0.65);
-    background: rgba(227, 186, 99, 0.08);
+    background: rgba(227, 186, 99, 0.08) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23e3ba63' d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 8px center;
+    color: rgba(240, 239, 236, 0.85);
+    cursor: pointer; appearance: none; -webkit-appearance: none;
+    font-family: inherit;
   }
-  .avc-agent-mode.avc-focus-mode {
-    border-color: rgba(217, 108, 79, 0.35);
-    color: rgba(217, 140, 110, 0.9);
-    background: rgba(217, 108, 79, 0.1);
-  }
-  .avc-agent-close {
-    width: 28px; height: 28px; border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-    color: rgba(240, 239, 236, 0.5);
-    font-size: 17px; line-height: 1; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: color 120ms, border-color 120ms, background 120ms;
-  }
-  .avc-agent-close:hover {
-    color: rgba(240, 239, 236, 0.9);
-    border-color: rgba(255, 255, 255, 0.22);
-    background: rgba(255, 255, 255, 0.08);
+  .avc-agent-mode-select:focus {
+    outline: none; border-color: rgba(227, 186, 99, 0.45);
   }
   .avc-agent-body {
     overflow-y: auto; padding: 12px 16px 14px;
     flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
     scrollbar-width: thin;
     scrollbar-color: rgba(227,186,99,.25) transparent;
   }
+  .avc-agent-idle {
+    padding: 20px 4px 16px; text-align: center;
+    color: rgba(240, 239, 236, 0.38);
+    font-size: 13px; line-height: 1.55;
+  }
+  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.65); font-weight: 500; }
+  .avc-agent-word-block { display: none; }
+  .avc-agent-word-block.avc-active { display: block; }
   .avc-agent-chip {
     display: inline-block; font-size: 10px; letter-spacing: 0.07em;
     text-transform: uppercase; color: rgba(240, 239, 236, 0.45);
     margin-bottom: 10px;
   }
   .avc-agent-chip-review { color: rgba(217, 108, 79, 0.85); }
-  .avc-agent-word-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  .avc-agent-word-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
   .avc-agent-word {
-    font-size: 32px; font-weight: 650; line-height: 1.1;
+    font-size: 34px; font-weight: 650; line-height: 1.1;
     font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
   }
   .avc-agent-speak {
-    background: transparent; color: rgba(240, 239, 236, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px;
-    padding: 3px 10px; cursor: pointer; font-size: 11px;
-    letter-spacing: 0.04em; transition: color 120ms, border-color 120ms;
+    background: rgba(227, 186, 99, 0.1); color: rgba(248, 244, 236, 0.88);
+    border: 1px solid rgba(227, 186, 99, 0.32); border-radius: 8px;
+    padding: 7px 14px; cursor: pointer; font-size: 12px;
+    letter-spacing: 0.04em; transition: background 120ms, border-color 120ms;
+    font-family: inherit;
   }
-  .avc-agent-speak:hover { color: rgba(240, 239, 236, 0.9); border-color: rgba(255, 255, 255, 0.3); }
+  .avc-agent-speak:hover { background: rgba(227, 186, 99, 0.18); border-color: rgba(227, 186, 99, 0.5); }
   .avc-agent-reading { font-size: 14px; color: rgba(240, 239, 236, 0.52); margin-bottom: 8px; }
   .avc-agent-gloss { font-size: 15px; line-height: 1.45; color: rgba(240, 239, 236, 0.88); margin-bottom: 12px; }
   .avc-agent-context, .avc-agent-sentence {
@@ -181,49 +220,69 @@ const STYLES = `
     flex: 1; padding: 6px 8px; font-size: 12px; cursor: pointer;
     background: rgba(227, 186, 99, 0.08); color: rgba(240, 239, 236, 0.85);
     border: 1px solid rgba(227, 186, 99, 0.22); border-radius: 8px;
-    transition: background 120ms, border-color 120ms;
+    transition: background 120ms, border-color 120ms; font-family: inherit;
   }
   .avc-agent-ai-btn:hover { background: rgba(227, 186, 99, 0.14); border-color: rgba(227, 186, 99, 0.35); }
   .avc-agent-ai-btn:disabled { opacity: 0.45; cursor: default; }
-  .avc-agent-ai-out { font-size: 12px; line-height: 1.5; color: rgba(240, 239, 236, 0.82); }
+  .avc-agent-ai-out { font-size: 12px; line-height: 1.5; color: rgba(240, 239, 236, 0.82); display: none; }
+  .avc-agent-ai-out.avc-visible { display: block; }
   .avc-agent-ai-label {
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
     color: rgba(240, 239, 236, 0.38); margin-top: 6px;
   }
   .avc-agent-ai-hooks { margin: 4px 0 0 14px; font-size: 12px; }
   .avc-agent-chat {
-    margin-top: 10px; padding-top: 10px;
+    margin-top: auto; padding-top: 12px;
     border-top: 1px solid rgba(227, 186, 99, 0.12);
+    flex-shrink: 0;
   }
   .avc-agent-chat-label {
     font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
     color: rgba(227, 186, 99, 0.6); margin-bottom: 8px;
   }
   .avc-agent-chat-log {
-    max-height: 132px; overflow-y: auto; margin-bottom: 8px;
-    display: flex; flex-direction: column; gap: 6px;
+    min-height: 120px; max-height: 280px; overflow-y: auto; margin-bottom: 8px;
+    display: flex; flex-direction: column; gap: 8px;
     scrollbar-width: thin;
   }
   .avc-agent-chat-msg {
-    font-size: 12px; line-height: 1.45; padding: 7px 10px;
-    border-radius: 8px; max-width: 95%;
+    font-size: 12px; line-height: 1.5; padding: 9px 12px;
+    border-radius: 12px; max-width: 88%; word-break: break-word;
   }
   .avc-agent-chat-msg.avc-user {
     align-self: flex-end;
-    background: rgba(227, 186, 99, 0.12);
-    border: 1px solid rgba(227, 186, 99, 0.2);
-    color: rgba(248, 244, 236, 0.92);
+    background: rgba(227, 186, 99, 0.14);
+    border: 1px solid rgba(227, 186, 99, 0.22);
+    color: rgba(248, 244, 236, 0.94);
+    border-bottom-right-radius: 4px;
   }
   .avc-agent-chat-msg.avc-assistant {
     align-self: flex-start;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(240, 239, 236, 0.82);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(240, 239, 236, 0.88);
+    border-bottom-left-radius: 4px;
+  }
+  .avc-agent-chat-msg.avc-streaming::after {
+    content: ""; display: inline-block; width: 6px; height: 12px;
+    margin-left: 2px; background: rgba(227, 186, 99, 0.6);
+    animation: avc-blink 900ms step-end infinite;
+  }
+  @keyframes avc-blink { 50% { opacity: 0; } }
+  .avc-md-p { margin: 0 0 6px; }
+  .avc-md-p:last-child { margin-bottom: 0; }
+  .avc-md-h2 { font-weight: 600; font-size: 13px; margin: 8px 0 4px; color: rgba(227, 186, 99, 0.85); }
+  .avc-md-h3 { font-weight: 600; font-size: 12px; margin: 6px 0 3px; }
+  .avc-md-ul { margin: 4px 0 6px 16px; }
+  .avc-md-ul li { margin-bottom: 3px; }
+  .avc-md-code {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px;
   }
   .avc-agent-chat-row { display: flex; gap: 6px; }
   .avc-agent-chat-input {
-    flex: 1; resize: none; min-height: 36px; max-height: 72px;
-    padding: 8px 10px; font-size: 12px; line-height: 1.4;
+    flex: 1; resize: none; min-height: 38px; max-height: 80px;
+    padding: 9px 11px; font-size: 12px; line-height: 1.4;
     border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(0, 0, 0, 0.25); color: rgba(248, 244, 236, 0.92);
     font-family: inherit;
@@ -233,11 +292,11 @@ const STYLES = `
   }
   .avc-agent-chat-input::placeholder { color: rgba(240, 239, 236, 0.3); }
   .avc-agent-chat-send {
-    padding: 0 12px; border-radius: 8px; cursor: pointer;
+    padding: 0 14px; border-radius: 8px; cursor: pointer;
     border: 1px solid rgba(227, 186, 99, 0.28);
     background: rgba(227, 186, 99, 0.12);
     color: rgba(248, 244, 236, 0.9); font-size: 12px;
-    transition: background 120ms;
+    transition: background 120ms; font-family: inherit;
   }
   .avc-agent-chat-send:hover { background: rgba(227, 186, 99, 0.2); }
   .avc-agent-chat-send:disabled { opacity: 0.4; cursor: default; }
@@ -245,7 +304,9 @@ const STYLES = `
     padding: 10px 16px 14px; flex-shrink: 0;
     border-top: 1px solid rgba(227, 186, 99, 0.1);
     background: rgba(0, 0, 0, 0.15);
+    display: none;
   }
+  .avc-agent-foot.avc-active { display: block; }
   .avc-agent-buttons { display: flex; gap: 6px; margin-bottom: 8px; }
   .avc-agent-buttons button {
     flex: 1; border-radius: 8px; padding: 9px 4px 7px; cursor: pointer;
@@ -275,14 +336,15 @@ const STYLES = `
     width: 100%; margin-bottom: 10px; padding: 8px 12px;
     border-radius: 8px; border: 1px solid rgba(255,255,255,.16);
     background: transparent; color: rgba(240,239,236,.8);
-    font-size: 13px; cursor: pointer;
+    font-size: 13px; cursor: pointer; font-family: inherit;
   }
   .avc-agent-hint {
     font-size: 10px; color: rgba(240, 239, 236, 0.28);
     text-align: center; letter-spacing: 0.03em;
   }
   @media (prefers-reduced-motion: reduce) {
-    .avc-agent-panel, .avc-agent-ambient { transition: none; transform: none; }
+    .avc-agent-ambient { transition: none; }
+    .avc-agent-chat-msg.avc-streaming::after { animation: none; }
   }
 `;
 
@@ -297,6 +359,17 @@ function mountHost(): ShadowRoot {
   }
   if (host.parentElement !== parent) parent.appendChild(host);
   return host.shadowRoot!;
+}
+
+function pauseModeToInteraction(mode: PauseMode): InteractionMode {
+  return mode === "pause" ? "focus" : "ambient";
+}
+
+function applyInteractionMode(interaction: InteractionMode): void {
+  if (!shell) return;
+  const focus = interaction === "focus";
+  shell.ambient.className = `avc-agent-ambient avc-visible ${focus ? "avc-focus" : "avc-ambient-tone"}`;
+  shell.panel.classList.toggle("avc-focus-panel", focus);
 }
 
 function wordDisplays(token: Token, entry: { reading: string }, displayScript: DisplayScript) {
@@ -415,6 +488,7 @@ function appendAiLine(out: HTMLElement, label: string, body: string): void {
 
 function renderCoachOut(out: HTMLElement, mode: "explain" | "hooks", resp: CoachResp | undefined): void {
   out.textContent = "";
+  out.classList.add("avc-visible");
   if (!resp?.ok) {
     out.textContent = coachErrorText(resp) || "AI unavailable.";
     return;
@@ -434,104 +508,352 @@ function renderCoachOut(out: HTMLElement, mode: "explain" | "hooks", resp: Coach
   }
 }
 
-function appendChatBubble(log: HTMLElement, role: "user" | "assistant", text: string): void {
+function appendChatBubble(log: HTMLElement, role: "user" | "assistant", text: string, streaming = false): HTMLElement {
   const bubble = document.createElement("div");
-  bubble.className = `avc-agent-chat-msg avc-${role}`;
-  bubble.textContent = text;
+  bubble.className = `avc-agent-chat-msg avc-${role}${streaming ? " avc-streaming" : ""}`;
+  if (role === "user") {
+    bubble.textContent = text;
+  } else {
+    const body = document.createElement("div");
+    renderMarkdown(body, text);
+    bubble.appendChild(body);
+  }
   log.appendChild(bubble);
   log.scrollTop = log.scrollHeight;
+  return bubble;
 }
 
-function buildChatSection(
-  token: Token,
-  entry: DictEntry,
-  sentence: string,
-  title: string | null,
-  onActivity: () => void
-): HTMLElement {
-  const chat = document.createElement("div");
-  chat.className = "avc-agent-chat";
-  const label = document.createElement("div");
-  label.className = "avc-agent-chat-label";
-  label.textContent = "Ask about this word";
-  const log = document.createElement("div");
-  log.className = "avc-agent-chat-log";
-  const row = document.createElement("div");
-  row.className = "avc-agent-chat-row";
-  const input = document.createElement("textarea");
-  input.className = "avc-agent-chat-input";
-  input.rows = 1;
-  input.placeholder = "Why did they say it this way?";
-  const send = document.createElement("button");
-  send.className = "avc-agent-chat-send";
-  send.type = "button";
-  send.textContent = "Send";
+function updateStreamBubble(bubble: HTMLElement, text: string): void {
+  let body = bubble.querySelector(":scope > div");
+  if (!body) {
+    body = document.createElement("div");
+    bubble.appendChild(body);
+  }
+  renderMarkdown(body as HTMLElement, text);
+  bubble.classList.add("avc-streaming");
+  if (shell) shell.chatLog.scrollTop = shell.chatLog.scrollHeight;
+}
 
-  const history: ChatTurn[] = [];
+function finishStreamBubble(bubble: HTMLElement, text: string): void {
+  updateStreamBubble(bubble, text);
+  bubble.classList.remove("avc-streaming");
+}
 
-  const submit = async (): Promise<void> => {
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = "";
-    onActivity();
-    appendChatBubble(log, "user", text);
-    history.push({ role: "user", content: text });
-    send.disabled = true;
-    input.disabled = true;
-    try {
-      const resp = (await chrome.runtime.sendMessage({
-        type: "avc-coach-chat",
-        message: text,
-        history: history.slice(0, -1),
-        payload: {
-          word: token.base,
-          reading: entry.reading,
-          gloss: entry.glosses[0] || "",
-          line: sentence,
-          level: entry.level,
-          title,
-        },
-      })) as CoachResp | undefined;
-      if (!resp?.ok || !resp.result?.reply) {
-        appendChatBubble(log, "assistant", coachErrorText(resp) || "No reply.");
-        return;
-      }
-      history.push({ role: "assistant", content: resp.result.reply });
-      appendChatBubble(log, "assistant", resp.result.reply);
-    } catch {
-      appendChatBubble(log, "assistant", "Network error.");
-    } finally {
-      send.disabled = false;
-      input.disabled = false;
-      input.focus();
-    }
+function payloadFromCtx(ctx: WordContext): CoachPayload {
+  return {
+    word: ctx.token.base,
+    reading: ctx.entry.reading,
+    gloss: ctx.entry.glosses[0] || "",
+    line: ctx.sentence,
+    level: ctx.entry.level,
+    title: ctx.title,
+  };
+}
+
+function clearWordTimers(): void {
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  if (playHandler && activeVideo) {
+    activeVideo.removeEventListener("play", playHandler);
+    playHandler = null;
+  }
+  if (keyHandler) {
+    window.removeEventListener("keydown", keyHandler, true);
+    keyHandler = null;
+  }
+}
+
+function resumeVideoIfNeeded(): void {
+  if (wasPlaying && !userResumed && activeVideo?.paused) {
+    activeVideo.play().catch(() => {});
+  }
+  activeVideo = null;
+  wasPlaying = false;
+  userResumed = false;
+}
+
+function finishWord(judgment: Judgment | "dismiss"): void {
+  const fn = wordResolve;
+  wordPending = false;
+  wordResolve = null;
+  wordCtx = null;
+  clearWordTimers();
+  resumeVideoIfNeeded();
+  if (shell) {
+    shell.wordActive.classList.remove("avc-active");
+    shell.wordIdle.style.display = "";
+    shell.foot.classList.remove("avc-active");
+    shell.buttons.textContent = "";
+  }
+  currentJudgments = [];
+  if (fn) fn(judgment);
+}
+
+function bumpAutoTimer(opts: AgentPanelOptions): void {
+  if (autoTimer) clearTimeout(autoTimer);
+  const sec = opts.autoResumeSec || 0;
+  if (opts.interaction === "focus" && sec > 0) {
+    autoTimer = setTimeout(() => finishWord("dismiss"), sec * 1000);
+  }
+}
+
+async function submitChat(): Promise<void> {
+  if (!shell) return;
+  const payload: CoachPayload = chatPayload || {
+    word: "general",
+    line: "The learner is watching anime with Japanese subtitles.",
+    gloss: "",
+    title: null,
+  };
+  const text = shell.chatInput.value.trim();
+  if (!text) return;
+  shell.chatInput.value = "";
+  appendChatBubble(shell.chatLog, "user", text);
+  chatHistory.push({ role: "user", content: text });
+  shell.chatSend.disabled = true;
+  shell.chatInput.disabled = true;
+
+  const streamBubble = appendChatBubble(shell.chatLog, "assistant", "", true);
+  let full = "";
+  let raf = 0;
+  const flush = (): void => {
+    raf = 0;
+    updateStreamBubble(streamBubble, full);
   };
 
-  send.addEventListener("click", (e) => { e.stopPropagation(); void submit(); });
-  input.addEventListener("keydown", (e) => {
-    e.stopPropagation();
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void submit();
+  try {
+    const port = chrome.runtime.connect({ name: "avc-chat-stream" });
+    await new Promise<void>((resolve, reject) => {
+      port.onMessage.addListener((msg: { type?: string; delta?: string; error?: string; done?: boolean }) => {
+        if (msg.type === "chunk" && typeof msg.delta === "string") {
+          full += msg.delta;
+          if (!raf) raf = requestAnimationFrame(flush);
+        } else if (msg.type === "error") {
+          reject(new Error(msg.error || "stream_error"));
+        } else if (msg.type === "done") {
+          resolve();
+        }
+      });
+      port.onDisconnect.addListener(() => {
+        if (chrome.runtime.lastError && !full) reject(new Error("disconnected"));
+      });
+      port.postMessage({
+        message: text,
+        history: chatHistory.slice(0, -1),
+        payload,
+      });
+    });
+    if (raf) cancelAnimationFrame(raf);
+    if (!full.trim()) {
+      finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: "openai_empty" }) || "No reply.");
+    } else {
+      finishStreamBubble(streamBubble, full);
+      chatHistory.push({ role: "assistant", content: full });
     }
-  });
-  input.addEventListener("click", (e) => e.stopPropagation());
-
-  row.appendChild(input);
-  row.appendChild(send);
-  chat.appendChild(label);
-  chat.appendChild(log);
-  chat.appendChild(row);
-  return chat;
+  } catch (err) {
+    if (raf) cancelAnimationFrame(raf);
+    const msg = err instanceof Error ? err.message : "network";
+    finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: msg }) || "Network error.");
+  } finally {
+    shell.chatSend.disabled = false;
+    shell.chatInput.disabled = false;
+    shell.chatInput.focus();
+  }
 }
 
-function buildAiQuickSection(
-  token: Token,
-  entry: DictEntry,
-  sentence: string,
-  title: string | null,
-  onActivity: () => void
-): HTMLElement {
+async function askCoach(mode: "explain" | "hooks"): Promise<void> {
+  if (!shell || !wordCtx) return;
+  shell.explainBtn.disabled = true;
+  shell.hookBtn.disabled = true;
+  shell.aiOut.classList.add("avc-visible");
+  shell.aiOut.textContent = "Thinking…";
+  bumpAutoTimer(wordCtx.options);
+  try {
+    const resp = (await chrome.runtime.sendMessage({
+      type: "avc-coach",
+      mode,
+      payload: payloadFromCtx(wordCtx),
+    })) as CoachResp | undefined;
+    renderCoachOut(shell.aiOut, mode, resp);
+  } catch {
+    shell.aiOut.textContent = "AI unavailable.";
+    shell.aiOut.classList.add("avc-visible");
+  } finally {
+    shell.explainBtn.disabled = false;
+    shell.hookBtn.disabled = false;
+  }
+}
+
+function renderJudgmentButtons(ctx: WordContext): void {
+  if (!shell) return;
+  shell.buttons.textContent = "";
+  shell.foot.classList.add("avc-active");
+
+  interface ButtonSpec { cls: string; ja: string; en: string; val: Judgment; key: string; }
+  let judgments: ButtonSpec[];
+  if (ctx.isReview) {
+    judgments = [
+      { cls: "avc-agent-review-pass", ja: "覚えてた", en: "Got it", val: "review-pass", key: "1" },
+      { cls: "avc-agent-review-fail", ja: "忘れた", en: "Forgot", val: "review-fail", key: "2" },
+    ];
+    shell.hint.textContent = "1 / 2 to judge";
+  } else {
+    judgments = [
+      { cls: "avc-agent-know", ja: "知ってる", en: "Know it", val: "know", key: "1" },
+      { cls: "avc-agent-learn", ja: "学ぶ", en: "Learn", val: "learn", key: "2" },
+      { cls: "avc-agent-ignore", ja: "無視", en: "Skip", val: "ignore", key: "3" },
+    ];
+    shell.hint.textContent = "1 / 2 / 3 to judge";
+  }
+  currentJudgments = judgments.map((j) => ({ val: j.val, key: j.key }));
+
+  judgments.forEach((j) => {
+    const btn = document.createElement("button");
+    btn.className = j.cls;
+    btn.innerHTML = `${j.ja}<span>${j.en}</span>`;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      finishWord(j.val);
+    });
+    shell!.buttons.appendChild(btn);
+  });
+}
+
+function populateWordSection(ctx: WordContext): void {
+  if (!shell) return;
+  const { token, entry, sentence, isReview, options: opts } = ctx;
+  const displayScript: DisplayScript = opts.displayScript || "romaji";
+
+  shell.wordIdle.style.display = "none";
+  shell.wordActive.classList.add("avc-active");
+  shell.wordActive.textContent = "";
+  shell.aiOut.classList.remove("avc-visible");
+  shell.aiOut.textContent = "";
+  chatHistory = [];
+  shell.chatLog.textContent = "";
+  chatPayload = payloadFromCtx(ctx);
+
+  const chip = document.createElement("div");
+  chip.className = isReview ? "avc-agent-chip avc-agent-chip-review" : "avc-agent-chip";
+  chip.textContent = isReview
+    ? "Review"
+    : `${commonnessLabel(entry.level)} · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · heard" : ""}`;
+
+  const displays = wordDisplays(token, entry, displayScript);
+  const wordRow = document.createElement("div");
+  wordRow.className = "avc-agent-word-row";
+  const wordEl = document.createElement("div");
+  wordEl.className = "avc-agent-word";
+  wordEl.textContent = displays.big;
+  const speakBtn = document.createElement("button");
+  speakBtn.className = "avc-agent-speak";
+  speakBtn.type = "button";
+  speakBtn.textContent = "Hear word";
+  speakBtn.addEventListener("click", (e) => { e.stopPropagation(); romaji.speak(token.surface); });
+  wordRow.appendChild(wordEl);
+  wordRow.appendChild(speakBtn);
+
+  const readingEl = document.createElement("div");
+  readingEl.className = "avc-agent-reading";
+  readingEl.textContent = displays.secondary;
+
+  const glossEl = document.createElement("div");
+  glossEl.className = "avc-agent-gloss";
+  glossEl.textContent = entry.glosses.join(" · ");
+
+  shell.wordActive.appendChild(chip);
+  shell.wordActive.appendChild(wordRow);
+
+  if (isReview) {
+    readingEl.style.display = "none";
+    glossEl.style.display = "none";
+    const showBtn = document.createElement("button");
+    showBtn.className = "avc-agent-show-answer";
+    showBtn.type = "button";
+    showBtn.textContent = "Show answer";
+    showBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      readingEl.style.display = "";
+      glossEl.style.display = "";
+      showBtn.remove();
+    });
+    shell.wordActive.appendChild(showBtn);
+  }
+
+  shell.wordActive.appendChild(readingEl);
+  shell.wordActive.appendChild(glossEl);
+
+  if (opts.contextEn) {
+    const ctxEl = document.createElement("div");
+    ctxEl.className = "avc-agent-context";
+    const lbl = document.createElement("span");
+    lbl.className = "avc-agent-label";
+    lbl.textContent = "English subtitle";
+    ctxEl.appendChild(lbl);
+    ctxEl.appendChild(document.createTextNode(opts.contextEn));
+    shell.wordActive.appendChild(ctxEl);
+  }
+
+  shell.wordActive.appendChild(buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript));
+  renderJudgmentButtons(ctx);
+
+  if (opts.autoSpeak && opts.interaction === "focus") {
+    setTimeout(() => romaji.speak(token.surface), 250);
+  }
+  bumpAutoTimer(opts);
+}
+
+function buildShell(root: ShadowRoot): Shell {
+  const layer = document.createElement("div");
+  layer.className = "avc-agent-layer";
+
+  const ambient = document.createElement("div");
+  ambient.className = "avc-agent-ambient avc-ambient-tone";
+
+  const panel = document.createElement("div");
+  panel.className = "avc-agent-panel";
+  panel.setAttribute("role", "complementary");
+  panel.setAttribute("aria-label", "AnimeVocab learning agent");
+
+  const head = document.createElement("div");
+  head.className = "avc-agent-head";
+  const brand = document.createElement("div");
+  brand.className = "avc-agent-brand";
+  brand.textContent = "AnimeVocab";
+
+  const modeSelect = document.createElement("select");
+  modeSelect.className = "avc-agent-mode-select";
+  modeSelect.setAttribute("aria-label", "Learning mode");
+  for (const [val, label] of [
+    ["copilot", "Ambient"],
+    ["pause", "Focus"],
+    ["off", "Off"],
+  ] as const) {
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = label;
+    modeSelect.appendChild(opt);
+  }
+  modeSelect.addEventListener("change", async (e) => {
+    e.stopPropagation();
+    const mode = modeSelect.value as PauseMode;
+    await setSettings({ pauseMode: mode });
+    applyInteractionMode(pauseModeToInteraction(mode));
+  });
+  modeSelect.addEventListener("click", (e) => e.stopPropagation());
+
+  head.appendChild(brand);
+  head.appendChild(modeSelect);
+
+  const body = document.createElement("div");
+  body.className = "avc-agent-body";
+
+  const wordIdle = document.createElement("div");
+  wordIdle.className = "avc-agent-idle";
+  wordIdle.innerHTML = "Watching. New words appear here.<br><strong>Ask anything</strong> in the chat below.";
+
+  const wordActive = document.createElement("div");
+  wordActive.className = "avc-agent-word-block";
+
   const ai = document.createElement("div");
   ai.className = "avc-agent-ai";
   const btns = document.createElement("div");
@@ -544,77 +866,111 @@ function buildAiQuickSection(
   hookBtn.className = "avc-agent-ai-btn";
   hookBtn.type = "button";
   hookBtn.textContent = "Memory hooks";
-  const out = document.createElement("div");
-  out.className = "avc-agent-ai-out";
-  out.style.display = "none";
+  const aiOut = document.createElement("div");
+  aiOut.className = "avc-agent-ai-out";
+  explainBtn.addEventListener("click", (e) => { e.stopPropagation(); void askCoach("explain"); });
+  hookBtn.addEventListener("click", (e) => { e.stopPropagation(); void askCoach("hooks"); });
   btns.appendChild(explainBtn);
   btns.appendChild(hookBtn);
   ai.appendChild(btns);
-  ai.appendChild(out);
+  ai.appendChild(aiOut);
+  wordActive.appendChild(ai);
 
-  const ask = async (mode: "explain" | "hooks"): Promise<void> => {
-    onActivity();
-    explainBtn.disabled = true;
-    hookBtn.disabled = true;
-    out.style.display = "";
-    out.textContent = "Thinking…";
-    try {
-      const resp = (await chrome.runtime.sendMessage({
-        type: "avc-coach",
-        mode,
-        payload: { word: token.base, reading: entry.reading, gloss: entry.glosses[0] || "", line: sentence, level: entry.level, title },
-      })) as CoachResp | undefined;
-      renderCoachOut(out, mode, resp);
-    } catch {
-      out.textContent = "AI unavailable.";
-    } finally {
-      explainBtn.disabled = false;
-      hookBtn.disabled = false;
+  const chat = document.createElement("div");
+  chat.className = "avc-agent-chat";
+  const chatLabel = document.createElement("div");
+  chatLabel.className = "avc-agent-chat-label";
+  chatLabel.textContent = "Copilot chat";
+  const chatLog = document.createElement("div");
+  chatLog.className = "avc-agent-chat-log";
+  const chatRow = document.createElement("div");
+  chatRow.className = "avc-agent-chat-row";
+  const chatInput = document.createElement("textarea");
+  chatInput.className = "avc-agent-chat-input";
+  chatInput.rows = 1;
+  chatInput.placeholder = "Ask about Japanese in this scene…";
+  const chatSend = document.createElement("button");
+  chatSend.className = "avc-agent-chat-send";
+  chatSend.type = "button";
+  chatSend.textContent = "Send";
+  chatSend.addEventListener("click", (e) => { e.stopPropagation(); void submitChat(); });
+  chatInput.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void submitChat();
     }
+  });
+  chatInput.addEventListener("click", (e) => e.stopPropagation());
+  chatRow.appendChild(chatInput);
+  chatRow.appendChild(chatSend);
+  chat.appendChild(chatLabel);
+  chat.appendChild(chatLog);
+  chat.appendChild(chatRow);
+
+  body.appendChild(wordIdle);
+  body.appendChild(wordActive);
+  body.appendChild(chat);
+
+  const foot = document.createElement("div");
+  foot.className = "avc-agent-foot";
+  const buttons = document.createElement("div");
+  buttons.className = "avc-agent-buttons";
+  const hint = document.createElement("div");
+  hint.className = "avc-agent-hint";
+  foot.appendChild(buttons);
+  foot.appendChild(hint);
+
+  panel.appendChild(head);
+  panel.appendChild(body);
+  panel.appendChild(foot);
+  layer.appendChild(ambient);
+  layer.appendChild(panel);
+  root.appendChild(layer);
+
+  panel.addEventListener("click", (e) => e.stopPropagation());
+
+  document.addEventListener("fullscreenchange", () => {
+    if (mounted) mountHost();
+  });
+
+  return {
+    root, ambient, panel, modeSelect, wordSection: body, wordIdle, wordActive,
+    foot, buttons, hint, chatLog, chatInput, chatSend, aiOut, explainBtn, hookBtn,
   };
-  explainBtn.addEventListener("click", (e) => { e.stopPropagation(); void ask("explain"); });
-  hookBtn.addEventListener("click", (e) => { e.stopPropagation(); void ask("hooks"); });
-  return ai;
 }
 
-function cleanupAgent(root: ShadowRoot | null): void {
-  agentOpen = false;
-  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-  if (keyHandler) {
-    window.removeEventListener("keydown", keyHandler, true);
-    keyHandler = null;
-  }
-  if (playHandler && activeVideo) {
-    activeVideo.removeEventListener("play", playHandler);
-    playHandler = null;
-  }
-  userResumed = false;
-  if (root) root.querySelector(".avc-agent-layer")?.remove();
-  if (wasPlaying && !userResumed && activeVideo?.paused) {
-    activeVideo.play().catch(() => {});
-  }
-  activeVideo = null;
-  wasPlaying = false;
+export function isAgentMounted(): boolean {
+  return mounted;
 }
 
-function finishAgent(root: ShadowRoot, judgment: Judgment | "dismiss"): void {
-  const fn = agentResolve;
-  cleanupAgent(root);
-  agentResolve = null;
-  if (fn) fn(judgment);
-}
+export function ensureAgentMounted(): void {
+  const root = mountHost();
+  if (!root.querySelector("style")) {
+    root.innerHTML = `<style>${STYLES}</style>`;
+  }
+  if (mounted && shell) return;
 
-export function dismissAgent(): void {
-  if (!agentOpen) return;
-  finishAgent(mountHost(), "dismiss");
+  shell = buildShell(root);
+  mounted = true;
+
+  void getSettings().then((s) => {
+    if (!shell) return;
+    shell.modeSelect.value = s.pauseMode;
+    applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+  });
 }
 
 export function isAgentActive(): boolean {
-  return agentOpen;
+  return mounted;
 }
 
 export function isOpen(): boolean {
-  return agentOpen;
+  return wordPending;
+}
+
+export function dismissAgent(): void {
+  if (wordPending) finishWord("dismiss");
 }
 
 export function showAgentPanel(
@@ -623,224 +979,56 @@ export function showAgentPanel(
   video: HTMLVideoElement | null,
   options: AgentPanelOptions
 ): Promise<Judgment | "dismiss"> {
-  if (agentOpen) dismissAgent();
+  ensureAgentMounted();
+  return presentWord(target, sentence, video, options);
+}
 
-  const opts = options;
-  const displayScript: DisplayScript = opts.displayScript || "romaji";
-  const { token, entry, isReview } = target;
-  const focus = opts.interaction === "focus";
+export function presentWord(
+  target: Target,
+  sentence: string,
+  video: HTMLVideoElement | null,
+  options: AgentPanelOptions
+): Promise<Judgment | "dismiss"> {
+  ensureAgentMounted();
+  if (wordPending) finishWord("dismiss");
+
+  const ctx: WordContext = {
+    token: target.token,
+    entry: target.entry,
+    sentence,
+    title: options.title || null,
+    isReview: target.isReview,
+    options,
+  };
 
   wasPlaying = !!(video && !video.paused && !video.ended);
   activeVideo = video;
   userResumed = false;
 
-  if (focus && wasPlaying && video) video.pause();
+  if (options.interaction === "focus" && wasPlaying && video) video.pause();
   if (video) {
     playHandler = () => { userResumed = true; };
     video.addEventListener("play", playHandler);
   }
 
-  return new Promise((resolve) => {
-    agentOpen = true;
-    agentResolve = resolve;
+  wordCtx = ctx;
+  wordPending = true;
+  populateWordSection(ctx);
+  applyInteractionMode(options.interaction);
 
-    const root = mountHost();
-    if (!root.querySelector("style")) root.innerHTML = `<style>${STYLES}</style>`;
-    root.querySelector(".avc-agent-layer")?.remove();
-
-    const layer = document.createElement("div");
-    layer.className = "avc-agent-layer";
-
-    const ambient = document.createElement("div");
-    ambient.className = `avc-agent-ambient avc-visible ${focus ? "avc-focus" : "avc-ambient-tone"}`;
-
-    const panel = document.createElement("div");
-    panel.className = `avc-agent-panel ${focus ? "avc-focus-panel" : ""}`;
-    panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-label", "AnimeVocab learning agent");
-
-    const head = document.createElement("div");
-    head.className = "avc-agent-head";
-    const brand = document.createElement("div");
-    brand.className = "avc-agent-brand";
-    brand.textContent = "AnimeVocab";
-    const modeBadge = document.createElement("div");
-    modeBadge.className = `avc-agent-mode ${focus ? "avc-focus-mode" : ""}`;
-    modeBadge.textContent = focus ? "Focus" : "Ambient";
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "avc-agent-close";
-    closeBtn.type = "button";
-    closeBtn.setAttribute("aria-label", "Dismiss");
-    closeBtn.textContent = "\u00d7";
-    const headLeft = document.createElement("div");
-    headLeft.style.display = "flex";
-    headLeft.style.alignItems = "center";
-    headLeft.style.gap = "10px";
-    headLeft.appendChild(brand);
-    headLeft.appendChild(modeBadge);
-    head.appendChild(headLeft);
-    head.appendChild(closeBtn);
-
-    const body = document.createElement("div");
-    body.className = "avc-agent-body";
-
-    const chip = document.createElement("div");
-    chip.className = isReview ? "avc-agent-chip avc-agent-chip-review" : "avc-agent-chip";
-    chip.textContent = isReview
-      ? "Review"
-      : `${commonnessLabel(entry.level)} · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · heard" : ""}`;
-
-    const displays = wordDisplays(token, entry, displayScript);
-    const wordRow = document.createElement("div");
-    wordRow.className = "avc-agent-word-row";
-    const wordEl = document.createElement("div");
-    wordEl.className = "avc-agent-word";
-    wordEl.textContent = displays.big;
-    const speakBtn = document.createElement("button");
-    speakBtn.className = "avc-agent-speak";
-    speakBtn.type = "button";
-    speakBtn.textContent = "Listen";
-    speakBtn.addEventListener("click", (e) => { e.stopPropagation(); romaji.speak(token.surface); });
-    wordRow.appendChild(wordEl);
-    wordRow.appendChild(speakBtn);
-
-    const readingEl = document.createElement("div");
-    readingEl.className = "avc-agent-reading";
-    readingEl.textContent = displays.secondary;
-
-    const glossEl = document.createElement("div");
-    glossEl.className = "avc-agent-gloss";
-    glossEl.textContent = entry.glosses.join(" · ");
-
-    body.appendChild(chip);
-    body.appendChild(wordRow);
-
-    if (isReview) {
-      readingEl.style.display = "none";
-      glossEl.style.display = "none";
-      const showBtn = document.createElement("button");
-      showBtn.className = "avc-agent-show-answer";
-      showBtn.type = "button";
-      showBtn.textContent = "Show answer";
-      showBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        readingEl.style.display = "";
-        glossEl.style.display = "";
-        showBtn.remove();
-      });
-      body.appendChild(showBtn);
-    }
-
-    body.appendChild(readingEl);
-    body.appendChild(glossEl);
-
-    if (opts.contextEn) {
-      const ctx = document.createElement("div");
-      ctx.className = "avc-agent-context";
-      const lbl = document.createElement("span");
-      lbl.className = "avc-agent-label";
-      lbl.textContent = "English subtitle";
-      ctx.appendChild(lbl);
-      ctx.appendChild(document.createTextNode(opts.contextEn));
-      body.appendChild(ctx);
-    }
-
-    body.appendChild(buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript));
-
-    const bumpAutoTimer = (): void => {
-      if (autoTimer) clearTimeout(autoTimer);
-      const sec = opts.autoResumeSec || 0;
-      if (focus && sec > 0) {
-        autoTimer = setTimeout(() => finishAgent(root, "dismiss"), sec * 1000);
-      }
-    };
-
-    body.appendChild(buildAiQuickSection(token, entry, sentence, opts.title || null, bumpAutoTimer));
-    body.appendChild(buildChatSection(token, entry, sentence, opts.title || null, bumpAutoTimer));
-
-    const foot = document.createElement("div");
-    foot.className = "avc-agent-foot";
-    const buttons = document.createElement("div");
-    buttons.className = "avc-agent-buttons";
-    const hint = document.createElement("div");
-    hint.className = "avc-agent-hint";
-
-    interface ButtonSpec { cls: string; ja: string; en: string; val: Judgment; key: string; }
-    let judgments: ButtonSpec[];
-    if (isReview) {
-      judgments = [
-        { cls: "avc-agent-review-pass", ja: "覚えてた", en: "Got it", val: "review-pass", key: "1" },
-        { cls: "avc-agent-review-fail", ja: "忘れた", en: "Forgot", val: "review-fail", key: "2" },
-      ];
-      hint.textContent = "Esc dismiss · 1 / 2";
-    } else {
-      judgments = [
-        { cls: "avc-agent-know", ja: "知ってる", en: "Know it", val: "know", key: "1" },
-        { cls: "avc-agent-learn", ja: "学ぶ", en: "Learn", val: "learn", key: "2" },
-        { cls: "avc-agent-ignore", ja: "無視", en: "Skip", val: "ignore", key: "3" },
-      ];
-      hint.textContent = "Esc dismiss · 1 / 2 / 3";
-    }
-
-    judgments.forEach((j) => {
-      const btn = document.createElement("button");
-      btn.className = j.cls;
-      btn.innerHTML = `${j.ja}<span>${j.en}</span>`;
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        finishAgent(root, j.val);
-      });
-      buttons.appendChild(btn);
-    });
-
-    foot.appendChild(buttons);
-    foot.appendChild(hint);
-    panel.appendChild(head);
-    panel.appendChild(body);
-    panel.appendChild(foot);
-    layer.appendChild(ambient);
-    layer.appendChild(panel);
-    root.appendChild(layer);
-
-    closeBtn.addEventListener("click", (e) => {
+  keyHandler = (e: KeyboardEvent) => {
+    if (!wordPending) return;
+    if (e.target instanceof HTMLTextAreaElement) return;
+    const match = currentJudgments.find((j) => j.key === e.key);
+    if (match) {
+      e.preventDefault();
       e.stopPropagation();
-      finishAgent(root, "dismiss");
-    });
-    panel.addEventListener("click", (e) => e.stopPropagation());
-
-    keyHandler = (e: KeyboardEvent) => {
-      if (!agentOpen) return;
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        finishAgent(root, "dismiss");
-        return;
-      }
-      const match = judgments.find((j) => j.key === e.key);
-      if (match && !(e.target instanceof HTMLTextAreaElement)) {
-        e.preventDefault();
-        e.stopPropagation();
-        finishAgent(root, match.val);
-      }
-    };
-    window.addEventListener("keydown", keyHandler, true);
-
-    const onFsChange = (): void => {
-      if (agentOpen) mountHost();
-    };
-    document.addEventListener("fullscreenchange", onFsChange);
-
-    requestAnimationFrame(() => panel.classList.add("avc-visible"));
-
-    if (opts.autoSpeak && focus) {
-      setTimeout(() => romaji.speak(token.surface), 250);
+      finishWord(match.val);
     }
+  };
+  window.addEventListener("keydown", keyHandler, true);
 
-    if (focus && (opts.autoResumeSec || 0) > 0) bumpAutoTimer();
-
-    agentResolve = (judgment) => {
-      document.removeEventListener("fullscreenchange", onFsChange);
-      resolve(judgment);
-    };
+  return new Promise((resolve) => {
+    wordResolve = resolve;
   });
 }

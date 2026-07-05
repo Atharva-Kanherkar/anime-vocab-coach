@@ -236,27 +236,35 @@ export async function runCoach(
   return { mode: "hooks", hooks };
 }
 
-async function runChatCoach(apiKey: string, model: string, req: CoachRequest): Promise<ChatResult> {
-  const message = (req.message || "").trim();
-  if (!message) throw new Error("missing_message");
-
-  const system =
+function chatSystemPrompt(): string {
+  return (
     "You are a concise anime Japanese tutor embedded in a learner's video player. " +
     "The learner is watching anime with subtitles. Answer in clear beginner-friendly English. " +
     "Stay focused on the highlighted word and the exact line from the scene. " +
     "Keep replies under 120 words unless they ask for more detail. " +
-    "Use romaji for Japanese readings when helpful. No markdown, no emoji.";
+    "Use romaji for Japanese readings when helpful. " +
+    "Use light markdown when it helps clarity: **bold** for key terms, bullet lists, short ### headings. No emoji."
+  );
+}
 
-  const contextUser =
-    `[Scene context]\n${contextBlock(req)}\n\n[Learner question]\n${message}`;
-
+function buildChatMessages(req: CoachRequest): { role: "system" | "user" | "assistant"; content: string }[] {
+  const message = (req.message || "").trim();
+  const contextUser = `[Scene context]\n${contextBlock(req)}\n\n[Learner question]\n${message}`;
   const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-    { role: "system", content: system },
+    { role: "system", content: chatSystemPrompt() },
   ];
   for (const turn of req.history || []) {
     messages.push({ role: turn.role, content: turn.content });
   }
   messages.push({ role: "user", content: contextUser });
+  return messages;
+}
+
+async function runChatCoach(apiKey: string, model: string, req: CoachRequest): Promise<ChatResult> {
+  const message = (req.message || "").trim();
+  if (!message) throw new Error("missing_message");
+
+  const messages = buildChatMessages(req);
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -275,4 +283,55 @@ async function runChatCoach(apiKey: string, model: string, req: CoachRequest): P
   const reply = (data.choices?.[0]?.message?.content || "").trim();
   if (!reply) throw new Error("openai_empty");
   return { mode: "chat", reply };
+}
+
+/** Stream chat tokens from OpenAI. Used by the extension agent panel. */
+export async function* streamChatCoach(
+  apiKey: string,
+  model: string,
+  req: CoachRequest
+): AsyncGenerator<string, void, unknown> {
+  const message = (req.message || "").trim();
+  if (!message) throw new Error("missing_message");
+
+  const messages = buildChatMessages(req);
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.55,
+      max_tokens: 400,
+      stream: true,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`openai_${res.status}`);
+  if (!res.body) throw new Error("openai_no_body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data: ")) continue;
+      const data = trimmed.slice(6);
+      if (data === "[DONE]") return;
+      try {
+        const json = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] };
+        const delta = json.choices?.[0]?.delta?.content;
+        if (typeof delta === "string" && delta) yield delta;
+      } catch {
+        /* skip malformed chunk */
+      }
+    }
+  }
 }

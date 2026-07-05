@@ -39,12 +39,9 @@
       });
     });
   }
-  function setSettings(partial) {
-    return enqueue(async () => {
-      const r = await chrome.storage.local.get(["settings"]);
-      const settings = { ...DEFAULTS, ...r.settings || {}, ...partial };
-      await chrome.storage.local.set({ settings });
-      return settings;
+  function setAgentPinned(pinned) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ agentPinned: pinned }, () => resolve());
     });
   }
   function getVocab() {
@@ -375,7 +372,7 @@
         await setWordState(target.dataset.word, target.value);
       });
     });
-    byId("mode-pill").textContent = settings.pauseMode;
+    byId("mode-note").textContent = "Mode in copilot panel";
   }
   async function activeTabId() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -407,17 +404,16 @@
       });
     });
   }
+  async function pinAgentPanel() {
+    const tabId = await activeTabId();
+    if (tabId == null) return;
+    await setAgentPinned(true);
+    chrome.runtime.sendMessage({ type: "avc-agent-pin", tabId });
+  }
   document.addEventListener("DOMContentLoaded", () => {
     render();
     initListening();
-    const modes = ["copilot", "pause", "off"];
-    byId("mode-pill").addEventListener("click", async (e) => {
-      const settings = await getSettings();
-      const idx = modes.indexOf(settings.pauseMode);
-      const next = modes[(idx + 1) % modes.length];
-      await setSettings({ pauseMode: next });
-      e.target.textContent = next;
-    });
+    void pinAgentPanel();
     byId("dashboard-link").addEventListener("click", (e) => {
       e.preventDefault();
       chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });

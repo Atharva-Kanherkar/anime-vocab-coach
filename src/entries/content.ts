@@ -279,6 +279,11 @@ declare global {
       sendResponse({ key: cacheKey || null });
       return true;
     }
+    if (msg.type === "avc-agent-show") {
+      overlay.ensureAgentMounted();
+      sendResponse({ ok: true });
+      return true;
+    }
     if (msg.type === "avc-listening-state") {
       listeningActive = !!msg.active;
       if (listeningActive) {
@@ -337,4 +342,8 @@ declare global {
   refreshCacheKey();
   const initial = pickAdapter();
   lastSessionId = initial ? sessionIdentity(platformForAdapter(initial)) : location.pathname;
+
+  void storage.getAgentPinned().then((pinned) => {
+    if (pinned) overlay.ensureAgentMounted();
+  });
 })();

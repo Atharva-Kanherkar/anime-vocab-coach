@@ -131,6 +131,45 @@
   async function fetchChat(message, history, payload) {
     return postCoach({ mode: "chat", message, history, ...payload });
   }
+  async function streamChat(message, history, payload, onChunk) {
+    const token = await getSyncToken();
+    if (!token) return { ok: false, error: "not_linked" };
+    try {
+      const res = await fetch(WEB_URL + "/api/ai/coach/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ mode: "chat", message, history, ...payload })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { ok: false, error: data.error || `http_${res.status}` };
+      }
+      if (!res.body) return { ok: false, error: "no_body" };
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const json = JSON.parse(line.slice(6));
+            if (json.error) return { ok: false, error: json.error };
+            if (typeof json.delta === "string") onChunk(json.delta);
+          } catch {
+          }
+        }
+      }
+      return { ok: true };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
 
   // src/entries/background.ts
   chrome.runtime.onInstalled.addListener(() => {
@@ -314,6 +353,18 @@
       fetchChat(msg.message, msg.history || [], msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
     }
+    if (msg.type === "avc-agent-pin") {
+      ensureContentScript(msg.tabId).then((ok) => {
+        if (!ok) {
+          sendResponse({ ok: false, error: "Could not load into this tab." });
+          return;
+        }
+        chrome.tabs.sendMessage(msg.tabId, { type: "avc-agent-show" }, () => {
+          sendResponse({ ok: !chrome.runtime.lastError });
+        });
+      }).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
     if (msg.type === "avc-transcript") {
       console.log("[AVC] relaying transcript to tab", msg.tabId, "\u2192", msg.text);
       chrome.tabs.sendMessage(msg.tabId, { type: "avc-transcript", text: msg.text }).catch((err) => {
@@ -342,6 +393,31 @@
         console.warn("[AVC] listening error:", msg.code, msg.detail || "");
       });
     }
+  });
+  chrome.runtime.onConnect.addListener((port) => {
+    if (port.name !== "avc-chat-stream") return;
+    port.onMessage.addListener((msg) => {
+      void (async () => {
+        let full = "";
+        const result = await streamChat(
+          msg.message,
+          msg.history || [],
+          msg.payload,
+          (delta) => {
+            full += delta;
+            try {
+              port.postMessage({ type: "chunk", delta });
+            } catch {
+            }
+          }
+        );
+        if (result.ok) {
+          port.postMessage({ type: "done" });
+        } else {
+          port.postMessage({ type: "error", error: result.error || "stream_failed" });
+        }
+      })();
+    });
   });
   chrome.tabs.onRemoved.addListener(async (tabId) => {
     const tabs = await getListening();

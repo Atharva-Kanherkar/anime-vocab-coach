@@ -56,6 +56,18 @@ export function setSettings(partial: Partial<Settings>): Promise<Settings> {
   });
 }
 
+export function getAgentPinned(): Promise<boolean> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["agentPinned"], (r) => resolve(!!r.agentPinned));
+  });
+}
+
+export function setAgentPinned(pinned: boolean): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ agentPinned: pinned }, () => resolve());
+  });
+}
+
 export function getVocab(): Promise<VocabMap> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["vocab"], (r) => resolve((r.vocab as VocabMap | undefined) || {}));
