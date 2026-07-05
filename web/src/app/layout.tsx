@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { dark } from "@clerk/themes";
 import { FxAudioPrimer } from "@/components/fx-audio-primer";
 import { ScrollEffects } from "@/components/site-chrome";
 import {
@@ -35,6 +36,7 @@ const notoJp = Noto_Sans_JP({
 });
 
 const clerkAppearance = {
+  baseTheme: dark,
   variables: {
     colorPrimary: "#e3ba63",
     colorBackground: "#10141f",
