@@ -4,7 +4,7 @@ import { isOwnerEmail, OWNER_AI_LIMIT } from "@/lib/entitlements";
 import { getNotebookStore } from "@/lib/notebook-store";
 import { runNotebookSummary } from "@/lib/notebook-ai";
 import { currentMonth, getCoachConfig, getOpenAiKey, getUsage, incrementUsage } from "@/lib/ai-store";
-import { aiLimitForPlan, launchActive } from "@/lib/ai-coach";
+import { aiLimitForPlan } from "@/lib/ai-coach";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +26,10 @@ export async function POST(req: Request, { params }: Params) {
   const apiKey = await getOpenAiKey();
   if (!apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
 
-  const { model, freeLimit, proLimit, launchLimit, launchUntil } = await getCoachConfig();
-  const isLaunch = launchActive(launchUntil);
+  // Pro is open to everyone: Pro cap for all, unlimited for owners.
+  const { model, freeLimit, proLimit } = await getCoachConfig();
   const plan = resolvePlan();
-  const limit = isOwnerEmail(profile.email)
-    ? OWNER_AI_LIMIT
-    : isLaunch
-      ? launchLimit
-      : aiLimitForPlan(plan, freeLimit, proLimit);
+  const limit = isOwnerEmail(profile.email) ? OWNER_AI_LIMIT : aiLimitForPlan(plan, freeLimit, proLimit);
   const month = currentMonth();
   const used = await getUsage(profile.id, month);
   if (used >= limit) {

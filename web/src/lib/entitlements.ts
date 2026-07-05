@@ -12,6 +12,9 @@ export const OWNER_EMAILS = [
 // High enough to be "unlimited" in practice, low enough to stop a runaway loop.
 export const OWNER_AI_LIMIT = 1_000_000;
 
+// Normalize both sides so a future mixed-case allowlist entry still matches.
+const OWNER_SET = new Set(OWNER_EMAILS.map((e) => e.trim().toLowerCase()));
+
 export function isOwnerEmail(email: string | null | undefined): boolean {
-  return !!email && OWNER_EMAILS.includes(email.trim().toLowerCase());
+  return !!email && OWNER_SET.has(email.trim().toLowerCase());
 }

@@ -4,7 +4,6 @@ import { isOwnerEmail, OWNER_AI_LIMIT } from "@/lib/entitlements";
 import {
   aiLimitForPlan,
   coachCacheKey,
-  launchActive,
   normalizeCoachRequest,
   runCoach,
   type Tier,
@@ -47,17 +46,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
   }
 
-  const { model, freeLimit, proLimit, launchLimit, launchUntil } = await getCoachConfig();
-  // Free launch: while the window is open, every signed-in account gets all
-  // features at one capped limit. No Dodo/plan gating. After the window, fall
-  // back to per-plan limits.
-  const isLaunch = launchActive(launchUntil);
-  const tier: Tier = isLaunch ? "launch" : user.plan;
-  const limit = owner
-    ? OWNER_AI_LIMIT
-    : isLaunch
-      ? launchLimit
-      : aiLimitForPlan(user.plan, freeLimit, proLimit);
+  // Pro is open to everyone: non-owners get the Pro monthly cap, owners are
+  // effectively unlimited. (The old free-launch window is gone — it capped
+  // everyone LOWER than Pro, which contradicts "Pro for everyone".)
+  const { model, freeLimit, proLimit } = await getCoachConfig();
+  const tier: Tier = user.plan; // "pro" for everyone
+  const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit);
   const month = currentMonth();
 
   // Cache hit: free to serve, does not consume quota.
