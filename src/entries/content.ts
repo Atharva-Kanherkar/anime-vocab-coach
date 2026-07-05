@@ -184,7 +184,8 @@ declare global {
       contextEn: context?.en || "",
       fromAudio: !!context?.fromAudio,
       tokens,
-      targetIndex: tokens.indexOf(target.token)
+      targetIndex: tokens.indexOf(target.token),
+      title: currentTitle()
     };
 
     let judgment: Awaited<ReturnType<typeof overlay.showCard>>;

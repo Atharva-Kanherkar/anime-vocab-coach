@@ -90,6 +90,19 @@ try {
     } else {
       check("AI coach explain returns meaning", coach.status === 200 && !!coach.body?.result?.meaning,
         coach.status === 200 ? "" : `status ${coach.status} ${JSON.stringify(coach.body)}`);
+
+      // The overlay card calls the coach via the extension's sync-token bearer
+      // (routed through the background). Prove that auth path works.
+      const bearer = await page.evaluate(async () => {
+        const t = await (await fetch("/api/sync/token", { method: "POST" })).json();
+        const res = await fetch("/api/ai/coach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + t.token },
+          body: JSON.stringify({ mode: "explain", word: "見る", reading: "みる", gloss: "to see", line: "星を見る。", level: 5, title: "Your Name" }),
+        });
+        return { status: res.status, hasMeaning: !!(await res.json())?.result?.meaning };
+      });
+      check("coach accepts extension sync-token bearer", bearer.status === 200 && bearer.hasMeaning, `status ${bearer.status}`);
     }
   }
 

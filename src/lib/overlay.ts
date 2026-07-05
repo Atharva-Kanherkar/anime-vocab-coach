@@ -1,5 +1,5 @@
 import * as romaji from "./romaji";
-import type { DisplayScript, Judgment, Target, Token } from "../types";
+import type { DictEntry, DisplayScript, Judgment, Target, Token } from "../types";
 
 let open = false;
 let resolveFn: ((judgment: Judgment) => void) | null = null;
@@ -72,6 +72,19 @@ const STYLES = `
   .avc-sentence mark {
     background: transparent; color: #d96c4f; font-weight: 700;
   }
+  .avc-ai { margin: 4px 0 14px; }
+  .avc-ai-btns { display: flex; gap: 8px; }
+  .avc-ai-btn {
+    flex: 1; padding: 7px 10px; font-size: 13px; cursor: pointer;
+    background: rgba(227,186,99,.12); color: #f0efec;
+    border: 1px solid rgba(227,186,99,.4); border-radius: 8px;
+  }
+  .avc-ai-btn:hover { background: rgba(227,186,99,.2); }
+  .avc-ai-btn:disabled { opacity: .5; cursor: default; }
+  .avc-ai-out { margin-top: 8px; font-size: 13px; line-height: 1.5; color: rgba(240,239,236,.9); }
+  .avc-ai-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: rgba(240,239,236,.45); margin-top: 8px; }
+  .avc-ai-hooks { margin: 4px 0 0 16px; }
+  .avc-ai-hooks li { margin: 3px 0; }
   .avc-buttons { display: flex; gap: 8px; margin-bottom: 12px; }
   .avc-buttons button {
     flex: 1; border-radius: 7px; padding: 10px 6px 8px; cursor: pointer;
@@ -227,6 +240,92 @@ function finish(root: ShadowRoot, video: HTMLVideoElement | null, wasPlaying: bo
   }
 }
 
+// ---------- AI coach on the card ----------
+interface CoachResp { ok?: boolean; error?: string; result?: { meaning?: string; nuance?: string; hooks?: string[] }; }
+
+function appendAiLine(out: HTMLElement, label: string, body: string): void {
+  const l = document.createElement("div");
+  l.className = "avc-ai-label";
+  l.textContent = label;
+  const p = document.createElement("div");
+  p.className = "avc-ai-body";
+  p.textContent = body; // textContent — never inject model output as HTML
+  out.appendChild(l);
+  out.appendChild(p);
+}
+
+function renderAi(out: HTMLElement, mode: "explain" | "hooks", resp: CoachResp | undefined): void {
+  out.textContent = "";
+  if (!resp || !resp.ok) {
+    out.textContent =
+      resp?.error === "not_linked" ? "Sign in at animevocab.com to use the AI coach."
+      : resp?.error === "quota_exceeded" || resp?.error === "ai_quota_exhausted" ? "You've used this month's AI coach calls."
+      : resp?.error === "ai_not_configured" ? "AI coach isn't set up on the server yet."
+      : "AI coach unavailable. Try again.";
+    return;
+  }
+  const r = resp.result || {};
+  if (mode === "explain") {
+    if (r.meaning) appendAiLine(out, "Meaning", r.meaning);
+    if (r.nuance) appendAiLine(out, "Why said this way", r.nuance);
+    if (!r.meaning && !r.nuance) out.textContent = "No explanation came back.";
+  } else if (Array.isArray(r.hooks) && r.hooks.length) {
+    const ul = document.createElement("ul");
+    ul.className = "avc-ai-hooks";
+    for (const h of r.hooks) { const li = document.createElement("li"); li.textContent = h; ul.appendChild(li); }
+    out.appendChild(ul);
+  } else {
+    out.textContent = "No hooks came back.";
+  }
+}
+
+// Explain / memory-hook buttons that call the coach for THIS word in THIS line
+// (via the background, which holds the token and host permission).
+function buildAiSection(token: Token, entry: DictEntry, sentence: string, title: string | null): HTMLElement {
+  const ai = document.createElement("div");
+  ai.className = "avc-ai";
+  const btns = document.createElement("div");
+  btns.className = "avc-ai-btns";
+  const explainBtn = document.createElement("button");
+  explainBtn.className = "avc-ai-btn";
+  explainBtn.type = "button";
+  explainBtn.textContent = "✨ Explain";
+  const hookBtn = document.createElement("button");
+  hookBtn.className = "avc-ai-btn";
+  hookBtn.type = "button";
+  hookBtn.textContent = "💡 Hooks";
+  const out = document.createElement("div");
+  out.className = "avc-ai-out";
+  out.style.display = "none";
+  btns.appendChild(explainBtn);
+  btns.appendChild(hookBtn);
+  ai.appendChild(btns);
+  ai.appendChild(out);
+
+  const ask = async (mode: "explain" | "hooks"): Promise<void> => {
+    explainBtn.disabled = true;
+    hookBtn.disabled = true;
+    out.style.display = "";
+    out.textContent = "Thinking…";
+    try {
+      const resp = (await chrome.runtime.sendMessage({
+        type: "avc-coach",
+        mode,
+        payload: { word: token.base, reading: entry.reading, gloss: entry.glosses[0] || "", line: sentence, level: entry.level, title }
+      })) as CoachResp | undefined;
+      renderAi(out, mode, resp);
+    } catch {
+      out.textContent = "AI coach unavailable. Try again.";
+    } finally {
+      explainBtn.disabled = false;
+      hookBtn.disabled = false;
+    }
+  };
+  explainBtn.addEventListener("click", (e) => { e.stopPropagation(); void ask("explain"); });
+  hookBtn.addEventListener("click", (e) => { e.stopPropagation(); void ask("hooks"); });
+  return ai;
+}
+
 export interface CardOptions {
   autoResumeSec?: number;
   displayScript?: DisplayScript;
@@ -235,6 +334,7 @@ export interface CardOptions {
   fromAudio?: boolean;
   tokens?: Token[];
   targetIndex?: number;
+  title?: string | null;
 }
 
 export function showCard(
@@ -342,6 +442,11 @@ export function showCard(
   card.appendChild(glossEl);
   if (contextEl) card.appendChild(contextEl);
   card.appendChild(sentenceEl);
+
+  // AI coach, right on the card — explain the phrasing or get a memory hook for
+  // this exact word in this exact line. Routed through the background (CORS),
+  // and only works when linked to an account (otherwise a gentle prompt).
+  card.appendChild(buildAiSection(token, entry, sentence, opts.title || null));
 
   interface ButtonSpec { cls: string; ja: string; en: string; val: Judgment; key: string; }
   let judgments: ButtonSpec[];

@@ -109,6 +109,24 @@
     }
   }
 
+  // src/lib/coach-client.ts
+  async function fetchCoach(mode, payload) {
+    const token = await getSyncToken();
+    if (!token) return { ok: false, error: "not_linked" };
+    try {
+      const res = await fetch(WEB_URL + "/api/ai/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ mode, ...payload })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
+      return { ok: true, result: data.result };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
+
   // src/entries/background.ts
   chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(["settings"], (result) => {
@@ -272,6 +290,10 @@
       pushSnapshot().catch(() => {
       });
       return;
+    }
+    if (msg.type === "avc-coach") {
+      fetchCoach(msg.mode, msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
     }
     if (msg.type === "avc-transcript") {
       console.log("[AVC] relaying transcript to tab", msg.tabId, "\u2192", msg.text);

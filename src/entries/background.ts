@@ -1,6 +1,7 @@
 import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
 import { pushSnapshot } from "../lib/cloud-sync";
+import { fetchCoach, type CoachMode, type CoachPayload } from "../lib/coach-client";
 import type { Settings } from "../types";
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -182,6 +183,8 @@ interface RuntimeMsg {
   detail?: string;
   time?: number;
   paused?: boolean;
+  mode?: string;
+  payload?: unknown;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
@@ -217,6 +220,15 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   if (msg.type === "avc-sync-now") {
     pushSnapshot().catch(() => {});
     return;
+  }
+
+  // Overlay card AI: content scripts can't call the hosted API cross-origin, so
+  // they ask us. We hold the sync token and the host permission.
+  if (msg.type === "avc-coach") {
+    fetchCoach(msg.mode as CoachMode, msg.payload as CoachPayload)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
   }
 
   if (msg.type === "avc-transcript") {
