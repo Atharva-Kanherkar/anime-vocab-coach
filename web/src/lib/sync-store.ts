@@ -31,7 +31,8 @@ const devKV: SyncKV = {
   put: async (k, v) => void devStore.set(k, v),
 };
 
-async function resolveStore(): Promise<SyncKV> {
+// Exported so other stores (e.g. notebooks) share one KV accessor + dev fallback.
+export async function resolveStore(): Promise<SyncKV> {
   const kv = await getKV();
   if (kv) return kv;
   if (process.env.NODE_ENV !== "production") return devKV;
