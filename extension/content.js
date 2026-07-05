@@ -38,7 +38,7 @@
   function hasKanji(base) {
     return /[一-鿿]/.test(base);
   }
-  function checkEligibility(token, wordStates, targetedSet) {
+  function checkEligibility(token, wordStates, targetedSet, now = Date.now()) {
     const { base, pos, pos1 } = token;
     if (!ELIGIBLE_POS.includes(pos)) {
       return { eligible: false, countSeen: false };
@@ -53,9 +53,14 @@
     if (!entry) {
       return { eligible: false, countSeen: false };
     }
-    const state = wordStates[base]?.state;
+    const rec = wordStates[base];
+    const state = rec?.state;
     if (state === "known" || state === "ignored") {
       return { eligible: false, countSeen: true, entry };
+    }
+    if (state === "learning") {
+      const due = !!rec?.srs && rec.srs.dueAt <= now;
+      if (!due) return { eligible: false, countSeen: true, entry };
     }
     if (targetedSet && targetedSet.has(base)) {
       return { eligible: false, countSeen: true, entry };
@@ -64,13 +69,13 @@
   }
   function pickTarget(tokens, wordStates, settings, targetedSet) {
     const survivors = [];
+    const now = Date.now();
     for (const token of tokens) {
-      const check = checkEligibility(token, wordStates, targetedSet);
+      const check = checkEligibility(token, wordStates, targetedSet, now);
       if (check.eligible && check.entry) {
         survivors.push({ token, entry: check.entry });
       }
     }
-    const now = Date.now();
     const dueReviews = survivors.filter(({ token }) => {
       const rec = wordStates[token.base];
       return rec?.state === "learning" && rec.srs && rec.srs.dueAt <= now;

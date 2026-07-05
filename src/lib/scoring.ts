@@ -14,7 +14,12 @@ export interface Eligibility {
   entry?: DictEntry;
 }
 
-export function checkEligibility(token: Token, wordStates: VocabMap, targetedSet: Set<string> | null): Eligibility {
+export function checkEligibility(
+  token: Token,
+  wordStates: VocabMap,
+  targetedSet: Set<string> | null,
+  now: number = Date.now()
+): Eligibility {
   const { base, pos, pos1 } = token;
 
   if (!ELIGIBLE_POS.includes(pos)) {
@@ -32,9 +37,17 @@ export function checkEligibility(token: Token, wordStates: VocabMap, targetedSet
     return { eligible: false, countSeen: false };
   }
 
-  const state = wordStates[base]?.state;
+  const rec = wordStates[base];
+  const state = rec?.state;
   if (state === "known" || state === "ignored") {
     return { eligible: false, countSeen: true, entry };
+  }
+  // A word being learned is only eligible when its review is actually due.
+  // Otherwise it must NOT fall through to the new-word path — showing it as a
+  // fresh "learn" card would reset its SRS progress. It's still counted as seen.
+  if (state === "learning") {
+    const due = !!rec?.srs && rec.srs.dueAt <= now;
+    if (!due) return { eligible: false, countSeen: true, entry };
   }
   if (targetedSet && targetedSet.has(base)) {
     return { eligible: false, countSeen: true, entry };
@@ -50,15 +63,15 @@ export function pickTarget(
   targetedSet: Set<string>
 ): Target | null {
   const survivors: { token: Token; entry: DictEntry }[] = [];
+  const now = Date.now();
 
   for (const token of tokens) {
-    const check = checkEligibility(token, wordStates, targetedSet);
+    const check = checkEligibility(token, wordStates, targetedSet, now);
     if (check.eligible && check.entry) {
       survivors.push({ token, entry: check.entry });
     }
   }
 
-  const now = Date.now();
   const dueReviews = survivors.filter(({ token }) => {
     const rec = wordStates[token.base];
     return rec?.state === "learning" && rec.srs && rec.srs.dueAt <= now;
