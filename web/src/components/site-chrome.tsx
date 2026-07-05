@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { useEffect, useState, type CSSProperties } from "react";
 import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
-import { CLERK_ENABLED } from "@/lib/flags";
 
 export function SiteHeader({ compact = false }: { compact?: boolean }) {
   return (
@@ -46,8 +45,6 @@ export function HomeNav() {
 }
 
 export function AuthControls({ size = "md" }: { size?: "sm" | "md" }) {
-  if (!CLERK_ENABLED) return null;
-
   const lineClass = size === "sm" ? "btn btn-sm btn-line" : "btn btn-line";
   const accentClass = size === "sm" ? "btn btn-sm btn-accent" : "btn btn-accent";
 

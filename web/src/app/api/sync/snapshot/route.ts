@@ -1,6 +1,5 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { CLERK_ENABLED } from "@/lib/flags";
 import { getCloudSyncEnvelope, putCloudSyncEnvelope } from "@/lib/sync-store";
 import {
   applyCloudSyncUpdate,
@@ -17,10 +16,6 @@ const MAX_SYNC_DAILY_ROWS = 5_000;
 const MAX_SYNC_CARD_TIMESTAMPS = 10_000;
 
 async function resolveProfile(): Promise<CloudUserProfile | null> {
-  if (!CLERK_ENABLED) {
-    return null;
-  }
-
   const user = await currentUser();
   if (!user) return null;
 
@@ -32,8 +27,6 @@ async function resolveProfile(): Promise<CloudUserProfile | null> {
 }
 
 export async function GET() {
-  if (!CLERK_ENABLED) return NextResponse.json({ error: "sync_auth_disabled" }, { status: 501 });
-
   const profile = await resolveProfile();
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -49,8 +42,6 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  if (!CLERK_ENABLED) return NextResponse.json({ error: "sync_auth_disabled" }, { status: 501 });
-
   const profile = await resolveProfile();
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 

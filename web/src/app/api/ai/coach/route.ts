@@ -1,6 +1,5 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { CLERK_ENABLED } from "@/lib/flags";
 import {
   aiLimitForPlan,
   coachCacheKey,
@@ -23,10 +22,6 @@ import {
 export const dynamic = "force-dynamic";
 
 async function resolveUser(): Promise<{ id: string; plan: Plan } | null> {
-  // Clerk off (local dev): a single dev identity on the free plan so the route
-  // can be exercised without keys.
-  if (!CLERK_ENABLED) return { id: "local-dev", plan: "free" };
-
   const user = await currentUser();
   if (!user) return null;
 
