@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCloudSnapshot } from "@/components/cloud-sync-panel";
 import { computeStreak } from "@/lib/gamification";
 import { summarizeSyncSnapshot } from "@/lib/sync";
@@ -8,6 +8,7 @@ import {
   CARDS,
   RARITY_LABEL,
   RARITY_STARS,
+  STYLE_FAMILIES,
   computeXp,
   levelState,
   nextUnlock,
@@ -34,6 +35,7 @@ export function CardsPanel({ owner = false }: { owner?: boolean }) {
   const unlockedThrough = owner ? Infinity : lvl.level;
   const owned = owner ? CARDS.length : CARDS.filter((c) => c.level <= lvl.level).length;
   const pct = Math.min(100, Math.round((lvl.intoLevel / lvl.forNext) * 100));
+  const [open, setOpen] = useState<CardDef | null>(null);
 
   return (
     <section aria-label="Card collection">
@@ -67,10 +69,23 @@ export function CardsPanel({ owner = false }: { owner?: boolean }) {
       <ul className="mt-9 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {CARDS.map((card) => (
           <li key={card.id}>
-            {card.level <= unlockedThrough ? <Card card={card} /> : <LockedCard card={card} />}
+            {card.level <= unlockedThrough ? (
+              <button
+                type="button"
+                onClick={() => setOpen(card)}
+                aria-label={`Open ${card.name}`}
+                className="block w-full cursor-pointer text-left transition hover:-translate-y-1"
+              >
+                <Card card={card} />
+              </button>
+            ) : (
+              <LockedCard card={card} />
+            )}
           </li>
         ))}
       </ul>
+
+      {open && <CardModal card={open} onClose={() => setOpen(null)} />}
 
       <p className="mt-8 text-[13px] text-ink3">
         Placeholder art for now — original characters, real illustrated cards are on the way. Your
@@ -129,6 +144,55 @@ function Card({ card }: { card: CardDef }) {
         </p>
       </footer>
     </article>
+  );
+}
+
+function CardModal({ card, onClose }: { card: CardDef; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${card.name} card`}
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 p-5"
+    >
+      <div onClick={(e) => e.stopPropagation()} className="my-auto w-full max-w-[340px]">
+        <div className="animate-[fade_180ms_ease]">
+          <Card card={card} />
+        </div>
+
+        <div className="av-card mt-3 p-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="font-jpround text-2xl font-black leading-none">{card.kanji}</span>
+            <span className="font-jp text-sm text-ink2">{card.reading}</span>
+          </div>
+          <p className="mt-2 text-[15px] font-bold">{card.epithet}</p>
+          <p className="mt-1 text-[13px] text-ink2">
+            {STYLE_FAMILIES[card.style].label} style · {RARITY_LABEL[card.rarity]} · unlocks at level {card.level}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          autoFocus
+          className="av-btn av-btn-ghost mt-3 w-full"
+        >
+          Close
+        </button>
+      </div>
+    </div>
   );
 }
 

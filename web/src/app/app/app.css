@@ -207,6 +207,7 @@
   animation: av-tick 30s linear infinite;
 }
 @keyframes av-tick { to { transform: translateX(-100%); } }
+@keyframes fade { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
 
 /* ---- speech bubble ---------------------------------------------------------*/
 :where(.av-bubble) {
