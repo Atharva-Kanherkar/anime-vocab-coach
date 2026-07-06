@@ -15,7 +15,7 @@ import {
 } from "@/lib/cards";
 import { CARD_ART } from "@/lib/cards-art";
 
-export function CardsPanel() {
+export function CardsPanel({ owner = false }: { owner?: boolean }) {
   const snapshot = useCloudSnapshot();
   const { lvl, next } = useMemo(() => {
     const summary = summarizeSyncSnapshot(snapshot);
@@ -30,7 +30,9 @@ export function CardsPanel() {
     return { lvl, next: nextUnlock(lvl.level) };
   }, [snapshot]);
 
-  const owned = CARDS.filter((c) => c.level <= lvl.level).length;
+  // Owners preview the whole set regardless of XP.
+  const unlockedThrough = owner ? Infinity : lvl.level;
+  const owned = owner ? CARDS.length : CARDS.filter((c) => c.level <= lvl.level).length;
   const pct = Math.min(100, Math.round((lvl.intoLevel / lvl.forNext) * 100));
 
   return (
@@ -42,8 +44,9 @@ export function CardsPanel() {
             {lvl.rankKanji} <span className="text-ink2">·</span> {lvl.rankName}
           </h1>
           <p className="mt-2 text-[15px] text-ink2">
-            Level {lvl.level} · {owned} of {CARDS.length} cards collected
-            {next ? ` · next card at level ${next.level}` : " · full set!"}
+            {owner
+              ? `Owner preview · all ${CARDS.length} cards unlocked`
+              : `Level ${lvl.level} · ${owned} of ${CARDS.length} cards collected${next ? ` · next card at level ${next.level}` : " · full set!"}`}
           </p>
         </div>
         <div className="w-full max-w-[260px]">
@@ -64,7 +67,7 @@ export function CardsPanel() {
       <ul className="mt-9 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {CARDS.map((card) => (
           <li key={card.id}>
-            {card.level <= lvl.level ? <Card card={card} /> : <LockedCard card={card} />}
+            {card.level <= unlockedThrough ? <Card card={card} /> : <LockedCard card={card} />}
           </li>
         ))}
       </ul>

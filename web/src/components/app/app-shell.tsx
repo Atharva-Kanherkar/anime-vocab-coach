@@ -25,7 +25,7 @@ const NAV: { id: SectionId; label: string }[] = [
   { id: "backup", label: "Backup" },
 ];
 
-export function AppShell({ name }: { name: string }) {
+export function AppShell({ name, owner = false }: { name: string; owner?: boolean }) {
   const [section, setSection] = useState<SectionId>("today");
 
   return (
@@ -80,7 +80,7 @@ export function AppShell({ name }: { name: string }) {
             <NotebooksPanel />
           </div>
           <div hidden={section !== "cards"}>
-            <CardsPanel />
+            <CardsPanel owner={owner} />
           </div>
           <div hidden={section !== "progress"}>
             <GamificationPanel />
