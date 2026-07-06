@@ -13,6 +13,7 @@ import {
   nextUnlock,
   type CardDef,
 } from "@/lib/cards";
+import { CARD_ART } from "@/lib/cards-art";
 
 export function CardsPanel() {
   const snapshot = useCloudSnapshot();
@@ -86,6 +87,7 @@ const RARITY_FRAME: Record<CardDef["rarity"], string> = {
 
 function Card({ card }: { card: CardDef }) {
   const inverted = card.rarity === "UR";
+  const art = card.art ?? CARD_ART[card.id];
   return (
     <article className={`av-tcg ${RARITY_FRAME[card.rarity]} ${inverted ? "bg-ink text-bg" : ""}`}>
       <header
@@ -98,10 +100,10 @@ function Card({ card }: { card: CardDef }) {
         <span>LV {card.level}</span>
       </header>
 
-      {card.art ? (
+      {art ? (
         <div className="relative flex-1">
           {/* eslint-disable-next-line @next/next/no-img-element -- static asset, fixed frame */}
-          <img src={card.art} alt={`${card.name} card art`} className="absolute inset-0 h-full w-full object-cover" />
+          <img src={art} alt={`${card.name} card art`} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       ) : (
         <div className={`relative flex flex-1 items-center justify-center ${card.rarity === "SSR" ? "av-stripes" : "av-dots"}`}>
