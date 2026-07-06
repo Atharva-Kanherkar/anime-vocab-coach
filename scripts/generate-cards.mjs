@@ -76,12 +76,19 @@ const BACKDROP = [
   "background: a suggested environment, softly out of focus behind the subject",
 ];
 
-const CONSTRAINTS = `Absolutely NO text, NO letters, NO kanji, NO numbers, NO logo,
-NO watermark, NO speech bubbles, NO card frame, NO border — full-bleed 2D anime
-artwork only (the app draws the frame and title on top). Exactly ONE main
-character/subject. Hand-drawn 2D illustration, not 3D render, not a photograph.
-Keep the top 12% and bottom 18% of the image relatively simple and low-detail
-(UI bars overlay those areas).`;
+const CONSTRAINTS = `This must be a WHOLLY ORIGINAL character invented for this card.
+Do NOT depict, resemble, or copy any existing, real, famous, or trademarked
+character — no recognizable faces, hairstyles, costumes, color-schemes, or
+signature weapons from known anime/games. Only the general ART STYLE is
+borrowed; the character, outfit, and design are brand new and match the
+described nationality and personality.
+
+Absolutely NO text, NO letters, NO kanji, NO numbers, NO logo, NO watermark, NO
+speech bubbles, NO card frame, NO border — full-bleed 2D anime artwork only
+(the app draws the frame and title on top). Exactly ONE main character/subject.
+Hand-drawn 2D illustration, not a 3D render, not a photograph. Keep the top 12%
+and bottom 18% of the image relatively simple and low-detail (UI bars overlay
+those areas).`;
 
 function buildPrompt(card, index, safe = false) {
   const fam = STYLE_FAMILIES[card.style];

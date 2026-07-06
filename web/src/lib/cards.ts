@@ -11,7 +11,7 @@ export type Rarity = "N" | "R" | "SR" | "SSR" | "UR";
 export type StyleKey =
   | "slayer" | "titan" | "reaper" | "spirit" | "curse"
   | "voyage" | "lunar" | "neon" | "hearth" | "psyche"
-  | "mecha" | "horizon" | "pocket" | "eclipse" | "chibi";
+  | "mecha" | "horizon" | "pocket" | "shadow" | "chibi";
 
 export interface StyleFamily {
   label: string;
@@ -97,10 +97,12 @@ export const STYLE_FAMILIES: Record<StyleKey, StyleFamily> = {
     styleSafe:
       "Bright friendly monster-collector art style: clean rounded shapes, cheerful gouache-watercolor coloring, an adventurous kid alongside a small original cartoon creature companion, wholesome energy.",
   },
-  eclipse: {
-    label: "Black Eclipse",
+  shadow: {
+    label: "Shadow Monarch",
     style:
-      "Art style inspired by Berserk dark fantasy (Kentaro Miura): dense heavy ink hatching, gothic ornate armor, dramatic chiaroscuro, grim medieval mood, intricate rendered detail.",
+      "Art style inspired by Korean action manhwa (Solo Leveling): sleek high-detail digital webtoon rendering, dramatic glowing magic effects, sharp cinematic rim lighting, modern hunter armor and coats, cool blue-violet energy.",
+    styleSafe:
+      "Modern Korean action-webtoon art style: sleek high-detail digital rendering, dramatic glowing magic effects, sharp cinematic rim lighting, sleek hunter armor and long coats, cool blue-violet energy.",
   },
   chibi: {
     label: "Tiny Squad",
@@ -185,99 +187,101 @@ export function levelState(xp: number): LevelState {
   };
 }
 
-// 60 cards, grouped by style family (4 each). Level = unlock order; rarity
-// roughly climbs with level. Display groups by family so the collection reads
-// as style "sets".
+// 60 cards, grouped by style family (4 each). Every character is an ORIGINAL,
+// culturally distinct design (not a copy of any existing character). Loose
+// story — "The Word Rally": learners across the world who chase words through
+// the shows they watch; within each family the four grow apprentice → legend.
+// Level = unlock order; rarity climbs with level. Display groups by family.
 export const CARDS: CardDef[] = [
-  // — slayer —
-  { id: "sl_honoka", name: "Honoka", kanji: "炎", reading: "ほのお", epithet: "Ember of the First Breath", rarity: "N", level: 1, style: "slayer", look: "young swordfighter girl in a flame-patterned haori, hair tied back, gripping a nichirin katana, small embers drifting" },
-  { id: "sl_mizuho", name: "Mizuho", kanji: "水", reading: "みず", epithet: "Tide of the Tenth Form", rarity: "R", level: 17, style: "slayer", look: "calm swordsman mid-stance releasing a stylized wave of water, dark uniform under a striped haori, wet hair" },
-  { id: "sl_kagura", name: "Kagura", kanji: "鈴", reading: "すず", epithet: "Bell of the Broken Moon", rarity: "SR", level: 34, style: "slayer", look: "masked demon-hunter with a bell earring, twin short blades crossed, moonlit, patterned kimono sleeves torn" },
-  { id: "sl_akatsuki", name: "Akatsuki", kanji: "暁", reading: "あかつき", epithet: "Dawn That Ends the Night", rarity: "SSR", level: 49, style: "slayer", look: "regal swordmaster wreathed in intertwining flame and water dragons, ornate haori, dramatic sunrise" },
+  // — slayer: a Himalayan blade-order —
+  { id: "sl_honoka", name: "Devika", kanji: "炎", reading: "ほのお", epithet: "Ember of the First Breath", rarity: "N", level: 1, style: "slayer", look: "an Indian teenage girl swordfighter, dark braid with a marigold tucked in, wearing a saffron-and-charcoal patterned haori over a training gi, one hand trailing soft embers, eager grin" },
+  { id: "sl_mizuho", name: "Tenzin", kanji: "水", reading: "みず", epithet: "Tide of the Tenth Breath", rarity: "R", level: 17, style: "slayer", look: "a calm Tibetan young man in a slate-blue kimono coat with prayer-bead bracelet, sweeping a curved blade so it leaves a ribbon of stylized water, waterfall behind" },
+  { id: "sl_kagura", name: "Amara", kanji: "鈴", reading: "すず", epithet: "Bell of the Broken Moon", rarity: "SR", level: 34, style: "slayer", look: "a masked Ethiopian woman hunter with tight coiled hair and gold bell earrings, twin short blades crossed, indigo patterned cloak torn at the hem, moonlit ridge" },
+  { id: "sl_akatsuki", name: "Aurelio", kanji: "暁", reading: "あかつき", epithet: "Dawn That Ends the Night", rarity: "SSR", level: 49, style: "slayer", look: "a regal Italian swordmaster with silver-streaked hair and a scarred brow, ornate crimson haori, wreathed in intertwining flame-and-water dragons at sunrise, commanding" },
 
-  // — titan —
-  { id: "ti_reiner", name: "Sasel", kanji: "壁", reading: "かべ", epithet: "Watcher on the Wall", rarity: "N", level: 2, style: "titan", look: "grim young scout in survey-corps jacket and ODM gear straps, wind-blown cloak, standing atop a stone wall" },
-  { id: "ti_hana", name: "Hana", kanji: "翼", reading: "つばさ", epithet: "Wings of Freedom", rarity: "R", level: 18, style: "titan", look: "determined soldier girl mid-swing on maneuver-gear cables, cloak flaring, gritted teeth" },
-  { id: "ti_grim", name: "Volk", kanji: "巨", reading: "きょ", epithet: "The Nape-Cutter", rarity: "SR", level: 35, style: "titan", look: "scarred veteran commander, one arm bandaged, drawing dual blades, ruined city behind, storm clouds" },
-  { id: "ti_founder", name: "Ymir-less", kanji: "礎", reading: "いしずえ", epithet: "First of the Founding", rarity: "SSR", level: 50, style: "titan", look: "towering armored colossal figure of steam and muscle looming behind a tiny cloaked soldier, apocalyptic" },
+  // — titan: a coastal wall-guard —
+  { id: "ti_reiner", name: "Bjorn", kanji: "壁", reading: "かべ", epithet: "Watcher on the Wall", rarity: "N", level: 2, style: "titan", look: "a stocky blond Norwegian young scout in a worn leather-strap harness and green field cloak, breath fogging, standing watch atop a sea-cliff rampart at dawn" },
+  { id: "ti_hana", name: "Zola", kanji: "翼", reading: "つばさ", epithet: "Wings of Freedom", rarity: "R", level: 18, style: "titan", look: "a wiry South-African girl soldier with short locs, mid-swing on grappling cables between ruined towers, cloak snapping, fierce focus" },
+  { id: "ti_grim", name: "Dragan", kanji: "巨", reading: "きょ", epithet: "The Breach-Breaker", rarity: "SR", level: 35, style: "titan", look: "a broad scarred Serbian veteran captain with a shaved head and grey stubble, one forearm bandaged, drawing dual blades, storm over a shattered harbor city" },
+  { id: "ti_founder", name: "Meridian", kanji: "礎", reading: "いしずえ", epithet: "First of the Foundation", rarity: "SSR", level: 50, style: "titan", look: "a colossal steaming humanoid guardian of stone and muscle rising from the sea behind a tiny cloaked scout, apocalyptic scale, cold light" },
 
-  // — reaper —
-  { id: "re_kuro", name: "Kurogane", kanji: "斬", reading: "ざん", epithet: "Blade in Black", rarity: "N", level: 3, style: "reaper", look: "cool teen soul-reaper in a flowing black robe, oversized cleaver sword resting on shoulder, spiked hair" },
-  { id: "re_yuki", name: "Yukihime", kanji: "氷", reading: "こおり", epithet: "Frost Ceremony", rarity: "R", level: 19, style: "reaper", look: "elegant ice-wielding reaper woman, white sash, releasing crystalline petals, serene sharp eyes" },
-  { id: "re_zangetsu", name: "Getsuei", kanji: "月", reading: "つき", epithet: "Moonfang Released", rarity: "SR", level: 36, style: "reaper", look: "battle-worn reaper with a torn black coat and a massive crescent blade, spiral of dark energy, one glowing eye" },
-  { id: "re_king", name: "Reiou", kanji: "霊", reading: "れい", epithet: "The Spirit Throne", rarity: "SSR", level: 48, style: "reaper", look: "godlike robed figure fractured into shards of light on a black void, ornate high collar, single vermillion accent" },
+  // — reaper: soul-couriers of a spirit court —
+  { id: "re_kuro", name: "Renji", kanji: "斬", reading: "ざん", epithet: "Blade in Black", rarity: "N", level: 3, style: "reaper", look: "a cool Japanese teen soul-courier with messy dark hair, flowing black robe with an asymmetric collar, oversized cleaver-blade on the shoulder, single teal spot-color accent" },
+  { id: "re_yuki", name: "Sunmi", kanji: "氷", reading: "こおり", epithet: "The Frost Ceremony", rarity: "R", level: 19, style: "reaper", look: "an elegant Korean woman reaper in a white sash over black, releasing drifting crystalline petals, serene sharp eyes, minimal background with one blue accent" },
+  { id: "re_zangetsu", name: "Kwame", kanji: "月", reading: "つき", epithet: "Moonfang Unleashed", rarity: "SR", level: 36, style: "reaper", look: "a battle-worn Ghanaian reaper with a high fade and a torn black long-coat, wielding a huge crescent blade wrapped in dark energy, one eye glowing amber" },
+  { id: "re_king", name: "Sable", kanji: "霊", reading: "れい", epithet: "The Spirit Throne", rarity: "SSR", level: 48, style: "reaper", look: "a godlike androgynous French figure in an ornate high-collared robe, body fracturing into shards of light on a black void, single vermillion accent, majestic" },
 
-  // — spirit (ghibli) —
-  { id: "sp_totomi", name: "Totomi", kanji: "森", reading: "もり", epithet: "Friend of the Cedar", rarity: "N", level: 1, style: "spirit", look: "small round forest spirit with a leaf on its head standing in tall grass beside a curious child in a sun hat" },
-  { id: "sp_umi", name: "Umi", kanji: "海", reading: "うみ", epithet: "Girl of the Tide Pools", rarity: "N", level: 12, style: "spirit", look: "cheerful barefoot girl in a red dress running along a seaside cliff, wind in her hair, gulls overhead" },
-  { id: "sp_kama", name: "Kama-jii", kanji: "湯", reading: "ゆ", epithet: "Keeper of the Bathhouse", rarity: "R", level: 26, style: "spirit", look: "kindly whiskered old spirit with many arms tending a warm bathhouse boiler, steam curling, lanterns" },
-  { id: "sp_ohtori", name: "Ohtori", kanji: "空", reading: "そら", epithet: "Rider of the Sky Current", rarity: "SR", level: 43, style: "spirit", look: "girl gliding on a great white feathered creature above painted valleys and cloud seas, joyful" },
+  // — spirit (ghibli): wanderers of the green world —
+  { id: "sp_totomi", name: "Little Yam", kanji: "森", reading: "もり", epithet: "Friend of the Cedar", rarity: "N", level: 1, style: "spirit", look: "a small round earth-brown forest sprite with a broad leaf-hat and pebble eyes, standing in tall grass beside a curious Vietnamese child in a straw sun-hat, watercolor" },
+  { id: "sp_umi", name: "Isabela", kanji: "海", reading: "うみ", epithet: "Girl of the Tide Pools", rarity: "N", level: 12, style: "spirit", look: "a cheerful barefoot Brazilian girl in a faded red sundress running along a seaside cliff, curly hair in the wind, gulls overhead, soft painterly light" },
+  { id: "sp_kama", name: "Grandfather Ash", kanji: "湯", reading: "ゆ", epithet: "Keeper of the Bathhouse", rarity: "R", level: 26, style: "spirit", look: "a kindly whiskered old Turkish spirit with many gentle arms tending a warm copper bathhouse boiler, steam curling, hanging lanterns, cozy" },
+  { id: "sp_ohtori", name: "Nayeli", kanji: "空", reading: "そら", epithet: "Rider of the Sky Current", rarity: "SR", level: 43, style: "spirit", look: "a joyful Mexican girl gliding on a great white feathered creature above painted green valleys and cloud seas, embroidered shawl streaming" },
 
-  // — curse (jjk) —
-  { id: "cu_rei", name: "Rei", kanji: "呪", reading: "のろい", epithet: "First-Year Prodigy", rarity: "N", level: 4, style: "curse", look: "hooded student sorcerer with wrapped hands, dark smoke curling from a fist, confident smirk, school uniform" },
-  { id: "cu_maki", name: "Maki", kanji: "刃", reading: "は", epithet: "Cursed-Tool Bearer", rarity: "R", level: 20, style: "curse", look: "athletic fighter in glasses swinging a cursed polearm, tracksuit, energy trailing the blade" },
-  { id: "cu_domain", name: "Ankoku", kanji: "domain", reading: "りょういき", epithet: "Domain Unfolded", rarity: "SR", level: 37, style: "curse", look: "sorcerer with hands in a mudra summoning an inky expanding domain sphere, floating debris, glowing eyes" },
-  { id: "cu_king", name: "Ryomen", kanji: "災", reading: "わざわい", epithet: "The Calamity Reborn", rarity: "SSR", level: 49, style: "curse", look: "four-armed markings-covered cursed king grinning, black tendrils, oppressive aura, torn cityscape" },
+  // — curse (jjk): a modern school of sorcerers —
+  { id: "cu_rei", name: "Idris", kanji: "呪", reading: "のろい", epithet: "First-Year Prodigy", rarity: "N", level: 4, style: "curse", look: "a hooded Nigerian teen sorcerer with taped knuckles and a confident smirk, dark smoke curling from one fist, modern school-uniform-meets-streetwear, night courtyard" },
+  { id: "cu_maki", name: "Priya", kanji: "刃", reading: "は", epithet: "Cursed-Tool Bearer", rarity: "R", level: 20, style: "curse", look: "an athletic Indian young woman in rectangular glasses and a track jacket, swinging a cursed glaive that trails violet energy, determined" },
+  { id: "cu_domain", name: "Mateus", kanji: "域", reading: "りょういき", epithet: "Domain Unfolded", rarity: "SR", level: 37, style: "curse", look: "a Portuguese sorcerer with hands locked in a mudra, summoning an inky expanding domain sphere, floating debris and glowing sigils, eyes alight" },
+  { id: "cu_king", name: "Vesna", kanji: "災", reading: "わざわい", epithet: "The Calamity Reborn", rarity: "SSR", level: 49, style: "curse", look: "a four-armed marking-covered cursed sorceress-queen with a wide grin, black tendrils unfurling, oppressive aura over a fractured neon skyline" },
 
-  // — voyage (one piece) —
-  { id: "vo_luka", name: "Luka", kanji: "夢", reading: "ゆめ", epithet: "Captain of the Straw Fleet", rarity: "N", level: 2, style: "voyage", look: "grinning rubber-limbed boy captain in a straw hat and open vest, one arm stretched cartoonishly, ocean breeze" },
-  { id: "vo_nami", name: "Kaji", kanji: "羅", reading: "ら", epithet: "Reader of the Log Pose", rarity: "N", level: 13, style: "voyage", look: "clever navigator girl holding a glowing compass and a rolled map, coin belt, confident wink" },
-  { id: "vo_zoro", name: "Mikazuki", kanji: "刀", reading: "かたな", epithet: "Three-Blade Swordsman", rarity: "R", level: 27, style: "voyage", look: "muscular swordsman with a green haramaki holding three katana (one in mouth), scar over eye, bold stance" },
-  { id: "vo_yonko", name: "Beckett", kanji: "覇", reading: "は", epithet: "Emperor of the New Sea", rarity: "SR", level: 44, style: "voyage", look: "enormous laughing pirate emperor with a giant coat over the shoulders, tiny ship in one hand, storm sky" },
+  // — voyage (one piece-style): a rag-tag world crew —
+  { id: "vo_luka", name: "Tavita", kanji: "夢", reading: "ゆめ", epithet: "Captain of the Kite Fleet", rarity: "N", level: 2, style: "voyage", look: "a beaming Samoan boy captain with a woven sun-hat and a shell necklace, patched vest, one arm flung out in a big cartoony gesture, sea breeze, bold outlines" },
+  { id: "vo_nami", name: "Cora", kanji: "羅", reading: "ら", epithet: "Reader of the Star-Compass", rarity: "N", level: 13, style: "voyage", look: "a clever Irish navigator girl with freckles and a red bandana, holding a glowing compass and a rolled map, coin belt, cheeky wink" },
+  { id: "vo_zoro", name: "Bao", kanji: "刀", reading: "かたな", epithet: "Three-Blade Duelist", rarity: "R", level: 27, style: "voyage", look: "a muscular Vietnamese swordsman with a green sash, holding three curved blades in a dramatic dual-grip stance (not in the mouth), scar across one brow, bold" },
+  { id: "vo_yonko", name: "Olamide", kanji: "覇", reading: "は", epithet: "Emperor of the New Sea", rarity: "SR", level: 44, style: "voyage", look: "an enormous laughing West-African pirate emperor with a gold-trimmed captain's coat over the shoulders, a tiny ship balanced in one palm, storm sky, larger-than-life" },
 
-  // — lunar (sailor moon) —
-  { id: "lu_hoshimi", name: "Hoshimi", kanji: "星", reading: "ほし", epithet: "Guardian of the Waxing Star", rarity: "N", level: 3, style: "lunar", look: "magical girl in a sailor-style fuku with star hairpins mid-transformation, ribbons and sparkles swirling" },
-  { id: "lu_tsukina", name: "Tsukina", kanji: "月", reading: "つき", epithet: "Moonlight Tiara", rarity: "N", level: 14, style: "lunar", look: "twin-tailed heroine raising a glowing crescent wand, tiara gleaming, pastel light rays, hearts" },
-  { id: "lu_venus", name: "Kanae", kanji: "愛", reading: "あい", epithet: "Chain of the Evening Star", rarity: "R", level: 28, style: "lunar", look: "confident magical girl swinging a glittering heart-chain whip, orange bow, dramatic wink, sparkles" },
-  { id: "lu_queen", name: "Serenia", kanji: "后", reading: "きさき", epithet: "The Silver Millennium", rarity: "SSR", level: 48, style: "lunar", look: "ethereal moon queen in a flowing white gown with a crescent crown, silver hair to the floor, cosmic halo" },
+  // — lunar (magical girl): a global sisterhood —
+  { id: "lu_hoshimi", name: "Amaya", kanji: "星", reading: "ほし", epithet: "Guardian of the Waxing Star", rarity: "N", level: 3, style: "lunar", look: "a Filipina magical girl mid-transformation in a star-themed frilled outfit, sampaguita flowers in her hair, ribbons and sparkles swirling, pastel" },
+  { id: "lu_tsukina", name: "Noor", kanji: "月", reading: "つき", epithet: "The Moonlight Tiara", rarity: "N", level: 14, style: "lunar", look: "an Egyptian magical girl with wavy dark hair, raising a glowing crescent wand, delicate tiara, pastel light rays and floating hearts, big shining eyes" },
+  { id: "lu_venus", name: "Camila", kanji: "愛", reading: "あい", epithet: "Chain of the Evening Star", rarity: "R", level: 28, style: "lunar", look: "a confident Colombian magical girl swinging a glittering heart-chain whip, warm-orange bow, dramatic wink, sparkles and stars" },
+  { id: "lu_queen", name: "Seraphine", kanji: "后", reading: "きさき", epithet: "The Silver Millennium", rarity: "SSR", level: 48, style: "lunar", look: "an ethereal pale-silver moon queen in a flowing white gown with a crescent crown, floor-length hair, cosmic halo of stars, serene and regal" },
 
-  // — neon (edgerunners) —
-  { id: "ne_spike", name: "Spike", kanji: "電", reading: "でん", epithet: "Runner on the Wire", rarity: "N", level: 5, style: "neon", look: "cocky street runner in a neon bomber jacket with chrome arm, headphones, glitchy motion trail, night alley" },
-  { id: "ne_rebel", name: "Nyx", kanji: "夜", reading: "よる", epithet: "Queen of the Night Market", rarity: "R", level: 21, style: "neon", look: "punk woman with cyber-optics and pink undercut, holding a glowing pistol, neon signs bokeh behind" },
-  { id: "ne_ghost", name: "Zero", kanji: "零", reading: "れい", epithet: "The Netrunner", rarity: "SR", level: 38, style: "neon", look: "hooded hacker plugged into cables, holographic code cascading around, face lit by screen glow" },
-  { id: "ne_titan", name: "Maxx", kanji: "鋼", reading: "はがね", epithet: "Full-Chrome Legend", rarity: "SSR", level: 50, style: "neon", look: "hulking fully-cyborg mercenary with glowing core, wielding a massive rail weapon, city exploding in neon" },
+  // — neon (edgerunners): night-city misfits —
+  { id: "ne_spike", name: "Diego", kanji: "電", reading: "でん", epithet: "Runner on the Wire", rarity: "N", level: 5, style: "neon", look: "a cocky Peruvian street runner in a neon-trimmed bomber jacket with one chrome arm, headphones, glitchy motion trail through a rain-slick neon alley" },
+  { id: "ne_rebel", name: "Anya", kanji: "夜", reading: "よる", epithet: "Queen of the Night Market", rarity: "R", level: 21, style: "neon", look: "a Russian punk woman with cyber-optic eyes and a magenta undercut, leather jacket, spinning a glowing baton, neon signage bokeh behind" },
+  { id: "ne_ghost", name: "Kojo", kanji: "零", reading: "れい", epithet: "The Netrunner", rarity: "SR", level: 38, style: "neon", look: "a hooded Ghanaian hacker jacked into glowing cables, holographic code cascading around, face lit teal-and-pink by a floating screen" },
+  { id: "ne_titan", name: "Bruna", kanji: "鋼", reading: "はがね", epithet: "Full-Chrome Legend", rarity: "SSR", level: 50, style: "neon", look: "a towering Brazilian full-conversion cyborg mercenary with a glowing chest core and braided hair-cables, hoisting a massive rail-cannon, city detonating in neon behind" },
 
-  // — hearth (spy x family) —
-  { id: "he_anya", name: "Ani", kanji: "心", reading: "こころ", epithet: "The Little Telepath", rarity: "N", level: 4, style: "hearth", look: "tiny wide-eyed girl with pointed hair-buns making an excited face, oversized school coat, peanut in hand" },
-  { id: "he_loid", name: "Twiley", kanji: "父", reading: "ちち", epithet: "Master of Disguise", rarity: "N", level: 15, style: "hearth", look: "sharp-dressed spy dad adjusting a tie with a warm reluctant smile, half-hidden earpiece, cozy home light" },
-  { id: "he_yor", name: "Iris", kanji: "刺", reading: "し", epithet: "The Thorn Homemaker", rarity: "R", level: 29, style: "hearth", look: "elegant woman in an apron over an assassin's dress, holding a ladle and a hidden dagger, gentle blush" },
-  { id: "he_bond", name: "Pom", kanji: "予", reading: "よ", epithet: "The Precognitive Pup", rarity: "SR", level: 42, style: "hearth", look: "big fluffy white dog with a wise expression sitting proudly, tiny cape, cozy living-room background" },
+  // — hearth (cozy): a found family —
+  { id: "he_anya", name: "Pip", kanji: "心", reading: "こころ", epithet: "The Little Telepath", rarity: "N", level: 4, style: "hearth", look: "a tiny wide-eyed German girl with pointed hair-buns making an excited face, oversized wool school coat, holding a biscuit, warm home lighting" },
+  { id: "he_loid", name: "Émile", kanji: "父", reading: "ちち", epithet: "Master of Disguise", rarity: "N", level: 15, style: "hearth", look: "a sharp-dressed French spy dad adjusting his tie with a warm, tired smile, faint earpiece, cozy apartment behind, soft even shading" },
+  { id: "he_yor", name: "Leyla", kanji: "刺", reading: "し", epithet: "The Thorn Homemaker", rarity: "R", level: 29, style: "hearth", look: "an elegant Turkish woman in an apron over a sleek dark dress, holding a wooden ladle in one hand and (subtly) a hidden hairpin-dagger in the other, gentle blush" },
+  { id: "he_bond", name: "Biscuit", kanji: "予", reading: "よ", epithet: "The Precognitive Pup", rarity: "SR", level: 42, style: "hearth", look: "a big fluffy cream-colored dog with a wise, knowing expression, tiny knitted cape, sitting proudly in a sunlit living room" },
 
-  // — psyche (mob psycho) —
-  { id: "ps_mob", name: "Kage", kanji: "気", reading: "き", epithet: "100% Percent", rarity: "N", level: 6, style: "psyche", look: "plain bowl-cut boy standing calmly as psychedelic aura swirls explode behind him, blank expression" },
-  { id: "ps_dimple", name: "Ekubo", kanji: "霊", reading: "れい", epithet: "The Wandering Spirit", rarity: "N", level: 16, style: "psyche", look: "floating green blob spirit with a smug grin swirling around a deadpan kid, loose sketchy lines" },
-  { id: "ps_reigen", name: "Serizen", kanji: "師", reading: "し", epithet: "Greatest Con of the Century", rarity: "R", level: 30, style: "psyche", look: "confident suited fake-psychic striking a dramatic pointing pose, salt in hand, sparkle of pure bluff" },
-  { id: "ps_awaken", name: "Kage △", kanji: "覚", reading: "かく", epithet: "The Awakening", rarity: "SR", level: 45, style: "psyche", look: "boy dissolving into swirling cosmic psychic energy, body outlined in light, reality warping, surreal" },
+  // — psyche (mob psycho): quiet kids, loud minds —
+  { id: "ps_mob", name: "Haru", kanji: "気", reading: "き", epithet: "One Hundred Percent", rarity: "N", level: 6, style: "psyche", look: "a plain bowl-cut Japanese boy standing perfectly calm while huge psychedelic aura swirls erupt behind him, deadpan face, flat punchy colors" },
+  { id: "ps_dimple", name: "Blip", kanji: "霊", reading: "れい", epithet: "The Wandering Spirit", rarity: "N", level: 16, style: "psyche", look: "a floating teal blob spirit with a smug grin and swirl-eyes orbiting a deadpan kid, loose sketchy expressive linework" },
+  { id: "ps_reigen", name: "Baba Kunle", kanji: "師", reading: "し", epithet: "Greatest Con of the Century", rarity: "R", level: 30, style: "psyche", look: "a confident middle-aged Nigerian 'psychic' in a slightly-too-shiny suit, striking a dramatic pointing pose, pinch of salt in hand, a sparkle of pure bluff" },
+  { id: "ps_awaken", name: "Haru △", kanji: "覚", reading: "かく", epithet: "The Awakening", rarity: "SR", level: 45, style: "psyche", look: "a boy dissolving into swirling cosmic psychic energy, body outlined in light, reality bending into concentric patterns, surreal and calm" },
 
-  // — mecha (eva) —
-  { id: "me_shin", name: "Ren", kanji: "使", reading: "し", epithet: "Third Pilot", rarity: "N", level: 7, style: "mecha", look: "anxious teen pilot in a teal-and-white plugsuit, neural clips in hair, clinical cockpit glow, muted tones" },
-  { id: "me_asuka", name: "Rika", kanji: "紅", reading: "べに", epithet: "Second of the Red Unit", rarity: "R", level: 22, style: "mecha", look: "fierce pilot girl in a red plugsuit, interface headset, arms crossed, orange warning lights" },
-  { id: "me_unit", name: "Unit-00", kanji: "零", reading: "れい", epithet: "Test Type, Sync 400", rarity: "SR", level: 39, style: "mecha", look: "hulking humanoid bio-mecha head and shoulders with a single glowing eye, restraint armor, cross-shaped blast behind" },
-  { id: "me_angel", name: "Sachiel", kanji: "神", reading: "かみ", epithet: "The Descended Pattern", rarity: "SSR", level: 47, style: "mecha", look: "geometric masked angelic entity with a glowing core and cross-shaped light, floating, eerie symmetry" },
+  // — mecha (eva): reluctant pilots —
+  { id: "me_shin", name: "Elias", kanji: "使", reading: "し", epithet: "The Third Pilot", rarity: "N", level: 7, style: "mecha", look: "an anxious German teen pilot in a teal-and-white plugsuit with neural clips in his hair, clinical cockpit glow, muted retro palette" },
+  { id: "me_asuka", name: "Rania", kanji: "紅", reading: "べに", epithet: "Second of the Red Unit", rarity: "R", level: 22, style: "mecha", look: "a fierce Lebanese pilot girl in a crimson plugsuit with an interface headset, arms crossed, orange warning-light glow, confident scowl" },
+  { id: "me_unit", name: "Unit Kappa", kanji: "零", reading: "れい", epithet: "Test Type, Sync 400", rarity: "SR", level: 39, style: "mecha", look: "a hulking humanoid bio-mecha, head and shoulders, single glowing eye behind a restraint mask, cross-shaped light bursting behind, muted teal/orange" },
+  { id: "me_angel", name: "The Pattern", kanji: "神", reading: "かみ", epithet: "The Descended", rarity: "SSR", level: 47, style: "mecha", look: "a geometric masked angelic entity with a luminous core and cross-shaped light beams, floating in eerie perfect symmetry, cold palette" },
 
-  // — horizon (shinkai) —
-  { id: "ho_taki", name: "Sora", kanji: "空", reading: "そら", epithet: "Between Two Skies", rarity: "N", level: 8, style: "horizon", look: "student on a hilltop at golden hour gazing up, brilliant painted clouds and lens flare, uniform, wistful" },
-  { id: "ho_mitsu", name: "Yuna", kanji: "糸", reading: "いと", epithet: "Braided Fate", rarity: "R", level: 23, style: "horizon", look: "girl holding a red braided cord against a vivid twilight sky full of stars and a comet streak" },
-  { id: "ho_rain", name: "Ame", kanji: "雨", reading: "あめ", epithet: "The Weather Child", rarity: "SR", level: 40, style: "horizon", look: "girl reaching up as sunlight breaks through storm clouds, rain droplets sparkling, luminous rays, rooftop" },
-  { id: "ho_comet", name: "Suisei", kanji: "彗", reading: "すい", epithet: "The Once-in-1200-Years", rarity: "SSR", level: 46, style: "horizon", look: "two tiny silhouettes on a ridge beneath an enormous glowing comet splitting a jewel-toned night sky" },
+  // — horizon (shinkai): distances and longing —
+  { id: "ho_taki", name: "Jun", kanji: "空", reading: "そら", epithet: "Between Two Skies", rarity: "N", level: 8, style: "horizon", look: "a Korean student on a hilltop at golden hour gazing upward, brilliant painted clouds and gentle lens flare, uniform, wistful, hyper-lit backgrounds" },
+  { id: "ho_mitsu", name: "Ingrid", kanji: "糸", reading: "いと", epithet: "Braided Fate", rarity: "R", level: 23, style: "horizon", look: "a Swedish girl holding a red braided cord against a vivid twilight sky full of stars and a single comet streak, luminous, emotional" },
+  { id: "ho_rain", name: "Dao", kanji: "雨", reading: "あめ", epithet: "The Weather Child", rarity: "SR", level: 40, style: "horizon", look: "a Thai girl reaching up as sunlight breaks through storm clouds, rain droplets sparkling into light, glowing rays over a wet rooftop" },
+  { id: "ho_comet", name: "The Long Return", kanji: "彗", reading: "すい", epithet: "Once in 1200 Years", rarity: "SSR", level: 46, style: "horizon", look: "two tiny silhouettes on a mountain ridge beneath an enormous glowing comet splitting a jewel-toned starry night sky, breathtaking scale" },
 
-  // — pocket (pokemon) —
-  { id: "po_satoru", name: "Kai", kanji: "友", reading: "とも", epithet: "The Rookie Explorer", rarity: "N", level: 9, style: "pocket", look: "cheerful kid adventurer in a cap and backpack waving hello, a small original round spark-tailed cartoon creature perched happily on their shoulder, sunny meadow" },
-  { id: "po_flame", name: "Emberling", kanji: "火", reading: "ひ", epithet: "Little Ember", rarity: "N", level: 17, style: "pocket", look: "cute original fox-like fire creature with a flame-tipped tail, big friendly eyes, meadow, watercolor" },
-  { id: "po_aqua", name: "Tidepup", kanji: "波", reading: "なみ", epithet: "Tide Companion", rarity: "R", level: 31, style: "pocket", look: "round original water-otter creature riding a small wave, splashing happily, seashell on its head" },
-  { id: "po_legend", name: "Raijuu", kanji: "雷", reading: "らい", epithet: "The Storm Legendary", rarity: "SR", level: 45, style: "pocket", look: "majestic original electric beast-dragon with crackling mane, roaring atop a cliff, thunderclouds, dramatic" },
+  // — pocket (creature-collector): kids and their companions —
+  { id: "po_satoru", name: "Rafa", kanji: "友", reading: "とも", epithet: "The Rookie Explorer", rarity: "N", level: 9, style: "pocket", look: "a cheerful Mexican kid explorer in a cap and backpack waving hello, a small original round spark-tailed cartoon creature perched happily on the shoulder, sunny meadow, gouache" },
+  { id: "po_flame", name: "Emberkit", kanji: "火", reading: "ひ", epithet: "Little Ember", rarity: "N", level: 17, style: "pocket", look: "a cute wholly-original fox-like fire creature with a flame-tipped tail and big friendly eyes, bouncing through a meadow, bright watercolor" },
+  { id: "po_aqua", name: "Tidepup", kanji: "波", reading: "なみ", epithet: "Tide Companion", rarity: "R", level: 31, style: "pocket", look: "a round original water-otter creature with a seashell on its head riding a small curling wave, splashing happily, cheerful" },
+  { id: "po_legend", name: "Stormcrown", kanji: "雷", reading: "らい", epithet: "The Storm Legendary", rarity: "SR", level: 45, style: "pocket", look: "a majestic wholly-original electric beast with a crackling lightning mane, roaring atop a cliff under thunderclouds, dramatic and grand" },
 
-  // — eclipse (berserk) —
-  { id: "ec_guts", name: "Grendel", kanji: "剣", reading: "けん", epithet: "The Black Swordsman", rarity: "N", level: 10, style: "eclipse", look: "hulking scarred warrior hefting an impossibly huge slab sword, tattered cloak, prosthetic arm, grim" },
-  { id: "ec_witch", name: "Elowen", kanji: "呪", reading: "のろい", epithet: "Hedge Witch of the Marsh", rarity: "R", level: 24, style: "eclipse", look: "hooded young sorceress casting glowing runes, elf companion on shoulder, gnarled staff, misty gothic forest" },
-  { id: "ec_apostle", name: "Zodd", kanji: "獣", reading: "けもの", epithet: "Immortal of the Battlefield", rarity: "SR", level: 41, style: "eclipse", look: "towering horned demon-beast warrior with ornate fur and fangs, wings spread, moonlit ruins, chiaroscuro" },
-  { id: "ec_eclipse", name: "Nacht", kanji: "蝕", reading: "しょく", epithet: "The Hour of the Eclipse", rarity: "SSR", level: 50, style: "eclipse", look: "ominous crowned godhand silhouette before a blood-red eclipse, swirling hands of the damned, gothic horror" },
+  // — shadow (Korean action-manhwa): the risen hunters —
+  { id: "sh_rookie", name: "Minjae", kanji: "影", reading: "かげ", epithet: "The Lowest-Rank Hunter", rarity: "N", level: 10, style: "shadow", look: "a scrappy Korean young man hunter in a scuffed grey jacket gripping a plain dagger, a faint blue-violet glow just beginning around him, determined underdog, sleek digital rendering" },
+  { id: "sh_ranger", name: "Aditi", kanji: "弓", reading: "ゆみ", epithet: "The Guild Ranger", rarity: "R", level: 24, style: "shadow", look: "a sharp Indian woman hunter in fitted tactical armor drawing a bow of crackling violet energy, glowing gate-portal behind, cinematic rim light" },
+  { id: "sh_knight", name: "Tomas", kanji: "盾", reading: "たて", epithet: "Summoned Shadow-Knight", rarity: "SR", level: 41, style: "shadow", look: "a spectral armored shadow-knight wreathed in blue-violet flame kneeling beside its Brazilian summoner, glowing eyes under the helm, dramatic magic effects" },
+  { id: "sh_monarch", name: "Ravindra", kanji: "王", reading: "おう", epithet: "The Shadow Monarch", rarity: "SSR", level: 50, style: "shadow", look: "a commanding Indian sovereign in a black-and-violet monarch's coat, an army of glowing shadow soldiers rising behind him, crackling purple aura, cinematic and epic" },
 
-  // — chibi —
-  { id: "ch_mocha", name: "Mocha", kanji: "豆", reading: "まめ", epithet: "The Snack Gremlin", rarity: "N", level: 1, style: "chibi", look: "tiny round chibi kid hugging an oversized rice ball, huge sparkly eyes, blush, sitting cross-legged" },
-  { id: "ch_pud", name: "Pudding", kanji: "甘", reading: "あま", epithet: "Keeper of Desserts", rarity: "N", level: 11, style: "chibi", look: "chibi cat-eared kid balancing a wobbly tower of dango and pudding, tongue out, pastel" },
-  { id: "ch_knight", name: "Chibisuke", kanji: "勇", reading: "ゆう", epithet: "The Pocket Hero", rarity: "R", level: 25, style: "chibi", look: "tiny chibi knight in cardboard-looking armor holding a wooden sword and pot-lid shield, brave pose" },
-  { id: "ch_dragon", name: "Nibbles", kanji: "竜", reading: "りゅう", epithet: "World's Smallest Dragon", rarity: "SR", level: 40, style: "chibi", look: "chubby chibi baby dragon puffing a tiny smoke ring, sitting on a gold coin, stubby wings, adorable" },
+  // — chibi: the tiny mascots —
+  { id: "ch_mocha", name: "Mochi", kanji: "豆", reading: "まめ", epithet: "The Snack Gremlin", rarity: "N", level: 1, style: "chibi", look: "a tiny round chibi kid with a big cowlick hugging an oversized rice ball, huge sparkly eyes, blush, sitting cross-legged, pastel" },
+  { id: "ch_pud", name: "Flan", kanji: "甘", reading: "あま", epithet: "Keeper of Desserts", rarity: "N", level: 11, style: "chibi", look: "a chibi cat-eared kid balancing a wobbly tower of dango and flan, tongue out in concentration, soft pastel palette" },
+  { id: "ch_knight", name: "Sir Pebble", kanji: "勇", reading: "ゆう", epithet: "The Pocket Hero", rarity: "R", level: 25, style: "chibi", look: "a tiny chibi knight in cardboard-looking armor holding a wooden sword and a pot-lid shield, brave determined pose, adorable" },
+  { id: "ch_dragon", name: "Nibbles", kanji: "竜", reading: "りゅう", epithet: "World's Smallest Dragon", rarity: "SR", level: 40, style: "chibi", look: "a chubby chibi baby dragon puffing a tiny smoke ring while sitting on a single gold coin, stubby wings, huge eyes, adorable" },
 ];
 
 export function unlockedCards(level: number): CardDef[] {
