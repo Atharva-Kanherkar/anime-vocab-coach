@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useCloudSnapshot } from "@/lib/cloud-snapshot-store";
 import { CARD_ART } from "@/lib/cards-art";
 import {
-  LUMINARA_THREAD_INTRO,
+  KOTODAMA_INTRO,
   STORY_LANGS,
   mentionedCards,
   type CardStory,
@@ -70,7 +70,7 @@ export function CardStoryPage({
           <p className="av-eyebrow">Locked · 未解放</p>
           <h1 className="mt-3 font-jpround text-2xl font-black">{card.name}</h1>
           <p className="mt-2 text-[15px] text-ink2">
-            Reach level {card.level} to read this Listener&apos;s origin on the Luminara Thread.
+            Reach level {card.level} to read this keeper&apos;s origin on the Kotodama Lattice.
           </p>
           <Link href="/app#cards" className="av-btn av-btn-primary mt-6 inline-flex">
             View your collection
@@ -156,7 +156,7 @@ export function CardStoryPage({
           <section className="av-card mt-6 p-6 sm:p-8">
             <p className="av-eyebrow">The Kotodama Lattice · 言葉の灯</p>
             <p className="mt-3 text-[14px] leading-relaxed text-ink2 whitespace-pre-line">
-              {LUMINARA_THREAD_INTRO[lang]}
+              {KOTODAMA_INTRO[lang]}
             </p>
           </section>
 
@@ -176,7 +176,7 @@ export function CardStoryPage({
 
       {linked.length > 0 && (
         <section className="mt-10">
-          <h2 className="av-eyebrow">Others in this thread</h2>
+          <h2 className="av-eyebrow">Others on the Lattice</h2>
           <ul className="mt-3 flex flex-wrap gap-2">
             {linked.map((c) => (
               <li key={c.id}>

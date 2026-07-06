@@ -1,8 +1,8 @@
 import { CARDS, getCardById, type CardDef } from "@/lib/cards";
-import { CARD_STORIES, LUMINARA_THREAD_INTRO, type CardStory, type StoryLang } from "./data";
+import { CARD_STORIES, KOTODAMA_INTRO, type CardStory, type StoryLang } from "./data";
 
 export type { CardStory, StoryLang };
-export { LUMINARA_THREAD_INTRO, CARD_STORIES, getCardById };
+export { KOTODAMA_INTRO, CARD_STORIES, getCardById };
 
 export function getCardStory(id: string): CardStory | undefined {
   return CARD_STORIES[id];
