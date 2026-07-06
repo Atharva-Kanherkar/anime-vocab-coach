@@ -1,0 +1,184 @@
+/* ============================================================================
+ * Cloud app theme — scoped to /app only. Flat, editorial, warm.
+ *
+ * Tailwind v4 imported WITHOUT preflight so the marketing pages' reset
+ * (globals.css) is never touched. Tokens are `--av-*` prefixed to avoid any
+ * collision with globals. Dark default; `:root[data-theme="light"]` → cream.
+ * NO gradients, NO glass/blur, NO shadows-as-decoration. Solid fills + hairlines.
+ * ==========================================================================*/
+
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "../../**/*.{ts,tsx}";
+
+@theme inline {
+  --color-bg: var(--av-bg);
+  --color-panel: var(--av-panel);
+  --color-field: var(--av-field);
+  --color-surface: var(--av-field);
+  --color-surface-2: var(--av-panel);
+  --color-ink: var(--av-ink);
+  --color-ink2: var(--av-ink-2);
+  --color-ink3: var(--av-ink-3);
+  --color-line: var(--av-line);
+  --color-line2: var(--av-line-2);
+  --color-accent: var(--av-accent);
+  --color-ok: var(--av-ok);
+  --color-danger: var(--av-danger);
+
+  --font-sans: var(--sans, ui-sans-serif, system-ui, sans-serif);
+  --font-serif: var(--serif, Georgia, "Times New Roman", serif);
+  --font-jp: var(--jp, "Hiragino Sans", sans-serif);
+}
+
+/* ---- palette --------------------------------------------------------------*/
+.av {
+  /* dark (default) */
+  --av-bg: #0c0b0e;
+  --av-panel: #131217;
+  --av-field: rgba(255, 255, 255, 0.045);
+  --av-ink: #ece9e3;
+  --av-ink-2: rgba(236, 233, 227, 0.6);
+  --av-ink-3: rgba(236, 233, 227, 0.38);
+  --av-line: rgba(236, 233, 227, 0.1);
+  --av-line-2: rgba(236, 233, 227, 0.16);
+  --av-accent: #cf6a45;
+  --av-ok: #78d6a6;
+  --av-danger: #e8896f;
+
+  min-height: 100vh;
+  background: var(--av-bg);
+  color: var(--av-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+:root[data-theme="light"] .av {
+  /* light — warm washi paper */
+  --av-bg: #f4efe4;
+  --av-panel: #fbf8f1;
+  --av-field: rgba(33, 29, 23, 0.035);
+  --av-ink: #201d17;
+  --av-ink-2: rgba(32, 29, 23, 0.62);
+  --av-ink-3: rgba(32, 29, 23, 0.44);
+  --av-line: rgba(32, 29, 23, 0.12);
+  --av-line-2: rgba(32, 29, 23, 0.2);
+  --av-accent: #b8492b;
+  --av-ok: #1c8f66;
+  --av-danger: #b8492b;
+}
+
+/* ---- base (zero-specificity so utilities always win) ----------------------*/
+@layer base {
+  :where(.av button, .av input, .av textarea, .av select) {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+  }
+  :where(.av button) {
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+  :where(.av a) {
+    color: inherit;
+    text-decoration: none;
+  }
+  .av :where(button, a, input, textarea, select):focus-visible {
+    outline: 2px solid var(--av-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* ---- primitives -----------------------------------------------------------*/
+@layer components {
+  .av-card {
+    border: 1px solid var(--av-line);
+    background: var(--av-panel);
+    border-radius: 14px;
+  }
+
+  .av-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 10px;
+    padding: 0.6rem 1.05rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+    border: 1px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 130ms ease, border-color 130ms ease, opacity 130ms ease;
+  }
+  .av-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .av-btn-primary { background: var(--av-ink); color: var(--av-bg); }
+  .av-btn-primary:hover:not(:disabled) { opacity: 0.86; }
+
+  .av-btn-ghost { border-color: var(--av-line-2); color: var(--av-ink); }
+  .av-btn-ghost:hover:not(:disabled) { background: var(--av-field); }
+
+  .av-btn-sm { padding: 0.4rem 0.7rem; font-size: 0.8125rem; }
+
+  /* refined field: label sits above, generous hit area, clear focus */
+  .av-field-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--av-ink-3);
+    margin-bottom: 0.4rem;
+  }
+  .av-input {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--av-line);
+    background: var(--av-field);
+    color: var(--av-ink);
+    padding: 0.7rem 0.85rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: border-color 130ms ease;
+  }
+  .av-input::placeholder { color: var(--av-ink-3); }
+  .av-input:focus { outline: none; border-color: var(--av-accent); }
+
+  /* section header used across panels */
+  .av-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--av-ink-3);
+  }
+
+  .av-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    border: 1px solid var(--av-line-2);
+    padding: 0.28rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--av-ink-2);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .av *, .av *::before, .av *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

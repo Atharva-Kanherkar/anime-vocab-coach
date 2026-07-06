@@ -71,46 +71,43 @@ export function AiCoach() {
   const quotaLeft = usage ? Math.max(0, usage.limit - usage.used) : null;
 
   return (
-    <section className="ai-coach" aria-label="AI anime coach">
-      <div className="panel-head">
+    <section className="av-card p-6 sm:p-8" aria-label="AI anime coach">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="eyebrow">AI coach</p>
-          <h2>Ask about a word from the scene it appeared in</h2>
-          <p className="panel-lede">Paste the subtitle line and get a scene-native explanation or memory hooks.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">AI coach</p>
+          <h2 className="mt-1.5 font-serif text-2xl font-medium">Ask about a word from its scene</h2>
+          <p className="mt-1.5 max-w-[54ch] text-sm text-ink2">
+            Paste the subtitle line and get a scene-native explanation or memory hooks.
+          </p>
         </div>
         {usage && (
-          <span className="status-pill">
+          <span className="av-pill">
             {quotaLeft} / {usage.limit} {tierLabel(usage.plan)} left
           </span>
         )}
       </div>
 
       {recent.length > 0 && (
-        <div className="ai-recent">
-          <span>Recent:</span>
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-ink2">
+          <span className="text-ink3">Recent:</span>
           {recent.map((w) => (
-            <button key={w.base} type="button" className="ai-chip" onClick={() => quickFill(w.base)}>
+            <button
+              key={w.base}
+              type="button"
+              onClick={() => quickFill(w.base)}
+              className="rounded-full border border-line px-3 py-1 font-jp text-sm transition hover:border-accent"
+            >
               {w.base}
             </button>
           ))}
         </div>
       )}
 
-      <div className="ai-fields">
-        <input
-          className="ai-input"
-          placeholder="Word (e.g. 見る)"
-          value={word}
-          onChange={(e) => setWord(e.target.value)}
-        />
-        <input
-          className="ai-input"
-          placeholder="Reading (optional)"
-          value={reading}
-          onChange={(e) => setReading(e.target.value)}
-        />
+      <div className="flex flex-col gap-2.5">
+        <input className="av-input font-jp" placeholder="Word (e.g. 見る)" value={word} onChange={(e) => setWord(e.target.value)} />
+        <input className="av-input" placeholder="Reading (optional)" value={reading} onChange={(e) => setReading(e.target.value)} />
         <textarea
-          className="ai-input ai-line"
+          className="av-input min-h-[52px] resize-y"
           placeholder="Paste the line from the scene it appeared in"
           value={line}
           onChange={(e) => setLine(e.target.value)}
@@ -118,20 +115,20 @@ export function AiCoach() {
         />
       </div>
 
-      <div className="ai-actions">
-        <button className="btn btn-accent" type="button" disabled={busy !== null} onClick={() => ask("explain")}>
+      <div className="mt-3.5 flex flex-wrap gap-2.5">
+        <button className="av-btn av-btn-primary" type="button" disabled={busy !== null} onClick={() => ask("explain")}>
           {busy === "explain" ? "Thinking…" : "Explain in scene"}
         </button>
-        <button className="btn btn-line" type="button" disabled={busy !== null} onClick={() => ask("hooks")}>
+        <button className="av-btn av-btn-ghost" type="button" disabled={busy !== null} onClick={() => ask("hooks")}>
           {busy === "hooks" ? "Thinking…" : "3 memory hooks"}
         </button>
       </div>
 
       {error && (
-        <p className="ai-error">
+        <p className="mt-3 text-sm text-danger">
           {error}{" "}
           {usage && quotaLeft === 0 && usage.plan !== "launch" && promo.checkoutConfigured && (
-            <a href={promo.checkoutUrl} rel="noopener noreferrer">
+            <a href={promo.checkoutUrl} rel="noopener noreferrer" className="underline">
               Upgrade to Pro
             </a>
           )}
@@ -139,38 +136,41 @@ export function AiCoach() {
       )}
 
       {result && result.mode === "explain" && (
-        <div className="ai-result">
-          <h3>Meaning</h3>
-          <p>{result.meaning}</p>
+        <div className="mt-4 border-t border-line pt-4">
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-accent">Meaning</h3>
+          <p className="mb-3">{result.meaning}</p>
           {result.nuance && (
             <>
-              <h3>Why said this way</h3>
-              <p>{result.nuance}</p>
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-accent">Why said this way</h3>
+              <p className="mb-3">{result.nuance}</p>
             </>
           )}
-          {cached && <p className="ai-note">Served from cache · no quota used.</p>}
+          {cached && <p className="text-xs text-ink2">Served from cache · no quota used.</p>}
         </div>
       )}
 
       {result && result.mode === "hooks" && (
-        <div className="ai-result">
-          <h3>Memory hooks</h3>
-          <ul className="ai-hooks">
+        <div className="mt-4 border-t border-line pt-4">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-accent">Memory hooks</h3>
+          <ul className="ml-4 list-disc space-y-2">
             {result.hooks.map((h, i) => (
               <li key={i}>{h}</li>
             ))}
           </ul>
-          {cached && <p className="ai-note">Served from cache · no quota used.</p>}
+          {cached && <p className="mt-2 text-xs text-ink2">Served from cache · no quota used.</p>}
         </div>
       )}
 
-      <p className="ai-foot">
+      <p className="mt-4 text-[13px] text-ink2">
         {usage?.plan === "launch" ? (
           <>All AI features are free during launch, capped per account. Your saved words stay local and exportable.</>
         ) : (
           <>
-            Free accounts get a taste. <Link href="/#pricing">Pro</Link> raises the monthly cap. Your saved words
-            stay local and exportable.
+            Free accounts get a taste.{" "}
+            <Link href="/#pricing" className="underline">
+              Pro
+            </Link>{" "}
+            raises the monthly cap. Your saved words stay local and exportable.
           </>
         )}
       </p>

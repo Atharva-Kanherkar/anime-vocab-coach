@@ -68,6 +68,13 @@ export function useCloudSnapshot(): CloudSyncSnapshot {
   return useSyncExternalStore(subscribeToSnapshot, loadSnapshot, () => EMPTY_SNAPSHOT);
 }
 
+const STATUS_META: Record<ExtensionSyncConnectionState, { label: string; cls: string }> = {
+  "connected-synced": { label: "Backed up", cls: "border-ok/40 text-ok" },
+  "sync-error": { label: "Sync issue", cls: "border-danger/50 text-danger" },
+  disconnected: { label: "Not synced", cls: "border-line text-ink2" },
+  "local-only": { label: "Local only", cls: "border-line text-ink2" },
+};
+
 export function CloudSyncPanel() {
   const snapshot = useCloudSnapshot();
   const [message, setMessage] = useState<string | null>(null);
@@ -174,65 +181,57 @@ export function CloudSyncPanel() {
     setMessage(`Downloaded ${ankiCardCount(snapshot)} cards for Anki.`);
   };
 
-  const statusLabel = useMemo(() => {
-    switch (syncStatus.state) {
-      case "connected-synced":
-        return "Backed up";
-      case "sync-error":
-        return "Sync issue";
-      case "disconnected":
-        return "Not synced";
-      default:
-        return "Local only";
-    }
-  }, [syncStatus.state]);
+  const status = useMemo(() => STATUS_META[syncStatus.state], [syncStatus.state]);
 
   return (
-    <section className="cloud-panel cloud-panel--sync" aria-label="Backup and sync">
-      <div className="panel-head">
+    <section className="av-card p-6 sm:p-8" aria-label="Backup and sync">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="eyebrow">Backup</p>
-          <h2>Keep your words safe in the cloud</h2>
-          <p className="panel-lede">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">Backup</p>
+          <h2 className="mt-1.5 font-serif text-2xl font-medium">Keep your words safe in the cloud</h2>
+          <p className="mt-1.5 max-w-[54ch] text-sm text-ink2">
             {wordCount > 0
               ? `${wordCount.toLocaleString()} words on this device. Hit save to copy them to your account.`
               : "Import an extension export, or watch with the extension connected — words sync automatically."}
           </p>
         </div>
-        <span className={`status-pill status-${syncStatus.state}`}>{statusLabel}</span>
+        <span className={`av-pill ${status.cls}`}>{status.label}</span>
       </div>
 
-      <div className="sync-actions sync-actions--primary">
-        <button className="btn btn-accent" type="button" onClick={saveCloudSnapshot}>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <button className="av-btn av-btn-primary" type="button" onClick={saveCloudSnapshot}>
           Save to cloud
         </button>
-        <label className="file-button">
+        <label className="av-btn av-btn-ghost cursor-pointer">
           Import from extension
           <input
             type="file"
             accept="application/json,.json"
+            className="hidden"
             onChange={(event) => onFile(event.currentTarget.files?.[0] ?? null)}
           />
         </label>
-        <button className="btn btn-line" type="button" onClick={loadCloudSnapshot}>
+        <button className="av-btn av-btn-ghost" type="button" onClick={loadCloudSnapshot}>
           Load from cloud
         </button>
       </div>
 
-      {message && <p className="sync-message">{message}</p>}
+      {message && <p className="mt-3.5 text-sm font-medium">{message}</p>}
 
       <details
-        className="sync-advanced"
+        className="mt-5 border-t border-line pt-4"
         open={showAdvanced}
         onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
       >
-        <summary>Advanced options</summary>
-        <div className="sync-actions sync-actions--secondary">
-          <button className="btn btn-line btn-sm" type="button" onClick={exportSnapshot}>
+        <summary className="cursor-pointer select-none text-[13px] font-semibold text-ink2 hover:text-ink">
+          Advanced options
+        </summary>
+        <div className="mt-3 flex flex-wrap gap-2.5">
+          <button className="av-btn av-btn-ghost av-btn-sm" type="button" onClick={exportSnapshot}>
             Download JSON backup
           </button>
           <button
-            className="btn btn-line btn-sm"
+            className="av-btn av-btn-ghost av-btn-sm"
             type="button"
             onClick={exportAnki}
             disabled={ankiCardCount(snapshot) === 0}
@@ -241,7 +240,9 @@ export function CloudSyncPanel() {
           </button>
         </div>
         {revision !== null && (
-          <p className="sync-note">Cloud version {revision}. If you use multiple devices, load before you save.</p>
+          <p className="mt-3 text-[13px] text-ink3">
+            Cloud version {revision}. If you use multiple devices, load before you save.
+          </p>
         )}
       </details>
     </section>

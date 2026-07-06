@@ -44,8 +44,8 @@ const notoJp = Noto_Sans_JP({
 const clerkAppearance = {
   baseTheme: dark,
   variables: {
-    colorPrimary: "#e3ba63",
-    colorPrimaryForeground: "#10141f",
+    colorPrimary: "#db7a5c",
+    colorPrimaryForeground: "#100b08",
     colorBackground: "#10141f",
     colorForeground: "#eef2fc",
     colorInput: "#171c2b",
@@ -132,7 +132,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   );
 
   return (
-    <html lang="en" className={`${newsreader.variable} ${ibmPlex.variable} ${notoJp.variable}`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${newsreader.variable} ${ibmPlex.variable} ${notoJp.variable}`}
+    >
       <body>
         {DEV_NO_CLERK ? shell : <ClerkProvider appearance={clerkAppearance}>{shell}</ClerkProvider>}
       </body>

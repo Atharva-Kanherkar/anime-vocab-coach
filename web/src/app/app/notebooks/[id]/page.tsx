@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { AppTopNav } from "@/components/app-shell";
+import Link from "next/link";
+import { AppNav } from "@/components/app/app-nav";
 import { NotebookDetail } from "@/components/notebook-detail";
-import { SiteFooter } from "@/components/site-chrome";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +14,13 @@ export default async function NotebookPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   return (
     <>
-      <AppTopNav />
-      <main id="main" className="app-shell">
+      <AppNav />
+      <main id="main" className="mx-auto w-[min(1080px,calc(100%-32px))] py-9 sm:py-14">
+        <Link href="/app" className="mb-5 inline-flex items-center gap-1.5 text-sm text-ink2 hover:text-ink">
+          ← Back to dashboard
+        </Link>
         <NotebookDetail id={id} />
       </main>
-      <SiteFooter />
     </>
   );
 }

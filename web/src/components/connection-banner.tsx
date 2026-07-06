@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useCloudSnapshot } from "@/components/cloud-sync-panel";
-import { GITHUB_URL } from "@/lib/site";
 import { summarizeSyncSnapshot } from "@/lib/sync";
 
 type LinkState = "linking" | "linked" | "error";
 
-export function ConnectionBanner({ onOpenSync }: { onOpenSync: () => void }) {
+// Slim status line. Its real job is the side effect: mint a sync token and hand
+// it to the extension via postMessage (the extension has no login of its own).
+export function ConnectionStatus() {
   const snapshot = useCloudSnapshot();
   const summary = summarizeSyncSnapshot(snapshot);
-  const hasWords = summary.totalWords > 0;
   const [linkState, setLinkState] = useState<LinkState>("linking");
 
   const broadcast = useCallback(async () => {
@@ -28,14 +28,12 @@ export function ConnectionBanner({ onOpenSync }: { onOpenSync: () => void }) {
 
   useEffect(() => {
     const kick = setTimeout(broadcast, 0);
-
     const onMessage = (e: MessageEvent) => {
       if (e.source !== window || e.origin !== window.location.origin) return;
       const data = e.data as { source?: string; type?: string } | null;
       if (data?.source === "avc-ext" && data.type === "avc-request-token") broadcast();
     };
     window.addEventListener("message", onMessage);
-
     const timer = setInterval(broadcast, 20 * 60 * 1000);
     return () => {
       clearTimeout(kick);
@@ -44,44 +42,25 @@ export function ConnectionBanner({ onOpenSync }: { onOpenSync: () => void }) {
     };
   }, [broadcast]);
 
-  const statusClass =
-    linkState === "linked" ? "connection-banner--linked" : linkState === "error" ? "connection-banner--error" : "";
+  const dot = linkState === "linked" ? "bg-ok" : linkState === "error" ? "bg-danger" : "bg-ink3";
+  const label =
+    linkState === "linked"
+      ? summary.totalWords > 0
+        ? `Connected · ${summary.totalWords.toLocaleString()} words`
+        : "Extension connected"
+      : linkState === "error"
+        ? "Extension not linked"
+        : "Linking…";
 
   return (
-    <section className={`connection-banner ${statusClass}`} aria-live="polite">
-      <div className="connection-banner__copy">
-        <p className="connection-banner__title">
-          {linkState === "linked"
-            ? "Extension connected"
-            : linkState === "error"
-              ? "Extension not linked"
-              : "Linking extension…"}
-        </p>
-        <p className="connection-banner__body">
-          {linkState === "linked"
-            ? hasWords
-              ? `${summary.totalWords.toLocaleString()} words in your cloud backup. Watch anime with the extension — new words show up here.`
-              : "Watch anime with the extension installed. Your words and reviews sync here automatically."
-            : linkState === "error"
-              ? "Open this page while signed in, with the extension installed, then reload."
-              : "One moment while we connect your browser extension to this account."}
-        </p>
-      </div>
-      <div className="connection-banner__actions">
-        {linkState === "error" && (
-          <button className="btn btn-line btn-sm" type="button" onClick={broadcast}>
-            Retry
-          </button>
-        )}
-        {!hasWords && (
-          <a className="btn btn-accent btn-sm" href={GITHUB_URL} rel="noopener noreferrer">
-            Install extension
-          </a>
-        )}
-        <button className="btn btn-line btn-sm" type="button" onClick={onOpenSync}>
-          {hasWords ? "Manage backup" : "Import backup"}
+    <span className="inline-flex items-center gap-2 text-[13px] text-ink2" aria-live="polite">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
+      {label}
+      {linkState === "error" && (
+        <button type="button" onClick={broadcast} className="text-ink3 underline hover:text-ink">
+          retry
         </button>
-      </div>
-    </section>
+      )}
+    </span>
   );
 }

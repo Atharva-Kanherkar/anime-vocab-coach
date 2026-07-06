@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:preview": "NEXT_PUBLIC_AVC_DEV_NO_CLERK=1 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -22,12 +23,14 @@
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.20.1",
+    "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "playwright": "^1.61.1",
+    "tailwindcss": "^4.3.2",
     "typescript": "^5",
     "vitest": "^4.1.9",
     "wrangler": "^4.107.0"

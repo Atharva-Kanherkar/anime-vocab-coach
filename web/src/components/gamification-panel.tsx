@@ -88,53 +88,61 @@ export function GamificationPanel() {
   }, [prefs, load]);
 
   return (
-    <section className="cloud-panel" aria-label="Streaks and leaderboard">
-      <div className="panel-head">
-        <div>
-          <p className="eyebrow">Progress</p>
-          <h2>Streaks & weekly challenges</h2>
-          {streak && streak.current > 0 && (
-            <p className="panel-lede">
-              🔥 {streak.current}-day streak
-              {streak.longest > streak.current ? ` · personal best ${streak.longest}` : ""}
-            </p>
-          )}
-        </div>
+    <section className="av-card p-6 sm:p-8" aria-label="Streaks and leaderboard">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">Progress</p>
+        <h2 className="mt-1.5 font-serif text-2xl font-medium">Streaks &amp; weekly challenges</h2>
+        {streak && streak.current > 0 && (
+          <p className="mt-1.5 text-sm text-ink2">
+            🔥 {streak.current}-day streak
+            {streak.longest > streak.current ? ` · personal best ${streak.longest}` : ""}
+          </p>
+        )}
       </div>
 
       {!hasData && (
-        <p className="sync-message">
+        <p className="text-sm text-ink2">
           Sync your progress to unlock streaks and weekly challenges. They track real practice — reviews and watch
           time, not vanity clicks.
         </p>
       )}
 
       {challenges.length > 0 && (
-        <div className="challenge-list">
+        <div className="grid gap-2.5">
           {challenges.map((c) => (
-            <div key={c.id} className={`challenge-card${c.done ? " challenge-card--done" : ""}`}>
-              <div className="challenge-card__head">
-                <strong>{c.title}</strong>
-                <span className="eyebrow">{c.done ? "Done" : `${c.current}/${c.target}`}</span>
+            <div
+              key={c.id}
+              className={
+                "rounded-xl border p-3.5 " + (c.done ? "border-ok/40 bg-ok/5" : "border-line bg-surface-2/30")
+              }
+            >
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <strong className="text-[15px] font-semibold">{c.title}</strong>
+                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-ink3">
+                  {c.done ? "Done" : `${c.current}/${c.target}`}
+                </span>
               </div>
-              <p>{c.description}</p>
+              <p className="text-sm text-ink2">{c.description}</p>
             </div>
           ))}
         </div>
       )}
 
-      <div className="leaderboard-block">
-        <h3>This week&apos;s board</h3>
+      <div className="mt-6 border-t border-line pt-5">
+        <h3 className="mb-3 font-serif text-lg font-medium">This week&apos;s board</h3>
         {board === null ? (
-          <p className="sync-message">Loading…</p>
+          <p className="text-sm text-ink2">Loading…</p>
         ) : board.length === 0 ? (
-          <p className="sync-message">No one on the board yet. Review some words to be first.</p>
+          <p className="text-sm text-ink2">No one on the board yet. Review some words to be first.</p>
         ) : (
-          <ol className="leaderboard-list">
+          <ol className="flex flex-col">
             {board.map((e, i) => (
-              <li key={i}>
-                <span className="leaderboard-list__name">{e.name}</span>
-                <span className="leaderboard-list__stats">
+              <li key={i} className="flex items-center justify-between gap-3 border-b border-line py-2.5 last:border-0">
+                <span className="flex items-center gap-2.5 font-medium">
+                  <span className="w-5 text-ink3 tabular-nums">{i + 1}</span>
+                  {e.name}
+                </span>
+                <span className="whitespace-nowrap text-xs text-ink3">
                   {e.wordsReviewed} reviewed · {e.minutes}m · 🔥{e.streak}
                 </span>
               </li>
@@ -142,38 +150,45 @@ export function GamificationPanel() {
           </ol>
         )}
         {me && (
-          <p className="sync-message">
+          <p className="mt-3 text-sm text-ink2">
             You&apos;re #{me.rank} this week ({me.wordsReviewed} reviewed).
           </p>
         )}
       </div>
 
-      <div className="privacy-block">
-        <h3>Leaderboard privacy</h3>
-        <div className="privacy-row">
+      <div className="mt-6 border-t border-line pt-5">
+        <h3 className="mb-3 font-serif text-lg font-medium">Leaderboard privacy</h3>
+        <div className="flex flex-wrap items-center gap-3">
           <input
-            className="app-input"
+            className="av-input flex-1"
             aria-label="Display name"
             placeholder="Display name (blank = anonymous)"
             value={prefs.displayName}
             onChange={(e) => setPrefs({ ...prefs, displayName: e.target.value })}
             disabled={prefs.optOut}
           />
-          <label className="privacy-check">
-            <input type="checkbox" checked={prefs.optOut} onChange={(e) => setPrefs({ ...prefs, optOut: e.target.checked })} />
+          <label className="flex items-center gap-2 text-sm text-ink2">
+            <input
+              type="checkbox"
+              checked={prefs.optOut}
+              onChange={(e) => setPrefs({ ...prefs, optOut: e.target.checked })}
+              className="accent-[var(--av-accent)]"
+            />
             Hide me from the board
           </label>
-          <button className="btn btn-line btn-sm" type="button" onClick={savePrefs}>
+          <button className="av-btn av-btn-ghost av-btn-sm" type="button" onClick={savePrefs}>
             Save
           </button>
         </div>
-        {saved && <p className="sync-message">Saved.</p>}
+        {saved && <p className="mt-2 text-sm text-ink2">Saved.</p>}
         {saveError && (
-          <p className="sync-message" role="alert">
+          <p className="mt-2 text-sm text-danger" role="alert">
             Couldn&apos;t save. Try again.
           </p>
         )}
-        <p className="sync-note">Only review count, watch minutes, and streak are shared — never what you watched.</p>
+        <p className="mt-2 text-[13px] text-ink3">
+          Only review count, watch minutes, and streak are shared — never what you watched.
+        </p>
       </div>
     </section>
   );
