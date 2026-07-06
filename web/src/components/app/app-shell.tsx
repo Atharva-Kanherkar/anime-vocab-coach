@@ -72,16 +72,18 @@ export function AppShell({ name }: { name: string }) {
         </div>
       </aside>
 
-      <main id="main" className="mx-auto w-full max-w-[880px] px-5 py-8 md:px-12 md:py-14">
-        <div className="mb-6 md:hidden">
-          <ConnectionStatus />
-        </div>
+      <main id="main" className="min-w-0 px-5 py-8 md:px-12 md:py-12">
+        <div className="mx-auto max-w-[880px]">
+          <div className="mb-6 md:hidden">
+            <ConnectionStatus />
+          </div>
 
-        {section === "overview" && <AppDashboard name={name} />}
-        {section === "coach" && <AiCoach />}
-        {section === "notebooks" && <NotebooksPanel />}
-        {section === "progress" && <GamificationPanel />}
-        {section === "backup" && <CloudSyncPanel />}
+          {section === "overview" && <AppDashboard name={name} />}
+          {section === "coach" && <AiCoach />}
+          {section === "notebooks" && <NotebooksPanel />}
+          {section === "progress" && <GamificationPanel />}
+          {section === "backup" && <CloudSyncPanel />}
+        </div>
       </main>
     </div>
   );

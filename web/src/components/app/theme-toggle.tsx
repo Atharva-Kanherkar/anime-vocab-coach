@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconMoon, IconSun } from "@/components/app/icons";
 
 type Theme = "dark" | "light";
 
@@ -36,9 +37,7 @@ export function ThemeToggle() {
       aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
       title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
     >
-      <span aria-hidden className="text-base leading-none">
-        {mounted ? (theme === "dark" ? "☀" : "☾") : "☾"}
-      </span>
+      {mounted && theme === "dark" ? <IconSun width={16} height={16} /> : <IconMoon width={16} height={16} />}
     </button>
   );
 }

@@ -1,16 +1,21 @@
 /* ============================================================================
  * Cloud app theme — scoped to /app only. Flat, editorial, warm.
  *
- * Tailwind v4 imported WITHOUT preflight so the marketing pages' reset
- * (globals.css) is never touched. Tokens are `--av-*` prefixed to avoid any
- * collision with globals. Dark default; `:root[data-theme="light"]` → cream.
- * NO gradients, NO glass/blur, NO shadows-as-decoration. Solid fills + hairlines.
+ * IMPORTANT cascade note: globals.css (marketing) ships an UNLAYERED
+ * `* { margin: 0; padding: 0 }` reset, and unlayered CSS outranks anything in
+ * @layer. So Tailwind utilities here are imported WITHOUT a layer (their class
+ * specificity beats the `*` reset), and every component class below is wrapped
+ * in :where() (specificity 0) so plain utilities can still override them.
+ * app.css loads after globals.css (nested route layout), so at equal
+ * specificity these rules win by source order.
+ *
+ * No preflight — marketing keeps its own reset. Tokens are `--av-*` prefixed.
+ * Dark default; `:root[data-theme="light"]` → cream. NO gradients, NO
+ * glass/blur, NO decorative shadows. Solid fills + hairlines.
  * ==========================================================================*/
 
-@layer theme, base, components, utilities;
-
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
+@import "tailwindcss/utilities.css";
 
 @source "../../**/*.{ts,tsx}";
 
@@ -72,108 +77,94 @@
   --av-danger: #b8492b;
 }
 
-/* ---- base (zero-specificity so utilities always win) ----------------------*/
-@layer base {
-  :where(.av button, .av input, .av textarea, .av select) {
-    font-family: inherit;
-    font-size: inherit;
-    line-height: inherit;
-    letter-spacing: inherit;
-    color: inherit;
-  }
-  :where(.av button) {
-    background-color: transparent;
-    border: 0;
-    cursor: pointer;
-  }
-  :where(.av a) {
-    color: inherit;
-    text-decoration: none;
-  }
-  .av :where(button, a, input, textarea, select):focus-visible {
-    outline: 2px solid var(--av-accent);
-    outline-offset: 2px;
-    border-radius: 4px;
-  }
+/* ---- base (zero-specificity; wins over globals' reset by source order) ----*/
+:where(.av button, .av input, .av textarea, .av select) {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+:where(.av button) {
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+}
+:where(.av a) {
+  color: inherit;
+  text-decoration: none;
+}
+.av :where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--av-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* ---- primitives -----------------------------------------------------------*/
-@layer components {
-  .av-card {
-    border: 1px solid var(--av-line);
-    background: var(--av-panel);
-    border-radius: 14px;
-  }
+/* ---- primitives (zero-specificity so utilities always override) -----------*/
+:where(.av-card) {
+  border: 1px solid var(--av-line);
+  background: var(--av-panel);
+  border-radius: 14px;
+}
 
-  .av-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    border-radius: 10px;
-    padding: 0.6rem 1.05rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1;
-    border: 1px solid transparent;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 130ms ease, border-color 130ms ease, opacity 130ms ease;
-  }
-  .av-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+:where(.av-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  padding: 0.6rem 1.05rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 130ms ease, border-color 130ms ease, opacity 130ms ease;
+}
+:where(.av-btn):disabled { opacity: 0.45; cursor: not-allowed; }
 
-  .av-btn-primary { background: var(--av-ink); color: var(--av-bg); }
-  .av-btn-primary:hover:not(:disabled) { opacity: 0.86; }
+:where(.av-btn-primary) { background: var(--av-ink); color: var(--av-bg); }
+:where(.av-btn-primary):hover:not(:disabled) { opacity: 0.86; }
 
-  .av-btn-ghost { border-color: var(--av-line-2); color: var(--av-ink); }
-  .av-btn-ghost:hover:not(:disabled) { background: var(--av-field); }
+:where(.av-btn-ghost) { border-color: var(--av-line-2); color: var(--av-ink); }
+:where(.av-btn-ghost):hover:not(:disabled) { background: var(--av-field); }
 
-  .av-btn-sm { padding: 0.4rem 0.7rem; font-size: 0.8125rem; }
+:where(.av-btn-sm) { padding: 0.4rem 0.7rem; font-size: 0.8125rem; }
 
-  /* refined field: label sits above, generous hit area, clear focus */
-  .av-field-label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    color: var(--av-ink-3);
-    margin-bottom: 0.4rem;
-  }
-  .av-input {
-    width: 100%;
-    border-radius: 10px;
-    border: 1px solid var(--av-line);
-    background: var(--av-field);
-    color: var(--av-ink);
-    padding: 0.7rem 0.85rem;
-    font-size: 0.9rem;
-    font-family: inherit;
-    transition: border-color 130ms ease;
-  }
-  .av-input::placeholder { color: var(--av-ink-3); }
-  .av-input:focus { outline: none; border-color: var(--av-accent); }
+:where(.av-input) {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--av-line);
+  background: var(--av-field);
+  color: var(--av-ink);
+  padding: 0.7rem 0.85rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 130ms ease;
+}
+:where(.av-input)::placeholder { color: var(--av-ink-3); }
+:where(.av-input):focus { outline: none; border-color: var(--av-accent); }
 
-  /* section header used across panels */
-  .av-eyebrow {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--av-ink-3);
-  }
+:where(.av-eyebrow) {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--av-ink-3);
+}
 
-  .av-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    border-radius: 999px;
-    border: 1px solid var(--av-line-2);
-    padding: 0.28rem 0.7rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--av-ink-2);
-    white-space: nowrap;
-  }
+:where(.av-pill) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--av-line-2);
+  padding: 0.28rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--av-ink-2);
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

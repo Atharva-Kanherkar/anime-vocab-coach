@@ -94,7 +94,7 @@ export function GamificationPanel() {
         <h2 className="mt-1.5 font-serif text-2xl font-medium">Streaks &amp; weekly challenges</h2>
         {streak && streak.current > 0 && (
           <p className="mt-1.5 text-sm text-ink2">
-            🔥 {streak.current}-day streak
+            {streak.current}-day streak
             {streak.longest > streak.current ? ` · personal best ${streak.longest}` : ""}
           </p>
         )}
@@ -143,7 +143,7 @@ export function GamificationPanel() {
                   {e.name}
                 </span>
                 <span className="whitespace-nowrap text-xs text-ink3">
-                  {e.wordsReviewed} reviewed · {e.minutes}m · 🔥{e.streak}
+                  {e.wordsReviewed} reviewed · {e.minutes}m · {e.streak}d streak
                 </span>
               </li>
             ))}
