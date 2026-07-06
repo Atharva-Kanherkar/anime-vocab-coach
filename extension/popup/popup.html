@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=360">
+  <meta name="viewport" content="width=320">
   <title>AnimeVocab</title>
   <link rel="stylesheet" href="popup.css">
   <script>
@@ -20,8 +20,6 @@
   </script>
 </head>
 <body class="av">
-  <div class="av-ticker" id="ticker" aria-hidden><span id="ticker-text"></span></div>
-
   <div class="shell">
     <header class="av-header">
       <div class="av-brand">
@@ -39,50 +37,21 @@
       </div>
     </header>
 
-    <section class="av-welcome">
-      <p class="av-welcome-kicker">おかえりなさい</p>
-      <h1 class="av-welcome-title">Your rally</h1>
-      <p class="av-welcome-sub" id="welcome-sub"></p>
-    </section>
-
-    <section id="hero-section" class="av-hero" hidden>
-      <div class="av-bubble" id="hero-bubble"></div>
-    </section>
-
     <section class="av-actions">
       <button id="review-due" class="av-btn av-btn-primary av-btn-block" type="button" hidden></button>
       <button id="copilot-btn" type="button" class="av-btn av-btn-ghost av-btn-block">Open Copilot on this tab</button>
       <button id="listen-btn" type="button" class="av-btn av-btn-quiet av-btn-block">Start Listening Mode</button>
-      <p class="av-note" id="listen-note">
-        Works on YouTube, Netflix, Crunchyroll. Sign in at animevocab.com for cloud transcription, or add your OpenAI key in Settings.
-      </p>
       <p class="av-error" id="listen-error" hidden></p>
     </section>
 
-    <section class="av-stamp-rally" id="stamp-rally"></section>
-
-    <section class="av-stats av-card">
-      <p class="av-eyebrow">Today</p>
-      <div class="av-stat-grid">
-        <div class="av-stat"><span id="stat-met" class="av-stat-num">0</span><span class="av-stat-label">Met</span></div>
-        <div class="av-stat"><span id="stat-judged" class="av-stat-num">0</span><span class="av-stat-label">Judged</span></div>
-        <div class="av-stat"><span id="stat-reviews" class="av-stat-num">0</span><span class="av-stat-label">Reviews</span></div>
-        <div class="av-stat"><span id="stat-watch" class="av-stat-num">0</span><span class="av-stat-label">Min watched</span></div>
-      </div>
-      <div class="av-totals" id="totals-row"></div>
-      <p class="av-streak" id="streak"></p>
-    </section>
-
     <section class="av-recent">
-      <h2 class="av-eyebrow">Fresh catches</h2>
+      <h2 class="av-eyebrow">Recent words</h2>
       <ul id="recent-list"></ul>
-      <p class="av-empty" id="recent-empty" hidden>No words yet — turn on Listening Mode while you watch.</p>
+      <p class="av-empty" id="recent-empty" hidden>No words yet — start Listening Mode on a video.</p>
     </section>
 
     <footer class="av-footer">
       <a href="#" id="cloud-link">Cloud app</a>
-      <span aria-hidden>·</span>
-      <a href="#" id="dashboard-link">Dashboard</a>
       <span aria-hidden>·</span>
       <a href="#" id="settings-link">Settings</a>
       <span aria-hidden>·</span>
