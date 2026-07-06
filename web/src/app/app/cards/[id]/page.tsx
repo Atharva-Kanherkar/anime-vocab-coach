@@ -25,7 +25,7 @@ export default async function CardDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const card = getCardById(id);
   const story = getCardStory(id);
-  if (!card || !story) notFound();
+  if (!card) notFound();
 
   const user = DEV_NO_CLERK ? null : await currentUser();
   const owner = DEV_NO_CLERK ? true : isOwnerEmail(user?.primaryEmailAddress?.emailAddress);

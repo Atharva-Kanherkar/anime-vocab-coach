@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ch1_p2",
+    "aspect": "portrait",
+    "refs": []
+  },
+  {
+    "id": "ch1_p1",
+    "aspect": "landscape",
+    "refs": []
+  },
+  {
+    "id": "ch1_p5",
+    "aspect": "portrait",
+    "refs": []
+  },
+  {
+    "id": "ch1_p4",
+    "aspect": "spread",
+    "refs": [
+      "ti_reiner.webp",
+      "vo_luka.webp",
+      "re_kuro.webp",
+      "lu_hoshimi.webp",
+      "cu_rei.webp",
+      "he_anya.webp",
+      "sp_totomi.webp",
+      "ch_mocha.webp"
+    ]
+  },
+  {
+    "id": "ch1_p6",
+    "aspect": "portrait",
+    "refs": [
+      "sl_honoka.webp"
+    ]
+  }
+]

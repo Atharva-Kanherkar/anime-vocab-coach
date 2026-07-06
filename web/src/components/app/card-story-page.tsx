@@ -11,6 +11,8 @@ import {
   type CardStory,
   type StoryLang,
 } from "@/lib/card-stories";
+import { debutPanelForCard } from "@/lib/manga";
+import { MangaPanelView } from "@/components/app/manga-panel";
 import { computeStreak } from "@/lib/gamification";
 import { summarizeSyncSnapshot } from "@/lib/sync";
 import {
@@ -28,7 +30,7 @@ export function CardStoryPage({
   owner = false,
 }: {
   card: CardDef;
-  story: CardStory;
+  story?: CardStory;
   owner?: boolean;
 }) {
   const [lang, setLang] = useState<StoryLang>("en");
@@ -47,7 +49,13 @@ export function CardStoryPage({
   const locked = !owner && card.level > userLevel;
 
   const art = card.art ?? CARD_ART[card.id];
-  const linked = mentionedCards(story);
+  const linked = story ? mentionedCards(story) : [];
+  const debut = (() => {
+    const d = debutPanelForCard(card.id);
+    if (!d) return null;
+    const panel = d.chapter.panels.find((p) => p.id === d.panelId);
+    return panel ? { chapter: d.chapter, panel } : null;
+  })();
 
   if (locked) {
     return (
@@ -97,10 +105,12 @@ export function CardStoryPage({
             <span className="mx-2 text-ink3">·</span>
             {STYLE_FAMILIES[card.style].label} · {RARITY_LABEL[card.rarity]}
           </p>
-          <p className="mt-4 text-[15px] leading-relaxed text-ink2">
-            <span className="font-extrabold text-indigo">{story.originPlace}</span>
-            {lang === "ja" ? `（${story.originPlaceJa}）` : lang === "en" ? ` (${story.originPlaceJa})` : ""}
-          </p>
+          {story && (
+            <p className="mt-4 text-[15px] leading-relaxed text-ink2">
+              <span className="font-extrabold text-indigo">{story.originPlace}</span>
+              {lang === "ja" ? `（${story.originPlaceJa}）` : lang === "en" ? ` (${story.originPlaceJa})` : ""}
+            </p>
+          )}
         </div>
       </header>
 
@@ -125,24 +135,44 @@ export function CardStoryPage({
         })}
       </div>
 
-      <section className="av-card mt-6 p-6 sm:p-8">
-        <p className="av-eyebrow">The Luminara Thread · ルミナラの糸</p>
-        <p className="mt-3 text-[14px] leading-relaxed text-ink2 whitespace-pre-line">
-          {LUMINARA_THREAD_INTRO[lang]}
-        </p>
-      </section>
-
-      <section className="mt-6">
-        <h2 className="av-eyebrow">Origin story</h2>
-        <div className="av-bubble mt-4 !p-6 sm:!p-8">
-          <p className="text-[15px] leading-[1.75] text-ink2 whitespace-pre-line font-[inherit]">
-            {story.body[lang]}
+      {debut && (
+        <section className="mt-8">
+          <p className="av-eyebrow">From the manga · 漫画より</p>
+          <div className="mx-auto mt-3 max-w-[460px]">
+            <MangaPanelView panel={debut.panel} lang={lang} />
+          </div>
+          <p className="mt-3 text-[13px] text-ink3">
+            {card.name} debuts in{" "}
+            <a href="/app#manga" className="font-extrabold text-indigo hover:underline">
+              Chapter {debut.chapter.n} — {lang === "ja" ? debut.chapter.titleJa : debut.chapter.titleEn}
+            </a>
+            .
           </p>
-        </div>
-        <p className="mt-4 text-[13px] text-ink3 italic">
-          {lang === "ja" ? story.whyItMattersJa : story.whyItMatters}
-        </p>
-      </section>
+        </section>
+      )}
+
+      {story && (
+        <>
+          <section className="av-card mt-6 p-6 sm:p-8">
+            <p className="av-eyebrow">The Kotodama Lattice · 言葉の灯</p>
+            <p className="mt-3 text-[14px] leading-relaxed text-ink2 whitespace-pre-line">
+              {LUMINARA_THREAD_INTRO[lang]}
+            </p>
+          </section>
+
+          <section className="mt-6">
+            <h2 className="av-eyebrow">Origin story</h2>
+            <div className="av-bubble mt-4 !p-6 sm:!p-8">
+              <p className="text-[15px] leading-[1.75] text-ink2 whitespace-pre-line font-[inherit]">
+                {story.body[lang]}
+              </p>
+            </div>
+            <p className="mt-4 text-[13px] text-ink3 italic">
+              {lang === "ja" ? story.whyItMattersJa : story.whyItMatters}
+            </p>
+          </section>
+        </>
+      )}
 
       {linked.length > 0 && (
         <section className="mt-10">
