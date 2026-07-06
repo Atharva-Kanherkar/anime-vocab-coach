@@ -284,6 +284,10 @@ export const CARDS: CardDef[] = [
   { id: "ch_dragon", name: "Nibbles", kanji: "竜", reading: "りゅう", epithet: "World's Smallest Dragon", rarity: "SR", level: 40, style: "chibi", look: "a chubby chibi baby dragon puffing a tiny smoke ring while sitting on a single gold coin, stubby wings, huge eyes, adorable" },
 ];
 
+export function getCardById(id: string): CardDef | undefined {
+  return CARDS.find((c) => c.id === id);
+}
+
 export function unlockedCards(level: number): CardDef[] {
   return CARDS.filter((c) => c.level <= level);
 }
