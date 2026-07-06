@@ -37,17 +37,42 @@ const CARDS_DIR = path.join(ROOT, "web/public/cards");
 const ART_MAP_FILE = path.join(ROOT, "web/src/lib/manga-art.ts");
 const LOG_FILE = path.join(OUT_DIR, "prompts.json");
 
-// One coherent look across the whole saga: black-and-white screentone manga.
-// White speech balloons on B&W art keep the overlaid text perfectly legible,
-// and a single spot color (named per panel) carries the supernatural beats.
-const STYLE = `Black-and-white Japanese manga page art. Screentone shading, dramatic sumi ink brushwork, bold confident linework, high contrast, cinematic dynamic composition. Emotive, serialized-shonen quality. Use a SINGLE restrained spot color ONLY where the scene names one (e.g. a green Hush-glow, a colored thread of light); everything else stays monochrome.`;
+// One coherent look across the whole saga: vibrant FULL-COLOR anime/manga art,
+// matching the collectible cards. Dialogue is rendered as real UI text in a box
+// beneath each panel, so panels carry NO text or speech balloons at all.
+const STYLE = `Full-color modern anime/manga illustration, vibrant saturated color, clean confident linework, cinematic lighting, richly detailed painted backgrounds, dynamic manga composition, expressive emotive characters. High-quality serialized-manga cover art.`;
 
 const SIZE = { portrait: "1024x1536", landscape: "1536x1024", square: "1024x1024", spread: "1536x1024" };
 
-const RULES = `Draw any speech balloons and caption boxes EMPTY — no text inside them (dialogue is added later). Do NOT add page numbers, credits, borders around the whole image, or a manga logo. No signature, no watermark. Short stylized Japanese sound-effect characters are allowed only if the scene explicitly names them.`;
+const RULES = `Render the dialogue as clean, classic manga speech balloons, thought bubbles, and rectangular caption boxes with crisp, legible, hand-lettered ENGLISH text. Spell every line EXACTLY as given — no extra, missing, or duplicated words. Place balloons in empty space and NEVER over a character's face; use tails to point to the speaker. Keep lettering large enough to read comfortably. No watermark, no page number, no outer frame/border.`;
+
+// Strip Fable's old "leave empty balloon at X" hints — we now specify the actual
+// dialogue to letter, so those overlay-era instructions would conflict.
+function cleanArtPrompt(s) {
+  return s
+    .replace(/(^|[.\s])(You MAY|Leave|Place|Add)[^.]*\b(balloon|bubble|caption|text|SFX|sound-effect|onomatopoeia|kanji)[^.]*\.?/gi, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+// Turn the panel's texts into explicit manga-lettering instructions (English).
+function dialogueBlock(panel) {
+  const parts = [];
+  for (const t of panel.texts) {
+    const en = t.en.replace(/"/g, "'");
+    if (t.kind === "speech") parts.push(`${t.speaker ?? "A character"} says in a speech balloon: "${en}"`);
+    else if (t.kind === "thought") parts.push(`${t.speaker ?? "A character"} thinks in a cloud-shaped thought bubble: "${en}"`);
+    else if (t.kind === "caption") parts.push(`a narration caption box reads: "${en}"`);
+    else if (t.kind === "sfx") parts.push(`a big stylized sound-effect: "${en}"`);
+  }
+  if (parts.length === 0) return "";
+  return `DIALOGUE to letter into the panel, in reading order (top-to-bottom, right-to-left):\n- ${parts.join("\n- ")}`;
+}
 
 function buildPrompt(panel) {
-  return [STYLE, `PANEL: ${panel.artPrompt}`, RULES].join("\n\n");
+  return [STYLE, `SCENE: ${cleanArtPrompt(panel.artPrompt)}`, dialogueBlock(panel), RULES]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 async function toWebp(pngPath, id) {

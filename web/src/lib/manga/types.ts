@@ -8,9 +8,9 @@ export type TextKind = "speech" | "thought" | "caption" | "sfx";
 
 export interface PanelText {
   kind: TextKind;
-  /** Anchor of the bubble/caption as % of panel width/height (0–100). */
-  x: number;
-  y: number;
+  /** Legacy overlay anchors (unused now that dialogue renders in a box). */
+  x?: number;
+  y?: number;
   /** Speaker name (omitted for captions/sfx). */
   speaker?: string;
   ja: string;

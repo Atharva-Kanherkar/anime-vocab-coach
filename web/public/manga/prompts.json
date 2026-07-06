@@ -1,38 +1,555 @@
 [
   {
-    "id": "ch1_p2",
+    "id": "ch1_p3",
     "aspect": "portrait",
     "refs": []
   },
   {
     "id": "ch1_p1",
+    "aspect": "spread",
+    "refs": []
+  },
+  {
+    "id": "ch1_p2",
     "aspect": "landscape",
     "refs": []
   },
   {
-    "id": "ch1_p5",
-    "aspect": "portrait",
-    "refs": []
-  },
-  {
     "id": "ch1_p4",
-    "aspect": "spread",
+    "aspect": "portrait",
     "refs": [
-      "ti_reiner.webp",
-      "vo_luka.webp",
-      "re_kuro.webp",
-      "lu_hoshimi.webp",
-      "cu_rei.webp",
-      "he_anya.webp",
-      "sp_totomi.webp",
-      "ch_mocha.webp"
+      "sl_honoka.webp"
     ]
   },
   {
     "id": "ch1_p6",
+    "aspect": "landscape",
+    "refs": [
+      "re_kuro.webp",
+      "he_anya.webp",
+      "sp_totomi.webp",
+      "cu_rei.webp"
+    ]
+  },
+  {
+    "id": "ch1_p5",
+    "aspect": "spread",
+    "refs": [
+      "ti_reiner.webp",
+      "vo_luka.webp",
+      "lu_hoshimi.webp",
+      "ch_mocha.webp"
+    ]
+  },
+  {
+    "id": "ch1_p7",
     "aspect": "portrait",
     "refs": [
       "sl_honoka.webp"
+    ]
+  },
+  {
+    "id": "ch2_p1",
+    "aspect": "landscape",
+    "refs": [
+      "sl_honoka.webp",
+      "ti_reiner.webp"
+    ]
+  },
+  {
+    "id": "ch2_p2",
+    "aspect": "spread",
+    "refs": []
+  },
+  {
+    "id": "ch2_p4",
+    "aspect": "portrait",
+    "refs": [
+      "me_shin.webp",
+      "ho_taki.webp"
+    ]
+  },
+  {
+    "id": "ch2_p5",
+    "aspect": "landscape",
+    "refs": [
+      "po_satoru.webp",
+      "he_anya.webp"
+    ]
+  },
+  {
+    "id": "ch2_p3",
+    "aspect": "portrait",
+    "refs": [
+      "ne_spike.webp"
+    ]
+  },
+  {
+    "id": "ch3_p2",
+    "aspect": "spread",
+    "refs": [
+      "vo_nami.webp",
+      "ch_pud.webp",
+      "vo_luka.webp"
+    ]
+  },
+  {
+    "id": "ch2_p6",
+    "aspect": "spread",
+    "refs": [
+      "ps_mob.webp",
+      "he_anya.webp"
+    ]
+  },
+  {
+    "id": "ch3_p1",
+    "aspect": "landscape",
+    "refs": [
+      "sh_rookie.webp",
+      "ho_taki.webp"
+    ]
+  },
+  {
+    "id": "ch3_p3",
+    "aspect": "portrait",
+    "refs": [
+      "lu_tsukina.webp",
+      "vo_nami.webp"
+    ]
+  },
+  {
+    "id": "ch3_p4",
+    "aspect": "landscape",
+    "refs": [
+      "sp_umi.webp"
+    ]
+  },
+  {
+    "id": "ch3_p5",
+    "aspect": "portrait",
+    "refs": []
+  },
+  {
+    "id": "ch3_p6",
+    "aspect": "spread",
+    "refs": [
+      "sh_rookie.webp",
+      "ch_pud.webp"
+    ]
+  },
+  {
+    "id": "ch4_p2",
+    "aspect": "portrait",
+    "refs": [
+      "he_anya.webp",
+      "ps_dimple.webp",
+      "he_loid.webp"
+    ]
+  },
+  {
+    "id": "ch4_p1",
+    "aspect": "landscape",
+    "refs": [
+      "he_loid.webp",
+      "he_anya.webp"
+    ]
+  },
+  {
+    "id": "ch4_p3",
+    "aspect": "landscape",
+    "refs": [
+      "ti_hana.webp"
+    ]
+  },
+  {
+    "id": "ch4_p4",
+    "aspect": "portrait",
+    "refs": [
+      "sl_mizuho.webp",
+      "sl_honoka.webp"
+    ]
+  },
+  {
+    "id": "ch4_p5",
+    "aspect": "portrait",
+    "refs": [
+      "re_yuki.webp"
+    ]
+  },
+  {
+    "id": "ch4_p6",
+    "aspect": "landscape",
+    "refs": [
+      "po_flame.webp",
+      "sl_mizuho.webp",
+      "sl_honoka.webp"
+    ]
+  },
+  {
+    "id": "ch5_p1",
+    "aspect": "landscape",
+    "refs": [
+      "me_asuka.webp"
+    ]
+  },
+  {
+    "id": "ch5_p2",
+    "aspect": "spread",
+    "refs": []
+  },
+  {
+    "id": "ch5_p4",
+    "aspect": "portrait",
+    "refs": [
+      "sh_ranger.webp"
+    ]
+  },
+  {
+    "id": "ch5_p3",
+    "aspect": "portrait",
+    "refs": [
+      "cu_maki.webp",
+      "cu_rei.webp"
+    ]
+  },
+  {
+    "id": "ch5_p5",
+    "aspect": "landscape",
+    "refs": [
+      "ho_mitsu.webp",
+      "sl_mizuho.webp"
+    ]
+  },
+  {
+    "id": "ch5_p6",
+    "aspect": "portrait",
+    "refs": [
+      "ne_rebel.webp"
+    ]
+  },
+  {
+    "id": "ch6_p1",
+    "aspect": "landscape",
+    "refs": [
+      "he_yor.webp",
+      "vo_zoro.webp"
+    ]
+  },
+  {
+    "id": "ch6_p2",
+    "aspect": "spread",
+    "refs": [
+      "sp_kama.webp"
+    ]
+  },
+  {
+    "id": "ch6_p3",
+    "aspect": "portrait",
+    "refs": [
+      "lu_venus.webp"
+    ]
+  },
+  {
+    "id": "ch6_p4",
+    "aspect": "portrait",
+    "refs": [
+      "ch_knight.webp",
+      "ch_mocha.webp"
+    ]
+  },
+  {
+    "id": "ch6_p5",
+    "aspect": "landscape",
+    "refs": [
+      "he_anya.webp"
+    ]
+  },
+  {
+    "id": "ch6_p6",
+    "aspect": "portrait",
+    "refs": [
+      "sp_kama.webp"
+    ]
+  },
+  {
+    "id": "ch7_p1",
+    "aspect": "landscape",
+    "refs": [
+      "ch_pud.webp",
+      "cu_rei.webp"
+    ]
+  },
+  {
+    "id": "ch7_p2",
+    "aspect": "portrait",
+    "refs": [
+      "ps_reigen.webp",
+      "cu_rei.webp"
+    ]
+  },
+  {
+    "id": "ch7_p4",
+    "aspect": "portrait",
+    "refs": [
+      "ps_reigen.webp"
+    ]
+  },
+  {
+    "id": "ch7_p3",
+    "aspect": "spread",
+    "refs": [
+      "sl_kagura.webp"
+    ]
+  },
+  {
+    "id": "ch7_p5",
+    "aspect": "portrait",
+    "refs": [
+      "cu_rei.webp",
+      "ps_reigen.webp"
+    ]
+  },
+  {
+    "id": "ch8_p1",
+    "aspect": "landscape",
+    "refs": [
+      "me_unit.webp",
+      "me_asuka.webp"
+    ]
+  },
+  {
+    "id": "ch7_p6",
+    "aspect": "landscape",
+    "refs": [
+      "sl_kagura.webp",
+      "po_aqua.webp"
+    ]
+  },
+  {
+    "id": "ch8_p2",
+    "aspect": "spread",
+    "refs": [
+      "ti_grim.webp"
+    ]
+  },
+  {
+    "id": "ch8_p3",
+    "aspect": "portrait",
+    "refs": [
+      "ne_ghost.webp"
+    ]
+  },
+  {
+    "id": "ch8_p4",
+    "aspect": "landscape",
+    "refs": [
+      "cu_domain.webp"
+    ]
+  },
+  {
+    "id": "ch8_p5",
+    "aspect": "portrait",
+    "refs": [
+      "re_zangetsu.webp"
+    ]
+  },
+  {
+    "id": "ch8_p6",
+    "aspect": "landscape",
+    "refs": [
+      "re_zangetsu.webp",
+      "lu_tsukina.webp"
+    ]
+  },
+  {
+    "id": "ch9_p1",
+    "aspect": "landscape",
+    "refs": [
+      "ho_rain.webp",
+      "ch_dragon.webp"
+    ]
+  },
+  {
+    "id": "ch9_p2",
+    "aspect": "portrait",
+    "refs": [
+      "sh_knight.webp",
+      "he_bond.webp",
+      "ti_hana.webp"
+    ]
+  },
+  {
+    "id": "ch9_p4",
+    "aspect": "spread",
+    "refs": []
+  },
+  {
+    "id": "ch9_p3",
+    "aspect": "portrait",
+    "refs": [
+      "sp_ohtori.webp"
+    ]
+  },
+  {
+    "id": "ch9_p5",
+    "aspect": "portrait",
+    "refs": []
+  },
+  {
+    "id": "ch9_p6",
+    "aspect": "landscape",
+    "refs": [
+      "he_bond.webp"
+    ]
+  },
+  {
+    "id": "ch10_p1",
+    "aspect": "landscape",
+    "refs": []
+  },
+  {
+    "id": "ch10_p2",
+    "aspect": "portrait",
+    "refs": [
+      "vo_yonko.webp",
+      "sh_rookie.webp"
+    ]
+  },
+  {
+    "id": "ch10_p4",
+    "aspect": "spread",
+    "refs": [
+      "ps_awaken.webp"
+    ]
+  },
+  {
+    "id": "ch10_p3",
+    "aspect": "spread",
+    "refs": [
+      "ps_mob.webp"
+    ]
+  },
+  {
+    "id": "ch10_p5",
+    "aspect": "portrait",
+    "refs": [
+      "po_satoru.webp",
+      "po_legend.webp"
+    ]
+  },
+  {
+    "id": "ch10_p6",
+    "aspect": "portrait",
+    "refs": [
+      "sh_rookie.webp"
+    ]
+  },
+  {
+    "id": "ch11_p1",
+    "aspect": "portrait",
+    "refs": [
+      "sp_ohtori.webp"
+    ]
+  },
+  {
+    "id": "ch11_p2",
+    "aspect": "spread",
+    "refs": [
+      "me_angel.webp"
+    ]
+  },
+  {
+    "id": "ch11_p4",
+    "aspect": "portrait",
+    "refs": [
+      "me_angel.webp"
+    ]
+  },
+  {
+    "id": "ch11_p3",
+    "aspect": "portrait",
+    "refs": [
+      "he_anya.webp",
+      "me_angel.webp"
+    ]
+  },
+  {
+    "id": "ch11_p5",
+    "aspect": "spread",
+    "refs": [
+      "ho_comet.webp"
+    ]
+  },
+  {
+    "id": "ch11_p6",
+    "aspect": "portrait",
+    "refs": [
+      "me_angel.webp"
+    ]
+  },
+  {
+    "id": "ch12_p1",
+    "aspect": "spread",
+    "refs": [
+      "sh_monarch.webp"
+    ]
+  },
+  {
+    "id": "ch12_p2",
+    "aspect": "landscape",
+    "refs": [
+      "sl_akatsuki.webp",
+      "re_king.webp"
+    ]
+  },
+  {
+    "id": "ch12_p3",
+    "aspect": "portrait",
+    "refs": [
+      "cu_king.webp",
+      "sl_honoka.webp"
+    ]
+  },
+  {
+    "id": "ch12_p4",
+    "aspect": "spread",
+    "refs": [
+      "ne_titan.webp",
+      "ti_founder.webp",
+      "ch_knight.webp"
+    ]
+  },
+  {
+    "id": "ch12_p5",
+    "aspect": "landscape",
+    "refs": [
+      "he_anya.webp",
+      "po_satoru.webp",
+      "ch_mocha.webp"
+    ]
+  },
+  {
+    "id": "ch12_p7",
+    "aspect": "spread",
+    "refs": [
+      "ne_titan.webp"
+    ]
+  },
+  {
+    "id": "ch12_p6",
+    "aspect": "spread",
+    "refs": [
+      "lu_queen.webp",
+      "ch_dragon.webp",
+      "vo_zoro.webp"
+    ]
+  },
+  {
+    "id": "ch12_p8",
+    "aspect": "landscape",
+    "refs": [
+      "sh_rookie.webp",
+      "lu_queen.webp"
     ]
   }
 ]

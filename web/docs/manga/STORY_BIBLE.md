@@ -19,6 +19,8 @@ A thousand two hundred years ago, humanity forgot its first word — and the for
 
 **The Kotodama Lattice.** Grounded in the real Japanese belief of 言霊 *kotodama* — that words carry spirit, and speaking a word with intent exerts real force. Every act of *meant* language (learning, naming, promising, telling a story someone believes) creates a strand between minds. The Lattice is the sum of all strands since the first word. It is invisible to almost everyone; Listeners perceive it as light, thread, and faint sound.
 
+**The Cosmic Frame (Indian-led, v2).** The saga's cosmology is Shaiva. In the beginning was the beat of **Shiva's damaru** — Nataraja's drum, whose first stroke is the primal syllable of creation. That sound became a goddess: **Vāc / Saraswati**, speech itself made divine — the Rigveda's Word-goddess. The Lattice IS Vāc's web; kotodama is Japan's name for the same truth (the saga says so on-page in Ch1, and treats every tradition's word-belief as one mountain seen from many villages). The Hush, at true scale, is a **false pralaya**: Shiva's cosmic dissolution stolen without the renewal that must follow — un-creation with no dawn scheduled after it. Sen's relighting power is Vāc's breath moving through a learner. The braided pantheons: **Greek** — Mnemosyne (Memory, mother of the Muses) vs. Lethe, the axis named when the Censor's offer is refused as "Lethe's water" (Ch3) and Minjae's notebook becomes Mnemosyne's altar; **Chinese** — Cangjie, at whose invention of writing the heavens rained millet and the ghosts wept (whispered on the sutra-strand, Ch2); **Japanese** — kotodama at home, and Amaterasu's cave: light returns when a true voice calls it (Haru's sentence, Ch2 and Ch10); **Vedic again at the summit** — Stormcrown is Rudra the Roarer, awe-before-language, and the finale's naming of 間 *ma* restores the rest-note between the drum's beats: rhythm, and therefore renewal, resumes. Victory is not the drum silenced or the silence killed — it is the pause given its lawful place in the music.
+
 **What the Hush is.** Not a demon and not a person: it is *the first forgetting, grown self-sustaining*. Around 800 CE (the last passage of the comet called the Long Return), the final speaker of humanity's first word died with no one to pass it to. A word that had bound every human lineage snapped out of the Lattice at once — and the recoil became a standing wave of erasure. The Hush has no words of its own. That is Rule Zero and the source of everything else.
 
 **The Six Rules** (never violated anywhere in the saga; the continuity audit at the end verifies this):
@@ -189,9 +191,30 @@ Tiny mascots keeping tiny words — the diminutives, the snack-words, the nonsen
 
 ---
 
+## THE ROUTE — ONE CONNECTED JOURNEY (v2, canonical; chapters.ts implements this)
+
+The party's physical journey is a single loop: **out of India east along the sutra-strand, then the long sea road west to where letters began, then the monsoon run home to where art began.** Consecutive chapters connect on the ground (each shows the travel leg); globally distant keepers arrive TO the party by lattice-walking — the party itself never teleports. The engines: the comet timetable (stolen Ch5, surrendered Ch8), the hunt for the Mouth ("where marks began"), and the gathering of keepers.
+
+1. **Ch1 — Varanasi.** Shiva's city; Devika's unbroken flame. The party forms. Hand-off: the static riding the sutra-strand points east.
+2. **Ch2 — Tokyo** (walked east along the sutra-strand — the real historical road words took, India→China→Japan; Cangjie whispered en route). Noise, not silence, is the beachhead. Hand-off: the living sky-threads all run west; the sea-roads are dying.
+3. **Ch3 — Seoul → the westward voyage** (ferry Tokyo→Busan; the *Loanword* departs Incheon; South China Sea, Malacca, into the Indian Ocean). The Censor's Lethe-offer; the first casualty. Hand-off: refit at the Kestrel House, which has moved ahead of the war.
+4. **Ch4 — Suez & Cairo** (Red Sea, the Canal): Émile's safehouse-in-exile; kinship-word offensive; Tenzin arrives half-erased, Zola flies in with the survey, Sunmi delivers the frozen word; Emberkit takes the coal, Tenzin blesses the casks — fire-rite and water-rite board together. Hand-off: north up the Levant coast.
+5. **Ch5 — Byblos** (coastal run): defense of the alphabet's root; Anya steals the ledger page ("the Archivist"; a comet timetable). Hand-off: the Archivist's trail and the party's exhaustion both point north to Istanbul.
+6. **Ch6 — Istanbul** (Aegean → Bosphorus): the hamam respite; Echo's theft; Grandfather Ash remembers Halime. Hand-off: bells cry for help from the southern sky.
+7. **Ch7 — Lalibela** (Suez again, Red Sea south, highland trek): Kunle lattice-walks in from Lagos; the doubt-siege of Amara's bells broken. Hand-off: the timetable and Adriatic word agree — the Censor moves on Skadar; his seat is drowned beneath Lisbon.
+8. **Ch8 — Skadar → Lisbon** (the long western run: Adriatic relief, Gibraltar, the Tagus): Dragan's wall-for-name choice wakes Meridian; the drowned library falls to saudade and the moon-mirror; the Censor stops, and surrenders the timetable: the Long Return within the year; the Mouth opens where marks began. Hand-off: the road home is the battlefield — east.
+9. **Ch9 — the monsoon Indian Ocean** (Suez a third time, homeward run): Dao reads the rain; Tomas and Biscuit arrive, and the blind-spot chart spells Bhimbetka; Echo caught and taught one meant word; Halime defects along Ash's unsevered strand and tells Mu's whole story. Hand-off: landfall, India.
+10. **Ch10 — Mumbai & the Konkan coast**: White Noise's last offensive against the unwritten books (the oral Veda); Olamide brings Timbuktu's dispersal method — the party becomes a library; Haru's awakening; Rafa introduces himself to Rudra-thunder (Stormcrown). Hand-off: inland, 500 km to the painted rocks; the comet is visible.
+11. **Ch11 — the high sky** (flown vertically from the Deccan up the last lit strand): The Pattern's structure-test; the comet's testimony; the empty grammatical slot. Hand-off: descent onto Bhimbetka as sixty threads knot.
+12. **Ch12 — Bhimbetka**: the false pralaya's Mouth; the ring of sixty kanji; the naming of 間 *ma* — the rest-note of Shiva's drum restored. Epilogue at the campfire; one far strand hums for Saga Two.
+
+Thematic braids across hand-offs: flame→coal (Ch1→4→12); noise→sea-silence (Ch2→3); water blessed in Ch4 quenches Ch5's quotation-fire; letters→tongues-in-steam (Ch5→6); bell-echo→wall-stones (Ch7→8); rain→storm (Ch9→10); comet-light→dawn-door (Ch11→12).
+
+---
+
 ## CHAPTER-BY-CHAPTER BREAKDOWN
 
-Gating rule: chapter *N* unlocks at its band's lowest level; a card's debut chapter = the band containing its unlock level. Bilingual plan for every chapter: 6–10 key dialogue lines set in Japanese with romaji + English underneath, the band's kanji appearing *in the art* (on banners, blades, sails, screens) before it is ever glossed; vocabulary lives in the drama, never quizzed.
+Gating rule: chapter *N* unlocks at its band's lowest level; a card's debut chapter = the band containing its unlock level. Bilingual plan for every chapter: 6–10 key dialogue lines set in Japanese with romaji + English underneath, the band's kanji appearing *in the art* (on banners, blades, sails, screens) before it is ever glossed; vocabulary lives in the drama, never quizzed. **NOTE (v2):** where a chapter entry below names a different locale than the route above (Ch2 Lima/Harz scenes, Ch4 Paris, Ch7 Lagos, Ch9 Teotihuacan, Ch10 Timbuktu), the route section and `chapters.ts` are canonical — those keepers now ARRIVE at the party's location by lattice-walk, carrying their home mythology with them.
 
 ---
 

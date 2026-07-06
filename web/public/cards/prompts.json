@@ -1,302 +1,32 @@
 [
   {
-    "id": "sl_kagura",
-    "rarity": "SR",
-    "style": "slayer"
-  },
-  {
-    "id": "sl_honoka",
-    "rarity": "N",
-    "style": "slayer"
-  },
-  {
-    "id": "sl_mizuho",
-    "rarity": "R",
-    "style": "slayer"
-  },
-  {
-    "id": "sl_akatsuki",
-    "rarity": "SSR",
-    "style": "slayer"
-  },
-  {
-    "id": "ti_reiner",
-    "rarity": "N",
-    "style": "titan"
-  },
-  {
-    "id": "ti_grim",
-    "rarity": "SR",
-    "style": "titan"
-  },
-  {
-    "id": "ti_hana",
-    "rarity": "R",
-    "style": "titan"
-  },
-  {
-    "id": "ti_founder",
-    "rarity": "SSR",
-    "style": "titan"
-  },
-  {
-    "id": "re_kuro",
-    "rarity": "N",
-    "style": "reaper"
-  },
-  {
-    "id": "re_yuki",
-    "rarity": "R",
-    "style": "reaper"
-  },
-  {
-    "id": "re_zangetsu",
+    "id": "nc_kesu",
     "rarity": "SR",
     "style": "reaper"
   },
   {
-    "id": "re_king",
-    "rarity": "SSR",
-    "style": "reaper"
-  },
-  {
-    "id": "sp_totomi",
+    "id": "nc_tsuru",
     "rarity": "N",
     "style": "spirit"
   },
   {
-    "id": "sp_umi",
-    "rarity": "N",
-    "style": "spirit"
-  },
-  {
-    "id": "sp_kama",
-    "rarity": "R",
-    "style": "spirit"
-  },
-  {
-    "id": "sp_ohtori",
-    "rarity": "SR",
-    "style": "spirit"
-  },
-  {
-    "id": "cu_rei",
-    "rarity": "N",
-    "style": "curse"
-  },
-  {
-    "id": "cu_maki",
-    "rarity": "R",
-    "style": "curse"
-  },
-  {
-    "id": "cu_domain",
-    "rarity": "SR",
-    "style": "curse"
-  },
-  {
-    "id": "cu_king",
-    "rarity": "SSR",
-    "style": "curse"
-  },
-  {
-    "id": "vo_luka",
-    "rarity": "N",
-    "style": "voyage"
-  },
-  {
-    "id": "vo_zoro",
-    "rarity": "R",
-    "style": "voyage"
-  },
-  {
-    "id": "vo_nami",
-    "rarity": "N",
-    "style": "voyage"
-  },
-  {
-    "id": "lu_hoshimi",
-    "rarity": "N",
-    "style": "lunar"
-  },
-  {
-    "id": "vo_yonko",
-    "rarity": "SR",
-    "style": "voyage"
-  },
-  {
-    "id": "lu_tsukina",
-    "rarity": "N",
-    "style": "lunar"
-  },
-  {
-    "id": "lu_venus",
-    "rarity": "R",
-    "style": "lunar"
-  },
-  {
-    "id": "lu_queen",
-    "rarity": "SSR",
-    "style": "lunar"
-  },
-  {
-    "id": "ne_spike",
-    "rarity": "N",
-    "style": "neon"
-  },
-  {
-    "id": "ne_rebel",
-    "rarity": "R",
-    "style": "neon"
-  },
-  {
-    "id": "ne_ghost",
-    "rarity": "SR",
-    "style": "neon"
-  },
-  {
-    "id": "he_loid",
-    "rarity": "N",
-    "style": "hearth"
-  },
-  {
-    "id": "he_anya",
-    "rarity": "N",
-    "style": "hearth"
-  },
-  {
-    "id": "ne_titan",
-    "rarity": "SSR",
-    "style": "neon"
-  },
-  {
-    "id": "he_yor",
-    "rarity": "R",
-    "style": "hearth"
-  },
-  {
-    "id": "he_bond",
-    "rarity": "SR",
-    "style": "hearth"
-  },
-  {
-    "id": "ps_mob",
-    "rarity": "N",
-    "style": "psyche"
-  },
-  {
-    "id": "ps_dimple",
-    "rarity": "N",
-    "style": "psyche"
-  },
-  {
-    "id": "ps_reigen",
-    "rarity": "R",
-    "style": "psyche"
-  },
-  {
-    "id": "me_shin",
-    "rarity": "N",
-    "style": "mecha"
-  },
-  {
-    "id": "ps_awaken",
-    "rarity": "SR",
-    "style": "psyche"
-  },
-  {
-    "id": "me_asuka",
-    "rarity": "R",
-    "style": "mecha"
-  },
-  {
-    "id": "me_unit",
-    "rarity": "SR",
-    "style": "mecha"
-  },
-  {
-    "id": "me_angel",
-    "rarity": "SSR",
-    "style": "mecha"
-  },
-  {
-    "id": "ho_taki",
-    "rarity": "N",
-    "style": "horizon"
-  },
-  {
-    "id": "ho_mitsu",
-    "rarity": "R",
-    "style": "horizon"
-  },
-  {
-    "id": "ho_rain",
-    "rarity": "SR",
-    "style": "horizon"
-  },
-  {
-    "id": "ho_comet",
-    "rarity": "SSR",
-    "style": "horizon"
-  },
-  {
-    "id": "po_aqua",
-    "rarity": "R",
-    "style": "pocket"
-  },
-  {
-    "id": "po_satoru",
-    "rarity": "N",
-    "style": "pocket"
-  },
-  {
-    "id": "po_legend",
-    "rarity": "SR",
-    "style": "pocket"
-  },
-  {
-    "id": "po_flame",
-    "rarity": "N",
-    "style": "pocket"
-  },
-  {
-    "id": "sh_rookie",
-    "rarity": "N",
-    "style": "shadow"
-  },
-  {
-    "id": "sh_knight",
-    "rarity": "SR",
-    "style": "shadow"
-  },
-  {
-    "id": "sh_monarch",
-    "rarity": "SSR",
-    "style": "shadow"
-  },
-  {
-    "id": "sh_ranger",
+    "id": "nc_echo",
     "rarity": "R",
     "style": "shadow"
   },
   {
-    "id": "ch_mocha",
-    "rarity": "N",
-    "style": "chibi"
-  },
-  {
-    "id": "ch_knight",
-    "rarity": "R",
-    "style": "chibi"
-  },
-  {
-    "id": "ch_pud",
-    "rarity": "N",
-    "style": "chibi"
-  },
-  {
-    "id": "ch_dragon",
+    "id": "nc_wasure",
     "rarity": "SR",
-    "style": "chibi"
+    "style": "psyche"
+  },
+  {
+    "id": "nc_moku",
+    "rarity": "SR",
+    "style": "neon"
+  },
+  {
+    "id": "nc_mu",
+    "rarity": "SSR",
+    "style": "psyche"
   }
 ]
