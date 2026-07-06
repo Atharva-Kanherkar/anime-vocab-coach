@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AppNav } from "@/components/app/app-nav";
 import { NotebookDetail } from "@/components/notebook-detail";
 
@@ -15,10 +14,7 @@ export default async function NotebookPage({ params }: { params: Promise<{ id: s
   return (
     <>
       <AppNav />
-      <main id="main" className="mx-auto w-[min(1080px,calc(100%-32px))] py-9 sm:py-14">
-        <Link href="/app" className="mb-5 inline-flex items-center gap-1.5 text-sm text-ink2 hover:text-ink">
-          ← Back to dashboard
-        </Link>
+      <main id="main" className="mx-auto max-w-[960px] px-5 py-9 md:px-8">
         <NotebookDetail id={id} />
       </main>
     </>

@@ -14,7 +14,7 @@ import {
 } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
-import { IBM_Plex_Sans, Newsreader, Noto_Sans_JP } from "next/font/google";
+import { IBM_Plex_Sans, Newsreader, Noto_Sans_JP, Zen_Maru_Gothic } from "next/font/google";
 
 const newsreader = Newsreader({
   subsets: ["latin"],
@@ -33,6 +33,15 @@ const notoJp = Noto_Sans_JP({
   subsets: ["latin"],
   weight: ["400", "600"],
   variable: "--jp",
+  display: "swap",
+});
+
+// Rounded JP display face for the cloud app (/app) only — marketing never
+// references --jp-round, so this is inert there.
+const zenMaru = Zen_Maru_Gothic({
+  subsets: ["latin"],
+  weight: ["500", "700", "900"],
+  variable: "--jp-round",
   display: "swap",
 });
 
@@ -135,7 +144,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${newsreader.variable} ${ibmPlex.variable} ${notoJp.variable}`}
+      className={`${newsreader.variable} ${ibmPlex.variable} ${notoJp.variable} ${zenMaru.variable}`}
     >
       <body>
         {DEV_NO_CLERK ? shell : <ClerkProvider appearance={clerkAppearance}>{shell}</ClerkProvider>}

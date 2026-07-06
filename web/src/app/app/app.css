@@ -1,17 +1,17 @@
 /* ============================================================================
- * Cloud app theme — scoped to /app only. Flat, editorial, warm.
+ * Cloud app theme — scoped to /app only. "Stamp rally" riso-print direction:
+ * washi paper, vermillion + indigo inks, rounded JP display type, manga-style
+ * bordered nav, ticker chyron, speech-bubble word card, collectible cards.
  *
- * IMPORTANT cascade note: globals.css (marketing) ships an UNLAYERED
- * `* { margin: 0; padding: 0 }` reset, and unlayered CSS outranks anything in
- * @layer. So Tailwind utilities here are imported WITHOUT a layer (their class
- * specificity beats the `*` reset), and every component class below is wrapped
- * in :where() (specificity 0) so plain utilities can still override them.
- * app.css loads after globals.css (nested route layout), so at equal
- * specificity these rules win by source order.
+ * CASCADE RULE (do not undo — see memory/app-css-cascade-gotcha):
+ * globals.css ships an UNLAYERED `* { margin:0; padding:0 }` reset, and
+ * unlayered CSS outranks anything in @layer. So Tailwind utilities are
+ * imported WITHOUT a layer (class specificity beats `*`), and every component
+ * class below is wrapped in :where() (specificity 0) so utilities can still
+ * override them. app.css loads after globals.css, so ties resolve our way.
  *
- * No preflight — marketing keeps its own reset. Tokens are `--av-*` prefixed.
- * Dark default; `:root[data-theme="light"]` → cream. NO gradients, NO
- * glass/blur, NO decorative shadows. Solid fills + hairlines.
+ * NO gradients-as-fades, NO glass/blur, NO emoji. Flat inks, hairlines, and
+ * print patterns (dots/stripes) only.
  * ==========================================================================*/
 
 @import "tailwindcss/theme.css" layer(theme);
@@ -23,34 +23,35 @@
   --color-bg: var(--av-bg);
   --color-panel: var(--av-panel);
   --color-field: var(--av-field);
-  --color-surface: var(--av-field);
-  --color-surface-2: var(--av-panel);
   --color-ink: var(--av-ink);
   --color-ink2: var(--av-ink-2);
   --color-ink3: var(--av-ink-3);
   --color-line: var(--av-line);
   --color-line2: var(--av-line-2);
   --color-accent: var(--av-accent);
+  --color-indigo: var(--av-indigo);
   --color-ok: var(--av-ok);
   --color-danger: var(--av-danger);
 
   --font-sans: var(--sans, ui-sans-serif, system-ui, sans-serif);
-  --font-serif: var(--serif, Georgia, "Times New Roman", serif);
+  --font-serif: var(--serif, Georgia, serif);
   --font-jp: var(--jp, "Hiragino Sans", sans-serif);
+  --font-jpround: var(--jp-round, "Hiragino Maru Gothic ProN", sans-serif);
 }
 
 /* ---- palette --------------------------------------------------------------*/
 .av {
-  /* dark (default) */
-  --av-bg: #0c0b0e;
-  --av-panel: #131217;
-  --av-field: rgba(255, 255, 255, 0.045);
-  --av-ink: #ece9e3;
-  --av-ink-2: rgba(236, 233, 227, 0.6);
-  --av-ink-3: rgba(236, 233, 227, 0.38);
-  --av-line: rgba(236, 233, 227, 0.1);
-  --av-line-2: rgba(236, 233, 227, 0.16);
-  --av-accent: #cf6a45;
+  /* dark (default) — warm sumi ink */
+  --av-bg: #161210;
+  --av-panel: #1e1915;
+  --av-field: rgba(237, 231, 218, 0.05);
+  --av-ink: #ede7da;
+  --av-ink-2: rgba(237, 231, 218, 0.62);
+  --av-ink-3: rgba(237, 231, 218, 0.4);
+  --av-line: rgba(237, 231, 218, 0.14);
+  --av-line-2: rgba(237, 231, 218, 0.28);
+  --av-accent: #e0603a;
+  --av-indigo: #8fb0d1;
   --av-ok: #78d6a6;
   --av-danger: #e8896f;
 
@@ -63,21 +64,22 @@
 }
 
 :root[data-theme="light"] .av {
-  /* light — warm washi paper */
-  --av-bg: #f4efe4;
-  --av-panel: #fbf8f1;
-  --av-field: rgba(33, 29, 23, 0.035);
-  --av-ink: #201d17;
-  --av-ink-2: rgba(32, 29, 23, 0.62);
-  --av-ink-3: rgba(32, 29, 23, 0.44);
-  --av-line: rgba(32, 29, 23, 0.12);
-  --av-line-2: rgba(32, 29, 23, 0.2);
-  --av-accent: #b8492b;
+  /* light — washi paper riso */
+  --av-bg: #f5efe0;
+  --av-panel: #fdfaf1;
+  --av-field: rgba(38, 34, 27, 0.04);
+  --av-ink: #26221b;
+  --av-ink-2: rgba(38, 34, 27, 0.62);
+  --av-ink-3: rgba(38, 34, 27, 0.42);
+  --av-line: rgba(38, 34, 27, 0.16);
+  --av-line-2: rgba(38, 34, 27, 0.32);
+  --av-accent: #d84e2a;
+  --av-indigo: #2c4a68;
   --av-ok: #1c8f66;
   --av-danger: #b8492b;
 }
 
-/* ---- base (zero-specificity; wins over globals' reset by source order) ----*/
+/* ---- base (zero-specificity; beats globals' reset by source order) --------*/
 :where(.av button, .av input, .av textarea, .av select) {
   font-family: inherit;
   font-size: inherit;
@@ -102,9 +104,9 @@
 
 /* ---- primitives (zero-specificity so utilities always override) -----------*/
 :where(.av-card) {
-  border: 1px solid var(--av-line);
+  border: 1.5px solid var(--av-line);
   background: var(--av-panel);
-  border-radius: 14px;
+  border-radius: 16px;
 }
 
 :where(.av-btn) {
@@ -112,33 +114,37 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 10px;
-  padding: 0.6rem 1.05rem;
+  border-radius: 999px;
+  padding: 0.65rem 1.3rem;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 800;
   line-height: 1;
-  border: 1px solid transparent;
+  border: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 130ms ease, border-color 130ms ease, opacity 130ms ease;
+  transition: background 130ms ease, border-color 130ms ease, opacity 130ms ease, transform 80ms ease;
 }
+:where(.av-btn):active { transform: translateY(1px); }
 :where(.av-btn):disabled { opacity: 0.45; cursor: not-allowed; }
 
-:where(.av-btn-primary) { background: var(--av-ink); color: var(--av-bg); }
-:where(.av-btn-primary):hover:not(:disabled) { opacity: 0.86; }
+:where(.av-btn-primary) { background: var(--av-accent); border-color: var(--av-accent); color: #fffdf6; }
+:where(.av-btn-primary):hover:not(:disabled) { opacity: 0.88; }
 
-:where(.av-btn-ghost) { border-color: var(--av-line-2); color: var(--av-ink); }
+:where(.av-btn-ghost) { border-color: var(--av-ink); color: var(--av-ink); }
 :where(.av-btn-ghost):hover:not(:disabled) { background: var(--av-field); }
 
-:where(.av-btn-sm) { padding: 0.4rem 0.7rem; font-size: 0.8125rem; }
+:where(.av-btn-quiet) { border-color: var(--av-line); color: var(--av-ink-3); }
+:where(.av-btn-quiet):hover:not(:disabled) { color: var(--av-ink); }
+
+:where(.av-btn-sm) { padding: 0.45rem 0.85rem; font-size: 0.8125rem; }
 
 :where(.av-input) {
   width: 100%;
-  border-radius: 10px;
-  border: 1px solid var(--av-line);
-  background: var(--av-field);
+  border-radius: 12px;
+  border: 1.5px solid var(--av-line);
+  background: var(--av-panel);
   color: var(--av-ink);
-  padding: 0.7rem 0.85rem;
+  padding: 0.7rem 0.9rem;
   font-size: 0.9rem;
   font-family: inherit;
   transition: border-color 130ms ease;
@@ -148,8 +154,8 @@
 
 :where(.av-eyebrow) {
   font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  font-weight: 800;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--av-ink-3);
 }
@@ -159,17 +165,134 @@
   align-items: center;
   gap: 0.4rem;
   border-radius: 999px;
-  border: 1px solid var(--av-line-2);
+  border: 1.5px solid var(--av-line-2);
   padding: 0.28rem 0.7rem;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--av-ink-2);
   white-space: nowrap;
+}
+
+/* hanko seal (logo / stamps) */
+:where(.av-hanko) {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--av-accent);
+  color: #fffdf6;
+  font-family: var(--font-jpround);
+  font-weight: 900;
+  font-size: 14px;
+  transform: rotate(-6deg);
+  box-shadow: 0 0 0 2px var(--av-bg), 0 0 0 3.5px var(--av-accent);
+}
+
+/* ---- ticker chyron ---------------------------------------------------------*/
+:where(.av-ticker) {
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--av-accent);
+  color: #fffdf6;
+  font-family: var(--font-jpround);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  padding: 8px 0;
+}
+:where(.av-ticker) > span {
+  display: inline-block;
+  padding-left: 100%;
+  animation: av-tick 30s linear infinite;
+}
+@keyframes av-tick { to { transform: translateX(-100%); } }
+
+/* ---- speech bubble ---------------------------------------------------------*/
+:where(.av-bubble) {
+  position: relative;
+  border: 2.5px solid var(--av-ink);
+  border-radius: 24px;
+  background: var(--av-panel);
+  padding: 28px 30px 24px;
+}
+:where(.av-bubble)::after {
+  content: "";
+  position: absolute;
+  left: 48px;
+  bottom: -16px;
+  width: 24px;
+  height: 24px;
+  background: var(--av-panel);
+  border-right: 2.5px solid var(--av-ink);
+  border-bottom: 2.5px solid var(--av-ink);
+  transform: skewX(38deg) rotate(45deg);
+}
+
+/* ---- stamp rally ------------------------------------------------------------*/
+:where(.av-stamp) {
+  aspect-ratio: 1;
+  border: 2px dashed var(--av-line-2);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--av-ink-3);
+}
+:where(.av-stamp-hit) {
+  border: 2.5px solid var(--av-accent);
+  color: var(--av-accent);
+  font-family: var(--font-jpround);
+  font-weight: 900;
+  font-size: 19px;
+  position: relative;
+  transform: rotate(-8deg);
+}
+:where(.av-stamp-hit)::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--av-accent);
+  opacity: 0.5;
+}
+:where(.av-stamp-hit):nth-child(2n) { transform: rotate(5deg); }
+:where(.av-stamp-hit):nth-child(3n) { transform: rotate(-3deg); }
+
+/* ---- collectible cards (print patterns, flat inks) --------------------------*/
+:where(.av-tcg) {
+  aspect-ratio: 5 / 7;
+  border: 2.5px solid var(--av-ink);
+  border-radius: 14px;
+  background: var(--av-panel);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+:where(.av-tcg-locked) {
+  border: 2px dashed var(--av-line-2);
+}
+/* print textures — flat two-tone patterns, not fades */
+:where(.av-dots) {
+  background-image: radial-gradient(var(--av-line) 1px, transparent 1.4px);
+  background-size: 9px 9px;
+}
+:where(.av-stripes) {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--av-line) 0px,
+    var(--av-line) 1.5px,
+    transparent 1.5px,
+    transparent 7px
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {
   .av *, .av *::before, .av *::after {
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
 }
