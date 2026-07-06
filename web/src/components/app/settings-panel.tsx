@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useCloudSnapshot } from "@/components/cloud-sync-panel";
+import { useCloudSnapshot, persistCloudEnvelope, useCloudSyncMeta } from "@/lib/cloud-snapshot-store";
 import {
   EXTENSION_SETTINGS_DEFAULTS,
   parseExtensionSettings,
@@ -10,6 +10,7 @@ import {
   type ExtensionSettings,
   type PauseMode,
 } from "@/lib/extension-settings";
+import type { CloudSyncEnvelope } from "@/lib/sync";
 
 function notifyExtensionSync(): void {
   try {
@@ -21,21 +22,14 @@ function notifyExtensionSync(): void {
 
 export function SettingsPanel() {
   const snapshot = useCloudSnapshot();
+  const meta = useCloudSyncMeta();
   const [settings, setSettings] = useState<ExtensionSettings>(EXTENSION_SETTINGS_DEFAULTS);
-  const [revision, setRevision] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setSettings(parseExtensionSettings(snapshot.settings));
   }, [snapshot.settings]);
-
-  useEffect(() => {
-    void fetch("/api/sync/snapshot", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setRevision(data?.envelope?.revision ?? null))
-      .catch(() => {});
-  }, []);
 
   const patch = useCallback((partial: Partial<ExtensionSettings>) => {
     setSettings((prev) => ({ ...prev, ...partial }));
@@ -52,23 +46,15 @@ export function SettingsPanel() {
       const res = await fetch("/api/sync/snapshot", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ snapshot: nextSnapshot, expectedRevision: revision }),
+        body: JSON.stringify({ snapshot: nextSnapshot, expectedRevision: meta.revision }),
       });
-      const data = (await res.json()) as {
-        envelope?: { revision: number; snapshot: typeof nextSnapshot };
-        error?: string;
-      };
+      const data = (await res.json()) as { envelope?: CloudSyncEnvelope; error?: string };
       if (res.status === 409) {
         setMessage("Your backup changed on another device. Reload the page and try again.");
         return;
       }
       if (!res.ok || !data.envelope) throw new Error(data.error || `Save failed (${res.status}).`);
-      setRevision(data.envelope.revision);
-      window.localStorage.setItem(
-        "animevocab.cloudSyncSnapshot.v1",
-        JSON.stringify(data.envelope.snapshot)
-      );
-      window.dispatchEvent(new Event("animevocab-cloud-sync"));
+      persistCloudEnvelope(data.envelope);
       setMessage("Saved — your extension will pick this up on the next sync.");
       notifyExtensionSync();
     } catch (err) {

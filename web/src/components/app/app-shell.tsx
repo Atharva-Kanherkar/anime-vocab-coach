@@ -13,6 +13,7 @@ import { NotebooksPanel } from "@/components/notebooks-panel";
 import { CardsPanel } from "@/components/app/cards-panel";
 import { GamificationPanel } from "@/components/gamification-panel";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
+import { CloudAutoSync } from "@/components/app/cloud-auto-sync";
 import { SettingsPanel } from "@/components/app/settings-panel";
 
 type SectionId = "today" | "coach" | "notebooks" | "cards" | "progress" | "backup" | "settings";
@@ -48,6 +49,7 @@ export function AppShell({ name, owner = false }: { name: string; owner?: boolea
 
   return (
     <>
+      <CloudAutoSync />
       <WordTicker />
 
       <div className="mx-auto max-w-[960px] px-5 pb-24 md:px-8">

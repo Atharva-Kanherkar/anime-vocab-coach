@@ -1,160 +1,63 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
-import {
-  type AnimeVocabExport,
-  type CloudSyncEnvelope,
-  normalizeAnimeVocabExport,
-  parseAnimeVocabExportJson,
-  type CloudSyncSnapshot,
-  type ExtensionSyncConnectionState,
-  type ExtensionSyncStatus,
-} from "@/lib/sync";
+import { useMemo, useState } from "react";
+import { parseAnimeVocabExportJson } from "@/lib/sync";
 import { toAnkiCsv, ankiCardCount } from "@/lib/anki-export";
-
-const STORAGE_KEY = "animevocab.cloudSyncSnapshot.v1";
-const STORAGE_EVENT = "animevocab-cloud-sync";
-const EMPTY_SNAPSHOT = normalizeAnimeVocabExport({}, new Date(0));
-
-let cachedRaw: string | null = null;
-let cachedSnapshot: CloudSyncSnapshot = EMPTY_SNAPSHOT;
-
-type CloudMessage = {
-  envelope: CloudSyncEnvelope | null;
-};
-
-function isCloudSyncSnapshot(value: unknown): value is CloudSyncSnapshot {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    (value as CloudSyncSnapshot).schemaVersion === 1 &&
-    (value as CloudSyncSnapshot).source === "animevocab-extension" &&
-    Array.isArray((value as CloudSyncSnapshot).words) &&
-    Array.isArray((value as CloudSyncSnapshot).daily)
-  );
-}
-
-function loadSnapshot(): CloudSyncSnapshot {
-  if (typeof window === "undefined") return EMPTY_SNAPSHOT;
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return EMPTY_SNAPSHOT;
-  if (raw === cachedRaw) return cachedSnapshot;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    const next = isCloudSyncSnapshot(parsed)
-      ? parsed
-      : normalizeAnimeVocabExport(parsed as AnimeVocabExport);
-    cachedRaw = raw;
-    cachedSnapshot = next;
-    return next;
-  } catch {
-    return EMPTY_SNAPSHOT;
-  }
-}
-
-function subscribeToSnapshot(onChange: () => void): () => void {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY) onChange();
-  };
-  window.addEventListener("storage", onStorage);
-  window.addEventListener(STORAGE_EVENT, onChange);
-  return () => {
-    window.removeEventListener("storage", onStorage);
-    window.removeEventListener(STORAGE_EVENT, onChange);
-  };
-}
-
-export function useCloudSnapshot(): CloudSyncSnapshot {
-  return useSyncExternalStore(subscribeToSnapshot, loadSnapshot, () => EMPTY_SNAPSHOT);
-}
-
-const STATUS_META: Record<ExtensionSyncConnectionState, { label: string; cls: string }> = {
-  "connected-synced": { label: "Backed up", cls: "border-ok/40 text-ok" },
-  "sync-error": { label: "Sync issue", cls: "border-danger/50 text-danger" },
-  disconnected: { label: "Not synced", cls: "border-line text-ink2" },
-  "local-only": { label: "Local only", cls: "border-line text-ink2" },
-};
+import {
+  formatLastSynced,
+  persistCloudEnvelope,
+  persistCloudSnapshot,
+  refreshCloudFromServer,
+  useCloudSnapshot,
+  useCloudSyncMeta,
+  useRefreshCloud,
+} from "@/lib/cloud-snapshot-store";
+import { useExtensionLink } from "@/lib/use-extension-link";
 
 export function CloudSyncPanel() {
   const snapshot = useCloudSnapshot();
+  const meta = useCloudSyncMeta();
+  const { linked: extensionLinked } = useExtensionLink();
+  const refresh = useRefreshCloud();
   const [message, setMessage] = useState<string | null>(null);
-  const [revision, setRevision] = useState<number | null>(null);
-  const [connectionState, setConnectionState] = useState<ExtensionSyncConnectionState>("local-only");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const wordCount = snapshot.words.length;
 
-  const saveSnapshot = (next: CloudSyncSnapshot) => {
-    const raw = JSON.stringify(next);
-    cachedRaw = raw;
-    cachedSnapshot = next;
-    window.localStorage.setItem(STORAGE_KEY, raw);
-    window.dispatchEvent(new Event(STORAGE_EVENT));
-  };
-
-  const syncStatus: ExtensionSyncStatus = {
-    state: connectionState,
-    userId: null,
-    lastSyncedAt: null,
-    revision,
-    message: message ?? "",
-  };
-
-  const setCloudEnvelope = (envelope: CloudSyncEnvelope | null) => {
-    if (!envelope) {
-      setConnectionState("disconnected");
-      setRevision(null);
-      setMessage("No backup on this account yet.");
-      return;
-    }
-    saveSnapshot(envelope.snapshot);
-    setRevision(envelope.revision);
-    setConnectionState("connected-synced");
-    setMessage(`Loaded ${envelope.snapshot.words.length} words from your cloud backup.`);
-  };
+  const statusLabel = useMemo(() => {
+    if (meta.loading) return { label: "Updating…", cls: "border-line text-ink2" };
+    if (meta.error) return { label: "Sync issue", cls: "border-danger/50 text-danger" };
+    if (meta.lastSyncedAt || wordCount > 0) return { label: "Backed up", cls: "border-ok/40 text-ok" };
+    return { label: "No backup yet", cls: "border-line text-ink2" };
+  }, [meta.loading, meta.error, meta.lastSyncedAt, wordCount]);
 
   const onFile = async (file: File | null) => {
     if (!file) return;
     try {
       const next = parseAnimeVocabExportJson(await file.text());
-      saveSnapshot(next);
-      setConnectionState(revision === null ? "local-only" : "disconnected");
-      setMessage(`Imported ${next.words.length} words from your extension export.`);
+      persistCloudSnapshot(next);
+      setMessage(`Imported ${next.words.length} words — use advanced save if you need to push them to your account.`);
     } catch (err) {
-      setConnectionState("sync-error");
       setMessage(err instanceof Error ? err.message : "That file doesn't look like an AnimeVocab export.");
     }
   };
 
-  const loadCloudSnapshot = async () => {
-    try {
-      const res = await fetch("/api/sync/snapshot", { cache: "no-store" });
-      if (!res.ok) throw new Error(`Couldn't load backup (${res.status}).`);
-      const data = (await res.json()) as CloudMessage;
-      setCloudEnvelope(data.envelope);
-    } catch (err) {
-      setConnectionState("sync-error");
-      setMessage(err instanceof Error ? err.message : "Couldn't load your cloud backup.");
-    }
-  };
-
-  const saveCloudSnapshot = async () => {
+  const saveImportToCloud = async () => {
     try {
       const res = await fetch("/api/sync/snapshot", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ snapshot, expectedRevision: revision }),
+        body: JSON.stringify({ snapshot, expectedRevision: meta.revision }),
       });
-      const data = (await res.json()) as CloudMessage & { error?: string };
+      const data = (await res.json()) as { envelope?: Parameters<typeof persistCloudEnvelope>[0]; error?: string };
       if (res.status === 409) {
-        setConnectionState("sync-error");
-        setMessage("Your cloud backup changed on another device. Load from cloud first, then try again.");
+        await refreshCloudFromServer({ silent: false });
+        setMessage("Cloud was newer — refreshed from your account. Try saving again if you still need to upload an import.");
         return;
       }
       if (!res.ok || !data.envelope) throw new Error(data.error || `Sync failed (${res.status}).`);
-      setCloudEnvelope(data.envelope);
+      persistCloudEnvelope(data.envelope);
       setMessage(`Saved ${data.envelope.snapshot.words.length} words to your account.`);
     } catch (err) {
-      setConnectionState("sync-error");
       setMessage(err instanceof Error ? err.message : "Couldn't save to cloud.");
     }
   };
@@ -181,41 +84,66 @@ export function CloudSyncPanel() {
     setMessage(`Downloaded ${ankiCardCount(snapshot)} cards for Anki.`);
   };
 
-  const status = useMemo(() => STATUS_META[syncStatus.state], [syncStatus.state]);
+  const onRefresh = async () => {
+    setMessage(null);
+    try {
+      await refresh();
+      setMessage("Refreshed from your cloud backup.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Couldn't refresh.");
+    }
+  };
 
   return (
     <section className="av-card p-6 sm:p-8" aria-label="Backup and sync">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">Backup</p>
-          <h2 className="mt-1.5 font-serif text-2xl font-medium">Keep your words safe in the cloud</h2>
+          <h2 className="mt-1.5 font-serif text-2xl font-medium">
+            {extensionLinked ? "Synced automatically" : "Cloud backup"}
+          </h2>
           <p className="mt-1.5 max-w-[54ch] text-sm text-ink2">
-            {wordCount > 0
-              ? `${wordCount.toLocaleString()} words on this device. Hit save to copy them to your account.`
-              : "Import an extension export, or watch with the extension connected — words sync automatically."}
+            {extensionLinked ? (
+              <>
+                {wordCount > 0 ? (
+                  <>
+                    <b className="text-ink">{wordCount.toLocaleString()}</b> words on your account
+                    {meta.lastSyncedAt ? (
+                      <> · last updated {formatLastSynced(meta.lastSyncedAt)}</>
+                    ) : null}
+                    . The extension pushes while you watch — no manual save needed.
+                  </>
+                ) : (
+                  "Watch with the extension connected — words appear here automatically."
+                )}
+              </>
+            ) : wordCount > 0 ? (
+              <>
+                {wordCount.toLocaleString()} words loaded in this browser. Connect the extension for automatic sync,
+                or use advanced options to import or export manually.
+              </>
+            ) : (
+              "Open the app while signed in with the extension installed, or import a JSON export under advanced options."
+            )}
           </p>
         </div>
-        <span className={`av-pill ${status.cls}`}>{status.label}</span>
+        <span className={`av-pill ${statusLabel.cls}`}>{statusLabel.label}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
-        <button className="av-btn av-btn-primary" type="button" onClick={saveCloudSnapshot}>
-          Save to cloud
+        <button className="av-btn av-btn-primary" type="button" onClick={() => void onRefresh()} disabled={meta.loading}>
+          {meta.loading ? "Refreshing…" : "Refresh from cloud"}
         </button>
-        <label className="av-btn av-btn-ghost cursor-pointer">
-          Import from extension
-          <input
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(event) => onFile(event.currentTarget.files?.[0] ?? null)}
-          />
-        </label>
-        <button className="av-btn av-btn-ghost" type="button" onClick={loadCloudSnapshot}>
-          Load from cloud
-        </button>
+        {!extensionLinked && wordCount > 0 && (
+          <button className="av-btn av-btn-ghost" type="button" onClick={() => void saveImportToCloud()}>
+            Upload import to cloud
+          </button>
+        )}
       </div>
 
+      {meta.error && !message && (
+        <p className="mt-3.5 text-sm font-medium text-danger">{meta.error}</p>
+      )}
       {message && <p className="mt-3.5 text-sm font-medium">{message}</p>}
 
       <details
@@ -227,8 +155,17 @@ export function CloudSyncPanel() {
           Advanced options
         </summary>
         <div className="mt-3 flex flex-wrap gap-2.5">
+          <label className="av-btn av-btn-ghost av-btn-sm cursor-pointer">
+            Import JSON
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(event) => onFile(event.currentTarget.files?.[0] ?? null)}
+            />
+          </label>
           <button className="av-btn av-btn-ghost av-btn-sm" type="button" onClick={exportSnapshot}>
-            Download JSON backup
+            Download JSON
           </button>
           <button
             className="av-btn av-btn-ghost av-btn-sm"
@@ -239,12 +176,13 @@ export function CloudSyncPanel() {
             Export for Anki ({ankiCardCount(snapshot)})
           </button>
         </div>
-        {revision !== null && (
-          <p className="mt-3 text-[13px] text-ink3">
-            Cloud version {revision}. If you use multiple devices, load before you save.
-          </p>
+        {meta.revision !== null && (
+          <p className="mt-3 text-[13px] text-ink3">Cloud version {meta.revision}.</p>
         )}
       </details>
     </section>
   );
 }
+
+// Re-export for existing imports during migration.
+export { useCloudSnapshot } from "@/lib/cloud-snapshot-store";
