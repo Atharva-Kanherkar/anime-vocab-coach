@@ -6,14 +6,20 @@ const WEB_ORIGIN = "https://animevocab.com";
 window.addEventListener("message", (event) => {
   if (event.source !== window || event.origin !== WEB_ORIGIN) return;
   const data = event.data as { source?: string; type?: string; token?: string } | null;
-  if (!data || data.source !== "avc-web" || data.type !== "avc-sync-token") return;
+  if (!data || data.source !== "avc-web") return;
 
-  const token = typeof data.token === "string" ? data.token : "";
-  if (!token) return;
+  if (data.type === "avc-sync-token") {
+    const token = typeof data.token === "string" ? data.token : "";
+    if (!token) return;
+    chrome.storage.local.set({ syncToken: token }, () => {
+      chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
+    });
+    return;
+  }
 
-  chrome.storage.local.set({ syncToken: token }, () => {
+  if (data.type === "avc-sync-now") {
     chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
-  });
+  }
 });
 
 // The page may have rendered before this script loaded; ask it to resend.

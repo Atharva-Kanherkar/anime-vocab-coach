@@ -33,6 +33,14 @@
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
   }
+  function setSettings(partial) {
+    return enqueue(async () => {
+      const r = await chrome.storage.local.get(["settings"]);
+      const settings = { ...DEFAULTS, ...r.settings || {}, ...partial };
+      await chrome.storage.local.set({ settings });
+      return settings;
+    });
+  }
   function exportAll() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
@@ -68,6 +76,31 @@
     } catch {
       return null;
     }
+  }
+  async function pullSettingsFromCloud() {
+    const token = await getSyncToken();
+    if (!token) return;
+    try {
+      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+      if (res.status === 401) {
+        await setSyncToken("");
+        return;
+      }
+      if (!res.ok) return;
+      const data = await res.json();
+      const raw = data.envelope?.snapshot?.settings;
+      if (!raw || typeof raw !== "object") return;
+      const partial = { ...raw };
+      if (partial.pauseMode === "notify") partial.pauseMode = "copilot";
+      await setSettings(partial);
+      log("cloud settings pulled");
+    } catch (err) {
+      warn("cloud settings pull error:", err);
+    }
+  }
+  async function syncWithCloud() {
+    await pullSettingsFromCloud();
+    await pushSnapshot();
   }
   async function pushSnapshot() {
     if (syncing) return;
@@ -215,15 +248,15 @@
     if (syncDebounce) clearTimeout(syncDebounce);
     syncDebounce = setTimeout(() => {
       syncDebounce = null;
-      pushSnapshot().catch(() => {
+      syncWithCloud().catch(() => {
       });
     }, delayMs);
   }
-  chrome.runtime.onStartup.addListener(() => pushSnapshot().catch(() => {
+  chrome.runtime.onStartup.addListener(() => syncWithCloud().catch(() => {
   }));
   chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
   chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === SYNC_ALARM) pushSnapshot().catch(() => {
+    if (alarm.name === SYNC_ALARM) syncWithCloud().catch(() => {
     });
   });
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -409,7 +442,7 @@
       return;
     }
     if (msg.type === "avc-sync-now") {
-      pushSnapshot().catch(() => {
+      syncWithCloud().catch(() => {
       });
       return;
     }

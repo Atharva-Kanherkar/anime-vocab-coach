@@ -1,6 +1,6 @@
 import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
-import { pushSnapshot } from "../lib/cloud-sync";
+import { syncWithCloud } from "../lib/cloud-sync";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
 import { getSyncToken } from "../lib/storage";
@@ -26,14 +26,14 @@ function scheduleSync(delayMs = 8000): void {
   if (syncDebounce) clearTimeout(syncDebounce);
   syncDebounce = setTimeout(() => {
     syncDebounce = null;
-    pushSnapshot().catch(() => {});
+    syncWithCloud().catch(() => {});
   }, delayMs);
 }
 
-chrome.runtime.onStartup.addListener(() => pushSnapshot().catch(() => {}));
+chrome.runtime.onStartup.addListener(() => syncWithCloud().catch(() => {}));
 chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === SYNC_ALARM) pushSnapshot().catch(() => {});
+  if (alarm.name === SYNC_ALARM) syncWithCloud().catch(() => {});
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && (changes.vocab || changes.stats)) scheduleSync();
@@ -273,7 +273,7 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   }
 
   if (msg.type === "avc-sync-now") {
-    pushSnapshot().catch(() => {});
+    syncWithCloud().catch(() => {});
     return;
   }
 

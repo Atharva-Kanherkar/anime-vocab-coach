@@ -4,13 +4,14 @@
 // server revision and re-push once. (v1 has no field-level merge; the extension
 // is treated as the source of truth for a signed-in user's own data.)
 import { WEB_URL } from "../config";
-import { exportAll, getSyncToken, setSyncToken } from "./storage";
+import { type Settings } from "../types";
+import { exportAll, getSyncToken, setSettings, setSyncToken } from "./storage";
 import { log, warn } from "./log";
 
 const SNAPSHOT_URL = WEB_URL + "/api/sync/snapshot";
 
 interface SnapshotResponse {
-  envelope: { revision: number } | null;
+  envelope: { revision: number; snapshot?: { settings?: Record<string, unknown> } } | null;
 }
 
 interface ConflictResponse {
@@ -28,6 +29,36 @@ async function currentRevision(token: string): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+/** Pull extension settings from the cloud snapshot into local storage. */
+export async function pullSettingsFromCloud(): Promise<void> {
+  const token = await getSyncToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+    if (res.status === 401) {
+      await setSyncToken("");
+      return;
+    }
+    if (!res.ok) return;
+    const data = (await res.json()) as SnapshotResponse;
+    const raw = data.envelope?.snapshot?.settings;
+    if (!raw || typeof raw !== "object") return;
+
+    const partial = { ...raw } as Partial<Settings>;
+    if ((partial as { pauseMode?: string }).pauseMode === "notify") partial.pauseMode = "copilot";
+    await setSettings(partial);
+    log("cloud settings pulled");
+  } catch (err) {
+    warn("cloud settings pull error:", err);
+  }
+}
+
+export async function syncWithCloud(): Promise<void> {
+  await pullSettingsFromCloud();
+  await pushSnapshot();
 }
 
 export async function pushSnapshot(): Promise<void> {

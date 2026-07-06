@@ -49,9 +49,7 @@ body.av {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  border: 2px solid var(--av-ink);
-  background: var(--av-panel);
-  padding: 9px 11px;
+  padding: 0 0 4px;
 }
 
 .av-brand {

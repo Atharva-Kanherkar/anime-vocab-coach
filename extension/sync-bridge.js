@@ -5,13 +5,20 @@
   window.addEventListener("message", (event) => {
     if (event.source !== window || event.origin !== WEB_ORIGIN) return;
     const data = event.data;
-    if (!data || data.source !== "avc-web" || data.type !== "avc-sync-token") return;
-    const token = typeof data.token === "string" ? data.token : "";
-    if (!token) return;
-    chrome.storage.local.set({ syncToken: token }, () => {
+    if (!data || data.source !== "avc-web") return;
+    if (data.type === "avc-sync-token") {
+      const token = typeof data.token === "string" ? data.token : "";
+      if (!token) return;
+      chrome.storage.local.set({ syncToken: token }, () => {
+        chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {
+        });
+      });
+      return;
+    }
+    if (data.type === "avc-sync-now") {
       chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {
       });
-    });
+    }
   });
   window.postMessage({ source: "avc-ext", type: "avc-request-token" }, WEB_ORIGIN);
 })();

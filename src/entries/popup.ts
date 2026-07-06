@@ -186,9 +186,14 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
   });
 
-  byId("settings-link").addEventListener("click", (e) => {
+  byId("settings-link").addEventListener("click", async (e) => {
     e.preventDefault();
-    chrome.runtime.openOptionsPage();
+    const token = await storage.getSyncToken();
+    if (token) {
+      chrome.tabs.create({ url: `${WEB_URL}/app#settings` });
+    } else {
+      chrome.runtime.openOptionsPage();
+    }
   });
 
   byId("export-link").addEventListener("click", async (e) => {

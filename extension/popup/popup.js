@@ -53,6 +53,11 @@
       });
     });
   }
+  function getSyncToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
+    });
+  }
 
   // src/lib/review.ts
   function dueCount(vocab, now = Date.now()) {
@@ -206,9 +211,14 @@
     byId("review-due").addEventListener("click", () => {
       chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
     });
-    byId("settings-link").addEventListener("click", (e) => {
+    byId("settings-link").addEventListener("click", async (e) => {
       e.preventDefault();
-      chrome.runtime.openOptionsPage();
+      const token = await getSyncToken();
+      if (token) {
+        chrome.tabs.create({ url: `${WEB_URL}/app#settings` });
+      } else {
+        chrome.runtime.openOptionsPage();
+      }
     });
     byId("export-link").addEventListener("click", async (e) => {
       e.preventDefault();

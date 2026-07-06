@@ -1,12 +1,8 @@
 import * as storage from "../lib/storage";
-import { toRomaji } from "../lib/romaji";
-import { commonnessShort } from "../lib/levels";
 import { WEB_URL } from "../config";
-import type { DisplayScript, PauseMode, Settings, VocabMap, WordState } from "../types";
+import type { DisplayScript, PauseMode, Settings } from "../types";
 
-let vocab: VocabMap = {};
-let filterState = "all";
-let searchQuery = "";
+type Theme = "dark" | "light";
 
 function todayKey(): string {
   return new Date().toLocaleDateString("sv");
@@ -22,14 +18,31 @@ function showSaved(): void {
   setTimeout(() => { el.hidden = true; }, 1500);
 }
 
-function relativeDue(dueAt: number): string {
-  if (!dueAt) return "—";
-  const diff = dueAt - Date.now();
-  if (diff <= 0) return "now";
-  const hours = Math.round(diff / 3600000);
-  if (hours < 24) return `in ${hours}h`;
-  const days = Math.round(diff / 86400000);
-  return `in ${days}d`;
+function initTheme(): void {
+  const btn = byId<HTMLButtonElement>("theme-toggle");
+  const icon = document.getElementById("theme-icon");
+
+  const apply = (theme: Theme): void => {
+    document.documentElement.setAttribute("data-theme", theme);
+    if (!icon) return;
+    if (theme === "dark") {
+      icon.innerHTML =
+        '<circle cx="12" cy="12" r="4"></circle>' +
+        '<path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"></path>';
+      btn.setAttribute("aria-label", "Switch to light mode");
+    } else {
+      icon.innerHTML = '<path d="M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z"></path>';
+      btn.setAttribute("aria-label", "Switch to dark mode");
+    }
+  };
+
+  apply(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+
+  btn.addEventListener("click", () => {
+    const next: Theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    apply(next);
+    try { localStorage.setItem("av-theme", next); } catch { /* private mode */ }
+  });
 }
 
 async function loadSettingsForm(): Promise<void> {
@@ -56,84 +69,15 @@ async function savePartial(partial: Partial<Settings>): Promise<void> {
   showSaved();
 }
 
-async function refreshCloudStatus(): Promise<void> {
-  const el = byId("cloud-status");
+document.addEventListener("DOMContentLoaded", async () => {
   const token = await storage.getSyncToken();
   if (token) {
-    el.textContent = "Linked to your account — sync and cloud Listening Mode are ready.";
-    el.style.color = "var(--known, #4f9e78)";
-  } else {
-    el.innerHTML =
-      `Not linked yet. <a href="${WEB_URL}/app" target="_blank" rel="noopener">Sign in at animevocab.com</a> and keep the tab open briefly.`;
-    el.style.color = "";
-  }
-}
-
-function renderTable(): void {
-  const tbody = byId<HTMLTableSectionElement>("word-tbody");
-  tbody.innerHTML = "";
-
-  let entries = Object.entries(vocab);
-
-  if (filterState !== "all") {
-    entries = entries.filter(([, rec]) => rec.state === filterState);
+    window.location.replace(`${WEB_URL}/app#settings`);
+    return;
   }
 
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    entries = entries.filter(([word, rec]) =>
-      word.toLowerCase().includes(q) ||
-      (rec.reading || "").toLowerCase().includes(q) ||
-      (rec.gloss || "").toLowerCase().includes(q)
-    );
-  }
-
-  entries.sort((a, b) => (b[1].lastSeenAt || 0) - (a[1].lastSeenAt || 0));
-  const total = entries.length;
-  const shown = entries.slice(0, 200);
-
-  byId("table-note").textContent =
-    total > 200 ? `Showing 200 of ${total}` : `Showing ${total} of ${total}`;
-
-  for (const [word, rec] of shown) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${word}</td>
-      <td>${toRomaji(rec.reading || "")}<br><small>${rec.reading || ""}</small></td>
-      <td>${rec.gloss || ""}</td>
-      <td>${commonnessShort(rec.level)}</td>
-      <td>${rec.seenCount || 0}</td>
-      <td><select data-word="${word}">
-        <option value="new" ${rec.state === "new" ? "selected" : ""}>new</option>
-        <option value="learning" ${rec.state === "learning" ? "selected" : ""}>learning</option>
-        <option value="known" ${rec.state === "known" ? "selected" : ""}>known</option>
-        <option value="ignored" ${rec.state === "ignored" ? "selected" : ""}>ignored</option>
-      </select></td>
-      <td>${rec.state === "learning" && rec.srs ? relativeDue(rec.srs.dueAt) : "—"}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-
-  tbody.querySelectorAll("select").forEach((sel) => {
-    sel.addEventListener("change", async (e) => {
-      const target = e.target as HTMLSelectElement;
-      const word = target.dataset.word!;
-      await storage.setWordState(word, target.value as WordState);
-      vocab = await storage.getVocab();
-      renderTable();
-      showSaved();
-    });
-  });
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
+  initTheme();
   await loadSettingsForm();
-  await refreshCloudStatus();
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.syncToken) void refreshCloudStatus();
-  });
-  vocab = await storage.getVocab();
-  renderTable();
 
   document.querySelectorAll<HTMLInputElement>('input[name="pauseMode"]').forEach((el) => {
     el.addEventListener("change", () => savePartial({ pauseMode: el.value as PauseMode }));
@@ -188,20 +132,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     savePartial({ transcribeModel: (e.target as HTMLSelectElement).value });
   });
 
-  byId("search").addEventListener("input", (e) => {
-    searchQuery = (e.target as HTMLInputElement).value;
-    renderTable();
-  });
-
-  document.querySelectorAll<HTMLButtonElement>("#state-chips .chip").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("#state-chips .chip").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      filterState = btn.dataset.state!;
-      renderTable();
-    });
-  });
-
   byId("export-btn").addEventListener("click", async () => {
     const data = await storage.exportAll();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -216,7 +146,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   byId("reset-btn").addEventListener("click", async () => {
     if (!confirm("Reset all vocab and stats? Settings will be kept.")) return;
     await storage.resetProgress();
-    vocab = {};
-    renderTable();
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
@@ -13,8 +13,9 @@ import { NotebooksPanel } from "@/components/notebooks-panel";
 import { CardsPanel } from "@/components/app/cards-panel";
 import { GamificationPanel } from "@/components/gamification-panel";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
+import { SettingsPanel } from "@/components/app/settings-panel";
 
-type SectionId = "today" | "coach" | "notebooks" | "cards" | "progress" | "backup";
+type SectionId = "today" | "coach" | "notebooks" | "cards" | "progress" | "backup" | "settings";
 
 const NAV: { id: SectionId; label: string }[] = [
   { id: "today", label: "Today" },
@@ -23,10 +24,27 @@ const NAV: { id: SectionId; label: string }[] = [
   { id: "cards", label: "Cards" },
   { id: "progress", label: "Progress" },
   { id: "backup", label: "Backup" },
+  { id: "settings", label: "Settings" },
 ];
+
+function sectionFromHash(): SectionId | null {
+  const id = window.location.hash.replace(/^#/, "");
+  return NAV.some((n) => n.id === id) ? (id as SectionId) : null;
+}
 
 export function AppShell({ name, owner = false }: { name: string; owner?: boolean }) {
   const [section, setSection] = useState<SectionId>("today");
+
+  useEffect(() => {
+    const fromHash = sectionFromHash();
+    if (fromHash) setSection(fromHash);
+    const onHash = () => {
+      const next = sectionFromHash();
+      if (next) setSection(next);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   return (
     <>
@@ -87,6 +105,9 @@ export function AppShell({ name, owner = false }: { name: string; owner?: boolea
           </div>
           <div hidden={section !== "backup"}>
             <CloudSyncPanel />
+          </div>
+          <div hidden={section !== "settings"}>
+            <SettingsPanel />
           </div>
         </main>
       </div>
