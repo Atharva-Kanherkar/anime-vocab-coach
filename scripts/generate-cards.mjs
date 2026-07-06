@@ -19,10 +19,27 @@
 //   --concurrency N      parallel requests (default 2)
 //   --model NAME         (default gpt-image-2)
 
-import { mkdir, writeFile, access } from "node:fs/promises";
+import { mkdir, writeFile, access, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CARDS } from "../web/src/lib/cards.ts";
+import { CARDS, STYLE_FAMILIES } from "../web/src/lib/cards.ts";
+
+const execFileAsync = promisify(execFile);
+
+// Downscale + WebP the raw PNG so we ship ~50KB cards, not ~2MB. Requires
+// `cwebp` (libwebp) on PATH; falls back to the raw PNG if it's missing.
+async function toWebp(pngPath, id) {
+  const webpPath = path.join(OUT_DIR, `${id}.webp`);
+  try {
+    await execFileAsync("cwebp", ["-quiet", "-resize", "512", "0", "-q", "80", pngPath, "-o", webpPath]);
+    await rm(pngPath, { force: true });
+    return `/cards/${id}.webp`;
+  } catch {
+    return `/cards/${id}.png`; // cwebp unavailable — keep the PNG
+  }
+}
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const OUT_DIR = path.join(ROOT, "web/public/cards");
@@ -34,18 +51,13 @@ const LOG_FILE = path.join(OUT_DIR, "prompts.json");
 // look/palette/composition vary per card (distinctness).
 // ---------------------------------------------------------------------------
 
-const STYLE = `Flat risograph screen-print illustration in a modern anime style.
-Bold clean linework in warm black ink, minimal cel shading, visible print
-texture and slight ink misregistration. Japanese graphic-design poster
-sensibility: strong silhouette, decisive negative space, flat shapes only.`;
-
-// Rarity → strict palette instruction (escalates with rarity).
-const PALETTE = {
-  N: "Strict two-color print: cream paper background #f5efe0 with ONE ink only — either deep indigo #2c4a68 or vermillion #d84e2a — plus warm black line art.",
-  R: "Strict three-color print: cream paper background #f5efe0, vermillion #d84e2a AND deep indigo #2c4a68 inks, warm black line art.",
-  SR: "Three-color print on cream #f5efe0 with vermillion #d84e2a and indigo #2c4a68, heavier pattern work: halftone dots, hatching, or stripe screentones in the background.",
-  SSR: "Full riso palette on cream #f5efe0 — vermillion #d84e2a, indigo #2c4a68, warm black — with a dramatic dynamic composition: motion, wind, weather, or radiating lines.",
-  UR: "Inverted print: warm black paper background, character rendered in cream #f5efe0 and vermillion #d84e2a inks with fine indigo accents. Majestic, symmetrical, iconographic.",
+// Rarity → intensity flourish layered on top of the family's own style/palette.
+const RARITY_FX = {
+  N: "",
+  R: "Slightly more detailed rendering and a bit of background flair.",
+  SR: "Rich detail, dramatic lighting, and a dynamic hero pose.",
+  SSR: "Spectacular full splash-art: dynamic action, motion, and radiating energy. This is a showcase card.",
+  UR: "Epic god-tier centerpiece: ornate, majestic, near-symmetrical iconography with a luminous backdrop. The rarest card in the set.",
 };
 
 // Composition axes rotate deterministically by card index so no two cards
@@ -58,27 +70,30 @@ const FRAMING = [
 ];
 const FACING = ["facing slightly left", "facing slightly right", "facing the viewer head-on", "in profile"];
 const BACKDROP = [
-  "backdrop: one large flat sun/moon disk behind the subject",
-  "backdrop: flat horizontal bands suggesting sky and ground",
-  "backdrop: sparse hand-cut paper clouds",
-  "backdrop: a field of small repeated print motifs (dots, seals, or crests)",
-  "backdrop: plain paper with a single bold diagonal ink band",
+  "background: a large simple disk (sun or moon) behind the subject",
+  "background: a spare atmospheric setting that fits the character, kept uncluttered",
+  "background: a bold single-color field so the character pops",
+  "background: a suggested environment, softly out of focus behind the subject",
 ];
 
 const CONSTRAINTS = `Absolutely NO text, NO letters, NO kanji, NO numbers, NO logo,
-NO watermark, NO card frame, NO border — full-bleed artwork only (the app draws
-the frame and title). Exactly ONE character/subject. No gradients, no photo
-texture, no 3D rendering. Keep the top 12% and bottom 18% of the image simple
-and low-detail (UI bars overlay those areas).`;
+NO watermark, NO speech bubbles, NO card frame, NO border — full-bleed 2D anime
+artwork only (the app draws the frame and title on top). Exactly ONE main
+character/subject. Hand-drawn 2D illustration, not 3D render, not a photograph.
+Keep the top 12% and bottom 18% of the image relatively simple and low-detail
+(UI bars overlay those areas).`;
 
-function buildPrompt(card, index) {
+function buildPrompt(card, index, safe = false) {
+  const fam = STYLE_FAMILIES[card.style];
   return [
-    STYLE,
-    `Character: ${card.look}. Mood inspired by the epithet "${card.epithet}" — an original character, not from any existing anime.`,
+    safe && fam.styleSafe ? fam.styleSafe : fam.style,
+    `Subject: ${card.look}. This is an ORIGINAL character (mood: "${card.epithet}") — do NOT depict any real, existing, or trademarked character; only borrow the general art style.`,
     `Composition: ${FRAMING[index % FRAMING.length]}, ${FACING[index % FACING.length]}, ${BACKDROP[index % BACKDROP.length]}.`,
-    PALETTE[card.rarity],
+    RARITY_FX[card.rarity],
     CONSTRAINTS,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -200,14 +215,24 @@ async function main() {
     Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
       while (cursor < queue.length) {
         const { card, index } = queue[cursor++];
-        const prompt = buildPrompt(card, index);
         try {
           console.log(`→ ${card.id} (${card.rarity})`);
-          const png = await generateWithRetry({ model, prompt, quality }, card.id);
-          await writeFile(path.join(OUT_DIR, `${card.id}.png`), png);
-          done[card.id] = `/cards/${card.id}.png`;
-          log.push({ id: card.id, rarity: card.rarity, prompt });
-          console.log(`✓ ${card.id} saved (${Math.round(png.length / 1024)} KB)`);
+          let png;
+          try {
+            png = await generateWithRetry({ model, prompt: buildPrompt(card, index), quality }, card.id);
+          } catch (err) {
+            // Named-franchise prompts can trip moderation — fall back to the
+            // brand-free rephrase if the family has one.
+            const blocked = err.status === 400 && /moderation|safety|rejected/i.test(err.message);
+            if (!blocked || !STYLE_FAMILIES[card.style].styleSafe) throw err;
+            console.log(`  ${card.id}: moderation block — retrying brand-free`);
+            png = await generateWithRetry({ model, prompt: buildPrompt(card, index, true), quality }, card.id);
+          }
+          const pngPath = path.join(OUT_DIR, `${card.id}.png`);
+          await writeFile(pngPath, png);
+          done[card.id] = await toWebp(pngPath, card.id);
+          log.push({ id: card.id, rarity: card.rarity, style: card.style });
+          console.log(`✓ ${card.id} saved (${done[card.id].endsWith(".webp") ? "webp" : "png"})`);
         } catch (err) {
           failed++;
           console.error(`✗ ${card.id}: ${err.message}`);
