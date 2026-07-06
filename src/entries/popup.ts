@@ -1,10 +1,11 @@
 import { WEB_URL } from "../config";
 import * as storage from "../lib/storage";
-import { toRomaji } from "../lib/romaji";
 import { dueCount } from "../lib/review";
-import type { WordState } from "../types";
+import type { DailyStats } from "../types";
 
 type Theme = "dark" | "light";
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function todayKey(): string {
   return new Date().toLocaleDateString("sv");
@@ -16,6 +17,46 @@ function esc(s: string): string {
 
 function byId<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
+}
+
+function weekStamps(daily: Record<string, DailyStats>) {
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const byDay = new Map(Object.entries(daily || {}));
+
+  return DAY_LABELS.map((label, i) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    const key = date.toLocaleDateString("sv");
+    const stats = byDay.get(key);
+    const hit = !!stats && (stats.judged > 0 || stats.reviews > 0 || stats.watchMin > 0);
+    const isToday = date.toDateString() === now.toDateString();
+    return { label, hit, isToday };
+  });
+}
+
+function renderStampRally(daily: Record<string, DailyStats>): void {
+  const week = weekStamps(daily);
+  const today = week.find((d) => d.isToday);
+  const todayHit = today?.hit;
+  const todayLabel = today?.label ?? "today";
+
+  const grid = week
+    .map(
+      (d) =>
+        `<div class="${d.hit ? "av-stamp av-stamp-hit" : "av-stamp"}">${d.hit ? "済" : esc(d.label)}</div>`
+    )
+    .join("");
+
+  const note = todayHit
+    ? `<b>${esc(todayLabel)} is stamped.</b> Come back tomorrow.`
+    : `Practice today to stamp <b>${esc(todayLabel)}</b>.`;
+
+  byId("stamp-rally").innerHTML =
+    `<div class="av-stamp-head"><span>STAMP RALLY</span><span class="av-stamp-head-jp">スタンプ</span></div>` +
+    `<div class="av-stamp-grid">${grid}</div>` +
+    `<p class="av-stamp-note">${note}</p>`;
 }
 
 function initTheme(): void {
@@ -54,7 +95,10 @@ function initTheme(): void {
 
 async function render(): Promise<void> {
   const vocab = await storage.getVocab();
+  const stats = await storage.getStats();
   const due = dueCount(vocab);
+
+  renderStampRally(stats.daily || {});
 
   const reviewBtn = byId<HTMLButtonElement>("review-due");
   if (due > 0) {
@@ -63,42 +107,6 @@ async function render(): Promise<void> {
   } else {
     reviewBtn.hidden = true;
   }
-
-  const recent = Object.entries(vocab)
-    .sort((a, b) => (b[1].lastSeenAt || 0) - (a[1].lastSeenAt || 0))
-    .slice(0, 5);
-
-  const list = byId<HTMLUListElement>("recent-list");
-  const empty = byId("recent-empty");
-  list.innerHTML = "";
-
-  if (!recent.length) {
-    empty.hidden = false;
-  } else {
-    empty.hidden = true;
-    for (const [word, rec] of recent) {
-      const romaji = toRomaji(rec.reading || "");
-      const li = document.createElement("li");
-      li.innerHTML =
-        `<span class="word">${esc(romaji || word)}</span>` +
-        `<span class="reading">${esc(rec.gloss || rec.reading || word)}</span>` +
-        `<select data-word="${esc(word)}">` +
-        `<option value="new" ${rec.state === "new" ? "selected" : ""}>new</option>` +
-        `<option value="learning" ${rec.state === "learning" ? "selected" : ""}>learning</option>` +
-        `<option value="known" ${rec.state === "known" ? "selected" : ""}>known</option>` +
-        `<option value="ignored" ${rec.state === "ignored" ? "selected" : ""}>ignored</option>` +
-        `</select>`;
-      list.appendChild(li);
-    }
-  }
-
-  list.querySelectorAll("select").forEach((sel) => {
-    sel.addEventListener("change", async (e) => {
-      const target = e.target as HTMLSelectElement;
-      await storage.setWordState(target.dataset.word!, target.value as WordState);
-      void render();
-    });
-  });
 }
 
 async function activeTabId(): Promise<number | null> {

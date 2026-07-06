@@ -10,6 +10,7 @@
   --av-line: rgba(237, 231, 218, 0.14);
   --av-line-2: rgba(237, 231, 218, 0.28);
   --av-accent: #e0603a;
+  --av-indigo: #8fb0d1;
   --av-danger: #e8896f;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --jp-round: "Hiragino Maru Gothic ProN", "Zen Maru Gothic", "Hiragino Sans", sans-serif;
@@ -25,6 +26,7 @@
   --av-line: rgba(38, 34, 27, 0.16);
   --av-line-2: rgba(38, 34, 27, 0.32);
   --av-accent: #d84e2a;
+  --av-indigo: #2c4a68;
   --av-danger: #b8492b;
 }
 
@@ -99,72 +101,65 @@ body.av {
   color: var(--av-danger);
 }
 
-.av-recent {
+.av-stamp-rally {
   margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1.5px solid var(--av-line);
+  overflow: hidden;
+  border-radius: 14px;
+  border: 2px solid var(--av-indigo);
+  background: var(--av-panel);
 }
 
-.av-eyebrow {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--av-ink-3);
-}
-
-#recent-list {
-  list-style: none;
-  margin-top: 6px;
-  max-height: 140px;
-  overflow-y: auto;
-}
-
-#recent-list li {
+.av-stamp-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--av-line);
-  font-size: 12px;
-}
-#recent-list li:last-child { border-bottom: none; }
-
-#recent-list .word {
-  font-family: var(--jp-round);
-  font-size: 14px;
-  font-weight: 800;
-  min-width: 44px;
-  white-space: nowrap;
-}
-
-#recent-list .reading {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--av-ink-3);
-  font-size: 11px;
-}
-
-#recent-list select {
-  background: var(--av-panel);
-  color: var(--av-ink-2);
-  border: 1.5px solid var(--av-line);
-  border-radius: 999px;
+  justify-content: space-between;
+  background: var(--av-indigo);
+  color: var(--av-bg);
+  padding: 7px 11px;
   font-size: 10px;
-  font-weight: 700;
-  padding: 2px 5px;
-  cursor: pointer;
-  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: 0.14em;
 }
 
-.av-empty {
-  margin-top: 6px;
-  font-size: 11.5px;
+.av-stamp-head-jp {
+  font-family: var(--jp-round);
+  letter-spacing: 0.24em;
+  opacity: 0.85;
+}
+
+.av-stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  padding: 10px 10px 4px;
+}
+
+.av-stamp {
+  aspect-ratio: 1;
+  border: 2px dashed var(--av-line-2);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 8px;
+  font-weight: 700;
   color: var(--av-ink-3);
 }
+
+.av-stamp-hit {
+  border: 2px solid var(--av-accent);
+  color: var(--av-accent);
+  font-family: var(--jp-round);
+  font-weight: 900;
+  font-size: 13px;
+  transform: rotate(-8deg);
+}
+
+.av-stamp-note {
+  padding: 0 10px 10px;
+  font-size: 11px;
+  color: var(--av-ink-2);
+}
+.av-stamp-note b { color: var(--av-accent); font-weight: 800; }
 
 .av-footer {
   margin-top: 14px;
@@ -226,17 +221,6 @@ body.av {
 .av-btn-sm { padding: 0.35rem 0.55rem; font-size: 11px; }
 .av-icon-btn { padding: 0.35rem; min-width: 30px; }
 
-.av-pill {
-  border-radius: 999px;
-  border: 1.5px solid var(--av-line-2);
-  padding: 0.18rem 0.5rem;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--av-ink-2);
-}
-
 #copilot-btn.active {
   border-color: var(--av-accent);
   color: var(--av-accent);
@@ -249,8 +233,7 @@ body.av {
 }
 
 button:focus-visible,
-a:focus-visible,
-select:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--av-accent);
   outline-offset: 2px;
 }
