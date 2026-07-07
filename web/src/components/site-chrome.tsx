@@ -16,8 +16,9 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         {!compact && (
           <nav aria-label="Primary">
             <Link href="/#features">Features</Link>
+            <Link href="/studio">Studio</Link>
+            <Link href="/gallery">Gallery</Link>
             <Link href="/cloud">Cloud</Link>
-            <Link href="/learn-japanese-with-anime">Compare</Link>
             <Link href="/#pricing">Pricing</Link>
             <Link href="/#faq">FAQ</Link>
           </nav>
@@ -104,6 +105,8 @@ export function HomeBrandBar() {
 
 export function SiteFooter({ links }: { links?: { href: string; label: string }[] }) {
   const defaultLinks = [
+    { href: "/studio", label: "Manga Studio" },
+    { href: "/gallery", label: "Gallery" },
     { href: "/blog", label: "Blog" },
     { href: "/learn-japanese-with-anime", label: "Guides" },
     { href: GITHUB_URL, label: "GitHub" },

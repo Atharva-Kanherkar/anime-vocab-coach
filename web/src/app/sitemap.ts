@@ -6,6 +6,8 @@ const staticRoutes = [
   { path: "", priority: 1, changeFrequency: "weekly" as const },
   { path: "/blog", priority: 0.85, changeFrequency: "weekly" as const },
   { path: "/learn-japanese-with-anime", priority: 0.9, changeFrequency: "monthly" as const },
+  { path: "/studio", priority: 0.9, changeFrequency: "weekly" as const },
+  { path: "/gallery", priority: 0.85, changeFrequency: "daily" as const },
   { path: "/learn-japanese-crunchyroll", priority: 0.88, changeFrequency: "monthly" as const },
   { path: "/best-anime-to-learn-japanese", priority: 0.88, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-netflix-anime", priority: 0.86, changeFrequency: "monthly" as const },

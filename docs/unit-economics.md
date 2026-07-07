@@ -121,28 +121,40 @@ Weekly review checklist:
 
 ## Manga Studio (launched free, capped)
 
-Users pick up to 3 words they're learning; the studio writes a 4-panel script
-(every target word must appear in the Japanese dialogue) and draws one manga
-page. Reading it back trilingually + a word recall check is the learning loop;
-creations/reads/checks grant XP on the chapter/card ladder, which makes the
-web app a full progression path with no extension and no streaming service.
+Users pick up to 3 words they're learning and write their story; the studio
+drafts a 6-panel script (every target word must appear in the Japanese
+dialogue), then draws **one image per panel** so each can be edited or redrawn
+independently. A learner can also hand-draw a rough sketch that the image model
+redraws into the chosen style (`images/edits`) — "bad drawers become good manga
+makers." Reading it back trilingually + a word recall check is the learning
+loop; creations/reads/checks grant XP on the chapter/card ladder. The public
+front door (`/studio`) needs no account to try; the gallery (`/gallery`) is
+free to read forever.
 
-Cost per creation (two OpenAI calls):
+Per-panel art is the real cost driver, so metering moved from "saved count" to
+**art calls**:
 
 | Step | Config | Default | Est. cost |
 | --- | --- | --- | ---: |
-| Script | `STUDIO_SCRIPT_MODEL` | `gpt-4.1-mini` | ~$0.002 |
-| Page art | `STUDIO_IMAGE_MODEL` + `STUDIO_IMAGE_QUALITY` | `gpt-image-2`, `medium`, 1024×1536 | ~$0.06 |
-| Storage | KV (`studio:img:<id>`, base64 PNG) | ~2 MB/creation | negligible |
+| Script draft | `STUDIO_SCRIPT_MODEL` | `gpt-4.1-mini` | ~$0.003 |
+| Panel art (each) | `STUDIO_IMAGE_MODEL` + `STUDIO_IMAGE_QUALITY` | `gpt-image-2`, `medium`, 1024×1024 | ~$0.04 |
+| Storage | KV (`studio:panel:<id>:<i>`, base64 PNG) | ~1.5 MB/panel | negligible |
 
-Monthly cap: `STUDIO_CREATIONS_PER_MONTH` (default **5**, owners unlimited), so
-worst-case free-user cost is **~$0.31/user/month** — funded by the OpenAI credit
-during the acquisition phase (see `conversion-strategy.md`). Knobs, in order of
-leverage: quality `medium → low` cuts image cost ~4x; cap 5 → 3; script model
-to nano. When billing lands, Pro/Max raise the cap (candidates: 20 / 60) —
-the same "hosted compute is what you pay for" story as Listening Mode and the
-AI coach. Public sharing (`/m/<id>`) costs nothing extra and is the built-in
-viral loop: every shared manga is a product demo with a "write your own" CTA.
+A finished 6-panel manga ≈ **$0.24** in art (more with regenerations/sketches).
+Caps, owners exempt:
+
+- `STUDIO_ART_PER_MONTH` (default **60**) — signed-in art generations/month:
+  ~10 mangas, worst case **~$2.40/user/month**. The dominant knob.
+- `STUDIO_ANON_ART_PER_DAY` (default **8**) / `STUDIO_ANON_DRAFTS_PER_DAY`
+  (default **5**) — the logged-out "taste", metered per IP so a stranger can
+  make ~one manga without an account but can't loop up the bill.
+- `STUDIO_CREATIONS_PER_MONTH` (default **5**) — saved-manga count (saving does
+  not re-spend; art was already paid for during editing).
+
+Levers, in order: quality `medium → low` cuts image cost ~4x; lower
+`STUDIO_ART_PER_MONTH`; fewer panels; script model to nano. Public sharing
+(`/m/<id>`) and the gallery cost nothing extra and are the viral loop: every
+shared manga is a product demo with a "make your own" CTA.
 
 ## MRR Targets
 

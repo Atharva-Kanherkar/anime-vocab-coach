@@ -18,9 +18,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const meta = await getCreation(id);
   if (!meta?.isPublic) return { title: "Manga not found" };
   const title = `${meta.title.en} — a learner-made manga`;
-  const description = `A 4-panel manga written to practice ${meta.words
+  const description = `A manga written to practice ${meta.words
     .map((w) => w.base)
     .join("、")} — made in AnimeVocab Manga Studio.`;
+  const cover =
+    meta.layout === "panels"
+      ? { url: `/api/studio/${id}/panel/0`, width: 1024, height: 1024 }
+      : { url: `/api/studio/${id}/image`, width: 1024, height: 1536 };
   return {
     title,
     description,
@@ -29,7 +33,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       title,
       description,
       url: `${SITE_URL}/m/${id}`,
-      images: [{ url: `/api/studio/${id}/image`, width: 1024, height: 1536 }],
+      images: [cover],
     },
     twitter: { card: "summary_large_image", title, description },
   };
@@ -45,6 +49,7 @@ export default async function SharedMangaPage({ params }: Params) {
       <StudioReaderView
         meta={meta}
         imageUrl={`/api/studio/${id}/image`}
+        panelImageUrls={meta.panels.map((_, i) => `/api/studio/${id}/panel/${i}`)}
         footer={
           <div className="av-card p-5 text-center">
             <p className="av-eyebrow">Manga Studio · 創作</p>
@@ -56,9 +61,14 @@ export default async function SharedMangaPage({ params }: Params) {
               Pick the Japanese words you&apos;re learning, and AnimeVocab writes and draws a manga
               that teaches them to you. Free — no extension needed.
             </p>
-            <Link href="/app#studio" className="av-btn av-btn-primary mt-4 inline-flex">
-              Write your own manga →
-            </Link>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <Link href="/studio" className="av-btn av-btn-primary inline-flex">
+                Make your own manga →
+              </Link>
+              <Link href="/gallery" className="av-btn av-btn-ghost inline-flex">
+                Browse the gallery
+              </Link>
+            </div>
           </div>
         }
       />

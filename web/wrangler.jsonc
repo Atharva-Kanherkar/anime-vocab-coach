@@ -29,9 +29,15 @@
     "MAX_AI_CALLS_PER_MONTH": "600",
     "LAUNCH_AI_CALLS_PER_MONTH": "40",
     "AI_FREE_LAUNCH_UNTIL": "2026-09-01T00:00:00.000Z",
-    // Manga Studio (see docs/unit-economics.md "Manga Studio"). Free, capped
-    // per user per month; image quality is the main cost knob.
+    // Manga Studio (see docs/unit-economics.md "Manga Studio"). The editor draws
+    // one image PER PANEL, so per-panel art calls — not saved count — are the
+    // real cost gate. Signed-in users get a monthly art budget; anonymous
+    // "taste" callers get a small per-IP daily budget (≈ one manga) so a
+    // stranger can try it without an account but can't loop up the bill.
     "STUDIO_CREATIONS_PER_MONTH": "5",
+    "STUDIO_ART_PER_MONTH": "60",
+    "STUDIO_ANON_ART_PER_DAY": "8",
+    "STUDIO_ANON_DRAFTS_PER_DAY": "5",
     "STUDIO_SCRIPT_MODEL": "gpt-4.1-mini",
     "STUDIO_IMAGE_MODEL": "gpt-image-2",
     "STUDIO_IMAGE_QUALITY": "medium"

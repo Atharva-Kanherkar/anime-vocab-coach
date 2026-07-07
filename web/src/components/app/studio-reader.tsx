@@ -51,15 +51,21 @@ function DialogueLine({ t, lang, words }: { t: StudioText; lang: StoryLang; word
 export function StudioReaderView({
   meta,
   imageUrl,
+  panelImageUrls,
   footer,
 }: {
   meta: StudioCreationMeta;
-  imageUrl: string;
+  /** Legacy single grid-page image. Used when meta.layout !== "panels". */
+  imageUrl?: string;
+  /** Per-panel image sources (URL or data URL), one per panel. Used when
+   * meta.layout === "panels". Must be serializable (passed from server pages). */
+  panelImageUrls?: (string | null | undefined)[];
   /** Extra UI under the dialogue (share controls, word check, CTA…). */
   footer?: React.ReactNode;
 }) {
   const [lang, setLang] = useState<StoryLang>("en");
   const wordBases = meta.words.map((w) => w.base);
+  const perPanel = meta.layout === "panels";
 
   return (
     <article>
@@ -111,24 +117,40 @@ export function StudioReaderView({
         })}
       </div>
 
-      <figure className="mx-auto mt-6 w-full max-w-[560px] overflow-hidden border-2 border-ink bg-panel">
-        {/* eslint-disable-next-line @next/next/no-img-element -- runtime-generated, KV-served */}
-        <img src={imageUrl} alt={meta.title.en} className="block h-auto w-full" />
-      </figure>
+      {!perPanel && imageUrl && (
+        <figure className="mx-auto mt-6 w-full max-w-[560px] overflow-hidden border-2 border-ink bg-panel">
+          {/* eslint-disable-next-line @next/next/no-img-element -- runtime-generated, KV-served */}
+          <img src={imageUrl} alt={meta.title.en} className="block h-auto w-full" />
+        </figure>
+      )}
 
-      <section className="mx-auto mt-5 w-full max-w-[560px] space-y-3">
-        {meta.panels.map((panel, i) => (
-          <div key={i} className="border-2 border-ink bg-bg px-4 py-3 sm:px-5">
-            <p className="mb-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-ink3">
-              Panel {i + 1}
-            </p>
-            <div className="space-y-1.5">
-              {panel.texts.map((t, j) => (
-                <DialogueLine key={j} t={t} lang={lang} words={wordBases} />
-              ))}
+      <section className="mx-auto mt-6 w-full max-w-[560px] space-y-4">
+        {meta.panels.map((panel, i) => {
+          const src = perPanel ? panelImageUrls?.[i] : null;
+          return (
+            <div key={i} className="overflow-hidden border-2 border-ink bg-bg">
+              {perPanel &&
+                (src ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- runtime-generated / data URL
+                  <img src={src} alt={`Panel ${i + 1}`} className="block aspect-square w-full object-cover" />
+                ) : (
+                  <div className="grid aspect-square w-full place-items-center bg-panel text-[12px] font-bold text-ink3">
+                    Panel {i + 1} — art not drawn yet
+                  </div>
+                ))}
+              <div className="px-4 py-3 sm:px-5">
+                <p className="mb-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-ink3">
+                  Panel {i + 1}
+                </p>
+                <div className="space-y-1.5">
+                  {panel.texts.map((t, j) => (
+                    <DialogueLine key={j} t={t} lang={lang} words={wordBases} />
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
 
       {footer && <div className="mx-auto mt-8 w-full max-w-[560px]">{footer}</div>}
