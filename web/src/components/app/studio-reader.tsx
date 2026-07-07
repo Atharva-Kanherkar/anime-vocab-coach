@@ -102,13 +102,13 @@ export function StudioReaderView({
       </header>
 
       {!perPanel && imageUrl && (
-        <figure className="mx-auto mt-6 w-full max-w-[560px] overflow-hidden border-2 border-ink bg-panel">
+        <figure className="mx-auto mt-6 w-full max-w-[680px] overflow-hidden border-2 border-ink bg-panel">
           {/* eslint-disable-next-line @next/next/no-img-element -- runtime-generated, KV-served */}
           <img src={imageUrl} alt={meta.title.en} className="block h-auto w-full" />
         </figure>
       )}
 
-      <section className="mx-auto mt-8 w-full max-w-[560px] space-y-8">
+      <section className="mx-auto mt-8 w-full max-w-[680px] space-y-8">
         {meta.panels.map((panel, i) => {
           const src = perPanel ? panelImageUrls?.[i] : null;
           return (
@@ -118,11 +118,13 @@ export function StudioReaderView({
               </span>
               {perPanel &&
                 (src ? (
+                  // Show the full art uncropped — we respect the panel the artist made.
                   // eslint-disable-next-line @next/next/no-img-element -- runtime-generated / data URL
                   <img
                     src={src}
                     alt={`Panel ${i + 1}`}
-                    className="block aspect-square w-full border-2 border-ink object-cover"
+                    loading="lazy"
+                    className="block h-auto w-full border-2 border-ink bg-panel"
                   />
                 ) : (
                   <div className="grid aspect-square w-full place-items-center border-2 border-dashed border-line bg-panel text-[12px] font-bold text-ink3">
@@ -141,7 +143,7 @@ export function StudioReaderView({
         })}
       </section>
 
-      {footer && <div className="mx-auto mt-10 w-full max-w-[560px]">{footer}</div>}
+      {footer && <div className="mx-auto mt-10 w-full max-w-[680px]">{footer}</div>}
     </article>
   );
 }

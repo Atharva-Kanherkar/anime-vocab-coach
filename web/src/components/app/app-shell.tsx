@@ -13,6 +13,7 @@ import { NotebooksPanel } from "@/components/notebooks-panel";
 import { CardsPanel } from "@/components/app/cards-panel";
 import { MangaReader } from "@/components/app/manga-reader";
 import { StudioPanel } from "@/components/app/studio-panel";
+import { WordMangaPanel } from "@/components/app/word-manga-panel";
 import { GamificationPanel } from "@/components/gamification-panel";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { CloudAutoSync } from "@/components/app/cloud-auto-sync";
@@ -25,6 +26,7 @@ type SectionId =
   | "cards"
   | "manga"
   | "studio"
+  | "word-manga"
   | "progress"
   | "backup"
   | "settings";
@@ -36,6 +38,7 @@ const NAV: { id: SectionId; label: string }[] = [
   { id: "cards", label: "Cards" },
   { id: "manga", label: "Manga" },
   { id: "studio", label: "Studio" },
+  { id: "word-manga", label: "Word Manga" },
   { id: "progress", label: "Progress" },
   { id: "backup", label: "Backup" },
   { id: "settings", label: "Settings" },
@@ -120,6 +123,9 @@ export function AppShell({ name, owner = false }: { name: string; owner?: boolea
           </div>
           <div hidden={section !== "studio"}>
             <StudioPanel />
+          </div>
+          <div hidden={section !== "word-manga"}>
+            <WordMangaPanel />
           </div>
           <div hidden={section !== "progress"}>
             <GamificationPanel />

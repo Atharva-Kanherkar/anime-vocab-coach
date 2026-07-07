@@ -78,8 +78,10 @@ function emptyLine(): MangaLine {
   return { kind: "speech", speaker: "", text: "" };
 }
 
-export function StudioEditor() {
-  const [auth, setAuth] = useState<Auth>("unknown");
+export function StudioEditor({ signedIn }: { signedIn?: boolean }) {
+  // Server-resolved sign-in is authoritative for the UI; the list fetch only
+  // confirms/populates. This is why a logged-in user never sees "log in to save".
+  const [auth, setAuth] = useState<Auth>(signedIn === undefined ? "unknown" : signedIn ? "in" : "out");
   const [entries, setEntries] = useState<StudioIndexEntry[]>([]);
   const [draft, setDraft] = useState<StudioDraft | null>(null);
   const [saved, setSaved] = useState<StudioCreationMeta | null>(null);
@@ -89,7 +91,8 @@ export function StudioEditor() {
     try {
       const res = await fetch("/api/studio");
       if (res.status === 401) {
-        setAuth("out");
+        // Trust a server-provided signedIn=true over a transient 401.
+        if (signedIn !== true) setAuth("out");
         return;
       }
       if (!res.ok) return;
@@ -97,9 +100,9 @@ export function StudioEditor() {
       setAuth("in");
       setEntries(data.creations);
     } catch {
-      // Offline: leave auth unknown; the composer still works optimistically.
+      // Offline: keep whatever auth we already have; the composer still works.
     }
-  }, []);
+  }, [signedIn]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -467,7 +470,10 @@ function Composer({
   );
 }
 
-// ── Step 2: Edit the drafted chapter ───────────────────────────────────────
+// ── Step 2: Workspace — the "Cursor for manga" editor ──────────────────────
+// Three panes: a panel timeline, a big center stage where you DRAW or view the
+// art, and an AI copilot that suggests scenes/dialogue and drives generation.
+// Draw and Generate are co-equal; the AI augments the author, never replaces.
 
 function EditDraft({
   draft,
@@ -482,63 +488,117 @@ function EditDraft({
   onDiscard: () => void;
   onSaved: (meta: StudioCreationMeta) => void;
 }) {
+  const [selected, setSelected] = useState(0);
+  const [tab, setTab] = useState<"result" | "canvas">("canvas");
+  const [busy, setBusy] = useState(false);
+  const [drawErr, setDrawErr] = useState<string | null>(null);
+  const [drawNeedsLogin, setDrawNeedsLogin] = useState(false);
+  const [assisting, setAssisting] = useState<"" | "scene" | "line">("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
+  const sketchRef = useRef<SketchHandle | null>(null);
 
+  const count = draft.panels.length;
+  const idx = Math.min(selected, count - 1);
+  const panel = draft.panels[idx];
   const missing = panelsMissingArt(draft);
-  const drawnCount = draft.panels.length - missing;
+
+  const select = (i: number) => {
+    setSelected(i);
+    setDrawErr(null);
+    setTab(draft.panels[i]?.image ? "result" : "canvas");
+  };
 
   const setPanel = useCallback(
     (i: number, patch: Partial<DraftPanel>) =>
       onMutate((d) => ({ ...d, panels: d.panels.map((p, k) => (k === i ? { ...p, ...patch } : p)) })),
     [onMutate]
   );
-  const movePanel = useCallback(
-    (i: number, dir: -1 | 1) =>
-      onMutate((d) => {
-        const j = i + dir;
-        if (j < 0 || j >= d.panels.length) return d;
-        const panels = [...d.panels];
-        [panels[i], panels[j]] = [panels[j], panels[i]];
-        return { ...d, panels };
-      }),
-    [onMutate]
-  );
-  const deletePanel = useCallback(
-    (i: number) => onMutate((d) => ({ ...d, panels: d.panels.filter((_, k) => k !== i) })),
-    [onMutate]
-  );
-  const addPanel = useCallback(
-    () =>
-      onMutate((d) =>
-        d.panels.length >= MAX_STUDIO_PANELS
-          ? d
-          : { ...d, panels: [...d.panels, { scene: "", lines: [emptyLine()], image: null }] }
-      ),
-    [onMutate]
-  );
-  const setCastMember = useCallback(
-    (i: number, patch: Partial<StudioCastMember>) =>
-      onMutate((d) => ({ ...d, cast: d.cast.map((c, k) => (k === i ? { ...c, ...patch } : c)) })),
-    [onMutate]
-  );
+  const movePanel = (i: number, dir: -1 | 1) =>
+    onMutate((d) => {
+      const j = i + dir;
+      if (j < 0 || j >= d.panels.length) return d;
+      const panels = [...d.panels];
+      [panels[i], panels[j]] = [panels[j], panels[i]];
+      return { ...d, panels };
+    });
+  const deletePanel = (i: number) => {
+    onMutate((d) => ({ ...d, panels: d.panels.filter((_, k) => k !== i) }));
+    setSelected((s) => Math.max(0, s >= i ? s - 1 : s));
+  };
+  const addPanel = () => {
+    onMutate((d) =>
+      d.panels.length >= MAX_STUDIO_PANELS
+        ? d
+        : { ...d, panels: [...d.panels, { scene: "", lines: [emptyLine()], image: null }] }
+    );
+    setSelected(count); // new one is appended
+    setTab("canvas");
+  };
+  const setCastMember = (i: number, patch: Partial<StudioCastMember>) =>
+    onMutate((d) => ({ ...d, cast: d.cast.map((c, k) => (k === i ? { ...c, ...patch } : c)) }));
 
-  const drawPanel = useCallback(
-    async (i: number, sketch?: string): Promise<{ ok: boolean; error?: string; needsLogin?: boolean }> => {
-      const panel = draft.panels[i];
+  const draw = async (sketch?: string) => {
+    setBusy(true);
+    setDrawErr(null);
+    setDrawNeedsLogin(false);
+    try {
       const res = await fetch("/api/studio/panel-art", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ styleKey: draft.styleKey, scene: panel.scene, cast: draft.cast, sketch }),
       });
       const data = (await res.json().catch(() => ({}))) as { image?: string; error?: string; needsLogin?: boolean };
-      if (!res.ok || !data.image) return { ok: false, error: data.error ?? "failed", needsLogin: data.needsLogin };
-      setPanel(i, { image: data.image });
-      return { ok: true };
-    },
-    [draft.panels, draft.styleKey, draft.cast, setPanel]
-  );
+      if (!res.ok || !data.image) {
+        setDrawErr(data.error ?? "failed");
+        if (data.needsLogin) setDrawNeedsLogin(true);
+        return;
+      }
+      setPanel(idx, { image: data.image });
+      setTab("result");
+    } catch {
+      setDrawErr("failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const beautify = () => {
+    const url = sketchRef.current?.toDataUrl();
+    if (!url) {
+      setDrawErr("empty_panel");
+      return;
+    }
+    void draw(url);
+  };
+
+  const assist = async (kind: "scene" | "line") => {
+    setAssisting(kind);
+    try {
+      const res = await fetch("/api/studio/assist", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind,
+          genre: draft.genre,
+          tone: draft.tone,
+          setting: draft.setting,
+          title: draft.title.en,
+          cast: draft.cast,
+          scene: panel.scene,
+          language: draft.language,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { suggestion?: string };
+      const s = (data.suggestion ?? "").trim();
+      if (!s) return;
+      if (kind === "scene") setPanel(idx, { scene: panel.scene ? `${panel.scene} ${s}` : s });
+      else if (panel.lines.length < MAX_LINES_PER_PANEL)
+        setPanel(idx, { lines: [...panel.lines, { kind: "speech", speaker: draft.cast[0]?.name ?? "", text: s }] });
+    } finally {
+      setAssisting("");
+    }
+  };
 
   const save = async () => {
     if (auth !== "in") {
@@ -591,8 +651,9 @@ function EditDraft({
   };
 
   return (
-    <section aria-label="Edit your manga">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section aria-label="Manga workspace" className="pb-10">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-3 border-b-2 border-ink pb-3">
         <button
           type="button"
           onClick={onDiscard}
@@ -600,331 +661,310 @@ function EditDraft({
         >
           ← Start over
         </button>
-        <span className="text-[12px] font-bold text-ink3">
-          {drawnCount}/{draft.panels.length} panels drawn
-        </span>
-      </div>
-
-      <div className="mt-4">
-        <p className="av-eyebrow">
-          Editing · {studioStyleLabel(draft.styleKey)}
-          {draft.genre ? ` · ${draft.genre}` : ""}
-        </p>
         <input
           value={draft.title.en}
           onChange={(e) => onMutate((d) => ({ ...d, title: { ...d.title, en: e.target.value } }))}
-          className="mt-2 w-full border-b-2 border-line bg-transparent pb-1 font-jpround text-[clamp(24px,4vw,36px)] font-black leading-tight outline-none focus:border-ink"
           aria-label="Manga title"
-          placeholder="Title"
+          placeholder="Untitled"
+          className="min-w-[8rem] flex-1 bg-transparent font-jpround text-[clamp(18px,2.4vw,26px)] font-black leading-tight outline-none"
         />
-        <input
-          value={draft.title.sub}
-          onChange={(e) => onMutate((d) => ({ ...d, title: { ...d.title, sub: e.target.value } }))}
-          className="mt-1.5 w-full border-b border-line bg-transparent pb-0.5 font-jpround text-[15px] font-bold text-ink2 outline-none focus:border-ink"
-          aria-label="Subtitle"
-          placeholder="Subtitle (optional)"
-        />
-        <input
-          value={draft.logline}
-          onChange={(e) => onMutate((d) => ({ ...d, logline: e.target.value }))}
-          className="mt-2 w-full border-b border-line bg-transparent pb-0.5 text-[13.5px] italic text-ink2 outline-none focus:border-ink"
-          aria-label="Logline"
-          placeholder="One-line logline"
-        />
-      </div>
-
-      {draft.cast.length > 0 && (
-        <div className="av-card mt-5 p-4">
-          <h3 className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">Cast</h3>
-          <div className="mt-2 space-y-2">
-            {draft.cast.map((c, i) => (
-              <div key={i} className="flex flex-wrap items-center gap-2">
-                <input
-                  value={c.name}
-                  onChange={(e) => setCastMember(i, { name: e.target.value })}
-                  placeholder="Name"
-                  className="w-32 border-2 border-line bg-field px-2.5 py-1.5 text-[13px] font-bold outline-none focus:border-ink"
-                />
-                <input
-                  value={c.look}
-                  onChange={(e) => setCastMember(i, { look: e.target.value })}
-                  placeholder="Look (kept consistent across panels)"
-                  className="min-w-[14rem] flex-1 border-2 border-line bg-field px-2.5 py-1.5 text-[12.5px] outline-none focus:border-ink"
-                />
-              </div>
-            ))}
-          </div>
-          <p className="mt-2 text-[11px] text-ink3">
-            Editing a look changes how that character is drawn on the next redraw.
-          </p>
-        </div>
-      )}
-
-      <div className="mt-6 space-y-6">
-        {draft.panels.map((panel, i) => (
-          <PanelCard
-            key={i}
-            index={i}
-            total={draft.panels.length}
-            panel={panel}
-            onSceneChange={(scene) => setPanel(i, { scene })}
-            onLinesChange={(lines) => setPanel(i, { lines })}
-            onMove={(dir) => movePanel(i, dir)}
-            onDelete={() => deletePanel(i)}
-            onDraw={(sketch) => drawPanel(i, sketch)}
-          />
-        ))}
-      </div>
-
-      {draft.panels.length < MAX_STUDIO_PANELS && (
-        <button
-          type="button"
-          onClick={addPanel}
-          className="av-btn av-btn-ghost mt-5 w-full justify-center border-dashed"
-        >
-          + Add panel
+        <span className="text-[12px] font-bold text-ink3">
+          {count - missing}/{count} drawn
+        </span>
+        <button type="button" onClick={() => void save()} disabled={saving} className="av-btn av-btn-primary">
+          {saving ? "Saving…" : auth === "in" ? "Save & publish" : "Log in to save"}
         </button>
+      </div>
+      {error && (
+        <div className="mt-2">
+          <span className="text-[13px] font-bold text-danger">{errorMessage(error)}</span>
+          {needsLogin && (
+            <a href={signInHref()} className="ml-2 text-[13px] font-extrabold text-accent underline">
+              Sign in
+            </a>
+          )}
+        </div>
       )}
 
-      <div className="av-card mt-8 p-5 sm:p-6">
-        {missing > 0 && (
-          <p className="text-[13px] font-bold text-ink2">
-            {missing} panel{missing > 1 ? "s" : ""} still need art. Draw them, or publish later.
-          </p>
-        )}
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={() => void save()} disabled={saving} className="av-btn av-btn-primary">
-            {saving ? "Saving…" : auth === "in" ? "Save my manga" : "Log in to save & publish"}
-          </button>
-          {auth !== "in" && (
-            <span className="text-[12.5px] text-ink3">Your manga is kept in this browser until you sign in.</span>
-          )}
-        </div>
-        {error && (
-          <div className="mt-3">
-            <p className="text-[13px] font-bold text-danger">{errorMessage(error)}</p>
-            {needsLogin && (
-              <a href={signInHref()} className="av-btn av-btn-primary mt-2 inline-flex">
-                Sign in — it&apos;s free
-              </a>
-            )}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function PanelCard({
-  index,
-  total,
-  panel,
-  onSceneChange,
-  onLinesChange,
-  onMove,
-  onDelete,
-  onDraw,
-}: {
-  index: number;
-  total: number;
-  panel: DraftPanel;
-  onSceneChange: (scene: string) => void;
-  onLinesChange: (lines: MangaLine[]) => void;
-  onMove: (dir: -1 | 1) => void;
-  onDelete: () => void;
-  onDraw: (sketch?: string) => Promise<{ ok: boolean; error?: string; needsLogin?: boolean }>;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [needsLogin, setNeedsLogin] = useState(false);
-  const [sketching, setSketching] = useState(false);
-  const sketchRef = useRef<SketchHandle | null>(null);
-
-  const run = async (sketch?: string) => {
-    setBusy(true);
-    setError(null);
-    setNeedsLogin(false);
-    const r = await onDraw(sketch);
-    if (!r.ok) {
-      setError(r.error ?? "failed");
-      if (r.needsLogin) setNeedsLogin(true);
-    } else {
-      setSketching(false);
-    }
-    setBusy(false);
-  };
-
-  const beautify = () => {
-    const dataUrl = sketchRef.current?.toDataUrl();
-    if (!dataUrl) {
-      setError("empty_panel");
-      return;
-    }
-    void run(dataUrl);
-  };
-
-  const setLine = (j: number, patch: Partial<MangaLine>) => onLinesChange(updateLine(panel.lines, j, patch));
-  const addLine = () =>
-    panel.lines.length < MAX_LINES_PER_PANEL && onLinesChange([...panel.lines, emptyLine()]);
-  const removeLine = (j: number) => onLinesChange(panel.lines.filter((_, k) => k !== j));
-
-  return (
-    <div className="av-card overflow-hidden p-0">
-      <div className="grid gap-0 sm:grid-cols-[minmax(0,240px)_1fr]">
-        <div className="border-b-2 border-line sm:border-b-0 sm:border-r-2">
-          {panel.image ? (
-            // eslint-disable-next-line @next/next/no-img-element -- generated data URL
-            <img src={panel.image} alt={`Panel ${index + 1}`} className="block aspect-square w-full object-cover" />
-          ) : (
-            <div className="grid aspect-square w-full place-items-center bg-panel px-4 text-center text-[12px] font-bold text-ink3">
-              {busy ? "Drawing…" : "No art yet"}
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-ink3">Panel {index + 1}</p>
-            <div className="flex items-center gap-1">
+      {/* 3-pane workspace */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-[132px_minmax(0,1fr)_360px]">
+        {/* Timeline */}
+        <aside className="order-2 lg:order-none">
+          <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+            {draft.panels.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => select(i)}
+                aria-current={i === idx}
+                className={
+                  "relative aspect-square w-24 shrink-0 overflow-hidden border-2 transition lg:w-full " +
+                  (i === idx ? "border-accent" : "border-line hover:border-ink")
+                }
+              >
+                {p.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- data URL
+                  <img src={p.image} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="grid h-full w-full place-items-center bg-panel text-[11px] font-bold text-ink3">
+                    empty
+                  </span>
+                )}
+                <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-bg/90 text-[10px] font-black">
+                  {i + 1}
+                </span>
+              </button>
+            ))}
+            {count < MAX_STUDIO_PANELS && (
               <button
                 type="button"
-                aria-label="Move up"
-                disabled={index === 0}
-                onClick={() => onMove(-1)}
-                className="grid h-6 w-6 place-items-center rounded border-2 border-line text-[12px] text-ink2 disabled:opacity-30 hover:text-ink"
+                onClick={addPanel}
+                className="grid aspect-square w-24 shrink-0 place-items-center border-2 border-dashed border-line text-[22px] font-black text-ink3 hover:text-ink lg:w-full"
+                aria-label="Add panel"
               >
-                ↑
+                +
+              </button>
+            )}
+          </div>
+        </aside>
+
+        {/* Stage */}
+        <div className="order-1 lg:order-none">
+          <div className="flex items-center gap-2">
+            <div className="flex overflow-hidden rounded-full border-2 border-line">
+              {(["canvas", "result"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  aria-pressed={tab === t}
+                  className={
+                    "px-4 py-1.5 text-[12.5px] font-extrabold transition " +
+                    (tab === t ? "bg-ink text-bg" : "text-ink2 hover:text-ink")
+                  }
+                >
+                  {t === "canvas" ? "✏️ Draw" : "🖼 Art"}
+                </button>
+              ))}
+            </div>
+            <span className="text-[12px] font-bold text-ink3">Panel {idx + 1} of {count}</span>
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Move panel earlier"
+                disabled={idx === 0}
+                onClick={() => movePanel(idx, -1)}
+                className="grid h-7 w-7 place-items-center rounded border-2 border-line text-ink2 disabled:opacity-30 hover:text-ink"
+              >
+                ←
               </button>
               <button
                 type="button"
-                aria-label="Move down"
-                disabled={index === total - 1}
-                onClick={() => onMove(1)}
-                className="grid h-6 w-6 place-items-center rounded border-2 border-line text-[12px] text-ink2 disabled:opacity-30 hover:text-ink"
+                aria-label="Move panel later"
+                disabled={idx === count - 1}
+                onClick={() => movePanel(idx, 1)}
+                className="grid h-7 w-7 place-items-center rounded border-2 border-line text-ink2 disabled:opacity-30 hover:text-ink"
               >
-                ↓
+                →
               </button>
               <button
                 type="button"
                 aria-label="Delete panel"
-                disabled={total <= 1}
-                onClick={onDelete}
-                className="grid h-6 w-6 place-items-center rounded border-2 border-line text-[12px] text-ink3 disabled:opacity-30 hover:text-danger"
+                disabled={count <= 1}
+                onClick={() => deletePanel(idx)}
+                className="grid h-7 w-7 place-items-center rounded border-2 border-line text-ink3 disabled:opacity-30 hover:text-danger"
               >
                 ✕
               </button>
             </div>
           </div>
 
-          <label className="mt-2 block text-[11px] font-bold text-ink3">
-            Scene (what to draw)
-            <textarea
-              value={panel.scene}
-              onChange={(e) => onSceneChange(e.target.value)}
-              rows={2}
-              className="mt-1 w-full resize-y border-2 border-line bg-field px-2.5 py-1.5 text-[12.5px] leading-snug text-ink outline-none focus:border-ink"
-            />
-          </label>
-
-          <div className="mt-3 space-y-2.5">
-            {panel.lines.map((line, j) => {
-              const meta = LINE_META[line.kind];
-              return (
-                <div key={j} className="rounded-md border-2 border-line p-2.5">
-                  <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                    {LINE_KINDS.map((k) => (
-                      <button
-                        key={k}
-                        type="button"
-                        aria-pressed={line.kind === k}
-                        onClick={() => setLine(j, { kind: k, speaker: LINE_META[k].hasSpeaker ? line.speaker : "" })}
-                        className={
-                          "rounded-full border px-2 py-0.5 text-[10.5px] font-extrabold transition " +
-                          (line.kind === k ? "border-ink bg-ink text-bg" : "border-line text-ink3 hover:text-ink")
-                        }
-                      >
-                        {LINE_META[k].label}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      aria-label="Remove line"
-                      onClick={() => removeLine(j)}
-                      className="ml-auto text-[12px] text-ink3 hover:text-danger"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {meta.hasSpeaker && (
-                    <input
-                      value={line.speaker}
-                      onChange={(e) => setLine(j, { speaker: e.target.value })}
-                      placeholder="Speaker"
-                      className="mb-1.5 w-32 border-b border-line bg-transparent pb-0.5 text-[11px] font-black text-accent outline-none focus:border-ink"
-                    />
-                  )}
-                  <input
-                    value={line.text}
-                    onChange={(e) => setLine(j, { text: e.target.value })}
-                    placeholder={line.kind === "sfx" ? "BOOM" : line.kind === "narration" ? "Caption…" : "Line…"}
-                    className="w-full border-b border-line bg-transparent pb-0.5 text-[13.5px] outline-none focus:border-ink"
-                  />
+          <div className="mt-3 rounded-lg border-2 border-ink bg-panel p-3">
+            {tab === "canvas" ? (
+              <div>
+                <SketchCanvas key={idx} ref={sketchRef} />
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={beautify} disabled={busy} className="av-btn av-btn-primary">
+                    {busy ? "Beautifying…" : "✨ Turn my drawing into art"}
+                  </button>
+                  <span className="text-[12px] text-ink3">The AI inks &amp; colors YOUR sketch in the {studioStyleLabel(draft.styleKey)} style.</span>
                 </div>
-              );
-            })}
-            {panel.lines.length < MAX_LINES_PER_PANEL && (
-              <button
-                type="button"
-                onClick={addLine}
-                className="text-[12px] font-extrabold text-ink3 hover:text-ink"
-              >
-                + Add line
-              </button>
+              </div>
+            ) : (
+              <div>
+                <div className="grid min-h-[300px] place-items-center bg-bg">
+                  {panel.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- data URL
+                    <img
+                      src={panel.image}
+                      alt={`Panel ${idx + 1}`}
+                      className="mx-auto block max-h-[62vh] w-auto max-w-full"
+                    />
+                  ) : (
+                    <p className="p-8 text-center text-[13px] font-bold text-ink3">
+                      {busy ? "Drawing…" : "No art yet — draw it, or generate from the scene."}
+                    </p>
+                  )}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => void draw()} disabled={busy} className="av-btn av-btn-primary">
+                    {busy ? "Generating…" : panel.image ? "↻ Regenerate from scene" : "🎨 Generate from scene"}
+                  </button>
+                </div>
+              </div>
+            )}
+            {drawErr && (
+              <div className="mt-2">
+                <span className="text-[12.5px] font-bold text-danger">{errorMessage(drawErr)}</span>
+                {drawNeedsLogin && (
+                  <a href={signInHref()} className="ml-2 text-[12.5px] font-extrabold text-accent underline">
+                    Sign in
+                  </a>
+                )}
+              </div>
             )}
           </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void run()} disabled={busy} className="av-btn av-btn-ghost">
-              {busy ? "…" : panel.image ? "↻ Redraw" : "🎨 Draw art"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSketching((v) => !v)}
-              disabled={busy}
-              aria-pressed={sketching}
-              className="av-btn av-btn-quiet"
-            >
-              {sketching ? "Close sketch" : "✏️ Sketch it"}
-            </button>
-          </div>
-
-          {sketching && (
-            <div className="mt-3 rounded-lg border-2 border-line p-3">
-              <p className="mb-2 text-[12px] font-bold text-ink2">
-                Rough it out — stick figures are fine. The AI redraws it in your style.
-              </p>
-              <SketchCanvas ref={sketchRef} />
-              <button type="button" onClick={beautify} disabled={busy} className="av-btn av-btn-primary mt-3">
-                {busy ? "Beautifying…" : "✨ Beautify my sketch"}
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <div className="mt-2">
-              <p className="text-[12.5px] font-bold text-danger">{errorMessage(error)}</p>
-              {needsLogin && (
-                <a href={signInHref()} className="text-[12.5px] font-extrabold text-accent underline">
-                  Sign in to keep drawing →
-                </a>
-              )}
-            </div>
-          )}
         </div>
+
+        {/* Copilot */}
+        <aside className="order-3 lg:order-none">
+          <div className="space-y-4 rounded-lg border-2 border-line p-4">
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">Scene</h3>
+                <button
+                  type="button"
+                  onClick={() => void assist("scene")}
+                  disabled={assisting !== ""}
+                  className="text-[11.5px] font-extrabold text-accent hover:underline disabled:opacity-50"
+                >
+                  {assisting === "scene" ? "…" : "✨ Suggest"}
+                </button>
+              </div>
+              <textarea
+                value={panel.scene}
+                onChange={(e) => setPanel(idx, { scene: e.target.value })}
+                rows={3}
+                placeholder="What happens in this panel? (drawn or generated art uses this)"
+                className="mt-2 w-full resize-y border-2 border-line bg-field px-2.5 py-1.5 text-[12.5px] leading-snug outline-none focus:border-ink"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">Dialogue</h3>
+                <button
+                  type="button"
+                  onClick={() => void assist("line")}
+                  disabled={assisting !== "" || panel.lines.length >= MAX_LINES_PER_PANEL}
+                  className="text-[11.5px] font-extrabold text-accent hover:underline disabled:opacity-50"
+                >
+                  {assisting === "line" ? "…" : "✨ Suggest"}
+                </button>
+              </div>
+              <div className="mt-2 space-y-2.5">
+                {panel.lines.map((line, j) => (
+                  <div key={j} className="rounded-md border-2 border-line p-2">
+                    <div className="mb-1.5 flex flex-wrap items-center gap-1">
+                      {LINE_KINDS.map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          aria-pressed={line.kind === k}
+                          onClick={() =>
+                            setPanel(idx, {
+                              lines: updateLine(panel.lines, j, {
+                                kind: k,
+                                speaker: LINE_META[k].hasSpeaker ? line.speaker : "",
+                              }),
+                            })
+                          }
+                          className={
+                            "rounded-full border px-1.5 py-0.5 text-[10px] font-extrabold transition " +
+                            (line.kind === k ? "border-ink bg-ink text-bg" : "border-line text-ink3 hover:text-ink")
+                          }
+                        >
+                          {LINE_META[k].label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        aria-label="Remove line"
+                        onClick={() => setPanel(idx, { lines: panel.lines.filter((_, k) => k !== j) })}
+                        className="ml-auto text-[12px] text-ink3 hover:text-danger"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {LINE_META[line.kind].hasSpeaker && (
+                      <input
+                        value={line.speaker}
+                        onChange={(e) => setPanel(idx, { lines: updateLine(panel.lines, j, { speaker: e.target.value }) })}
+                        placeholder="Speaker"
+                        className="mb-1 w-28 border-b border-line bg-transparent pb-0.5 text-[11px] font-black text-accent outline-none focus:border-ink"
+                      />
+                    )}
+                    <input
+                      value={line.text}
+                      onChange={(e) => setPanel(idx, { lines: updateLine(panel.lines, j, { text: e.target.value }) })}
+                      placeholder={line.kind === "sfx" ? "BOOM" : line.kind === "narration" ? "Caption…" : "Line…"}
+                      className="w-full border-b border-line bg-transparent pb-0.5 text-[13px] outline-none focus:border-ink"
+                    />
+                  </div>
+                ))}
+                {panel.lines.length < MAX_LINES_PER_PANEL && (
+                  <button
+                    type="button"
+                    onClick={() => setPanel(idx, { lines: [...panel.lines, emptyLine()] })}
+                    className="text-[12px] font-extrabold text-ink3 hover:text-ink"
+                  >
+                    + Add line
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {draft.cast.length > 0 && (
+              <details className="group">
+                <summary className="cursor-pointer list-none text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">
+                  Cast &amp; story ▾
+                </summary>
+                <div className="mt-2 space-y-2">
+                  <input
+                    value={draft.logline}
+                    onChange={(e) => onMutate((d) => ({ ...d, logline: e.target.value }))}
+                    placeholder="Logline"
+                    className="w-full border-2 border-line bg-field px-2.5 py-1.5 text-[12px] italic outline-none focus:border-ink"
+                  />
+                  {draft.cast.map((c, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-1.5">
+                      <input
+                        value={c.name}
+                        onChange={(e) => setCastMember(i, { name: e.target.value })}
+                        placeholder="Name"
+                        className="w-24 border-2 border-line bg-field px-2 py-1 text-[12px] font-bold outline-none focus:border-ink"
+                      />
+                      <input
+                        value={c.look}
+                        onChange={(e) => setCastMember(i, { look: e.target.value })}
+                        placeholder="Look (kept consistent)"
+                        className="min-w-[10rem] flex-1 border-2 border-line bg-field px-2 py-1 text-[11.5px] outline-none focus:border-ink"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+          {auth !== "in" && (
+            <p className="mt-2 text-[11.5px] text-ink3">Kept in this browser until you sign in (free) to save &amp; publish.</p>
+          )}
+        </aside>
       </div>
-    </div>
+    </section>
   );
 }
+
 
 // ── Step 3: Saved manga (read + share) ─────────────────────────────────────
 

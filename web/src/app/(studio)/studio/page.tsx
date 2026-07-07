@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { currentUser } from "@clerk/nextjs/server";
 import { StudioEditor } from "@/components/app/studio-editor";
-import { studioJsonLd } from "@/lib/seo";
+import { DEV_NO_CLERK } from "@/lib/dev-auth";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -8,42 +9,18 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Manga Studio — create your own manga with AI",
   description:
-    "Describe your story and pick a genre and art style — the AI storyboards a whole chapter with a cast, panels, and dialogue. Rewrite any line, add or reorder panels, redraw art, or sketch it yourself and let the AI finish it. Free to try, no account needed.",
-  keywords: [
-    "manga studio",
-    "ai manga maker",
-    "write manga online",
-    "create manga free",
-    "learn japanese manga",
-  ],
+    "Draw or generate every panel of your own manga chapter. AI augments your art — enhance a rough sketch into your style, suggest scenes and dialogue — you stay the author. Free to try, no account needed.",
   alternates: { canonical: `${SITE_URL}/studio` },
-  openGraph: {
-    title: "Manga Studio — AI Manga Maker | AnimeVocab",
-    description:
-      "Free AI manga maker. Draft a full chapter from your premise, edit dialogue, redraw panels, publish to the gallery.",
-    url: `${SITE_URL}/studio`,
-    siteName: "AnimeVocab",
-    type: "website",
-    locale: "en_US",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "AnimeVocab Manga Studio" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Manga Studio — create your own manga",
-    description: "Free AI manga maker with editable dialogue and per-panel redraw.",
-    images: ["/og.png"],
-  },
 };
 
-export default function StudioPage() {
-  const jsonLd = studioJsonLd();
+export default async function StudioPage() {
+  // Resolve sign-in on the server so the editor never mistakes a logged-in
+  // creator for a guest (the client list-fetch only confirms it afterward).
+  const signedIn = DEV_NO_CLERK ? true : !!(await currentUser());
 
   return (
-    <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <main id="main" className="mx-auto mt-8 max-w-[900px] px-5 md:mt-10 md:px-8">
-        <StudioEditor />
-      </main>
-    </>
+    <main id="main" className="mx-auto mt-6 w-full max-w-[1400px] px-4 md:mt-8 md:px-6">
+      <StudioEditor signedIn={signedIn} />
+    </main>
   );
 }

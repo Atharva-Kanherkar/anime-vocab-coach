@@ -39,6 +39,61 @@ export async function generateScript(
   return normalizeScript(JSON.parse(data.choices?.[0]?.message?.content ?? "{}"));
 }
 
+/** Copilot: suggest a single scene direction or a line of dialogue for the
+ * current panel, given the story context. Returns plain text (augment, not
+ * replace — the author decides whether to use it). */
+export async function generateAssist(
+  apiKey: string,
+  model: string,
+  opts: {
+    kind: "scene" | "line";
+    genre: string;
+    tone: string;
+    setting: string;
+    title: string;
+    cast: StudioCastMember[];
+    scene: string;
+    language: string;
+  }
+): Promise<string> {
+  const want =
+    opts.kind === "scene"
+      ? "a single vivid VISUAL scene direction for the artist (no dialogue, no text in the art)"
+      : `a single natural line of manga dialogue in ${opts.language || "English"}`;
+  const ctx = [
+    opts.title && `Title: ${opts.title}`,
+    opts.genre && `Genre: ${opts.genre}`,
+    opts.tone && `Tone: ${opts.tone}`,
+    opts.setting && `Setting: ${opts.setting}`,
+    opts.cast.length > 0 && `Cast: ${opts.cast.map((c) => `${c.name} (${c.look})`).join("; ")}`,
+    opts.scene && `Current panel scene: ${opts.scene}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a manga co-author helping a human artist ideate. Suggest " +
+            want +
+            ". Reply with ONLY the suggestion — no quotes, no preamble, no options, one line.",
+        },
+        { role: "user", content: ctx || "Suggest something fitting for a manga panel." },
+      ],
+      temperature: 0.9,
+      max_tokens: 120,
+    }),
+  });
+  if (!res.ok) throw new Error(`openai_${res.status}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return (data.choices?.[0]?.message?.content ?? "").trim().replace(/^["']|["']$/g, "");
+}
+
 function b64ToArrayBuffer(b64: string): ArrayBuffer {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
