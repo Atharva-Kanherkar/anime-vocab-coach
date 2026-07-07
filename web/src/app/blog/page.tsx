@@ -6,21 +6,21 @@ import { GITHUB_URL, SITE_URL } from "@/lib/site";
 import { blogJsonLd, defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Blog · Learn Japanese from Anime",
+  title: "Blog · Learn Japanese from Anime & Manga",
   description:
-    "Guides on learning Japanese with anime — Crunchyroll without JP subs, best beginner shows, spaced repetition, shadowing, and tool comparisons.",
+    "Guides on learning Japanese with anime — Crunchyroll without JP subs, best beginner shows, spaced repetition, AI manga maker, shadowing, and tool comparisons.",
   alternates: { canonical: `${SITE_URL}/blog` },
   openGraph: {
     ...defaultOpenGraph,
     title: "AnimeVocab Blog · Learn Japanese from Anime",
     description:
-      "Research-backed guides: Crunchyroll, Netflix, SRS, romaji-first learning, and immersion workflows.",
+      "Research-backed guides: Crunchyroll, Netflix, SRS, romaji-first learning, Manga Studio, and immersion workflows.",
     url: `${SITE_URL}/blog`,
   },
   twitter: {
     ...defaultTwitter,
     title: "AnimeVocab Blog",
-    description: "Learn Japanese from anime — guides, comparisons, and study workflows.",
+    description: "Learn Japanese from anime and manga — guides, comparisons, and study workflows.",
   },
 };
 
@@ -47,8 +47,8 @@ export default function BlogIndexPage() {
             <p className="eyebrow">Guides & research</p>
             <h1>Learn Japanese from anime — for real</h1>
             <p className="lede">
-              Practical posts on Crunchyroll, Netflix, spaced repetition, and tools — written for learners
-              who want listening gains, not binge guilt.
+              Practical posts on Crunchyroll, Netflix, spaced repetition, Manga Studio, and tools — written for
+              learners who want listening gains, not binge guilt.
             </p>
           </div>
         </section>
@@ -84,10 +84,22 @@ export default function BlogIndexPage() {
                   <Link href="/learn-japanese-with-anime">How to learn Japanese with anime (2026)</Link>
                 </li>
                 <li>
+                  <Link href="/ai-manga-maker">AI manga maker — create manga online free</Link>
+                </li>
+                <li>
+                  <Link href="/learn-japanese-manga">Learn Japanese by writing manga</Link>
+                </li>
+                <li>
                   <Link href="/learn-japanese-crunchyroll">Learn Japanese on Crunchyroll</Link>
                 </li>
                 <li>
                   <Link href="/best-anime-to-learn-japanese">Best anime for beginners</Link>
+                </li>
+                <li>
+                  <Link href="/learn-japanese-youtube-anime">Learn Japanese on YouTube anime</Link>
+                </li>
+                <li>
+                  <Link href="/romaji-japanese-learning">Romaji-first learning</Link>
                 </li>
                 <li>
                   <Link href="/vs-lexirise">AnimeVocab vs Lexirise</Link>
@@ -97,6 +109,9 @@ export default function BlogIndexPage() {
                 </li>
                 <li>
                   <Link href="/vs-migaku">AnimeVocab vs Migaku</Link>
+                </li>
+                <li>
+                  <Link href="/vs-trancy">AnimeVocab vs Trancy</Link>
                 </li>
               </ul>
             </aside>

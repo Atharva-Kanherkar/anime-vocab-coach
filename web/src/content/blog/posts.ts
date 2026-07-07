@@ -452,6 +452,336 @@ export const blogPosts: BlogPost[] = [
       },
     ],
   },
+  {
+    slug: "ai-manga-maker-free-online-2026",
+    title: "AI Manga Maker Free Online (2026): How Manga Studio Works",
+    description:
+      "Create manga online free with AI — full chapters from a text premise, editable dialogue, per-panel redraw, and sketch beautify. How AnimeVocab Manga Studio compares to other generators.",
+    publishedAt: "2026-07-07T08:00:00.000Z",
+    updatedAt: "2026-07-07T08:00:00.000Z",
+    keywords: [
+      "ai manga maker free",
+      "create manga online free",
+      "ai manga generator",
+      "manga maker online",
+      "make manga with ai",
+    ],
+    readingMinutes: 9,
+    blocks: [
+      {
+        type: "p",
+        text: "Search **ai manga maker** or **create manga online free** and you get a dozen tools that output one pretty image with garbled speech-bubble text. **Manga Studio** at [animevocab.com/studio](/studio) takes a different path: AI drafts a **full chapter** (cast, panels, dialogue), but **text lives in the reader** — editable, legible in Japanese, never baked into pixels.",
+      },
+      { type: "h2", text: "What you get from one premise" },
+      {
+        type: "ul",
+        items: [
+          "**Title and logline** — genre, tone, setting from your prompt",
+          "**Recurring cast** — character look descriptions kept consistent across panels",
+          "**Panel scripts** — visual scene beat + dialogue lines (speech, thought, narration, SFX)",
+          "**One image per panel** — redraw panel 3 without regenerating the whole page",
+        ],
+      },
+      { type: "h2", text: "The three things most AI manga generators get wrong" },
+      {
+        type: "ol",
+        items: [
+          "**Text baked into art** — Japanese kanji garbles; English cannot be edited after generation.",
+          "**Single grid image** — one mistake means redoing everything.",
+          "**No story structure** — one splash page, not a readable chapter with pacing.",
+        ],
+      },
+      { type: "h2", text: "Sketch → AI redraw" },
+      {
+        type: "p",
+        text: "Open the sketch pad on any panel, draw a rough composition, and the image model redraws it in your chosen **manga art style**. This is the workflow Clip Studio users know — storyboard first, ink second — without owning a tablet.",
+      },
+      { type: "h2", text: "Free tier and publishing" },
+      {
+        type: "p",
+        text: "Try without an account — one manga held in your browser. Sign in (free) to save, publish to the [public gallery](/gallery), and share at `/m/your-id`. Full comparison table: [AI manga maker guide](/ai-manga-maker). For Japanese learners: [learn Japanese with manga](/learn-japanese-manga).",
+      },
+    ],
+  },
+  {
+    slug: "learn-japanese-by-writing-manga",
+    title: "Learn Japanese by Writing Manga: Active Recall for Anime Fans",
+    description:
+      "Why writing short manga chapters beats only reading them for vocabulary retention — a practical workflow with Manga Studio and spaced repetition from anime.",
+    publishedAt: "2026-07-07T09:00:00.000Z",
+    updatedAt: "2026-07-07T09:00:00.000Z",
+    keywords: [
+      "learn japanese with manga",
+      "write manga learn japanese",
+      "japanese active recall",
+      "manga vocabulary practice",
+    ],
+    readingMinutes: 7,
+    blocks: [
+      {
+        type: "p",
+        text: "Immersion communities obsess over **input** — anime, manga, podcasts. Output gets deferred until you can already speak. But **retrieval practice** (producing words from memory) is what moves vocabulary from passive recognition to usable recall. Writing a four-panel manga where your OC says お腹が空いた is harder than reading it — and that difficulty is the point.",
+      },
+      { type: "h2", text: "The write → read → check loop" },
+      {
+        type: "ol",
+        items: [
+          "Pick 3–5 target words from anime watching ([one word per episode method](/blog/one-word-per-episode-method)).",
+          "Draft a manga chapter in [Manga Studio](/studio) using those words in dialogue.",
+          "Edit every AI-generated line until it sounds like something a human would say.",
+          "Read aloud — shadow your own lines for pronunciation.",
+          "Pass the word check for XP; add failed words to your extension SRS deck.",
+        ],
+      },
+      { type: "h2", text: "Month zero: romaji and English bridges" },
+      {
+        type: "p",
+        text: "You do not need N3 grammar to start. Write in English, translate line-by-line, or use romaji display while you learn kana. Same on-ramp as [romaji-first learning](/romaji-japanese-learning). The manga is yours — embarrassment-free practice.",
+      },
+      {
+        type: "p",
+        text: "Full guide: [learn Japanese with manga](/learn-japanese-manga). Pair with [best beginner anime](/blog/best-anime-to-learn-japanese-beginners) for listening input.",
+      },
+    ],
+  },
+  {
+    slug: "animelon-alternative-anime-japanese-2026",
+    title: "Animelon Alternative (2026): Romaji Anime with Legal Workflows",
+    description:
+      "Animelon offered romaji-friendly anime subtitles but is unreliable. Modern alternatives for learning Japanese from anime — Netflix, YouTube, Crunchyroll, and Listening Mode.",
+    publishedAt: "2026-07-07T10:00:00.000Z",
+    updatedAt: "2026-07-07T10:00:00.000Z",
+    keywords: [
+      "animelon alternative",
+      "animelon replacement",
+      "romaji anime subtitles",
+      "learn japanese anime streaming",
+    ],
+    readingMinutes: 8,
+    blocks: [
+      {
+        type: "p",
+        text: "**Animelon** was the romaji learner's secret — synced Japanese dialogue with word-by-word hover translations. Catalog gaps, downtime, and legal gray areas pushed learners back to Netflix, YouTube, and Crunchyroll. If you searched **Animelon alternative** in 2026, here is what actually replaces it by use case.",
+      },
+      { type: "h2", text: "If you need romaji without reading kana" },
+      {
+        type: "ul",
+        items: [
+          "**AnimeVocab** — romaji-first cards from spoken dialogue; Listening Mode when JP subs are missing on Crunchyroll.",
+          "**Animelon** (when up) — still useful for specific titles; do not depend on it as primary pipeline.",
+        ],
+      },
+      { type: "h2", text: "If you read hiragana and want dual subtitles" },
+      {
+        type: "ul",
+        items: [
+          "**Language Reactor** — Netflix/YouTube dual subs + dictionary.",
+          "**Lexirise** — Crunchyroll click-to-translate when subtitle text exists.",
+          "**HASHIGO!** — furigana and JLPT coloring on Netflix.",
+        ],
+      },
+      { type: "h2", text: "If you mine into Anki" },
+      {
+        type: "p",
+        text: "**asbplayer** + fan subs remains the power-user path. High setup, maximum control. Compare [Migaku vs Language Reactor vs AnimeVocab](/blog/migaku-language-reactor-animevocab-beginners) for where to start.",
+      },
+      {
+        type: "p",
+        text: "Crunchyroll-specific: [learn Japanese without JP subs](/blog/learn-japanese-crunchyroll-no-japanese-subs). YouTube: [learn Japanese on YouTube anime](/learn-japanese-youtube-anime).",
+      },
+    ],
+  },
+  {
+    slug: "ai-manga-generator-comparison-2026",
+    title: "Best AI Manga Generator (2026): Manga Studio vs Manga AI vs Comicory",
+    description:
+      "Honest comparison of AI manga generators — editable dialogue, panel redraw, character consistency, pricing, and which tool fits storytellers vs learners.",
+    publishedAt: "2026-07-07T11:00:00.000Z",
+    updatedAt: "2026-07-07T11:00:00.000Z",
+    keywords: [
+      "best ai manga generator",
+      "ai manga generator comparison",
+      "manga ai vs manga maker",
+      "comicory vs manga studio",
+    ],
+    readingMinutes: 10,
+    blocks: [
+      {
+        type: "p",
+        text: "The **AI manga generator** space exploded in 2025–2026: MangaMaker.com, Manga AI, Comicory, Anifusion, and niche web apps all promise pages in minutes. They optimize for different jobs — photo-to-manga, shounen splash art, webtoon layout. Here is how **AnimeVocab Manga Studio** fits if you care about **editable stories** and optional **Japanese learning**.",
+      },
+      { type: "h2", text: "Comparison at a glance" },
+      {
+        type: "ul",
+        items: [
+          "**Manga Studio** — chapter drafts, per-panel art, editable bubble text, sketch redraw, free gallery, JP learning hooks.",
+          "**MangaMaker.com** — fast photo-to-character manga, 12 styles, credit packs.",
+          "**Manga AI** — polished B&W pages, animation export, 14 styles.",
+          "**Comicory** — strong layout picker, character library, monochrome screentone focus.",
+          "**Anifusion** — LoRA training, multi-panel canvas, webtoon + manga modes.",
+        ],
+      },
+      { type: "h2", text: "Pick Manga Studio if…" },
+      {
+        type: "ul",
+        items: [
+          "You want to **rewrite dialogue** after generation.",
+          "You need **Japanese text** that stays legible (not baked into art).",
+          "You are an **anime learner** weaving vocab into stories.",
+          "You want a **public gallery** without a separate hosting step.",
+        ],
+      },
+      { type: "h2", text: "Pick a general generator if…" },
+      {
+        type: "ul",
+        items: [
+          "You need **photo upload** as the primary character input.",
+          "You want **animated cuts** from finished pages (Manga AI).",
+          "You are building **webtoons** with vertical scroll (Anifusion).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full feature table and FAQ: [AI manga maker guide](/ai-manga-maker). Try Studio: [/studio](/studio).",
+      },
+    ],
+  },
+  {
+    slug: "learn-japanese-youtube-anime-subtitles",
+    title: "Learn Japanese on YouTube Anime: Hidden JP Subs and Tools (2026)",
+    description:
+      "YouTube anime often has a hidden Japanese caption track. How to enable it, pair with romaji tools, and build vocabulary with spaced repetition.",
+    publishedAt: "2026-07-07T12:00:00.000Z",
+    updatedAt: "2026-07-07T12:00:00.000Z",
+    keywords: [
+      "learn japanese youtube anime",
+      "youtube japanese subtitles anime",
+      "youtube anime vocabulary",
+      "language reactor youtube",
+    ],
+    readingMinutes: 8,
+    blocks: [
+      {
+        type: "p",
+        text: "Official **YouTube anime** uploads frequently include a **Japanese caption track** separate from auto-generated English. AnimeVocab reads that track even while you display English subs — the same trick Language Reactor uses for dual-sub workflows, but with **romaji-first cards** for beginners.",
+      },
+      { type: "h2", text: "Enable Japanese captions on YouTube" },
+      {
+        type: "ol",
+        items: [
+          "Open Settings (gear) → Subtitles/CC.",
+          "Pick **Japanese** (not auto-translate).",
+          "If only English appears, the uploader may not have JP — try another source or Listening Mode.",
+        ],
+      },
+      { type: "h2", text: "Tool fit on YouTube" },
+      {
+        type: "ul",
+        items: [
+          "**AnimeVocab** — JP track parsing + romaji cards + local SRS; works on official channels.",
+          "**Language Reactor** — dual subs + dictionary; best if you read kana.",
+          "**Migaku** — sentence mining to Anki; power-user setup.",
+        ],
+      },
+      { type: "h2", text: "YouTube vs Netflix vs Crunchyroll" },
+      {
+        type: "p",
+        text: "YouTube wins on **free catalog** and often on **JP caption availability**. Netflix wins on **simulcast quality** and dual-sub extensions. Crunchyroll wins on **new releases** but often lacks JP subs — see [Crunchyroll without JP subs](/blog/learn-japanese-crunchyroll-no-japanese-subs). Master comparison: [learn Japanese with anime](/learn-japanese-with-anime). Landing page: [YouTube anime guide](/learn-japanese-youtube-anime).",
+      },
+    ],
+  },
+  {
+    slug: "japanese-vocabulary-anime-beginners-guide",
+    title: "Japanese Vocabulary from Anime: A Beginner's Capture Guide (2026)",
+    description:
+      "How to build Japanese vocabulary from anime without drowning in flashcards — frequency, context, romaji on-ramp, and daily review habits.",
+    publishedAt: "2026-07-07T13:00:00.000Z",
+    updatedAt: "2026-07-07T13:00:00.000Z",
+    keywords: [
+      "japanese vocabulary from anime",
+      "anime vocabulary list",
+      "learn japanese words from anime",
+      "anime flashcards japanese",
+    ],
+    readingMinutes: 8,
+    blocks: [
+      {
+        type: "p",
+        text: "**Japanese vocabulary from anime** is high-frequency spoken Japanese — not textbook polite forms, not newspaper keigo. The trick is capturing **useful** words in **context** and reviewing on a schedule. Random word lists from Google fail because they lack the line you heard and the show that anchored the memory.",
+      },
+      { type: "h2", text: "What to capture (and what to skip)" },
+      {
+        type: "ul",
+        items: [
+          "**Capture** — verbs/adjectives you hear twice, emotional phrases, daily-life nouns (food, weather, school).",
+          "**Skip** — attack names, fantasy ranks, one-off insults you will never say.",
+          "**Defer** — keigo and dialect until standard Tokyo speech feels automatic.",
+        ],
+      },
+      { type: "h2", text: "Romaji → kana → kanji path" },
+      {
+        type: "p",
+        text: "Month zero learners should see **romaji + meaning + audio** first. Once kana clicks, the same deck displays hiragana. AnimeVocab, Animelon-style sites, and Netflix JP subs meet you at different stages — see [romaji-first guide](/blog/romaji-first-japanese-anime).",
+      },
+      { type: "h2", text: "Daily habit stack" },
+      {
+        type: "ol",
+        items: [
+          "5 min SRS review before watching.",
+          "One episode with **one deliberate word** ([method](/blog/one-word-per-episode-method)).",
+          "Optional: write a 4-panel manga using today's word in [Manga Studio](/studio).",
+        ],
+      },
+      {
+        type: "p",
+        text: "SRS deep dive: [spaced repetition for anime vocab](/blog/spaced-repetition-anime-vocabulary). Show picks: [best anime for beginners](/blog/best-anime-to-learn-japanese-beginners).",
+      },
+    ],
+  },
+  {
+    slug: "trancy-alternative-anime-japanese-2026",
+    title: "Trancy Alternative for Learning Japanese from Anime (2026)",
+    description:
+      "Trancy offers dual subtitles and AI features on Netflix and YouTube. How it compares to AnimeVocab for beginners, romaji learners, and Crunchyroll watching.",
+    publishedAt: "2026-07-07T14:00:00.000Z",
+    updatedAt: "2026-07-07T14:00:00.000Z",
+    keywords: [
+      "trancy alternative",
+      "trancy vs animevocab",
+      "trancy japanese learning",
+      "dual subtitle anime extension",
+    ],
+    readingMinutes: 7,
+    blocks: [
+      {
+        type: "p",
+        text: "**Trancy** (formerly Language Reactor's competitor lane) targets Netflix/YouTube with dual subtitles, vocabulary lists, and AI-assisted study. Learners searching **Trancy alternative** usually want either **lower price**, **Crunchyroll support**, or **romaji for beginners**. Side-by-side page: [AnimeVocab vs Trancy](/vs-trancy).",
+      },
+      { type: "h2", text: "Where Trancy wins" },
+      {
+        type: "ul",
+        items: [
+          "Polished dual-sub UI on **Netflix and YouTube**.",
+          "Integrated vocabulary notebook and AI explanations.",
+          "Strong if you already **read Japanese subtitles**.",
+        ],
+      },
+      { type: "h2", text: "Where AnimeVocab wins" },
+      {
+        type: "ul",
+        items: [
+          "**Romaji-first** cards — no kana prerequisite.",
+          "**Listening Mode** — transcribes spoken Japanese when JP subs are missing (Crunchyroll).",
+          "**Local-first** — progress in browser storage; no account required for core loop.",
+          "**Open source** extension + free [Manga Studio](/studio) for output practice.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full tool ranking: [learn Japanese with anime (2026)](/learn-japanese-with-anime). Trancy blog alignment: [shadowing with anime](/blog/shadowing-anime-japanese-pronunciation).",
+      },
+    ],
+  },
 ];
 
 export function getBlogPost(slug: string): BlogPost | undefined {
@@ -462,6 +792,17 @@ export function getAllBlogSlugs(): string[] {
   return blogPosts.map((p) => p.slug);
 }
 
+function keywordOverlap(a: string[], b: string[]): number {
+  const setB = new Set(b.map((k) => k.toLowerCase()));
+  return a.filter((k) => setB.has(k.toLowerCase())).length;
+}
+
 export function getRelatedPosts(slug: string, limit = 3): BlogPost[] {
-  return blogPosts.filter((p) => p.slug !== slug).slice(0, limit);
+  const current = getBlogPost(slug);
+  if (!current) return blogPosts.filter((p) => p.slug !== slug).slice(0, limit);
+
+  return [...blogPosts]
+    .filter((p) => p.slug !== slug)
+    .sort((a, b) => keywordOverlap(b.keywords, current.keywords) - keywordOverlap(a.keywords, current.keywords))
+    .slice(0, limit);
 }

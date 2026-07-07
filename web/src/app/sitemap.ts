@@ -6,13 +6,16 @@ const staticRoutes = [
   { path: "", priority: 1, changeFrequency: "weekly" as const },
   { path: "/blog", priority: 0.85, changeFrequency: "weekly" as const },
   { path: "/learn-japanese-with-anime", priority: 0.9, changeFrequency: "monthly" as const },
-  { path: "/studio", priority: 0.9, changeFrequency: "weekly" as const },
+  { path: "/studio", priority: 0.92, changeFrequency: "weekly" as const },
+  { path: "/ai-manga-maker", priority: 0.91, changeFrequency: "weekly" as const },
+  { path: "/learn-japanese-manga", priority: 0.88, changeFrequency: "monthly" as const },
   { path: "/gallery", priority: 0.85, changeFrequency: "daily" as const },
   { path: "/learn-japanese-crunchyroll", priority: 0.88, changeFrequency: "monthly" as const },
   { path: "/best-anime-to-learn-japanese", priority: 0.88, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-netflix-anime", priority: 0.86, changeFrequency: "monthly" as const },
-  { path: "/romaji-japanese-learning", priority: 0.85, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-youtube-anime", priority: 0.84, changeFrequency: "monthly" as const },
+  { path: "/romaji-japanese-learning", priority: 0.85, changeFrequency: "monthly" as const },
+  { path: "/anime-spaced-repetition", priority: 0.84, changeFrequency: "monthly" as const },
   { path: "/vs-trancy", priority: 0.78, changeFrequency: "monthly" as const },
   { path: "/vs-language-reactor", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/vs-migaku", priority: 0.8, changeFrequency: "monthly" as const },
@@ -23,7 +26,7 @@ const staticRoutes = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date("2026-07-05");
+  const lastModified = new Date("2026-07-07");
   const blogEntries = blogPosts.map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt),

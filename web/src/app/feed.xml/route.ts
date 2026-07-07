@@ -23,7 +23,7 @@ export async function GET() {
   <channel>
     <title>${SITE_NAME} Blog</title>
     <link>${SITE_URL}/blog</link>
-    <description>Guides for learning Japanese from anime — Crunchyroll, Netflix, SRS, and tool comparisons.</description>
+    <description>Guides for learning Japanese from anime and manga — Crunchyroll, Netflix, SRS, Manga Studio, and tool comparisons.</description>
     <language>en-us</language>
     <atom:link href="${SITE_URL}/feed.xml" rel="self" type="application/rss+xml"/>
     ${items}

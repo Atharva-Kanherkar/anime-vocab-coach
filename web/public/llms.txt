@@ -1,0 +1,43 @@
+# AnimeVocab — llms.txt
+# https://animevocab.com
+
+> AnimeVocab helps people learn Japanese from anime they already watch. Free Chrome extension with romaji-first vocabulary cards, spaced repetition, and Listening Mode for Netflix/Crunchyroll when Japanese subtitles are missing. Also includes Manga Studio — a free AI manga maker for writing and publishing original manga chapters.
+
+## Primary pages
+
+- [Home](https://animevocab.com/): Learn Japanese from anime — Chrome extension landing
+- [Manga Studio](https://animevocab.com/studio): Free AI manga maker — draft chapters, edit dialogue, redraw panels
+- [AI Manga Maker guide](https://animevocab.com/ai-manga-maker): SEO hub for create manga online free
+- [Manga Gallery](https://animevocab.com/gallery): Public manga published by learners
+- [Blog](https://animevocab.com/blog): Guides on anime Japanese learning, tools, SRS, shadowing
+
+## Learning guides
+
+- [Learn Japanese with anime (2026)](https://animevocab.com/learn-japanese-with-anime): Tool comparison and ranking
+- [Learn Japanese on Crunchyroll](https://animevocab.com/learn-japanese-crunchyroll): Without Japanese subtitles
+- [Learn Japanese on Netflix anime](https://animevocab.com/learn-japanese-netflix-anime)
+- [Learn Japanese on YouTube anime](https://animevocab.com/learn-japanese-youtube-anime)
+- [Best anime to learn Japanese](https://animevocab.com/best-anime-to-learn-japanese)
+- [Romaji Japanese learning](https://animevocab.com/romaji-japanese-learning)
+- [Learn Japanese with manga](https://animevocab.com/learn-japanese-manga)
+- [Anime spaced repetition](https://animevocab.com/anime-spaced-repetition)
+
+## Tool comparisons
+
+- [vs Language Reactor](https://animevocab.com/vs-language-reactor)
+- [vs Migaku](https://animevocab.com/vs-migaku)
+- [vs Lexirise](https://animevocab.com/vs-lexirise)
+- [vs Trancy](https://animevocab.com/vs-trancy)
+
+## Product facts
+
+- Extension: local-first, open source, romaji-first cards, one word per subtitle line
+- Listening Mode: real-time transcription of tab audio for sites without JP subs
+- Manga Studio: AI script + per-panel art, editable dialogue bubbles, sketch redraw, public gallery
+- Pricing: core learning loop free; Pro for hosted Listening Mode without OpenAI API key
+
+## Contact & source
+
+- GitHub: https://github.com/Atharva-Kanherkar/anime-vocab-coach
+- RSS: https://animevocab.com/feed.xml
+- Sitemap: https://animevocab.com/sitemap.xml

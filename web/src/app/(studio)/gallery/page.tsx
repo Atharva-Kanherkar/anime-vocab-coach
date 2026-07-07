@@ -9,10 +9,18 @@ import { SITE_URL } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Manga Gallery — manga made in the Studio",
+  title: "Manga Gallery — read original AI manga free",
   description:
-    "Read original manga created by people in AnimeVocab's Manga Studio — storyboarded, drawn, and published with AI. Free to read, no account needed.",
+    "Read original manga created in AnimeVocab Manga Studio — AI-drawn panels, editable dialogue, free to read. Browse the public gallery, no account needed.",
+  keywords: ["manga gallery", "read manga online free", "oc manga", "ai manga gallery"],
   alternates: { canonical: `${SITE_URL}/gallery` },
+  openGraph: {
+    title: "Manga Gallery | AnimeVocab",
+    description: "Original manga from Manga Studio — free to read.",
+    url: `${SITE_URL}/gallery`,
+    siteName: "AnimeVocab",
+    type: "website",
+  },
 };
 
 function coverUrl(id: string, layout: "page" | "panels", cover: number): string {

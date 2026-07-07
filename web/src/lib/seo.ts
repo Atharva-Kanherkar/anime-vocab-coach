@@ -22,15 +22,33 @@ export const SEO_KEYWORDS = [
   "Language Reactor alternative",
   "Migaku alternative",
   "Lexirise alternative",
+  "Trancy alternative",
+  "Animelon alternative",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
   "learn Japanese Netflix anime",
+  "learn Japanese YouTube anime",
   "romaji Japanese learning",
   "anime spaced repetition",
   "Japanese shadowing anime",
   "passive anime watching Japanese",
+  "ai manga maker",
+  "ai manga generator",
+  "create manga online free",
+  "manga maker online",
+  "make manga with AI",
+  "learn Japanese with manga",
+  "manga studio",
+  "write your own manga",
+  "Japanese vocabulary from anime",
+  "anime subtitle extension",
+  "asbplayer alternative",
 ];
+
+export const STUDIO_DESCRIPTION =
+  "Free AI manga maker — write a premise, get a full chapter with cast and dialogue. Edit every line, redraw any panel, sketch and AI-beautify. Publish to the gallery. No drawing skills needed.";
+export const STUDIO_TAGLINE = "AI Manga Maker — write your own manga online free";
 
 export const defaultOpenGraph = {
   siteName: SITE_NAME,
@@ -99,13 +117,85 @@ export function blogJsonLd(posts: { title: string; url: string; publishedAt: str
     "@type": "Blog",
     name: `${SITE_NAME} Blog`,
     url: `${SITE_URL}/blog`,
-    description: "Guides for learning Japanese from anime — Crunchyroll, Netflix, spaced repetition, and tool comparisons.",
+    description: "Guides for learning Japanese from anime and manga — Crunchyroll, Netflix, spaced repetition, Manga Studio, and tool comparisons.",
     blogPost: posts.map((p) => ({
       "@type": "BlogPosting",
       headline: p.title,
       url: p.url,
       datePublished: p.publishedAt,
     })),
+  };
+}
+
+export function faqJsonLd(items: { question: string; answer: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+}
+
+export function webApplicationJsonLd(input: {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  applicationCategory?: string;
+  operatingSystem?: string;
+  featureList: string[];
+  downloadUrl?: string;
+}) {
+  return {
+    "@type": "WebApplication",
+    "@id": input.id,
+    name: input.name,
+    description: input.description,
+    url: input.url,
+    applicationCategory: input.applicationCategory ?? "EducationalApplication",
+    operatingSystem: input.operatingSystem ?? "Web browser",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    featureList: input.featureList,
+    ...(input.downloadUrl ? { downloadUrl: input.downloadUrl } : {}),
+  };
+}
+
+export function studioJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      webApplicationJsonLd({
+        id: `${SITE_URL}/studio#app`,
+        name: "AnimeVocab Manga Studio",
+        description: STUDIO_DESCRIPTION,
+        url: `${SITE_URL}/studio`,
+        featureList: [
+          "AI-drafted manga chapters from a text premise",
+          "Per-panel art generation and redraw",
+          "Sketch-to-manga AI beautify",
+          "Editable dialogue with speech, thought, narration, and SFX",
+          "Public manga gallery",
+          "Free to try without an account",
+        ],
+      }),
+      {
+        "@type": "CreativeWork",
+        name: "Manga Gallery",
+        url: `${SITE_URL}/gallery`,
+        description: "Original manga created and published in AnimeVocab Manga Studio.",
+        isAccessibleForFree: true,
+      },
+    ],
   };
 }
 
@@ -121,6 +211,11 @@ export function homeJsonLd() {
         description: SITE_DESCRIPTION,
         inLanguage: "en-US",
         publisher: { "@id": `${SITE_URL}/#organization` },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${SITE_URL}/blog?q={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
       },
       {
         "@type": "Organization",
@@ -135,19 +230,13 @@ export function homeJsonLd() {
         },
         sameAs: [GITHUB_URL, "https://x.com/attharrva15"],
       },
-      {
-        "@type": "SoftwareApplication",
-        "@id": `${SITE_URL}/#app`,
+      webApplicationJsonLd({
+        id: `${SITE_URL}/#extension`,
         name: SITE_NAME,
-        applicationCategory: "EducationalApplication",
-        operatingSystem: "Chrome",
-        offers: {
-          "@type": "Offer",
-          price: "0",
-          priceCurrency: "USD",
-        },
         description: SITE_DESCRIPTION,
         url: SITE_URL,
+        operatingSystem: "Chrome",
+        applicationCategory: "EducationalApplication",
         downloadUrl: GITHUB_URL,
         featureList: [
           "Romaji-first vocabulary cards",
@@ -155,7 +244,18 @@ export function homeJsonLd() {
           "Listening Mode for Netflix and Crunchyroll",
           "Local-first privacy",
         ],
-      },
+      }),
+      webApplicationJsonLd({
+        id: `${SITE_URL}/studio#app`,
+        name: "AnimeVocab Manga Studio",
+        description: STUDIO_DESCRIPTION,
+        url: `${SITE_URL}/studio`,
+        featureList: [
+          "AI manga maker with editable chapters",
+          "Per-panel redraw and sketch beautify",
+          "Public gallery publishing",
+        ],
+      }),
     ],
   };
 }
