@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/vs-language-reactor";
@@ -86,7 +86,7 @@ export default function VsLanguageReactorPage() {
                   <tr>
                     <th scope="row">Price</th>
                     <td className="us">
-                      Free · Pro $10/mo
+                      Free · Pro {TIERS.pro.priceLabel}
                       <span className="cell-note">Pro covers audio transcription</span>
                     </td>
                     <td>Free · Pro ~$5/mo (≈$28/yr)</td>

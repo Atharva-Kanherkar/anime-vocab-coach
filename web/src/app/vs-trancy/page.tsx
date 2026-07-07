@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/vs-trancy";
@@ -94,7 +94,7 @@ export default function VsTrancyPage() {
                   </tr>
                   <tr>
                     <th scope="row">Price</th>
-                    <td className="us">Free · Pro $10/mo</td>
+                    <td className="us">Free · Pro {TIERS.pro.priceLabel}</td>
                     <td>Free tier · from ~$4/mo</td>
                   </tr>
                   <tr>

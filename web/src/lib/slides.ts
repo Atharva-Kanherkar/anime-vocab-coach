@@ -1,4 +1,4 @@
-import { GITHUB_URL } from "@/lib/site";
+import { GITHUB_URL, installUrl } from "@/lib/site";
 
 export type HeroSlide = {
   id: string;
@@ -40,7 +40,7 @@ export const heroSlides: HeroSlide[] = [
     title: "Learn Japanese from the anime you already watch.",
     body: "One useful word per line, in romaji, with the meaning and the exact moment it was spoken.",
     ctaLabel: "Add to Chrome",
-    ctaHref: GITHUB_URL,
+    ctaHref: installUrl(),
     secondaryLabel: "How it works",
     secondaryHref: "#how",
   },
@@ -66,7 +66,7 @@ export const heroSlides: HeroSlide[] = [
     title: "An AI coach that knows the scene.",
     body: "Ask what any word means in the exact line it was spoken, or chat about grammar and nuance — built in, no API key needed.",
     ctaLabel: "Add to Chrome",
-    ctaHref: GITHUB_URL,
+    ctaHref: installUrl(),
   },
   {
     id: "mist",
@@ -78,7 +78,7 @@ export const heroSlides: HeroSlide[] = [
     title: "Romaji first. Kana when you are ready.",
     body: "Cards lead with taikutsu, not 退屈. You can start on episode one without reading hiragana.",
     ctaLabel: "Install free",
-    ctaHref: GITHUB_URL,
+    ctaHref: installUrl(),
   },
   {
     id: "sakura",
@@ -102,7 +102,7 @@ export const heroSlides: HeroSlide[] = [
     title: "Level up and collect 66 original cards.",
     body: "Every word you learn is XP. Level up to unlock hand-illustrated original character cards across 15 anime art styles.",
     ctaLabel: "Start collecting",
-    ctaHref: GITHUB_URL,
+    ctaHref: installUrl(),
   },
   {
     id: "manga",
@@ -114,7 +114,7 @@ export const heroSlides: HeroSlide[] = [
     title: "Read a 12-chapter manga you unlock by learning.",
     body: "An original saga — dialogue you can read in Japanese, romaji, or English. New chapters unlock as you level up.",
     ctaLabel: "Add to Chrome",
-    ctaHref: GITHUB_URL,
+    ctaHref: installUrl(),
   },
   {
     id: "night",
@@ -160,7 +160,7 @@ export const heroSlides: HeroSlide[] = [
     title: "Your next episode can teach you a word.",
     body: "次のエピソードから、始めよう。",
     ctaLabel: "Add to Chrome · free",
-    ctaHref: GITHUB_URL,
+    ctaHref: installUrl(),
   },
   {
     id: "faq",

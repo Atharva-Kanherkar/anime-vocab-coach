@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/learn-japanese-with-anime";
@@ -84,7 +84,7 @@ export default function LearnJapaneseWithAnimePage() {
                       AnimeVocab
                     </th>
                     <td className="us">Chrome ext</td>
-                    <td className="us">Free · Pro $10/mo</td>
+                    <td className="us">Free · Pro {TIERS.pro.priceLabel}</td>
                     <td className="us">
                       <span className="yes">Yes</span>
                       <span className="cell-note">transcribes audio</span>
@@ -235,7 +235,7 @@ export default function LearnJapaneseWithAnimePage() {
                 <strong>AnimeVocab</strong>: a Chrome extension that pushes one useful word per line,
                 romaji-first, and works on YouTube, Netflix, and Crunchyroll. On shows with no Japanese
                 subtitle track it transcribes the audio, so Crunchyroll and new releases aren&apos;t off-limits.
-                Core is free; Pro ($10/mo) only pays for hands-off transcription.{" "}
+                Core is free; Pro ({TIERS.pro.priceLabel}) only pays for hands-off transcription.{" "}
                 <Link href="/vs-language-reactor">See how it compares to Language Reactor →</Link>
               </li>
               <li>

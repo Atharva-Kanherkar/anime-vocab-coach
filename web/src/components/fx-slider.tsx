@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { heroMobileImage, preloadHeroImages } from "@/lib/hero-images";
 import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
-import { GITHUB_URL, TIERS, checkoutFor, type PlanId } from "@/lib/site";
+import { GITHUB_URL, installUrl, TIERS, checkoutFor, type PlanId } from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
 import { AuthControls } from "@/components/site-chrome";
 
@@ -180,7 +180,7 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
                       ))}
                     </ul>
                     {id === "free" ? (
-                      <a className="btn btn-line" href={GITHUB_URL} rel="noopener noreferrer">
+                      <a className="btn btn-line" href={installUrl()} rel="noopener noreferrer">
                         Add to Chrome
                       </a>
                     ) : url ? (
@@ -225,8 +225,9 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
               <details>
                 <summary>Where is my data stored?</summary>
                 <p>
-                  In your browser only. No accounts, no analytics. Source code is on GitHub under
-                  AGPL.
+                  On your device by default — the extension works with no account. Create a free
+                  account only if you want cloud backup, sync across devices, or the AI coach. No
+                  ads, no tracking, and the source is on GitHub under AGPL.
                 </p>
               </details>
             </div>
@@ -244,7 +245,7 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
             <div className="hero__cta">
               <a
                 className="btn btn-line hero__cta-btn"
-                href={active.ctaHref ?? GITHUB_URL}
+                href={active.ctaHref ?? installUrl()}
                 rel="noopener noreferrer"
                 onClick={(e) => {
                   if (active.ctaHref?.startsWith("#slide-")) {

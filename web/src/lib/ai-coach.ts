@@ -11,6 +11,8 @@
 // single line, never a whole transcript. Responses are cached by word+line+level
 // so repeated explanations cost nothing and do not consume a user's quota.
 
+import { TIERS } from "@/lib/site";
+
 export type CoachMode = "explain" | "hooks" | "chat";
 export type Plan = "free" | "pro";
 export type Tier = "free" | "pro" | "launch";
@@ -58,8 +60,11 @@ export type CoachResult = ExplainResult | HooksResult | ChatResult;
 // call (~350 input + ~250 output tokens) costs about $0.00014 — roughly 15x under
 // the $0.002/call assumption in the backend economics model. Overridable via env.
 export const DEFAULT_COACH_MODEL = "gpt-4.1-nano";
-export const DEFAULT_FREE_LIMIT = 5;
-export const DEFAULT_PRO_LIMIT = 300;
+// Enforced monthly caps derive from the advertised tiers in site.ts, so the
+// number a user is billed against is the same number the pricing UI shows.
+// Overridable via FREE_AI_CALLS_PER_MONTH / PRO_AI_CALLS_PER_MONTH env.
+export const DEFAULT_FREE_LIMIT = TIERS.free.aiCallsPerMonth;
+export const DEFAULT_PRO_LIMIT = TIERS.pro.aiCallsPerMonth;
 // Free launch: while the window is open every signed-in account gets this cap for
 // all AI features. Capped so a launch cannot blow the budget (30 * ~$0.00014 =
 // ~$0.004/user/mo). Overridable via LAUNCH_AI_CALLS_PER_MONTH / AI_FREE_LAUNCH_UNTIL.

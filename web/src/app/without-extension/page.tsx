@@ -6,7 +6,7 @@ import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const TITLE = "Using AnimeVocab without the extension";
 const DESC =
-  "What works in the AnimeVocab web app without installing the Chrome extension — import your words, review, notebooks, streaks, and the AI coach.";
+  "What works in the AnimeVocab web app without installing the Chrome extension — notebooks, the AI coach, streaks, cards, the manga saga, and your synced progress.";
 
 export const metadata: Metadata = {
   title: TITLE,

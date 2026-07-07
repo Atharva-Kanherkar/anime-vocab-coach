@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-import { useEffect, useState, type CSSProperties } from "react";
-import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
+import { useEffect, useState } from "react";
+import { GITHUB_URL, installUrl } from "@/lib/site";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
 
 export function SiteHeader({ compact = false }: { compact?: boolean }) {
@@ -23,7 +23,7 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
           </nav>
         )}
         <AuthControls size="sm" />
-        <a className="btn btn-sm btn-line" href={GITHUB_URL} rel="noopener noreferrer">
+        <a className="btn btn-sm btn-line" href={installUrl()} rel="noopener noreferrer">
           Install free
         </a>
       </div>
@@ -95,7 +95,7 @@ export function HomeBrandBar() {
       <Link className="logo" href="/" aria-label="AnimeVocab home">
         アニメ<b>Vocab</b>
       </Link>
-      <a className="btn btn-sm btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
+      <a className="btn btn-sm btn-accent" href={installUrl()} rel="noopener noreferrer">
         Add to Chrome
       </a>
     </header>
@@ -134,38 +134,6 @@ export function SiteFooter({ links }: { links?: { href: string; label: string }[
   );
 }
 
-export function PromoBar({ initial }: { initial: PromoState }) {
-  const [promo, setPromo] = useState(initial);
-
-  useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE;
-    if (!apiBase || apiBase.includes("example.workers.dev")) return;
-    fetch(`${apiBase}/v1/public/config`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.promo) setPromo({ ...getPromoState(), ...data.promo, active: true });
-      })
-      .catch(() => {});
-  }, []);
-
-  if (!promo.active) return null;
-
-  const dayWord = promo.daysLeft === 1 ? "day" : "days";
-
-  return (
-    <div className="promo-bar">
-      <div className="wrap promo-inner">
-        <span className="promo-text">
-          Launch pricing: {promo.promoLabel} · {promo.daysLeft} {dayWord} left
-        </span>
-        <a href="#pricing" className="promo-link">
-          See Pro pricing
-        </a>
-      </div>
-    </div>
-  );
-}
-
 export function ScrollEffects() {
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -199,87 +167,3 @@ export function ScrollEffects() {
   return null;
 }
 
-export function PricingSection({ initialPromo }: { initialPromo: PromoState }) {
-  const [promo, setPromo] = useState(initialPromo);
-
-  useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE;
-    if (!apiBase || apiBase.includes("example.workers.dev")) return;
-    fetch(`${apiBase}/v1/public/config`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.promo) setPromo({ ...getPromoState(), ...data.promo, active: true });
-      })
-      .catch(() => {});
-  }, []);
-
-  return (
-    <section
-      className="pricing band band--dim"
-      id="pricing"
-      style={{ "--band-img": "url(/slides/07-pricing.jpg)" } as CSSProperties}
-    >
-      <div className="wrap">
-        <header className="section-head reveal">
-          <span className="jp-mark" aria-hidden="true">価格</span>
-          <h2>Pricing</h2>
-          <p>The core loop is free forever. Pro pays for transcription compute.</p>
-        </header>
-        <div className="price-grid reveal">
-          <div className="price-card">
-            <h3>Free</h3>
-            <p className="amount">$0</p>
-            <ul>
-              <li>Word cards + spaced repetition</li>
-              <li>YouTube + HTML5 subtitle sites</li>
-              <li>Dashboard &amp; JSON export</li>
-              <li>Listening Mode with your OpenAI key</li>
-            </ul>
-            <a className="btn btn-line" href={GITHUB_URL} rel="noopener noreferrer">
-              Install
-            </a>
-          </div>
-          <div className="price-card price-card-pro">
-            <span className="pro-tag">Pro</span>
-            <h3>Listening Mode, no setup</h3>
-            <p className="amount-row">
-              {promo.active && (
-                <span className="strike">{promo.regularLabel}</span>
-              )}
-              <span className="amount">
-                {promo.active ? promo.promoLabel : promo.regularLabel}
-              </span>
-            </p>
-            <ul>
-              <li>No OpenAI account or API key</li>
-              <li>Netflix, Crunchyroll, every site</li>
-              <li>45 hours of listening / month</li>
-              <li>Cancel anytime</li>
-            </ul>
-            {promo.checkoutConfigured ? (
-              <a
-                className="btn btn-accent"
-                href={promo.checkoutUrl}
-                rel="noopener noreferrer"
-              >
-                {promo.active ? "Get Pro at launch price" : "Get Pro"}
-              </a>
-            ) : (
-              <span className="btn btn-accent" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
-                Pro coming soon
-              </span>
-            )}
-            <p className="price-ownership-note">
-              Your data stays local and exportable. Pro is optional hosted convenience.
-            </p>
-            {promo.active && (
-              <p className="promo-note">
-                Launch pricing ends in {promo.daysLeft} {promo.daysLeft === 1 ? "day" : "days"}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}

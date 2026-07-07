@@ -2,6 +2,18 @@ export const SITE_URL = "https://animevocab.com";
 export const GITHUB_URL = "https://github.com/Atharva-Kanherkar/anime-vocab-coach";
 export const SPONSOR_URL = "https://github.com/sponsors/Atharva-Kanherkar";
 
+// Chrome Web Store listing. Empty until Google approves the listing. Paste the
+// store URL here to flip every "Add to Chrome" CTA across the whole site at once
+// — nothing else to change. While it's empty, installUrl() falls back to the
+// GitHub repo (load-unpacked install).
+export const CHROME_STORE_URL = "";
+
+/** Where every install / "Add to Chrome" CTA points. Store link once approved,
+ * GitHub repo (manual install) until then. */
+export function installUrl(): string {
+  return CHROME_STORE_URL || GITHUB_URL;
+}
+
 // ── Tiers ────────────────────────────────────────────────────────────────
 // The three plans. `free` is live now (everyone is free until billing lands —
 // see resolvePlan in auth.ts). `pro`/`max` are defined and priced, but their
@@ -73,8 +85,8 @@ export function checkoutFor(id: PlanId): string | null {
 
 export const promoConfig = {
   endUtc: "2026-08-03T23:59:59.000Z",
-  regularLabel: "$10/month or $84/year",
-  promoLabel: "$7/month or $59/year",
+  regularLabel: "$8/month or $59/year",
+  promoLabel: "$8/month or $59/year",
   checkoutUrl: "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID",
   promoCheckoutUrl: "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID",
   apiBase: "https://api.animevocab.com",

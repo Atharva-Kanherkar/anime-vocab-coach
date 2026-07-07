@@ -13,7 +13,7 @@ import { heroSlides } from "@/lib/slides";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Learn Japanese from Anime | AnimeVocab Chrome Extension",
+  title: "Learn Japanese from Anime — Netflix, Crunchyroll & YouTube | AnimeVocab",
   description: SITE_DESCRIPTION,
   alternates: { canonical: SITE_URL },
   openGraph: {
