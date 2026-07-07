@@ -213,7 +213,7 @@ export function FxSlider({
                 <ul>
                   <li>No OpenAI account or API key</li>
                   <li>Netflix, Crunchyroll, every site</li>
-                  <li>45 hours of listening / month</li>
+                  <li>Up to 60 hours of listening / month</li>
                   <li>Cancel anytime</li>
                 </ul>
                 {promo.checkoutConfigured ? (

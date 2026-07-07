@@ -32,9 +32,11 @@ export async function resolveProfile(req: Request): Promise<CloudUserProfile | n
   };
 }
 
-// Plan for AI metering. Pro is currently OPEN TO EVERYONE (gate removed by owner
-// request — see entitlements.ts), so every caller resolves to "pro". Owners get
-// an even higher cap, applied per-route via isOwnerEmail(profile.email).
+// Plan for AI metering. Until billing (Dodo) is wired, everyone is on the FREE
+// tier — a generous freemium the owner funds from OpenAI credits (8h listening +
+// 40 AI calls/mo; see wrangler vars). Owners get an effectively-unlimited AI cap
+// per-route via isOwnerEmail(profile.email). When billing lands, resolvePlan
+// reads the buyer's tier from Clerk metadata (free | pro | max) here.
 export function resolvePlan(): Plan {
-  return "pro";
+  return "free";
 }

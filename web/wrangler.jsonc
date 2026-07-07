@@ -24,9 +24,10 @@
   // launch cannot blow the budget. After the date, the free/pro limits apply.
   "vars": {
     "AI_COACH_MODEL": "gpt-4.1-nano",
-    "FREE_AI_CALLS_PER_MONTH": "5",
-    "PRO_AI_CALLS_PER_MONTH": "300",
-    "LAUNCH_AI_CALLS_PER_MONTH": "30",
+    "FREE_AI_CALLS_PER_MONTH": "40",
+    "PRO_AI_CALLS_PER_MONTH": "150",
+    "MAX_AI_CALLS_PER_MONTH": "600",
+    "LAUNCH_AI_CALLS_PER_MONTH": "40",
     "AI_FREE_LAUNCH_UNTIL": "2026-09-01T00:00:00.000Z"
   },
   "observability": {
