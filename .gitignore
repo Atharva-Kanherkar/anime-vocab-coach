@@ -1,6 +1,5 @@
 node_modules/
 JMdict_e*
-/package-lock.json
 /wrangler.jsonc
 dist/
 test/vid.mp4
