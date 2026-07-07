@@ -53,6 +53,13 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HeroImagePreloader slides={heroSlides} />
+      {/* Chrome-free path while the extension listing is in review: pull
+          people into the manga + studio loop in the web app. */}
+      <a className="studio-banner" href="/app#studio">
+        <span className="studio-banner__tag">NEW</span>
+        Manga Studio — write your own manga in Japanese. No extension needed
+        <span aria-hidden="true"> →</span>
+      </a>
       <main id="main">
         <FxSlider slides={heroSlides} />
       </main>

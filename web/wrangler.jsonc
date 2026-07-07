@@ -28,7 +28,13 @@
     "PRO_AI_CALLS_PER_MONTH": "150",
     "MAX_AI_CALLS_PER_MONTH": "600",
     "LAUNCH_AI_CALLS_PER_MONTH": "40",
-    "AI_FREE_LAUNCH_UNTIL": "2026-09-01T00:00:00.000Z"
+    "AI_FREE_LAUNCH_UNTIL": "2026-09-01T00:00:00.000Z",
+    // Manga Studio (see docs/unit-economics.md "Manga Studio"). Free, capped
+    // per user per month; image quality is the main cost knob.
+    "STUDIO_CREATIONS_PER_MONTH": "5",
+    "STUDIO_SCRIPT_MODEL": "gpt-4.1-mini",
+    "STUDIO_IMAGE_MODEL": "gpt-image-2",
+    "STUDIO_IMAGE_QUALITY": "medium"
   },
   "observability": {
     "enabled": true

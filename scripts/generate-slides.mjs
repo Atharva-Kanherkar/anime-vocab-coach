@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // One-off: generate hero-slide background art (gpt-image-2, 1536x1024) from
 // Fable's art-directed prompts, then downscale to WebP for /public/slides/ and
-// a mobile/ copy. Usage: OPENAI_API_KEY=... node scripts/generate-slides.mjs
+// a mobile/ copy.
+// Usage: OPENAI_API_KEY=... node scripts/generate-slides.mjs [--only <id>]
+//   --only 13-studio   regenerate a single slide without touching the rest
 import { writeFile, mkdir, copyFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -34,6 +36,15 @@ const SLIDES = [
       "Cinematic anime key visual, painterly hand-painted background art in the style of a prestige anime film — not a photo, not a 3D render. At the bottom-center of frame, an open manga volume rests on a dark wooden floor at night, its pages glowing softly with warm persimmon-amber light (#e0603a) as if the story inside is awakening. Rising from the open pages along the bottom edge and lower corners: loose black ink brushstrokes, monochrome screentone fragments, tiny paper-white petals, and a small flock of ink-drawn birds, all dissolving and fading as they lift into a vast deep indigo-navy night (#2c4a68 falling to near-black) that fills the upper two-thirds of the frame. The center of the image stays dark, smooth, and low-contrast — only faint drifting ink motes and mist. All bright detail hugs the bottom of the frame. Magical, quiet, atmospheric, emotional. The manga pages show only abstract blurred panel shapes and screentone — absolutely no readable text, letters, kanji, numbers, logos, or watermarks anywhere." +
       COMMON_TAIL,
   },
+  {
+    // Manga Studio slide — the learner as creator. Same night palette and
+    // bottom-weighted composition as the saga slide, but the pages are being
+    // DRAWN rather than read.
+    id: "13-studio",
+    prompt:
+      "Cinematic anime key visual, painterly hand-painted background art in the style of a prestige anime film — not a photo, not a 3D render. In the lower-left foreground, a low wooden artist's desk at night: a calligraphy ink brush hovers upright above blank manga pages, mid-stroke, drawing a single luminous line of warm persimmon-amber ink (#e0603a) that lifts off the paper and curls upward like a ribbon of light. Around it on the desk: a small ink jar, scattered blank manga pages showing only faint empty panel grids and screentone, and a tiny glowing paper lantern. Loose black ink brushstrokes and warm sparks rise from the drawn line along the left edge, dissolving into a vast deep indigo-navy night (#2c4a68 falling to near-black) that fills the upper two-thirds of the frame. The center and upper frame stay dark, smooth, and low-contrast — only faint drifting ink motes. All bright detail hugs the bottom-left of the frame. Creative, magical, quiet, emotional. The pages show only blank panel rectangles and abstract screentone — absolutely no readable text, letters, kanji, numbers, logos, or watermarks anywhere." +
+      COMMON_TAIL,
+  },
 ];
 
 async function gen(prompt) {
@@ -48,8 +59,12 @@ async function gen(prompt) {
 
 async function main() {
   if (!process.env.OPENAI_API_KEY) throw new Error("Set OPENAI_API_KEY");
+  const onlyIdx = process.argv.indexOf("--only");
+  const only = onlyIdx >= 0 ? process.argv[onlyIdx + 1] : null;
+  const targets = only ? SLIDES.filter((s) => s.id === only) : SLIDES;
+  if (targets.length === 0) throw new Error(`No slide with id "${only}"`);
   await mkdir(path.join(OUT, "mobile"), { recursive: true });
-  for (const s of SLIDES) {
+  for (const s of targets) {
     console.log(`→ ${s.id}`);
     const png = path.join(OUT, `${s.id}.png`);
     await writeFile(png, await gen(s.prompt));

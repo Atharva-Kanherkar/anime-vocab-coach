@@ -119,6 +119,31 @@ Weekly review checklist:
 4. AI quota usage once shipped: if normal users burn through 300 calls, redesign
    the AI UX around cached explanations and batch summaries.
 
+## Manga Studio (launched free, capped)
+
+Users pick up to 3 words they're learning; the studio writes a 4-panel script
+(every target word must appear in the Japanese dialogue) and draws one manga
+page. Reading it back trilingually + a word recall check is the learning loop;
+creations/reads/checks grant XP on the chapter/card ladder, which makes the
+web app a full progression path with no extension and no streaming service.
+
+Cost per creation (two OpenAI calls):
+
+| Step | Config | Default | Est. cost |
+| --- | --- | --- | ---: |
+| Script | `STUDIO_SCRIPT_MODEL` | `gpt-4.1-mini` | ~$0.002 |
+| Page art | `STUDIO_IMAGE_MODEL` + `STUDIO_IMAGE_QUALITY` | `gpt-image-2`, `medium`, 1024×1536 | ~$0.06 |
+| Storage | KV (`studio:img:<id>`, base64 PNG) | ~2 MB/creation | negligible |
+
+Monthly cap: `STUDIO_CREATIONS_PER_MONTH` (default **5**, owners unlimited), so
+worst-case free-user cost is **~$0.31/user/month** — funded by the OpenAI credit
+during the acquisition phase (see `conversion-strategy.md`). Knobs, in order of
+leverage: quality `medium → low` cuts image cost ~4x; cap 5 → 3; script model
+to nano. When billing lands, Pro/Max raise the cap (candidates: 20 / 60) —
+the same "hosted compute is what you pay for" story as Listening Mode and the
+AI coach. Public sharing (`/m/<id>`) costs nothing extra and is the built-in
+viral loop: every shared manga is a product demo with a "write your own" CTA.
+
 ## MRR Targets
 
 At launch pricing:

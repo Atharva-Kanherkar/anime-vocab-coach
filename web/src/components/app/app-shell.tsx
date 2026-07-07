@@ -12,12 +12,22 @@ import { AiCoach } from "@/components/ai-coach";
 import { NotebooksPanel } from "@/components/notebooks-panel";
 import { CardsPanel } from "@/components/app/cards-panel";
 import { MangaReader } from "@/components/app/manga-reader";
+import { StudioPanel } from "@/components/app/studio-panel";
 import { GamificationPanel } from "@/components/gamification-panel";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { CloudAutoSync } from "@/components/app/cloud-auto-sync";
 import { SettingsPanel } from "@/components/app/settings-panel";
 
-type SectionId = "today" | "coach" | "notebooks" | "cards" | "manga" | "progress" | "backup" | "settings";
+type SectionId =
+  | "today"
+  | "coach"
+  | "notebooks"
+  | "cards"
+  | "manga"
+  | "studio"
+  | "progress"
+  | "backup"
+  | "settings";
 
 const NAV: { id: SectionId; label: string }[] = [
   { id: "today", label: "Today" },
@@ -25,6 +35,7 @@ const NAV: { id: SectionId; label: string }[] = [
   { id: "notebooks", label: "Notebooks" },
   { id: "cards", label: "Cards" },
   { id: "manga", label: "Manga" },
+  { id: "studio", label: "Studio" },
   { id: "progress", label: "Progress" },
   { id: "backup", label: "Backup" },
   { id: "settings", label: "Settings" },
@@ -106,6 +117,9 @@ export function AppShell({ name, owner = false }: { name: string; owner?: boolea
           </div>
           <div hidden={section !== "manga"}>
             <MangaReader owner={owner} />
+          </div>
+          <div hidden={section !== "studio"}>
+            <StudioPanel />
           </div>
           <div hidden={section !== "progress"}>
             <GamificationPanel />

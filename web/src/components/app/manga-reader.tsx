@@ -12,6 +12,12 @@ import {
   type StoryLang,
 } from "@/lib/manga";
 import { MangaPanelView } from "@/components/app/manga-panel";
+import {
+  hasReadChapter,
+  markChapterRead,
+  useStudioProgress,
+  XP_PER_CHAPTER_READ,
+} from "@/lib/studio-xp";
 
 type ChapterState = { chapter: MangaChapter; unlocked: boolean };
 
@@ -215,6 +221,7 @@ function ChapterView({
 
       {/* Bottom navigation: continue the saga, or show what unlocks it next. */}
       <nav className="mt-10 border-t border-line pt-6">
+        <FinishChapterButton chapterId={chapter.id} />
         {next ? (
           next.unlocked ? (
             <button
@@ -248,6 +255,30 @@ function ChapterView({
         </button>
       </nav>
     </article>
+  );
+}
+
+/** Reading earns XP too — the no-extension path up the same level ladder that
+ * gates chapters and cards. One award per chapter, stored with studio XP. */
+function FinishChapterButton({ chapterId }: { chapterId: string }) {
+  const progress = useStudioProgress();
+  const done = hasReadChapter(progress, chapterId);
+  return (
+    <div className="mb-5">
+      {done ? (
+        <p className="text-[13px] font-extrabold text-accent">
+          ✓ Chapter finished · +{XP_PER_CHAPTER_READ} XP earned
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={() => markChapterRead(chapterId)}
+          className="av-btn w-full sm:w-auto"
+        >
+          Mark chapter finished · +{XP_PER_CHAPTER_READ} XP
+        </button>
+      )}
+    </div>
   );
 }
 
