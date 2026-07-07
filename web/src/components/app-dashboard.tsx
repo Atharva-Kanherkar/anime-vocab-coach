@@ -3,23 +3,40 @@
 import { useMemo } from "react";
 import { useCloudSnapshot } from "@/components/cloud-sync-panel";
 import { GettingStarted } from "@/components/app/getting-started";
+import { ExtensionInstallGuide } from "@/components/app/extension-install-guide";
 import { pickDueReviews, pickRecentWords, summarizeSyncSnapshot } from "@/lib/sync";
 import { computeStreak } from "@/lib/gamification";
 import { readingWithRomaji } from "@/lib/romaji";
+import { useExtensionLink } from "@/lib/use-extension-link";
 
 // "Today" — the landing view. Speech-bubble word card + stamp rally + fresh
 // catches. Falls back to onboarding when the account has no words yet.
 export function AppDashboard({ name, onGo }: { name: string; onGo: (section: string) => void }) {
   const snapshot = useCloudSnapshot();
+  const { installed: extensionInstalled } = useExtensionLink();
   const summary = useMemo(() => summarizeSyncSnapshot(snapshot), [snapshot]);
   const recentWords = useMemo(() => pickRecentWords(snapshot, 5), [snapshot]);
   const dueReviews = useMemo(() => pickDueReviews(snapshot, new Date(), 99), [snapshot]);
   const streak = useMemo(() => computeStreak(snapshot.daily, new Date()), [snapshot]);
   const hasData = summary.totalWords > 0;
   const hero = recentWords[0] ?? null;
+  const showFullOnboarding = !hasData || !extensionInstalled;
 
   return (
     <div>
+      {!extensionInstalled && hasData && (
+        <div id="install-extension" className="mb-10 scroll-mt-24 rounded-2xl border-2 border-indigo bg-panel p-5">
+          <p className="av-eyebrow">Chrome extension</p>
+          <h2 className="mt-2 font-jpround text-xl font-black">Install to keep syncing while you watch</h2>
+          <p className="mt-2 text-sm text-ink2">
+            Your words are here, but new catches need the extension on Crunchyroll, Netflix, or YouTube.
+          </p>
+          <div className="mt-5">
+            <ExtensionInstallGuide compact />
+          </div>
+        </div>
+      )}
+
       <header>
         <p className="font-jpround text-[14px] font-black tracking-[0.3em] text-accent">おかえりなさい</p>
         <h1 className="mt-2 font-jpround text-[clamp(30px,4.5vw,46px)] font-black leading-[1.05]">
@@ -39,8 +56,8 @@ export function AppDashboard({ name, onGo }: { name: string; onGo: (section: str
         </p>
       </header>
 
-      {!hasData ? (
-        <div className="mt-12">
+      {showFullOnboarding ? (
+        <div id="install-extension" className="mt-12 scroll-mt-24">
           <GettingStarted />
         </div>
       ) : (

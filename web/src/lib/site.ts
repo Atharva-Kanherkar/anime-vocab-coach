@@ -8,10 +8,18 @@ export const SPONSOR_URL = "https://github.com/sponsors/Atharva-Kanherkar";
 // GitHub repo (load-unpacked install).
 export const CHROME_STORE_URL = "";
 
+/** Direct download of the packed extension (built in CI → web/public/downloads/). */
+export const EXTENSION_DOWNLOAD_URL = `${SITE_URL}/downloads/animevocab-chrome-extension.zip`;
+export const CHROME_EXTENSIONS_URL = "chrome://extensions";
+
+export function isStoreInstallAvailable(): boolean {
+  return !!CHROME_STORE_URL;
+}
+
 /** Where every install / "Add to Chrome" CTA points. Store link once approved,
- * GitHub repo (manual install) until then. */
+ * hosted zip + in-app guide until then. */
 export function installUrl(): string {
-  return CHROME_STORE_URL || GITHUB_URL;
+  return CHROME_STORE_URL || EXTENSION_DOWNLOAD_URL;
 }
 
 // ── Tiers ────────────────────────────────────────────────────────────────

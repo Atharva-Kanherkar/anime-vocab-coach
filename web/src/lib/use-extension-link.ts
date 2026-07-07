@@ -1,16 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 
-type LinkState = "linking" | "linked" | "error";
+type LinkState = "checking" | "installed" | "missing" | "error";
 
-let linkState: LinkState = "linking";
+let linkState: LinkState = "checking";
 const listeners = new Set<() => void>();
+
+function emit(): void {
+  listeners.forEach((l) => l());
+}
 
 function setLinkState(next: LinkState): void {
   if (linkState === next) return;
   linkState = next;
-  listeners.forEach((l) => l());
+  emit();
 }
 
 async function broadcastToken(): Promise<void> {
@@ -20,43 +24,72 @@ async function broadcastToken(): Promise<void> {
     const { token } = (await res.json()) as { token?: string };
     if (!token) throw new Error("no token");
     window.postMessage({ source: "avc-web", type: "avc-sync-token", token }, window.location.origin);
-    setLinkState("linked");
   } catch {
-    setLinkState("error");
+    if (linkState === "installed") setLinkState("error");
   }
 }
 
-/** Keeps the extension linked and returns whether a sync token was handed off. */
-export function useExtensionLink(): { linked: boolean; state: LinkState; retry: () => void } {
+function markInstalled(): void {
+  setLinkState("installed");
+  void broadcastToken();
+}
+
+/** Detects the Chrome extension and keeps sync token fresh. */
+export function useExtensionLink(): {
+  installed: boolean;
+  state: LinkState;
+  retry: () => void;
+} {
   const state = useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
     () => linkState,
-    () => "linking" as LinkState
+    () => "checking" as LinkState
   );
 
-  const retry = useCallback(() => {
-    setLinkState("linking");
-    void broadcastToken();
+  const missingTimer = useRef<number | null>(null);
+
+  const scheduleMissingCheck = useCallback(() => {
+    if (missingTimer.current) window.clearTimeout(missingTimer.current);
+    missingTimer.current = window.setTimeout(() => {
+      if (linkState === "checking") setLinkState("missing");
+    }, 2500);
   }, []);
 
+  const retry = useCallback(() => {
+    setLinkState("checking");
+    scheduleMissingCheck();
+    void broadcastToken();
+  }, [scheduleMissingCheck]);
+
   useEffect(() => {
-    const kick = window.setTimeout(() => void broadcastToken(), 0);
     const onMessage = (e: MessageEvent) => {
       if (e.source !== window || e.origin !== window.location.origin) return;
       const data = e.data as { source?: string; type?: string } | null;
-      if (data?.source === "avc-ext" && data.type === "avc-request-token") void broadcastToken();
+      if (data?.source === "avc-ext" && data.type === "avc-request-token") {
+        if (missingTimer.current) window.clearTimeout(missingTimer.current);
+        markInstalled();
+      }
     };
     window.addEventListener("message", onMessage);
-    const timer = window.setInterval(() => void broadcastToken(), 20 * 60 * 1000);
-    return () => {
-      window.clearTimeout(kick);
-      window.removeEventListener("message", onMessage);
-      window.clearInterval(timer);
-    };
-  }, []);
+    scheduleMissingCheck();
 
-  return { linked: state === "linked", state, retry };
+    const refreshTimer = window.setInterval(() => {
+      if (linkState === "installed") void broadcastToken();
+    }, 20 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener("message", onMessage);
+      if (missingTimer.current) window.clearTimeout(missingTimer.current);
+      window.clearInterval(refreshTimer);
+    };
+  }, [scheduleMissingCheck]);
+
+  return {
+    installed: state === "installed",
+    state,
+    retry,
+  };
 }

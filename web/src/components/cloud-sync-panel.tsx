@@ -17,7 +17,7 @@ import { useExtensionLink } from "@/lib/use-extension-link";
 export function CloudSyncPanel() {
   const snapshot = useCloudSnapshot();
   const meta = useCloudSyncMeta();
-  const { linked: extensionLinked } = useExtensionLink();
+  const { installed: extensionLinked } = useExtensionLink();
   const refresh = useRefreshCloud();
   const [message, setMessage] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);

@@ -1,11 +1,17 @@
 {
   "name": "anime-vocab-coach",
   "version": "1.0.0",
-  "description": "A Chrome extension (Manifest V3) that turns anime/Japanese video watching into active vocabulary study:",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
+  "description": "Learn Japanese from anime — Chrome extension with romaji-first SRS, Listening Mode, and optional cloud sync. Site: animevocab.com",
+  "homepage": "https://animevocab.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Atharva-Kanherkar/anime-vocab-coach.git"
   },
+  "bugs": {
+    "url": "https://github.com/Atharva-Kanherkar/anime-vocab-coach/issues"
+  },
+  "author": "Atharva Kanherkar (https://animevocab.com)",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
@@ -16,9 +22,18 @@
     "deploy:site": "cd web && npm run deploy",
     "deploy:api": "cd backend && npm ci && npx wrangler deploy --config wrangler.toml"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "japanese",
+    "anime",
+    "language-learning",
+    "chrome-extension",
+    "spaced-repetition",
+    "vocabulary",
+    "crunchyroll",
+    "netflix",
+    "romaji",
+    "immersion"
+  ],
   "dependencies": {
     "kuromoji": "^0.1.2"
   },

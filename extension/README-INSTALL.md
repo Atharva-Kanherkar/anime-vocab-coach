@@ -1,19 +1,43 @@
-# Install AnimeVocab (unpacked)
+# Install AnimeVocab in Chrome
 
-1. Open Chrome and go to `chrome://extensions`.
-2. Turn on **Developer mode** (top-right toggle).
-3. Click **Load unpacked**.
-4. Select the `extension/` folder inside this repository (the folder that contains `manifest.json`).
-5. Open YouTube, play any video, click the **CC** button, and choose **Japanese** captions. Within a minute or two of dialogue, the extension should pause and show a vocabulary card.
+**Easiest path:** sign in at [animevocab.com/app](https://animevocab.com/app) — the app walks you through download and install with copy-paste links. No GitHub account needed.
 
-## Tips
+**Direct download:** [animevocab-chrome-extension.zip](https://animevocab.com/downloads/animevocab-chrome-extension.zip)
 
-- Use **Pause mode** (default) for interactive cards. Switch to **Notify** or **Off** from the toolbar popup.
-- Click the extension icon to see today's stats, streak, and recent words.
-- Open **Settings** from the popup footer for cooldown, level targeting, word list, export, and reset.
+---
+
+## Steps (about 3 minutes)
+
+1. **Download** the zip from the link above (or from the Cloud app).
+2. **Unzip** — Windows: right-click → Extract All. Mac: double-click the zip. Open the folder and confirm **manifest.json** is inside.
+3. In Chrome, go to **`chrome://extensions`** (paste in the address bar).
+4. Turn **Developer mode** ON (top-right toggle).
+5. Click **Load unpacked** → select the **unzipped folder** (not the zip file).
+6. **Pin** the AnimeVocab icon. Open YouTube, Netflix, or Crunchyroll and watch with subtitles on.
+
+> Developer mode is required until the Chrome Web Store listing is approved. This is the same extension — just installed manually.
+
+## Quick test
+
+Open YouTube → play any anime clip → turn on **Japanese** captions (CC menu) → within a minute or two a vocabulary card should appear.
+
+## Popup & settings
+
+- Click the toolbar icon for stats, streak, and recent words.
+- **Settings** (popup footer): cooldown, difficulty, export, reset.
+- **Pause mode** (default) for interactive cards; switch to Notify or Off in the popup.
 
 ## Supported sites
 
-- YouTube (Japanese subtitles / auto-generated Japanese CC)
-- Netflix (Japanese subtitles selected in the player menu)
-- Other sites with HTML5 `<track>` subtitles require adding host permissions to `manifest.json` manually in v1
+- YouTube (Japanese caption track)
+- Netflix (Japanese subtitles in player)
+- Crunchyroll and others via **Listening Mode** (transcribes audio)
+
+## Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| Load unpacked greyed out | Enable Developer mode first |
+| Invalid manifest | You picked the `.zip` — select the **folder** with `manifest.json` |
+| No cards on Crunchyroll | Use Listening Mode; JP subs often unavailable outside Japan |
+| Cloud app not linking | Refresh [animevocab.com/app](https://animevocab.com/app) while signed in after installing |

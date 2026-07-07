@@ -1,15 +1,10 @@
-import { GITHUB_URL } from "@/lib/site";
+import { ExtensionInstallGuide } from "@/components/app/extension-install-guide";
 
 const STEPS = [
   {
-    n: "01",
-    title: "Install the extension",
-    body: "One click. It works on Crunchyroll, Netflix, and YouTube — nothing else to set up.",
-  },
-  {
     n: "02",
     title: "Play anime with subtitles",
-    body: "A quiet sidebar fades in. As each line is spoken, the word worth learning surfaces with its reading and meaning.",
+    body: "Open Crunchyroll, Netflix, or YouTube. Subtitles on (any language). As each line is spoken, a vocabulary card appears.",
   },
   {
     n: "03",
@@ -18,8 +13,6 @@ const STEPS = [
   },
 ];
 
-// New-user onboarding: the numbered loop plus a speech-bubble replica of the
-// in-video card, so people see the product instead of reading about it.
 export function GettingStarted() {
   return (
     <section aria-label="Getting started">
@@ -29,17 +22,25 @@ export function GettingStarted() {
       </h2>
 
       <div className="mt-9 grid gap-x-14 gap-y-10 md:grid-cols-[1fr_320px]">
-        <ol className="list-none pl-0">
-          {STEPS.map((step, i) => (
-            <li key={step.n} className={"flex gap-5 py-4 " + (i > 0 ? "border-t border-dashed border-line" : "pt-0")}>
-              <span className="font-jpround text-lg font-black text-accent tabular-nums">{step.n}</span>
-              <div>
-                <h3 className="text-[15px] font-extrabold">{step.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-ink2">{step.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <div>
+          <p className="av-eyebrow mb-4">Step 1 · Install Chrome extension</p>
+          <ExtensionInstallGuide />
+
+          <ol className="mt-10 list-none pl-0">
+            {STEPS.map((step, i) => (
+              <li
+                key={step.n}
+                className={"flex gap-5 py-4 " + (i > 0 ? "border-t border-dashed border-line" : "pt-0")}
+              >
+                <span className="font-jpround text-lg font-black text-accent tabular-nums">{step.n}</span>
+                <div>
+                  <h3 className="text-[15px] font-extrabold">{step.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-ink2">{step.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
 
         <div>
           <p className="av-eyebrow mb-3">What you'll see</p>
@@ -56,13 +57,6 @@ export function GettingStarted() {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="mt-10 flex flex-wrap items-center gap-4">
-        <a href={GITHUB_URL} rel="noopener noreferrer" className="av-btn av-btn-primary">
-          Add to Chrome
-        </a>
-        <span className="text-[13px] text-ink3">Free — and your saved words stay local and exportable.</span>
       </div>
     </section>
   );
