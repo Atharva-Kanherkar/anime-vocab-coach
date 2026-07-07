@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { heroMobileImage, preloadHeroImages } from "@/lib/hero-images";
 import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
-import { GITHUB_URL, getPromoState, type PromoState } from "@/lib/site";
+import { GITHUB_URL, TIERS, checkoutFor, type PlanId } from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
 import { AuthControls } from "@/components/site-chrome";
 
@@ -22,29 +22,11 @@ function slideBgStyle(image?: string, tone?: string): CSSProperties {
  * Full-bleed, scroll-driven hero and entire homepage. The stage pins while the
  * tall outer section scrolls; scroll progress selects the active slide.
  */
-export function FxSlider({
-  slides,
-  initialPromo,
-}: {
-  slides: HeroSlide[];
-  initialPromo: PromoState;
-}) {
+export function FxSlider({ slides }: { slides: HeroSlide[] }) {
   const wrapRef = useRef<HTMLElement>(null);
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
   const rafRef = useRef(0);
-  const [promo, setPromo] = useState(initialPromo);
-
-  useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE;
-    if (!apiBase || apiBase.includes("example.workers.dev")) return;
-    fetch(`${apiBase}/v1/public/config`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.promo) setPromo({ ...getPromoState(), ...data.promo, active: true });
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     const mobile = window.matchMedia("(max-width: 768px)").matches;
@@ -179,58 +161,40 @@ export function FxSlider({
           <div className="hero__center hero__center--wide hero__center--pricing" key={active.id}>
             <h2 className="hero__title">{active.title}</h2>
             <p className="hero__body">{active.body}</p>
-            <div className="price-grid hero__pricing">
-              <div className="price-card">
-                <h3>Free</h3>
-                <p className="amount-row">
-                  <span className="strike" aria-hidden="true">&nbsp;</span>
-                  <span className="amount">$0</span>
-                </p>
-                <ul>
-                  <li>Word cards + spaced repetition</li>
-                  <li>YouTube + HTML5 subtitle sites</li>
-                  <li>Dashboard &amp; JSON export</li>
-                  <li>Listening Mode with your OpenAI key</li>
-                </ul>
-                <a className="btn btn-line" href={GITHUB_URL} rel="noopener noreferrer">
-                  Install
-                </a>
-                <p className="promo-note" aria-hidden="true">
-                  &nbsp;
-                </p>
-              </div>
-              <div className="price-card price-card-pro">
-                <span className="pro-tag">Pro</span>
-                <h3>Listening Mode, no setup</h3>
-                <p className="amount-row">
-                  <span className="strike" aria-hidden={!promo.active}>
-                    {promo.active ? promo.regularLabel : " "}
-                  </span>
-                  <span className="amount">
-                    {promo.active ? promo.promoLabel : promo.regularLabel}
-                  </span>
-                </p>
-                <ul>
-                  <li>No OpenAI account or API key</li>
-                  <li>Netflix, Crunchyroll, every site</li>
-                  <li>Up to 60 hours of listening / month</li>
-                  <li>Cancel anytime</li>
-                </ul>
-                {promo.checkoutConfigured ? (
-                  <a className="btn btn-accent" href={promo.checkoutUrl} rel="noopener noreferrer">
-                    {promo.active ? "Get Pro at launch price" : "Get Pro"}
-                  </a>
-                ) : (
-                  <span className="btn btn-accent" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
-                    Pro coming soon
-                  </span>
-                )}
-                <p className="promo-note">
-                  {promo.active
-                    ? `Launch pricing ends in ${promo.daysLeft} ${promo.daysLeft === 1 ? "day" : "days"}`
-                    : " "}
-                </p>
-              </div>
+            <div className="price-grid price-grid--three hero__pricing">
+              {(["free", "pro", "max"] as PlanId[]).map((id) => {
+                const t = TIERS[id];
+                const isPro = id === "pro";
+                const url = id === "free" ? null : checkoutFor(id);
+                return (
+                  <div key={id} className={"price-card" + (isPro ? " price-card-pro" : "")}>
+                    {isPro && <span className="pro-tag">Popular</span>}
+                    <h3>{t.name}</h3>
+                    <p className="amount-row">
+                      <span className="amount">{t.priceLabel}</span>
+                      {t.yearlyLabel && <span className="price-sub">{t.yearlyLabel}</span>}
+                    </p>
+                    <ul>
+                      {t.perks.slice(0, 3).map((p) => (
+                        <li key={p}>{p}</li>
+                      ))}
+                    </ul>
+                    {id === "free" ? (
+                      <a className="btn btn-line" href={GITHUB_URL} rel="noopener noreferrer">
+                        Add to Chrome
+                      </a>
+                    ) : url ? (
+                      <a className="btn btn-accent" href={url} rel="noopener noreferrer">
+                        Get {t.name}
+                      </a>
+                    ) : (
+                      <span className="btn btn-accent" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
+                        {t.name} coming soon
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : active.kind === "faq" ? (

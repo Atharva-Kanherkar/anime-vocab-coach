@@ -29,7 +29,7 @@ export function GettingStarted() {
       </h2>
 
       <div className="mt-9 grid gap-x-14 gap-y-10 md:grid-cols-[1fr_320px]">
-        <ol>
+        <ol className="list-none pl-0">
           {STEPS.map((step, i) => (
             <li key={step.n} className={"flex gap-5 py-4 " + (i > 0 ? "border-t border-dashed border-line" : "pt-0")}>
               <span className="font-jpround text-lg font-black text-accent tabular-nums">{step.n}</span>

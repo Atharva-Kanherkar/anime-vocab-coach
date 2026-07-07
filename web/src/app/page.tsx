@@ -10,7 +10,7 @@ import {
 } from "@/lib/seo";
 import { heroMobileImage } from "@/lib/hero-images";
 import { heroSlides } from "@/lib/slides";
-import { SITE_URL, getPromoState } from "@/lib/site";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Learn Japanese from Anime | AnimeVocab Chrome Extension",
@@ -30,7 +30,6 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  const promo = getPromoState();
   const jsonLd = homeJsonLd();
 
   return (
@@ -55,7 +54,7 @@ export default function HomePage() {
       />
       <HeroImagePreloader slides={heroSlides} />
       <main id="main">
-        <FxSlider slides={heroSlides} initialPromo={promo} />
+        <FxSlider slides={heroSlides} />
       </main>
       <a
         className="creator-credit"

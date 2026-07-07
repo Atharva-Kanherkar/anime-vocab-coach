@@ -5,6 +5,7 @@ import { useCloudSnapshot } from "@/components/cloud-sync-panel";
 import { GettingStarted } from "@/components/app/getting-started";
 import { pickDueReviews, pickRecentWords, summarizeSyncSnapshot } from "@/lib/sync";
 import { computeStreak } from "@/lib/gamification";
+import { readingWithRomaji } from "@/lib/romaji";
 
 // "Today" — the landing view. Speech-bubble word card + stamp rally + fresh
 // catches. Falls back to onboarding when the account has no words yet.
@@ -33,7 +34,7 @@ export function AppDashboard({ name, onGo }: { name: string; onGo: (section: str
               {summary.totalWords.toLocaleString()} collected
             </>
           ) : (
-            "Your words from last night's episode will land here."
+            "AnimeVocab turns the anime you watch into vocabulary — words you save appear here, then come back as reviews, cards, manga, and an AI coach."
           )}
         </p>
       </header>
@@ -56,7 +57,7 @@ export function AppDashboard({ name, onGo }: { name: string; onGo: (section: str
                   </p>
                   {(hero.reading || hero.gloss) && (
                     <p className="mt-1.5 font-jpround text-[16px] font-bold text-ink2">
-                      {hero.reading}
+                      {readingWithRomaji(hero.reading)}
                       {hero.gloss ? ` — ${hero.gloss}` : ""}
                     </p>
                   )}
@@ -101,7 +102,7 @@ export function AppDashboard({ name, onGo }: { name: string; onGo: (section: str
                     >
                       <span className="font-jpround text-[18px] font-bold">{w.base}</span>
                       <span className="text-right text-[12.5px] text-ink3">
-                        {[w.reading, w.gloss, w.source?.title].filter(Boolean).join(" · ")}
+                        {[readingWithRomaji(w.reading), w.gloss, w.source?.title].filter(Boolean).join(" · ")}
                       </span>
                     </li>
                   ))}
@@ -111,7 +112,42 @@ export function AppDashboard({ name, onGo }: { name: string; onGo: (section: str
           </div>
         </div>
       )}
+
+      <FeatureTour onGo={onGo} />
     </div>
+  );
+}
+
+const FEATURES: { section: string; kanji: string; title: string; body: string }[] = [
+  { section: "coach", kanji: "師", title: "AI coach & chat", body: "Ask about any word from the exact scene it appeared in." },
+  { section: "cards", kanji: "札", title: "Collect cards", body: "Level up as you learn and unlock 66 original character cards." },
+  { section: "manga", kanji: "漫", title: "Read the saga", body: "A 12-chapter manga you unlock by learning — in JP, romaji, or EN." },
+  { section: "notebooks", kanji: "帳", title: "Notebooks", body: "Group words and scenes by show, arc, or theme." },
+  { section: "progress", kanji: "火", title: "Streaks & board", body: "Keep a daily rally going and climb the weekly leaderboard." },
+  { section: "backup", kanji: "雲", title: "Cloud backup", body: "Your words sync across devices and export any time." },
+];
+
+function FeatureTour({ onGo }: { onGo: (section: string) => void }) {
+  return (
+    <section className="mt-14" aria-label="Explore AnimeVocab">
+      <h3 className="av-eyebrow">Everything inside</h3>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {FEATURES.map((f) => (
+          <button
+            key={f.section}
+            type="button"
+            onClick={() => onGo(f.section)}
+            className="av-card flex items-start gap-3 p-4 text-left transition hover:-translate-y-0.5"
+          >
+            <span className="font-jp text-2xl font-black text-accent leading-none">{f.kanji}</span>
+            <span className="min-w-0">
+              <span className="block text-[15px] font-bold">{f.title}</span>
+              <span className="mt-0.5 block text-[13px] leading-snug text-ink2">{f.body}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

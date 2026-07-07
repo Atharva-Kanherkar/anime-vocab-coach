@@ -135,7 +135,7 @@ export function GamificationPanel() {
         ) : board.length === 0 ? (
           <p className="text-sm text-ink2">No one on the board yet. Review some words to be first.</p>
         ) : (
-          <ol className="flex flex-col">
+          <ol className="flex list-none flex-col pl-0">
             {board.map((e, i) => (
               <li key={i} className="flex items-center justify-between gap-3 border-b border-line py-2.5 last:border-0">
                 <span className="flex items-center gap-2.5 font-medium">

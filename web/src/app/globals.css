@@ -292,6 +292,10 @@ section { padding: clamp(64px, 9vw, 100px) 0; }
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px;
   max-width: 780px; margin-inline: auto; align-items: stretch;
 }
+/* three-tier pricing (Free / Pro / Max) */
+.price-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1000px; }
+.price-sub { display: block; font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+@media (max-width: 900px) { .price-grid--three { grid-template-columns: 1fr; max-width: 420px; } }
 .price-card {
   position: relative;
   border: 1px solid var(--line); border-radius: 16px; padding: 32px 30px;
@@ -1712,9 +1716,16 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 }
 .hero__pricing {
   margin-top: 30px;
-  width: min(780px, 100%);
+  width: min(1000px, 100%);
   text-align: left;
   align-items: stretch;
+}
+/* three stacked cards can be tall on phones — let the pricing slide scroll */
+@media (max-width: 900px) {
+  .hero__center--pricing { max-height: 86svh; overflow-y: auto; overscroll-behavior: contain; }
+  .hero__pricing { margin-top: 18px; }
+  .hero__pricing .price-card h3 { min-height: 0; }
+  .hero__pricing .amount-row { min-height: 0; margin-bottom: 10px; }
 }
 /* consistent row rhythm so both cards line up amount → list → button → note */
 .hero__pricing .price-card { gap: 0; }
