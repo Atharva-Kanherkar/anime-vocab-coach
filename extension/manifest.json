@@ -49,7 +49,7 @@
       "world": "MAIN"
     },
     {
-      "matches": ["https://animevocab.com/*"],
+      "matches": ["https://animevocab.com/*", "https://www.animevocab.com/*"],
       "js": ["sync-bridge.js"],
       "run_at": "document_idle",
       "all_frames": false

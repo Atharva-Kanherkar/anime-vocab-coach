@@ -17,9 +17,9 @@ export function isStoreInstallAvailable(): boolean {
 }
 
 /** Where every install / "Add to Chrome" CTA points. Store link once approved,
- * hosted zip + in-app guide until then. */
+ * in-app Help guide until then. */
 export function installUrl(): string {
-  return CHROME_STORE_URL || EXTENSION_DOWNLOAD_URL;
+  return CHROME_STORE_URL || `${SITE_URL}/app#help`;
 }
 
 // ── Tiers ────────────────────────────────────────────────────────────────

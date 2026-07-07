@@ -17,10 +17,12 @@ import { WordMangaPanel } from "@/components/app/word-manga-panel";
 import { GamificationPanel } from "@/components/gamification-panel";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { CloudAutoSync } from "@/components/app/cloud-auto-sync";
+import { HelpPanel } from "@/components/app/help-panel";
 import { SettingsPanel } from "@/components/app/settings-panel";
 
 type SectionId =
   | "today"
+  | "help"
   | "coach"
   | "notebooks"
   | "cards"
@@ -33,6 +35,7 @@ type SectionId =
 
 const NAV: { id: SectionId; label: string }[] = [
   { id: "today", label: "Today" },
+  { id: "help", label: "Help" },
   { id: "coach", label: "Coach" },
   { id: "notebooks", label: "Notebooks" },
   { id: "cards", label: "Cards" },
@@ -83,7 +86,10 @@ export function AppShell({ name, owner = false }: { name: string; owner?: boolea
                   key={id}
                   type="button"
                   aria-current={active ? "page" : undefined}
-                  onClick={() => setSection(id)}
+                  onClick={() => {
+                    setSection(id);
+                    window.location.hash = id;
+                  }}
                   className={
                     "whitespace-nowrap border-2 px-3 py-1.5 text-[13px] font-extrabold transition " +
                     (active ? "border-ink bg-ink text-bg" : "border-transparent text-ink2 hover:text-ink")
@@ -108,6 +114,9 @@ export function AppShell({ name, owner = false }: { name: string; owner?: boolea
         <main id="main" className="mt-8 md:mt-10">
           <div hidden={section !== "today"}>
             <AppDashboard name={name} onGo={(s) => setSection(s as SectionId)} />
+          </div>
+          <div hidden={section !== "help"}>
+            <HelpPanel />
           </div>
           <div hidden={section !== "coach"}>
             <AiCoach />

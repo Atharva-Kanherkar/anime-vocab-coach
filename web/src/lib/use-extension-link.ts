@@ -17,6 +17,10 @@ function setLinkState(next: LinkState): void {
   emit();
 }
 
+function pingExtension(): void {
+  window.postMessage({ source: "avc-web", type: "avc-ping-extension" }, window.location.origin);
+}
+
 async function broadcastToken(): Promise<void> {
   try {
     const res = await fetch("/api/sync/token", { method: "POST" });
@@ -32,6 +36,10 @@ async function broadcastToken(): Promise<void> {
 function markInstalled(): void {
   setLinkState("installed");
   void broadcastToken();
+}
+
+function isExtensionSignal(type: string | undefined): boolean {
+  return type === "avc-request-token" || type === "avc-ext-present";
 }
 
 /** Detects the Chrome extension and keeps sync token fresh. */
@@ -50,30 +58,41 @@ export function useExtensionLink(): {
   );
 
   const missingTimer = useRef<number | null>(null);
+  const pingTimer = useRef<number | null>(null);
+
+  const clearMissingTimer = useCallback(() => {
+    if (missingTimer.current) {
+      window.clearTimeout(missingTimer.current);
+      missingTimer.current = null;
+    }
+  }, []);
 
   const scheduleMissingCheck = useCallback(() => {
-    if (missingTimer.current) window.clearTimeout(missingTimer.current);
+    clearMissingTimer();
     missingTimer.current = window.setTimeout(() => {
       if (linkState === "checking") setLinkState("missing");
-    }, 2500);
-  }, []);
+    }, 8000);
+  }, [clearMissingTimer]);
 
   const retry = useCallback(() => {
     setLinkState("checking");
+    pingExtension();
     scheduleMissingCheck();
-    void broadcastToken();
   }, [scheduleMissingCheck]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== window || e.origin !== window.location.origin) return;
       const data = e.data as { source?: string; type?: string } | null;
-      if (data?.source === "avc-ext" && data.type === "avc-request-token") {
-        if (missingTimer.current) window.clearTimeout(missingTimer.current);
+      if (data?.source === "avc-ext" && isExtensionSignal(data.type)) {
+        clearMissingTimer();
         markInstalled();
       }
     };
     window.addEventListener("message", onMessage);
+
+    pingExtension();
+    pingTimer.current = window.setInterval(pingExtension, 2000);
     scheduleMissingCheck();
 
     const refreshTimer = window.setInterval(() => {
@@ -82,10 +101,11 @@ export function useExtensionLink(): {
 
     return () => {
       window.removeEventListener("message", onMessage);
-      if (missingTimer.current) window.clearTimeout(missingTimer.current);
+      clearMissingTimer();
+      if (pingTimer.current) window.clearInterval(pingTimer.current);
       window.clearInterval(refreshTimer);
     };
-  }, [scheduleMissingCheck]);
+  }, [clearMissingTimer, scheduleMissingCheck]);
 
   return {
     installed: state === "installed",

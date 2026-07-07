@@ -26,8 +26,8 @@ export function ConnectionStatus() {
       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
       {label}
       {!installed && state === "missing" && (
-        <Link href="#install-extension" className="font-bold text-indigo underline hover:text-ink">
-          Install steps
+        <Link href="/app#help" className="font-bold text-indigo underline hover:text-ink">
+          Install help
         </Link>
       )}
       {state === "error" && (

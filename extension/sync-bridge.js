@@ -1,11 +1,26 @@
 "use strict";
 (() => {
   // src/entries/sync-bridge.ts
-  var WEB_ORIGIN = "https://animevocab.com";
+  var ALLOWED_ORIGINS = /* @__PURE__ */ new Set(["https://animevocab.com", "https://www.animevocab.com"]);
+  function pageOrigin() {
+    return window.location.origin;
+  }
+  function isAllowedOrigin(origin) {
+    return ALLOWED_ORIGINS.has(origin) || origin === pageOrigin();
+  }
+  function announceExtension() {
+    const origin = pageOrigin();
+    window.postMessage({ source: "avc-ext", type: "avc-ext-present" }, origin);
+    window.postMessage({ source: "avc-ext", type: "avc-request-token" }, origin);
+  }
   window.addEventListener("message", (event) => {
-    if (event.source !== window || event.origin !== WEB_ORIGIN) return;
+    if (event.source !== window || !isAllowedOrigin(event.origin)) return;
     const data = event.data;
     if (!data || data.source !== "avc-web") return;
+    if (data.type === "avc-ping-extension") {
+      announceExtension();
+      return;
+    }
     if (data.type === "avc-sync-token") {
       const token = typeof data.token === "string" ? data.token : "";
       if (!token) return;
@@ -20,5 +35,5 @@
       });
     }
   });
-  window.postMessage({ source: "avc-ext", type: "avc-request-token" }, WEB_ORIGIN);
+  announceExtension();
 })();

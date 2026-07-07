@@ -1,10 +1,15 @@
-import { ExtensionInstallGuide } from "@/components/app/extension-install-guide";
+import Link from "next/link";
 
 const STEPS = [
   {
+    n: "01",
+    title: "Install the extension",
+    body: "Works on Crunchyroll, Netflix, and YouTube. The Chrome Web Store listing is coming soon — use the Help tab for a simple manual install.",
+  },
+  {
     n: "02",
     title: "Play anime with subtitles",
-    body: "Open Crunchyroll, Netflix, or YouTube. Subtitles on (any language). As each line is spoken, a vocabulary card appears.",
+    body: "A quiet sidebar fades in. As each line is spoken, the word worth learning surfaces with its reading and meaning.",
   },
   {
     n: "03",
@@ -13,6 +18,8 @@ const STEPS = [
   },
 ];
 
+// New-user onboarding: the numbered loop plus a speech-bubble replica of the
+// in-video card, so people see the product instead of reading about it.
 export function GettingStarted() {
   return (
     <section aria-label="Getting started">
@@ -22,25 +29,17 @@ export function GettingStarted() {
       </h2>
 
       <div className="mt-9 grid gap-x-14 gap-y-10 md:grid-cols-[1fr_320px]">
-        <div>
-          <p className="av-eyebrow mb-4">Step 1 · Install Chrome extension</p>
-          <ExtensionInstallGuide />
-
-          <ol className="mt-10 list-none pl-0">
-            {STEPS.map((step, i) => (
-              <li
-                key={step.n}
-                className={"flex gap-5 py-4 " + (i > 0 ? "border-t border-dashed border-line" : "pt-0")}
-              >
-                <span className="font-jpround text-lg font-black text-accent tabular-nums">{step.n}</span>
-                <div>
-                  <h3 className="text-[15px] font-extrabold">{step.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-ink2">{step.body}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
+        <ol className="list-none pl-0">
+          {STEPS.map((step, i) => (
+            <li key={step.n} className={"flex gap-5 py-4 " + (i > 0 ? "border-t border-dashed border-line" : "pt-0")}>
+              <span className="font-jpround text-lg font-black text-accent tabular-nums">{step.n}</span>
+              <div>
+                <h3 className="text-[15px] font-extrabold">{step.title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-ink2">{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
 
         <div>
           <p className="av-eyebrow mb-3">What you'll see</p>
@@ -57,6 +56,18 @@ export function GettingStarted() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-10 flex flex-wrap items-center gap-4">
+        <Link href="/app#help" className="av-btn av-btn-primary">
+          Install extension
+        </Link>
+        <span className="text-[13px] text-ink3">
+          Free — words stay on your device.{" "}
+          <Link href="/app#help" className="font-bold text-indigo underline hover:text-ink">
+            Help with install →
+          </Link>
+        </span>
       </div>
     </section>
   );
