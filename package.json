@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
     "build-dict": "node scripts/build-dictionary.mjs",
-    "pack": "npm run typecheck && npm run build && rm -f dist/anime-vocab-coach.zip && cd extension && zip -rq ../dist/anime-vocab-coach.zip . -x 'icons/icon.svg' -x '*.DS_Store' && cd .. && echo 'Built dist/anime-vocab-coach.zip'",
+    "pack": "npm run typecheck && npm run build && mkdir -p dist && rm -f dist/anime-vocab-coach.zip && cd extension && zip -rq ../dist/anime-vocab-coach.zip . -x 'icons/icon.svg' -x '*.DS_Store' && cd .. && echo 'Built dist/anime-vocab-coach.zip'",
     "deploy:site": "cd web && npm run deploy",
     "deploy:api": "cd backend && npm ci && npx wrangler deploy --config wrangler.toml"
   },
