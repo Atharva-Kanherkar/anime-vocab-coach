@@ -1,40 +1,26 @@
-// Manga Studio: users turn the words they're learning into their own 4-panel
-// manga. The learning mechanic is baked into generation — every target word
-// MUST appear in the Japanese dialogue, and the reader renders JA/romaji/EN
-// side by side with the target words highlighted, followed by a recall check.
+// Manga Studio — a creative manga maker. You give a concept (genre, tone,
+// setting, a premise), and the AI drafts a whole CHAPTER: a titled sequence of
+// panels with a recurring cast and real manga dialogue (speech, thought,
+// narration, SFX). You then edit any line, add/reorder/redraw panels, or
+// hand-draw a rough sketch the AI redraws into your chosen art style. Publish
+// to the free public gallery. No accounts needed to try; sign in (free) to save.
 //
-// Two OpenAI calls per creation:
-//   1. Script: a chat model writes the 4-panel script as strict JSON, weaving
-//      the learner's words into simple (JLPT N5–N4) dialogue.
-//   2. Art: gpt-image-2 draws ONE manga page (2×2 panel grid) from the visual
-//      beats. No text is baked into the art — dialogue renders in the UI, the
-//      same pattern as the saga reader's JA/romaji translation boxes.
-//
-// Free while the launch window is open, capped per user per month (see
-// STUDIO_CREATIONS_PER_MONTH in wrangler.jsonc + docs/unit-economics.md).
+// Two OpenAI paths per manga:
+//   1. Script: a chat model writes the chapter as strict JSON.
+//   2. Art: gpt-image draws ONE image PER PANEL (so each can be redrawn
+//      independently). Text is never baked into art — dialogue renders as
+//      styled bubbles/boxes in the reader.
 
 import { STYLE_FAMILIES, type StyleKey } from "@/lib/cards";
 
-export interface StudioWord {
-  /** Dictionary/base form as the learner knows it (kanji or kana). */
-  base: string;
-  /** Kana reading (optional for custom words). */
-  reading: string;
-  /** English gloss. */
-  gloss: string;
-}
+export type LineKind = "speech" | "thought" | "narration" | "sfx";
+export const LINE_KINDS: LineKind[] = ["speech", "thought", "narration", "sfx"];
 
-export interface StudioText {
+export interface MangaLine {
+  kind: LineKind;
+  /** Character name for speech/thought; empty for narration/sfx. */
   speaker: string;
-  ja: string;
-  romaji: string;
-  en: string;
-}
-
-export interface StudioPanelScript {
-  /** Purely visual beat for the image model — no text/writing in the scene. */
-  art: string;
-  texts: StudioText[];
+  text: string;
 }
 
 /** One recurring character, kept consistent across every panel's art prompt. */
@@ -43,21 +29,30 @@ export interface StudioCastMember {
   look: string;
 }
 
+export interface StudioPanelScript {
+  /** Purely visual beat for the image model — no text/writing in the scene. */
+  scene: string;
+  lines: MangaLine[];
+}
+
 export interface StudioCreationMeta {
   id: string;
   ownerId: string;
   /** Display name shown on the public gallery (never the email). */
   authorName?: string;
-  title: { en: string; ja: string; romaji: string };
-  words: StudioWord[];
+  title: { en: string; sub: string };
+  logline: string;
+  genre: string;
+  tone: string;
+  setting: string;
+  /** Dialogue language, e.g. "English", "日本語". */
+  language: string;
   styleKey: StyleKey;
-  premise: string;
-  cast?: StudioCastMember[];
+  cast: StudioCastMember[];
   panels: StudioPanelScript[];
   /**
    * "panels" → each panel has its own image (studio:panel:<id>:<i>); the reader
-   * lays them out as a grid. "page" → one baked 2×2 grid image (studio:img:<id>),
-   * the legacy single-shot format. Absent is treated as "page".
+   * shows them in sequence. "page" → one legacy baked grid image. Absent ⇒ "page".
    */
   layout?: "page" | "panels";
   isPublic: boolean;
@@ -67,8 +62,8 @@ export interface StudioCreationMeta {
 /** Light row stored in the per-user index and returned by the list API. */
 export interface StudioIndexEntry {
   id: string;
-  title: { en: string; ja: string; romaji: string };
-  words: string[];
+  title: { en: string; sub: string };
+  genre: string;
   styleKey: StyleKey;
   isPublic: boolean;
   createdAt: string;
@@ -78,7 +73,7 @@ export function toIndexEntry(meta: StudioCreationMeta): StudioIndexEntry {
   return {
     id: meta.id,
     title: meta.title,
-    words: meta.words.map((w) => w.base),
+    genre: meta.genre,
     styleKey: meta.styleKey,
     isPublic: meta.isPublic,
     createdAt: meta.createdAt,
@@ -88,13 +83,13 @@ export function toIndexEntry(meta: StudioCreationMeta): StudioIndexEntry {
 /** Row in the global public gallery (everyone's published mangas). */
 export interface StudioGalleryEntry {
   id: string;
-  title: { en: string; ja: string; romaji: string };
-  words: string[];
+  title: { en: string; sub: string };
+  genre: string;
+  tone: string;
   styleKey: StyleKey;
   authorName: string;
   /** Which panel image to use as the cover thumbnail (0-based). */
   cover: number;
-  /** "panels" per-panel art, "page" legacy grid — tells the card how to load art. */
   layout: "page" | "panels";
   createdAt: string;
 }
@@ -103,9 +98,10 @@ export function toGalleryEntry(meta: StudioCreationMeta): StudioGalleryEntry {
   return {
     id: meta.id,
     title: meta.title,
-    words: meta.words.map((w) => w.base),
+    genre: meta.genre,
+    tone: meta.tone,
     styleKey: meta.styleKey,
-    authorName: (meta.authorName || "A learner").trim().slice(0, 40),
+    authorName: (meta.authorName || "Anonymous").trim().slice(0, 40),
     cover: 0,
     layout: meta.layout === "panels" ? "panels" : "page",
     createdAt: meta.createdAt,
@@ -121,59 +117,110 @@ export function studioStyleLabel(key: StyleKey): string {
   return STYLE_FAMILIES[key]?.label ?? key;
 }
 
-/** Cold-start words for accounts with no captured vocabulary yet — common
- * anime words a beginner plausibly wants. Same shape as synced words. */
-export const STARTER_WORDS: StudioWord[] = [
-  { base: "仲間", reading: "なかま", gloss: "comrade; friend" },
-  { base: "夢", reading: "ゆめ", gloss: "dream" },
-  { base: "戦う", reading: "たたかう", gloss: "to fight" },
-  { base: "心", reading: "こころ", gloss: "heart; mind" },
-  { base: "力", reading: "ちから", gloss: "power; strength" },
-  { base: "約束", reading: "やくそく", gloss: "promise" },
-  { base: "守る", reading: "まもる", gloss: "to protect" },
-  { base: "退屈", reading: "たいくつ", gloss: "boredom" },
-  { base: "先輩", reading: "せんぱい", gloss: "senior; upperclassman" },
-  { base: "無理", reading: "むり", gloss: "impossible; no way" },
-  { base: "大丈夫", reading: "だいじょうぶ", gloss: "okay; all right" },
-  { base: "覚える", reading: "おぼえる", gloss: "to remember; to learn" },
+export const STUDIO_GENRES = [
+  "Shonen action",
+  "Shojo romance",
+  "Isekai fantasy",
+  "Slice of life",
+  "Dark fantasy",
+  "Sci-fi mecha",
+  "Mystery / thriller",
+  "Horror",
+  "Comedy",
+  "Sports",
 ];
+
+export const STUDIO_TONES = [
+  "Epic",
+  "Wholesome",
+  "Dramatic",
+  "Comedic",
+  "Dark & moody",
+  "Mysterious",
+  "Heartfelt",
+  "Action-packed",
+];
+
+export const STUDIO_LANGUAGES = ["English", "日本語", "Español", "Français", "한국어", "Deutsch", "Português"];
 
 // ── Limits ───────────────────────────────────────────────────────────────
 
-export const MAX_STUDIO_WORDS = 3;
-export const MAX_WORD_BASE_LEN = 40;
-export const MAX_WORD_GLOSS_LEN = 80;
-export const MAX_PREMISE_LEN = 400;
-/** Panels the editor drafts. The reader lays them out in a responsive grid. */
+export const MAX_CHARACTERS = 4;
+export const MAX_CHAR_NAME_LEN = 40;
+export const MAX_CHAR_LOOK_LEN = 240;
+export const MAX_PREMISE_LEN = 600;
+export const MAX_SETTING_LEN = 200;
+export const MAX_GENRE_LEN = 60;
+export const MAX_TONE_LEN = 60;
+export const MAX_LANG_LEN = 24;
+export const MAX_LINES_PER_PANEL = 3;
+export const MAX_LINE_LEN = 240;
+/** Panels the AI drafts by default; the editor can add/remove within range. */
 export const STUDIO_PANEL_COUNT = 6;
-/** Draft may return anywhere in this range; the editor pads/truncates the UI. */
-export const MIN_STUDIO_PANELS = 4;
-export const MAX_STUDIO_PANELS = 8;
+export const MIN_STUDIO_PANELS = 3;
+export const MAX_STUDIO_PANELS = 12;
 export const DEFAULT_STUDIO_LIMIT = 5; // saved creations / user / month
 /** Expensive per-panel art calls. This is the real cost gate, not saved count. */
-export const DEFAULT_STUDIO_ART_PER_MONTH = 60; // signed-in art generations / month
+export const DEFAULT_STUDIO_ART_PER_MONTH = 80; // signed-in art generations / month
 export const DEFAULT_STUDIO_ANON_ART_PER_DAY = 8; // ~one manga's worth of taste
-export const DEFAULT_STUDIO_ANON_DRAFTS_PER_DAY = 5;
+export const DEFAULT_STUDIO_ANON_DRAFTS_PER_DAY = 6;
 export const DEFAULT_STUDIO_SCRIPT_MODEL = "gpt-4.1-mini";
 export const DEFAULT_STUDIO_IMAGE_MODEL = "gpt-image-2";
 export const DEFAULT_STUDIO_IMAGE_QUALITY = "medium";
-/** Single square panel — cheaper than a full page, composed into a grid in the reader. */
+/** Single square panel — cheaper than a full page, shown in sequence in the reader. */
 export const STUDIO_PANEL_SIZE = "1024x1024";
 /** Portrait manga page (legacy single-shot grid format). */
 export const STUDIO_IMAGE_SIZE = "1024x1536";
 /** Max bytes for an uploaded sketch / stored panel image (~2.7MB decoded). */
 export const MAX_PANEL_B64_LEN = 3_600_000;
 
-// ── Request validation ───────────────────────────────────────────────────
-
-export interface StudioGenerateRequest {
-  words: StudioWord[];
-  styleKey: StyleKey;
-  premise: string;
-}
+// ── Shared helpers ─────────────────────────────────────────────────────────
 
 function clamp(value: unknown, max: number): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function normalizeCast(raw: unknown): StudioCastMember[] {
+  const arr = Array.isArray(raw) ? raw.slice(0, MAX_CHARACTERS) : [];
+  return arr
+    .map((c) => (c && typeof c === "object" ? (c as Record<string, unknown>) : null))
+    .map((c) => (c ? { name: clamp(c.name, MAX_CHAR_NAME_LEN), look: clamp(c.look, MAX_CHAR_LOOK_LEN) } : null))
+    .filter((c): c is StudioCastMember => !!c && !!c.look);
+}
+
+function normalizeLine(raw: Record<string, unknown>): MangaLine | null {
+  const text = clamp(raw.text, MAX_LINE_LEN);
+  if (!text) return null;
+  const kind = LINE_KINDS.includes(raw.kind as LineKind) ? (raw.kind as LineKind) : "speech";
+  const speaker = kind === "narration" || kind === "sfx" ? "" : clamp(raw.speaker, MAX_CHAR_NAME_LEN);
+  return { kind, speaker, text };
+}
+
+function normalizePanels(raw: unknown, requireLines: boolean): StudioPanelScript[] {
+  const arr = Array.isArray(raw) ? raw.slice(0, MAX_STUDIO_PANELS) : [];
+  const panels: StudioPanelScript[] = [];
+  for (const item of arr) {
+    if (!item || typeof item !== "object") continue;
+    const p = item as Record<string, unknown>;
+    const scene = clamp(p.scene, 500);
+    const lines = (Array.isArray(p.lines) ? p.lines.slice(0, MAX_LINES_PER_PANEL) : [])
+      .map((l) => (l && typeof l === "object" ? normalizeLine(l as Record<string, unknown>) : null))
+      .filter((l): l is MangaLine => l !== null);
+    if (requireLines ? scene && lines.length > 0 : true) panels.push({ scene, lines });
+  }
+  return panels;
+}
+
+// ── Draft request validation ───────────────────────────────────────────────
+
+export interface StudioGenerateRequest {
+  premise: string;
+  genre: string;
+  tone: string;
+  setting: string;
+  language: string;
+  styleKey: StyleKey;
+  characters: StudioCastMember[];
 }
 
 export function normalizeStudioRequest(
@@ -182,24 +229,25 @@ export function normalizeStudioRequest(
   if (!body || typeof body !== "object") return { error: "invalid_body" };
   const b = body as Record<string, unknown>;
 
-  const styleKey = typeof b.styleKey === "string" && b.styleKey in STYLE_FAMILIES
-    ? (b.styleKey as StyleKey)
-    : null;
+  const styleKey =
+    typeof b.styleKey === "string" && b.styleKey in STYLE_FAMILIES ? (b.styleKey as StyleKey) : null;
   if (!styleKey) return { error: "invalid_style" };
 
-  const rawWords = Array.isArray(b.words) ? b.words.slice(0, MAX_STUDIO_WORDS) : [];
-  const words: StudioWord[] = [];
-  for (const raw of rawWords) {
-    if (!raw || typeof raw !== "object") continue;
-    const w = raw as Record<string, unknown>;
-    const base = clamp(w.base, MAX_WORD_BASE_LEN);
-    const gloss = clamp(w.gloss, MAX_WORD_GLOSS_LEN);
-    const reading = clamp(w.reading, MAX_WORD_BASE_LEN);
-    if (base && gloss) words.push({ base, reading, gloss });
-  }
-  if (words.length === 0) return { error: "no_words" };
+  const premise = clamp(b.premise, MAX_PREMISE_LEN);
+  const genre = clamp(b.genre, MAX_GENRE_LEN);
+  if (!premise && !genre) return { error: "empty_concept" };
 
-  return { req: { words, styleKey, premise: clamp(b.premise, MAX_PREMISE_LEN) } };
+  return {
+    req: {
+      premise,
+      genre,
+      tone: clamp(b.tone, MAX_TONE_LEN),
+      setting: clamp(b.setting, MAX_SETTING_LEN),
+      language: clamp(b.language, MAX_LANG_LEN) || "English",
+      styleKey,
+      characters: normalizeCast(b.characters),
+    },
+  };
 }
 
 // ── Script generation ────────────────────────────────────────────────────
@@ -207,41 +255,37 @@ export function normalizeStudioRequest(
 export function buildScriptPrompt(req: StudioGenerateRequest): { system: string; user: string } {
   const n = STUDIO_PANEL_COUNT;
   const system =
-    `You write ${n}-panel manga scripts for beginner Japanese learners. Rules:\n` +
-    `- Exactly ${n} panels telling one tiny, complete, emotionally satisfying scene with TWO recurring characters (give them short names).\n` +
-    "- First define the CAST: the two characters, each with a short vivid VISUAL look (age, hair, outfit, one defining trait) so an artist can draw them consistently across panels. No text/logos in their look.\n" +
-    "- Dialogue is SIMPLE spoken Japanese, JLPT N5-N4 grammar only, each line at most ~12 words.\n" +
-    "- Every TARGET WORD must appear naturally in the Japanese dialogue at least once, in its given form or a simple conjugation.\n" +
-    "- Each panel has 1-2 dialogue lines. Provide ja (Japanese), romaji (Hepburn), and en (natural English) for every line.\n" +
-    "- Each panel's `art` is a purely VISUAL description in English (which cast members, setting, action, emotion, framing). Never mention text, letters, signs, or speech balloons.\n" +
-    '- Respond ONLY as strict JSON: {"title":{"en":string,"ja":string,"romaji":string},"cast":[{"name":string,"look":string}],"panels":[{"art":string,"texts":[{"speaker":string,"ja":string,"romaji":string,"en":string}]}]}' +
-    ` with exactly ${n} panels and exactly 2 cast members.`;
+    "You are a professional manga author and storyboard artist. Given a concept, write ONE chapter " +
+    `as a sequence of about ${n} panels that tells a vivid, cinematic, emotionally engaging scene. Rules:\n` +
+    `- Return ${MIN_STUDIO_PANELS}-${MAX_STUDIO_PANELS} panels (aim for ${n}). Each panel is one visual moment that moves the story.\n` +
+    "- Give the chapter a punchy TITLE (a main title plus a short stylized subtitle) and a one-line LOGLINE.\n" +
+    "- Define the CAST: each character with a name and a vivid VISUAL look (age, hair, clothing, defining features) so an artist can draw them consistently. Never put text/logos in a look.\n" +
+    "- Each panel has a `scene`: a purely VISUAL description in English for the artist (which characters, setting, action, camera framing, emotion). Never mention text, letters, signs, or speech balloons.\n" +
+    "- Each panel has 1-3 `lines`. Each line has a `kind`: \"speech\" (a character talking out loud), \"thought\" (internal monologue), \"narration\" (caption/omniscient voice), or \"sfx\" (a sound effect, e.g. BOOM, ドン). `speaker` is the character's name for speech/thought, empty for narration/sfx. `text` is the actual words the reader sees.\n" +
+    "- Write ALL dialogue/narration/sfx text in the requested LANGUAGE. Match the requested GENRE and TONE. Make it immersive.\n" +
+    '- Respond ONLY as strict JSON: {"title":{"en":string,"sub":string},"logline":string,"cast":[{"name":string,"look":string}],"panels":[{"scene":string,"lines":[{"kind":string,"speaker":string,"text":string}]}]}';
 
-  const wordLines = req.words
-    .map((w) => `- ${w.base}${w.reading ? ` (${w.reading})` : ""} — "${w.gloss}"`)
-    .join("\n");
-  const user =
-    `TARGET WORDS:\n${wordLines}\n\n` +
-    (req.premise ? `STORY THE LEARNER WANTS (follow its intent, beats, and tone): ${req.premise}\n\n` : "") +
-    `Write the ${n}-panel script now.`;
+  const parts: string[] = [];
+  if (req.premise) parts.push(`CONCEPT: ${req.premise}`);
+  if (req.genre) parts.push(`GENRE: ${req.genre}`);
+  if (req.tone) parts.push(`TONE: ${req.tone}`);
+  if (req.setting) parts.push(`SETTING: ${req.setting}`);
+  parts.push(`DIALOGUE LANGUAGE: ${req.language}`);
+  if (req.characters.length > 0) {
+    parts.push(
+      "CHARACTERS THE AUTHOR WANTS (use these, keep their looks):\n" +
+        req.characters.map((c) => `- ${c.name || "(unnamed)"}: ${c.look}`).join("\n")
+    );
+  }
+  parts.push("Write the chapter now.");
 
-  return { system, user };
-}
-
-function clampText(t: Record<string, unknown>): StudioText | null {
-  const ja = clamp(t.ja, 160);
-  if (!ja) return null;
-  return {
-    speaker: clamp(t.speaker, 24),
-    ja,
-    romaji: clamp(t.romaji, 240),
-    en: clamp(t.en, 240),
-  };
+  return { system, user: parts.join("\n\n") };
 }
 
 /** Shape-check the model's script JSON. Throws on an unusable script. */
 export function normalizeScript(parsed: unknown): {
-  title: { en: string; ja: string; romaji: string };
+  title: { en: string; sub: string };
+  logline: string;
   cast: StudioCastMember[];
   panels: StudioPanelScript[];
 } {
@@ -249,29 +293,12 @@ export function normalizeScript(parsed: unknown): {
   const rawTitle = (p.title ?? {}) as Record<string, unknown>;
   const title = {
     en: clamp(rawTitle.en, 80) || "Untitled",
-    ja: clamp(rawTitle.ja, 80),
-    romaji: clamp(rawTitle.romaji, 120),
+    sub: clamp(rawTitle.sub, 120),
   };
-
-  const cast: StudioCastMember[] = (Array.isArray(p.cast) ? p.cast.slice(0, 4) : [])
-    .map((c) => (c && typeof c === "object" ? (c as Record<string, unknown>) : null))
-    .map((c) => (c ? { name: clamp(c.name, 24), look: clamp(c.look, 240) } : null))
-    .filter((c): c is StudioCastMember => !!c && !!c.look);
-
-  const rawPanels = Array.isArray(p.panels) ? p.panels.slice(0, MAX_STUDIO_PANELS) : [];
-  const panels: StudioPanelScript[] = [];
-  for (const raw of rawPanels) {
-    if (!raw || typeof raw !== "object") continue;
-    const rp = raw as Record<string, unknown>;
-    const art = clamp(rp.art, 500);
-    const texts = (Array.isArray(rp.texts) ? rp.texts.slice(0, 2) : [])
-      .map((t) => (t && typeof t === "object" ? clampText(t as Record<string, unknown>) : null))
-      .filter((t): t is StudioText => t !== null);
-    if (art && texts.length > 0) panels.push({ art, texts });
-  }
+  const cast = normalizeCast(p.cast);
+  const panels = normalizePanels(p.panels, true);
   if (panels.length < MIN_STUDIO_PANELS) throw new Error("studio_bad_script");
-
-  return { title, cast, panels };
+  return { title, logline: clamp(p.logline, 240), cast, panels };
 }
 
 // ── Image generation ─────────────────────────────────────────────────────
@@ -281,15 +308,15 @@ const PANEL_POSITIONS = ["top-left", "top-right", "bottom-left", "bottom-right"]
 export function buildPagePrompt(styleKey: StyleKey, panels: StudioPanelScript[]): string {
   const family = STYLE_FAMILIES[styleKey];
   const beats = panels
-    .map((p, i) => `Panel ${i + 1} (${PANEL_POSITIONS[i]}): ${p.art}`)
+    .slice(0, 4)
+    .map((p, i) => `Panel ${i + 1} (${PANEL_POSITIONS[i]}): ${p.scene}`)
     .join(" ");
   return (
     "A single full-color manga PAGE containing exactly 4 rectangular panels in a 2x2 grid, " +
     "clean white gutters between panels, thin black panel borders. " +
     `${family.style} ` +
-    `The same two characters appear consistently across all panels. ${beats} ` +
-    "Absolutely no text, no letters, no kanji, no numbers, no speech balloons, no captions, " +
-    "no logos, and no watermarks anywhere in the image."
+    `The same characters appear consistently across all panels. ${beats} ` +
+    NO_TEXT_CLAUSE
   );
 }
 
@@ -306,30 +333,22 @@ function castClause(cast: StudioCastMember[] | undefined): string {
   );
 }
 
-/** One square manga panel from a text beat (text-to-image path). */
-export function buildPanelPrompt(
-  styleKey: StyleKey,
-  art: string,
-  cast?: StudioCastMember[]
-): string {
+/** One square manga panel from a scene beat (text-to-image path). */
+export function buildPanelPrompt(styleKey: StyleKey, scene: string, cast?: StudioCastMember[]): string {
   const family = STYLE_FAMILIES[styleKey];
   return (
     "A single full-color manga PANEL, one framed illustration filling the square, thin black border. " +
     `${family.style} ` +
     castClause(cast) +
-    `Scene: ${art} ` +
+    `Scene: ${scene} ` +
     NO_TEXT_CLAUSE
   );
 }
 
-/** Redraw a learner's rough sketch into a polished panel (image-edit path).
+/** Redraw a creator's rough sketch into a polished panel (image-edit path).
  * The sketch defines composition + who-is-where; the model beautifies it into
  * the chosen anime style. This is the "bad drawers become good" pipeline. */
-export function buildSketchPrompt(
-  styleKey: StyleKey,
-  art: string,
-  cast?: StudioCastMember[]
-): string {
+export function buildSketchPrompt(styleKey: StyleKey, scene: string, cast?: StudioCastMember[]): string {
   const family = STYLE_FAMILIES[styleKey];
   return (
     "Redraw this rough sketch into a single polished full-color manga PANEL. " +
@@ -337,18 +356,18 @@ export function buildSketchPrompt(
     "but render it beautifully. " +
     `${family.style} ` +
     castClause(cast) +
-    (art ? `The intended scene: ${art} ` : "") +
+    (scene ? `The intended scene: ${scene} ` : "") +
     NO_TEXT_CLAUSE
   );
 }
 
-// ── Panel-art + finalize request validation ──────────────────────────────
+// ── Panel-art request validation ───────────────────────────────────────────
 
 export interface StudioPanelArtRequest {
   styleKey: StyleKey;
-  art: string;
+  scene: string;
   cast: StudioCastMember[];
-  /** base64 PNG of the learner's sketch (no data: prefix). Empty ⇒ text-to-image. */
+  /** base64 PNG of the creator's sketch (no data: prefix). Empty ⇒ text-to-image. */
   sketchB64: string;
 }
 
@@ -361,12 +380,8 @@ export function normalizePanelArtRequest(
     typeof b.styleKey === "string" && b.styleKey in STYLE_FAMILIES ? (b.styleKey as StyleKey) : null;
   if (!styleKey) return { error: "invalid_style" };
 
-  const art = clamp(b.art, 500);
-  const rawCast = Array.isArray(b.cast) ? b.cast.slice(0, 4) : [];
-  const cast: StudioCastMember[] = rawCast
-    .map((c) => (c && typeof c === "object" ? (c as Record<string, unknown>) : null))
-    .map((c) => (c ? { name: clamp(c.name, 24), look: clamp(c.look, 240) } : null))
-    .filter((c): c is StudioCastMember => !!c && !!c.look);
+  const scene = clamp(b.scene, 500);
+  const cast = normalizeCast(b.cast);
 
   let sketchB64 = "";
   if (typeof b.sketch === "string" && b.sketch) {
@@ -374,18 +389,21 @@ export function normalizePanelArtRequest(
     if (sketchB64.length > MAX_PANEL_B64_LEN) return { error: "sketch_too_large" };
     if (!/^[A-Za-z0-9+/=\s]+$/.test(sketchB64)) return { error: "invalid_sketch" };
   }
-  if (!art && !sketchB64) return { error: "empty_panel" };
+  if (!scene && !sketchB64) return { error: "empty_panel" };
 
-  return { req: { styleKey, art, cast, sketchB64 } };
+  return { req: { styleKey, scene, cast, sketchB64 } };
 }
 
-/** The assembled manga the client sends to save (login required). Panel images
- * are uploaded separately (PUT …/panel/<i>) to keep this payload small. */
+// ── Finalize (save) request validation ─────────────────────────────────────
+
 export interface StudioFinalizeRequest {
-  title: { en: string; ja: string; romaji: string };
-  words: StudioWord[];
+  title: { en: string; sub: string };
+  logline: string;
+  genre: string;
+  tone: string;
+  setting: string;
+  language: string;
   styleKey: StyleKey;
-  premise: string;
   cast: StudioCastMember[];
   panels: StudioPanelScript[];
 }
@@ -400,45 +418,23 @@ export function normalizeFinalizeRequest(
     typeof b.styleKey === "string" && b.styleKey in STYLE_FAMILIES ? (b.styleKey as StyleKey) : null;
   if (!styleKey) return { error: "invalid_style" };
 
-  const rawWords = Array.isArray(b.words) ? b.words.slice(0, MAX_STUDIO_WORDS) : [];
-  const words: StudioWord[] = [];
-  for (const raw of rawWords) {
-    if (!raw || typeof raw !== "object") continue;
-    const w = raw as Record<string, unknown>;
-    const base = clamp(w.base, MAX_WORD_BASE_LEN);
-    const gloss = clamp(w.gloss, MAX_WORD_GLOSS_LEN);
-    const reading = clamp(w.reading, MAX_WORD_BASE_LEN);
-    if (base && gloss) words.push({ base, reading, gloss });
-  }
-  if (words.length === 0) return { error: "no_words" };
-
   const rawTitle = (b.title ?? {}) as Record<string, unknown>;
-  const title = {
-    en: clamp(rawTitle.en, 80) || "Untitled",
-    ja: clamp(rawTitle.ja, 80),
-    romaji: clamp(rawTitle.romaji, 120),
-  };
+  const title = { en: clamp(rawTitle.en, 80) || "Untitled", sub: clamp(rawTitle.sub, 120) };
 
-  const rawCast = Array.isArray(b.cast) ? b.cast.slice(0, 4) : [];
-  const cast: StudioCastMember[] = rawCast
-    .map((c) => (c && typeof c === "object" ? (c as Record<string, unknown>) : null))
-    .map((c) => (c ? { name: clamp(c.name, 24), look: clamp(c.look, 240) } : null))
-    .filter((c): c is StudioCastMember => !!c && !!c.look);
-
-  const rawPanels = Array.isArray(b.panels) ? b.panels.slice(0, MAX_STUDIO_PANELS) : [];
-  const panels: StudioPanelScript[] = [];
-  for (const raw of rawPanels) {
-    if (!raw || typeof raw !== "object") continue;
-    const rp = raw as Record<string, unknown>;
-    const art = clamp(rp.art, 500);
-    const texts = (Array.isArray(rp.texts) ? rp.texts.slice(0, 2) : [])
-      .map((t) => (t && typeof t === "object" ? clampText(t as Record<string, unknown>) : null))
-      .filter((t): t is StudioText => t !== null);
-    if (texts.length > 0) panels.push({ art, texts });
-  }
+  const panels = normalizePanels(b.panels, false).filter((p) => p.scene || p.lines.length > 0);
   if (panels.length < MIN_STUDIO_PANELS) return { error: "too_few_panels" };
 
   return {
-    req: { title, words, styleKey, premise: clamp(b.premise, MAX_PREMISE_LEN), cast, panels },
+    req: {
+      title,
+      logline: clamp(b.logline, 240),
+      genre: clamp(b.genre, MAX_GENRE_LEN),
+      tone: clamp(b.tone, MAX_TONE_LEN),
+      setting: clamp(b.setting, MAX_SETTING_LEN),
+      language: clamp(b.language, MAX_LANG_LEN) || "English",
+      styleKey,
+      cast: normalizeCast(b.cast),
+      panels,
+    },
   };
 }

@@ -5,9 +5,9 @@ import { SITE_URL } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Manga Studio — write your own manga to learn Japanese",
+  title: "Manga Studio — create your own manga with AI",
   description:
-    "Turn the words you're learning into your own manga. The AI drafts the panels in real Japanese; you edit any line, redraw any panel, or sketch it yourself and let the AI beautify it. Try it free — no account needed.",
+    "Describe your story and pick a genre and art style — the AI storyboards a whole chapter with a cast, panels, and dialogue. Rewrite any line, add or reorder panels, redraw art, or sketch it yourself and let the AI finish it. Free to try, no account needed.",
   alternates: { canonical: `${SITE_URL}/studio` },
 };
 

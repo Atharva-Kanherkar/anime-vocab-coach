@@ -1,28 +1,35 @@
 "use client";
 
-// Manga Studio — the full AI-assisted editor. Flow:
-//   1. compose  — pick target words, an art style, and write the story beats
-//   2. edit     — AI drafts the panels; per panel you edit the dialogue, redraw
-//                 the art, or hand-draw a sketch the AI beautifies into style
-//   3. saved    — the finished manga: read it, pass the word check for XP, share
-// It runs on the public /studio page AND inside the signed-in /app. Logged-out
-// visitors get one free manga held in this browser; saving/publishing needs a
-// (free) sign-in, after which the draft is restored and saved to the account.
+// Manga Studio — the creative manga maker. Flow:
+//   1. compose — a concept (premise), genre, tone, setting, dialogue language,
+//                art style, and optionally your own characters
+//   2. edit    — the AI drafts a chapter; you edit the title/logline/cast, tweak
+//                every panel's dialogue (speech / thought / narration / SFX),
+//                add/reorder/delete panels, redraw art, or hand-draw a sketch the
+//                AI beautifies into your style
+//   3. saved   — read the finished chapter and publish it to the free gallery
+// Runs on the public /studio page AND inside /app. Logged-out visitors get one
+// free manga held in this browser; saving/publishing needs a (free) sign-in,
+// after which the in-progress draft is restored and saved to the account.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useCloudSnapshot } from "@/lib/cloud-snapshot-store";
 import {
-  MAX_STUDIO_WORDS,
+  LINE_KINDS,
+  MAX_CHARACTERS,
+  MAX_LINES_PER_PANEL,
   MAX_PREMISE_LEN,
-  STARTER_WORDS,
+  MAX_STUDIO_PANELS,
+  STUDIO_GENRES,
+  STUDIO_LANGUAGES,
   STUDIO_STYLES,
+  STUDIO_TONES,
   studioStyleLabel,
+  type LineKind,
+  type MangaLine,
   type StudioCastMember,
   type StudioCreationMeta,
   type StudioIndexEntry,
   type StudioPanelScript,
-  type StudioText,
-  type StudioWord,
 } from "@/lib/studio";
 import type { StyleKey } from "@/lib/cards";
 import {
@@ -35,14 +42,6 @@ import {
   type DraftPanel,
   type StudioDraft,
 } from "@/lib/studio-draft";
-import {
-  hasPassedWordCheck,
-  markWordCheckPassed,
-  setCreationCount,
-  useStudioProgress,
-  XP_PER_CREATION,
-  XP_PER_WORD_CHECK,
-} from "@/lib/studio-xp";
 import { SketchCanvas, type SketchHandle } from "@/components/app/sketch-canvas";
 import { StudioReaderView } from "@/components/app/studio-reader";
 
@@ -50,11 +49,12 @@ type Auth = "unknown" | "in" | "out";
 
 const ERROR_COPY: Record<string, string> = {
   ai_not_configured: "The studio isn't configured on this deployment yet. Try again later.",
-  no_words: "Pick at least one word first.",
+  empty_concept: "Give a concept or pick a genre first.",
   anon_draft_limit: "You've used your free tries for today. Sign in (free) to keep creating.",
   anon_art_limit: "You've used your free art for today. Sign in (free) to draw more.",
   art_quota_exhausted: "You've used all your art for this month — more unlocks next month.",
   studio_quota_exhausted: "You've saved all your free mangas this month — more unlock next month.",
+  too_few_panels: "A chapter needs at least a few panels.",
   unauthorized: "Sign in (free) to save your manga.",
 };
 function errorMessage(code: string): string {
@@ -67,8 +67,18 @@ function signInHref(): string {
   return `/sign-in?redirect_url=${encodeURIComponent(back || "/studio")}`;
 }
 
+const LINE_META: Record<LineKind, { label: string; hasSpeaker: boolean }> = {
+  speech: { label: "💬 Speech", hasSpeaker: true },
+  thought: { label: "💭 Thought", hasSpeaker: true },
+  narration: { label: "📖 Narration", hasSpeaker: false },
+  sfx: { label: "💥 SFX", hasSpeaker: false },
+};
+
+function emptyLine(): MangaLine {
+  return { kind: "speech", speaker: "", text: "" };
+}
+
 export function StudioEditor() {
-  const snapshot = useCloudSnapshot();
   const [auth, setAuth] = useState<Auth>("unknown");
   const [entries, setEntries] = useState<StudioIndexEntry[]>([]);
   const [draft, setDraft] = useState<StudioDraft | null>(null);
@@ -86,14 +96,11 @@ export function StudioEditor() {
       const data = (await res.json()) as { creations: StudioIndexEntry[] };
       setAuth("in");
       setEntries(data.creations);
-      setCreationCount(data.creations.length);
     } catch {
       // Offline: leave auth unknown; the composer still works optimistically.
     }
   }, []);
 
-  // Defer the initial fetch + draft restore off the render (localStorage is
-  // client-only; running in a timeout keeps setState out of the effect body).
   useEffect(() => {
     const t = setTimeout(() => {
       void refreshList();
@@ -112,15 +119,6 @@ export function StudioEditor() {
     });
   }, []);
 
-  const availableWords = useMemo<StudioWord[]>(() => {
-    const fromSync = snapshot.words
-      .filter((w) => w.base && w.gloss)
-      .sort((a, b) => (b.lastSeenAt ?? "").localeCompare(a.lastSeenAt ?? ""))
-      .slice(0, 30)
-      .map((w) => ({ base: w.base, reading: w.reading, gloss: w.gloss }));
-    return fromSync.length > 0 ? fromSync : STARTER_WORDS;
-  }, [snapshot.words]);
-
   const openSaved = useCallback(async (id: string) => {
     setLoadingId(id);
     try {
@@ -135,7 +133,6 @@ export function StudioEditor() {
     }
   }, []);
 
-  // ── Saved manga view ──
   if (saved) {
     return (
       <SavedManga
@@ -154,7 +151,6 @@ export function StudioEditor() {
     );
   }
 
-  // ── Editing an in-progress draft ──
   if (draft) {
     return (
       <EditDraft
@@ -175,20 +171,19 @@ export function StudioEditor() {
     );
   }
 
-  // ── Compose a new manga ──
   return (
     <section aria-label="Manga Studio">
       <header>
         <p className="av-eyebrow">Manga Studio · 創作</p>
-        <h1 className="mt-2 font-jpround text-[clamp(26px,4vw,40px)] font-black leading-tight">
-          Make your own manga
+        <h1 className="mt-2 font-jpround text-[clamp(28px,5vw,46px)] font-black leading-[1.05]">
+          Create your own manga
         </h1>
-        <p className="mt-3 max-w-[62ch] text-[14.5px] leading-relaxed text-ink2">
-          Pick up to {MAX_STUDIO_WORDS} words you&apos;re learning and tell the studio your story.
-          The AI drafts the panels in real Japanese; you edit any line, redraw any panel, or{" "}
-          <b className="text-accent">sketch it yourself and let the AI beautify it</b>. Read it in
-          English, 日本語, or romaji, pass the word check, and earn{" "}
-          <b className="text-accent">+{XP_PER_CREATION} XP</b>.
+        <p className="mt-3 max-w-[64ch] text-[15px] leading-relaxed text-ink2">
+          Describe your story, pick a genre and art style, and the AI storyboards a whole chapter —
+          cast, panels, and dialogue. Then <b className="text-accent">rewrite any line, add or reorder
+          panels, redraw a panel</b>, or <b className="text-accent">sketch it yourself and let the AI
+          finish the art</b>. Publish to the gallery when it&apos;s ready. Free to try — no account
+          needed.
         </p>
         {auth === "out" && (
           <p className="mt-3 rounded-lg border-2 border-line bg-panel px-4 py-2.5 text-[13px] font-bold text-ink2">
@@ -198,8 +193,6 @@ export function StudioEditor() {
       </header>
 
       <Composer
-        availableWords={availableWords}
-        usingStarters={snapshot.words.length === 0}
         auth={auth}
         onDrafted={(script, base) => {
           const d = newDraftFromScript({ ...base, ...script });
@@ -222,11 +215,10 @@ export function StudioEditor() {
                   className="av-card flex w-full items-center gap-3 p-4 text-left transition hover:-translate-y-0.5"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-jpround text-[15px] font-black">
-                      {e.title.en}
-                    </span>
+                    <span className="block truncate font-jpround text-[15px] font-black">{e.title.en}</span>
                     <span className="mt-0.5 block truncate text-[12px] text-ink3">
-                      {studioStyleLabel(e.styleKey)} · {e.words.join("、")}
+                      {studioStyleLabel(e.styleKey)}
+                      {e.genre ? ` · ${e.genre}` : ""}
                     </span>
                   </span>
                   <span className="shrink-0 text-[11px] font-extrabold text-ink3">
@@ -245,60 +237,95 @@ export function StudioEditor() {
   );
 }
 
+// ── Small building blocks ───────────────────────────────────────────────────
+
+function ChipRow<T extends string>({
+  options,
+  value,
+  onChange,
+  labelFor,
+}: {
+  options: readonly T[];
+  value: T | "";
+  onChange: (v: T) => void;
+  labelFor?: (v: T) => string;
+}) {
+  return (
+    <ul className="mt-3 flex list-none flex-wrap gap-2 pl-0">
+      {options.map((opt) => {
+        const on = value === opt;
+        return (
+          <li key={opt}>
+            <button
+              type="button"
+              aria-pressed={on}
+              onClick={() => onChange(opt)}
+              className={
+                "rounded-full border-2 px-3.5 py-1.5 text-[12.5px] font-extrabold transition " +
+                (on ? "border-ink bg-ink text-bg" : "border-line text-ink2 hover:text-ink")
+              }
+            >
+              {labelFor ? labelFor(opt) : opt}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function StepHeading({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <h2 className="mt-7 text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3 first:mt-0">
+      {n} · {children}
+    </h2>
+  );
+}
+
 // ── Step 1: Composer ──────────────────────────────────────────────────────
 
 function Composer({
-  availableWords,
-  usingStarters,
   auth,
   onDrafted,
 }: {
-  availableWords: StudioWord[];
-  usingStarters: boolean;
   auth: Auth;
   onDrafted: (
-    script: { title: { en: string; ja: string; romaji: string }; cast: StudioCastMember[]; panels: StudioPanelScript[] },
-    base: { words: StudioWord[]; styleKey: StyleKey; premise: string }
+    script: {
+      title: { en: string; sub: string };
+      logline: string;
+      cast: StudioCastMember[];
+      panels: StudioPanelScript[];
+    },
+    base: { genre: string; tone: string; setting: string; language: string; styleKey: StyleKey }
   ) => void;
 }) {
-  const [selected, setSelected] = useState<StudioWord[]>([]);
-  const [styleKey, setStyleKey] = useState<StyleKey>(STUDIO_STYLES[0]);
   const [premise, setPremise] = useState("");
-  const [customWord, setCustomWord] = useState("");
-  const [customGloss, setCustomGloss] = useState("");
-  const [customWords, setCustomWords] = useState<StudioWord[]>([]);
+  const [genre, setGenre] = useState<string>("");
+  const [tone, setTone] = useState<string>("");
+  const [setting, setSetting] = useState("");
+  const [language, setLanguage] = useState<string>(STUDIO_LANGUAGES[0]);
+  const [styleKey, setStyleKey] = useState<StyleKey>(STUDIO_STYLES[0]);
+  const [cast, setCast] = useState<StudioCastMember[]>([]);
+  const [charName, setCharName] = useState("");
+  const [charLook, setCharLook] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
 
-  const words = useMemo(() => [...customWords, ...availableWords], [customWords, availableWords]);
-  const isSelected = (w: StudioWord) => selected.some((s) => s.base === w.base);
-
-  const toggle = (w: StudioWord) => {
-    setError(null);
-    setSelected((cur) =>
-      cur.some((s) => s.base === w.base)
-        ? cur.filter((s) => s.base !== w.base)
-        : cur.length >= MAX_STUDIO_WORDS
-          ? cur
-          : [...cur, w]
-    );
+  const addChar = () => {
+    const name = charName.trim();
+    const look = charLook.trim();
+    if (!look || cast.length >= MAX_CHARACTERS) return;
+    setCast((cur) => [...cur, { name, look }]);
+    setCharName("");
+    setCharLook("");
   };
 
-  const addCustom = () => {
-    const base = customWord.trim();
-    const gloss = customGloss.trim();
-    if (!base || !gloss) return;
-    const w: StudioWord = { base, reading: "", gloss };
-    setCustomWords((cur) => [w, ...cur.filter((c) => c.base !== base)]);
-    if (selected.length < MAX_STUDIO_WORDS && !isSelected(w)) setSelected((cur) => [...cur, w]);
-    setCustomWord("");
-    setCustomGloss("");
-  };
+  const canDraft = premise.trim().length > 0 || genre.length > 0;
 
   const draft = async () => {
-    if (selected.length === 0) {
-      setError("no_words");
+    if (!canDraft) {
+      setError("empty_concept");
       return;
     }
     setBusy(true);
@@ -308,10 +335,11 @@ function Composer({
       const res = await fetch("/api/studio/draft", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ words: selected, styleKey, premise }),
+        body: JSON.stringify({ premise, genre, tone, setting, language, styleKey, characters: cast }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        title?: { en: string; ja: string; romaji: string };
+        title?: { en: string; sub: string };
+        logline?: string;
         cast?: StudioCastMember[];
         panels?: StudioPanelScript[];
         error?: string;
@@ -323,8 +351,13 @@ function Composer({
         return;
       }
       onDrafted(
-        { title: data.title ?? { en: "Untitled", ja: "", romaji: "" }, cast: data.cast ?? [], panels: data.panels },
-        { words: selected, styleKey, premise }
+        {
+          title: data.title ?? { en: "Untitled", sub: "" },
+          logline: data.logline ?? "",
+          cast: data.cast ?? cast,
+          panels: data.panels,
+        },
+        { genre, tone, setting, language, styleKey }
       );
     } catch {
       setError("failed");
@@ -335,97 +368,90 @@ function Composer({
 
   return (
     <div className="av-card mt-8 p-5 sm:p-6">
-      <h2 className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">
-        1 · Words to practice{" "}
-        {usingStarters && (
-          <span className="normal-case tracking-normal">
-            (starter set — your captured words appear here once you sync)
-          </span>
-        )}
-      </h2>
-      <ul className="mt-3 flex list-none flex-wrap gap-2 pl-0">
-        {words.map((w) => {
-          const on = isSelected(w);
-          return (
-            <li key={w.base}>
-              <button
-                type="button"
-                onClick={() => toggle(w)}
-                aria-pressed={on}
-                className={
-                  "rounded-full border-2 px-3 py-1.5 text-[12.5px] font-bold transition " +
-                  (on ? "border-accent bg-accent text-[#fffdf6]" : "border-line text-ink2 hover:text-ink")
-                }
-              >
-                <span className="font-jp font-black">{w.base}</span>
-                <span className="ml-1.5 opacity-80">{w.gloss}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <input
-          value={customWord}
-          onChange={(e) => setCustomWord(e.target.value)}
-          placeholder="Add a word (e.g. 約束)"
-          className="w-40 border-2 border-line bg-field px-3 py-2 text-[13px] outline-none focus:border-ink"
-        />
-        <input
-          value={customGloss}
-          onChange={(e) => setCustomGloss(e.target.value)}
-          placeholder="its meaning (promise)"
-          className="w-44 border-2 border-line bg-field px-3 py-2 text-[13px] outline-none focus:border-ink"
-        />
-        <button type="button" onClick={addCustom} className="av-btn av-btn-ghost">
-          Add
-        </button>
-      </div>
-
-      <h2 className="mt-7 text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">2 · Art style</h2>
-      <ul className="mt-3 flex list-none flex-wrap gap-2 pl-0">
-        {STUDIO_STYLES.map((key) => {
-          const on = styleKey === key;
-          return (
-            <li key={key}>
-              <button
-                type="button"
-                onClick={() => setStyleKey(key)}
-                aria-pressed={on}
-                className={
-                  "rounded-full border-2 px-4 py-1.5 text-[12.5px] font-extrabold transition " +
-                  (on ? "border-ink bg-ink text-bg" : "border-line text-ink2 hover:text-ink")
-                }
-              >
-                {studioStyleLabel(key)}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
-      <h2 className="mt-7 text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">
-        3 · Your story <span className="normal-case tracking-normal">(the AI follows your beats)</span>
-      </h2>
+      <StepHeading n={1}>What&apos;s your manga about?</StepHeading>
       <textarea
         value={premise}
         onChange={(e) => setPremise(e.target.value)}
         maxLength={MAX_PREMISE_LEN}
         rows={3}
-        placeholder="Two rivals are stuck at a train station in the rain. One finally admits they were wrong…"
+        placeholder="A retired swordsman is pulled back for one last duel under a blood moon… (or just pick a genre and let the AI surprise you)"
         className="mt-3 w-full resize-y border-2 border-line bg-field px-3 py-2.5 text-[13.5px] leading-relaxed outline-none focus:border-ink"
       />
 
-      <div className="mt-7 flex flex-wrap items-center gap-4">
-        <button
-          type="button"
-          onClick={() => void draft()}
-          disabled={busy || selected.length === 0}
-          className="av-btn av-btn-primary"
-        >
-          {busy ? "Drafting your story…" : "✍️ Draft with AI"}
+      <StepHeading n={2}>Genre</StepHeading>
+      <ChipRow options={STUDIO_GENRES} value={genre} onChange={(v) => setGenre(v === genre ? "" : v)} />
+
+      <StepHeading n={3}>Tone</StepHeading>
+      <ChipRow options={STUDIO_TONES} value={tone} onChange={(v) => setTone(v === tone ? "" : v)} />
+
+      <StepHeading n={4}>Art style</StepHeading>
+      <ChipRow options={STUDIO_STYLES} value={styleKey} onChange={setStyleKey} labelFor={studioStyleLabel} />
+
+      <div className="mt-7 grid gap-4 sm:grid-cols-2">
+        <label className="block text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">
+          Setting <span className="normal-case tracking-normal">(optional)</span>
+          <input
+            value={setting}
+            onChange={(e) => setSetting(e.target.value)}
+            placeholder="Neo-Tokyo, 2199"
+            className="mt-2 w-full border-2 border-line bg-field px-3 py-2 text-[13px] font-normal normal-case tracking-normal text-ink outline-none focus:border-ink"
+          />
+        </label>
+        <div>
+          <span className="block text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">
+            Dialogue language
+          </span>
+          <ChipRow options={STUDIO_LANGUAGES} value={language} onChange={setLanguage} />
+        </div>
+      </div>
+
+      <StepHeading n={5}>Your characters <span className="normal-case tracking-normal">(optional — the AI invents them otherwise)</span></StepHeading>
+      {cast.length > 0 && (
+        <ul className="mt-3 flex list-none flex-wrap gap-2 pl-0">
+          {cast.map((c, i) => (
+            <li
+              key={i}
+              className="flex items-center gap-2 rounded-full border-2 border-line px-3 py-1 text-[12px] font-bold text-ink2"
+            >
+              <b className="text-ink">{c.name || "?"}</b>
+              <span className="max-w-[22ch] truncate text-ink3">{c.look}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${c.name}`}
+                onClick={() => setCast((cur) => cur.filter((_, k) => k !== i))}
+                className="text-ink3 hover:text-danger"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {cast.length < MAX_CHARACTERS && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input
+            value={charName}
+            onChange={(e) => setCharName(e.target.value)}
+            placeholder="Name (Kaito)"
+            className="w-36 border-2 border-line bg-field px-3 py-2 text-[13px] outline-none focus:border-ink"
+          />
+          <input
+            value={charLook}
+            onChange={(e) => setCharLook(e.target.value)}
+            placeholder="Look (spiky white hair, red coat, scar over left eye)"
+            className="min-w-[16rem] flex-1 border-2 border-line bg-field px-3 py-2 text-[13px] outline-none focus:border-ink"
+          />
+          <button type="button" onClick={addChar} className="av-btn av-btn-ghost">
+            Add
+          </button>
+        </div>
+      )}
+
+      <div className="mt-8 flex flex-wrap items-center gap-4">
+        <button type="button" onClick={() => void draft()} disabled={busy || !canDraft} className="av-btn av-btn-primary">
+          {busy ? "Storyboarding your chapter…" : "✍️ Draft my chapter with AI"}
         </button>
-        {busy && <span className="text-[12.5px] text-ink3">writing your panels…</span>}
+        {busy && <span className="text-[12.5px] text-ink3">writing the cast and panels…</span>}
       </div>
       {error && (
         <div className="mt-3">
@@ -441,7 +467,7 @@ function Composer({
   );
 }
 
-// ── Step 2: Edit the drafted manga ─────────────────────────────────────────
+// ── Step 2: Edit the drafted chapter ───────────────────────────────────────
 
 function EditDraft({
   draft,
@@ -468,6 +494,35 @@ function EditDraft({
       onMutate((d) => ({ ...d, panels: d.panels.map((p, k) => (k === i ? { ...p, ...patch } : p)) })),
     [onMutate]
   );
+  const movePanel = useCallback(
+    (i: number, dir: -1 | 1) =>
+      onMutate((d) => {
+        const j = i + dir;
+        if (j < 0 || j >= d.panels.length) return d;
+        const panels = [...d.panels];
+        [panels[i], panels[j]] = [panels[j], panels[i]];
+        return { ...d, panels };
+      }),
+    [onMutate]
+  );
+  const deletePanel = useCallback(
+    (i: number) => onMutate((d) => ({ ...d, panels: d.panels.filter((_, k) => k !== i) })),
+    [onMutate]
+  );
+  const addPanel = useCallback(
+    () =>
+      onMutate((d) =>
+        d.panels.length >= MAX_STUDIO_PANELS
+          ? d
+          : { ...d, panels: [...d.panels, { scene: "", lines: [emptyLine()], image: null }] }
+      ),
+    [onMutate]
+  );
+  const setCastMember = useCallback(
+    (i: number, patch: Partial<StudioCastMember>) =>
+      onMutate((d) => ({ ...d, cast: d.cast.map((c, k) => (k === i ? { ...c, ...patch } : c)) })),
+    [onMutate]
+  );
 
   const drawPanel = useCallback(
     async (i: number, sketch?: string): Promise<{ ok: boolean; error?: string; needsLogin?: boolean }> => {
@@ -475,13 +530,9 @@ function EditDraft({
       const res = await fetch("/api/studio/panel-art", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ styleKey: draft.styleKey, art: panel.art, cast: draft.cast, sketch }),
+        body: JSON.stringify({ styleKey: draft.styleKey, scene: panel.scene, cast: draft.cast, sketch }),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        image?: string;
-        error?: string;
-        needsLogin?: boolean;
-      };
+      const data = (await res.json().catch(() => ({}))) as { image?: string; error?: string; needsLogin?: boolean };
       if (!res.ok || !data.image) return { ok: false, error: data.error ?? "failed", needsLogin: data.needsLogin };
       setPanel(i, { image: data.image });
       return { ok: true };
@@ -504,11 +555,14 @@ function EditDraft({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           title: draft.title,
-          words: draft.words,
+          logline: draft.logline,
+          genre: draft.genre,
+          tone: draft.tone,
+          setting: draft.setting,
+          language: draft.language,
           styleKey: draft.styleKey,
-          premise: draft.premise,
           cast: draft.cast,
-          panels: draft.panels.map((p) => ({ art: p.art, texts: p.texts })),
+          panels: draft.panels.map((p) => ({ scene: p.scene, lines: p.lines })),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { creation?: StudioCreationMeta; error?: string };
@@ -517,7 +571,6 @@ function EditDraft({
         return;
       }
       const id = data.creation.id;
-      // Upload the panel art we already generated (one request each).
       await Promise.all(
         draft.panels.map((p, i) =>
           p.image
@@ -553,39 +606,85 @@ function EditDraft({
       </div>
 
       <div className="mt-4">
-        <p className="av-eyebrow">Editing · {studioStyleLabel(draft.styleKey)}</p>
+        <p className="av-eyebrow">
+          Editing · {studioStyleLabel(draft.styleKey)}
+          {draft.genre ? ` · ${draft.genre}` : ""}
+        </p>
         <input
           value={draft.title.en}
           onChange={(e) => onMutate((d) => ({ ...d, title: { ...d.title, en: e.target.value } }))}
-          className="mt-2 w-full border-b-2 border-line bg-transparent pb-1 font-jpround text-[clamp(22px,3.5vw,32px)] font-black leading-tight outline-none focus:border-ink"
+          className="mt-2 w-full border-b-2 border-line bg-transparent pb-1 font-jpround text-[clamp(24px,4vw,36px)] font-black leading-tight outline-none focus:border-ink"
           aria-label="Manga title"
+          placeholder="Title"
         />
-        {draft.cast.length > 0 && (
-          <p className="mt-2 text-[12.5px] text-ink3">
-            Cast:{" "}
-            {draft.cast.map((c, i) => (
-              <span key={i}>
-                {i > 0 && " · "}
-                <b className="text-ink2">{c.name}</b>
-              </span>
-            ))}
-          </p>
-        )}
+        <input
+          value={draft.title.sub}
+          onChange={(e) => onMutate((d) => ({ ...d, title: { ...d.title, sub: e.target.value } }))}
+          className="mt-1.5 w-full border-b border-line bg-transparent pb-0.5 font-jpround text-[15px] font-bold text-ink2 outline-none focus:border-ink"
+          aria-label="Subtitle"
+          placeholder="Subtitle (optional)"
+        />
+        <input
+          value={draft.logline}
+          onChange={(e) => onMutate((d) => ({ ...d, logline: e.target.value }))}
+          className="mt-2 w-full border-b border-line bg-transparent pb-0.5 text-[13.5px] italic text-ink2 outline-none focus:border-ink"
+          aria-label="Logline"
+          placeholder="One-line logline"
+        />
       </div>
+
+      {draft.cast.length > 0 && (
+        <div className="av-card mt-5 p-4">
+          <h3 className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-ink3">Cast</h3>
+          <div className="mt-2 space-y-2">
+            {draft.cast.map((c, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-2">
+                <input
+                  value={c.name}
+                  onChange={(e) => setCastMember(i, { name: e.target.value })}
+                  placeholder="Name"
+                  className="w-32 border-2 border-line bg-field px-2.5 py-1.5 text-[13px] font-bold outline-none focus:border-ink"
+                />
+                <input
+                  value={c.look}
+                  onChange={(e) => setCastMember(i, { look: e.target.value })}
+                  placeholder="Look (kept consistent across panels)"
+                  className="min-w-[14rem] flex-1 border-2 border-line bg-field px-2.5 py-1.5 text-[12.5px] outline-none focus:border-ink"
+                />
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-ink3">
+            Editing a look changes how that character is drawn on the next redraw.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6 space-y-6">
         {draft.panels.map((panel, i) => (
           <PanelCard
             key={i}
             index={i}
+            total={draft.panels.length}
             panel={panel}
-            words={draft.words.map((w) => w.base)}
-            onArtChange={(art) => setPanel(i, { art })}
-            onLineChange={(j, patch) => setPanel(i, { texts: updateLine(panel.texts, j, patch) })}
+            onSceneChange={(scene) => setPanel(i, { scene })}
+            onLinesChange={(lines) => setPanel(i, { lines })}
+            onMove={(dir) => movePanel(i, dir)}
+            onDelete={() => deletePanel(i)}
             onDraw={(sketch) => drawPanel(i, sketch)}
           />
         ))}
       </div>
+
+      {draft.panels.length < MAX_STUDIO_PANELS && (
+        <button
+          type="button"
+          onClick={addPanel}
+          className="av-btn av-btn-ghost mt-5 w-full justify-center border-dashed"
+        >
+          + Add panel
+        </button>
+      )}
 
       <div className="av-card mt-8 p-5 sm:p-6">
         {missing > 0 && (
@@ -595,11 +694,7 @@ function EditDraft({
         )}
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button type="button" onClick={() => void save()} disabled={saving} className="av-btn av-btn-primary">
-            {saving
-              ? "Saving…"
-              : auth === "in"
-                ? `Save my manga · +${XP_PER_CREATION} XP`
-                : "Log in to save & publish"}
+            {saving ? "Saving…" : auth === "in" ? "Save my manga" : "Log in to save & publish"}
           </button>
           {auth !== "in" && (
             <span className="text-[12.5px] text-ink3">Your manga is kept in this browser until you sign in.</span>
@@ -622,17 +717,21 @@ function EditDraft({
 
 function PanelCard({
   index,
+  total,
   panel,
-  words,
-  onArtChange,
-  onLineChange,
+  onSceneChange,
+  onLinesChange,
+  onMove,
+  onDelete,
   onDraw,
 }: {
   index: number;
+  total: number;
   panel: DraftPanel;
-  words: string[];
-  onArtChange: (art: string) => void;
-  onLineChange: (j: number, patch: Partial<StudioText>) => void;
+  onSceneChange: (scene: string) => void;
+  onLinesChange: (lines: MangaLine[]) => void;
+  onMove: (dir: -1 | 1) => void;
+  onDelete: () => void;
   onDraw: (sketch?: string) => Promise<{ ok: boolean; error?: string; needsLogin?: boolean }>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -664,10 +763,14 @@ function PanelCard({
     void run(dataUrl);
   };
 
+  const setLine = (j: number, patch: Partial<MangaLine>) => onLinesChange(updateLine(panel.lines, j, patch));
+  const addLine = () =>
+    panel.lines.length < MAX_LINES_PER_PANEL && onLinesChange([...panel.lines, emptyLine()]);
+  const removeLine = (j: number) => onLinesChange(panel.lines.filter((_, k) => k !== j));
+
   return (
     <div className="av-card overflow-hidden p-0">
       <div className="grid gap-0 sm:grid-cols-[minmax(0,240px)_1fr]">
-        {/* Art */}
         <div className="border-b-2 border-line sm:border-b-0 sm:border-r-2">
           {panel.image ? (
             // eslint-disable-next-line @next/next/no-img-element -- generated data URL
@@ -679,50 +782,105 @@ function PanelCard({
           )}
         </div>
 
-        {/* Text + controls */}
         <div className="p-4 sm:p-5">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-ink3">Panel {index + 1}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-ink3">Panel {index + 1}</p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Move up"
+                disabled={index === 0}
+                onClick={() => onMove(-1)}
+                className="grid h-6 w-6 place-items-center rounded border-2 border-line text-[12px] text-ink2 disabled:opacity-30 hover:text-ink"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label="Move down"
+                disabled={index === total - 1}
+                onClick={() => onMove(1)}
+                className="grid h-6 w-6 place-items-center rounded border-2 border-line text-[12px] text-ink2 disabled:opacity-30 hover:text-ink"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                aria-label="Delete panel"
+                disabled={total <= 1}
+                onClick={onDelete}
+                className="grid h-6 w-6 place-items-center rounded border-2 border-line text-[12px] text-ink3 disabled:opacity-30 hover:text-danger"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
 
           <label className="mt-2 block text-[11px] font-bold text-ink3">
             Scene (what to draw)
             <textarea
-              value={panel.art}
-              onChange={(e) => onArtChange(e.target.value)}
+              value={panel.scene}
+              onChange={(e) => onSceneChange(e.target.value)}
               rows={2}
               className="mt-1 w-full resize-y border-2 border-line bg-field px-2.5 py-1.5 text-[12.5px] leading-snug text-ink outline-none focus:border-ink"
             />
           </label>
 
           <div className="mt-3 space-y-2.5">
-            {panel.texts.map((t, j) => (
-              <div key={j} className="rounded-md border-2 border-line p-2.5">
-                <input
-                  value={t.speaker}
-                  onChange={(e) => onLineChange(j, { speaker: e.target.value })}
-                  placeholder="Speaker"
-                  className="mb-1.5 w-28 border-b border-line bg-transparent pb-0.5 text-[11px] font-black text-accent outline-none focus:border-ink"
-                />
-                <input
-                  value={t.ja}
-                  onChange={(e) => onLineChange(j, { ja: e.target.value })}
-                  placeholder="日本語"
-                  lang="ja"
-                  className="w-full border-b border-line bg-transparent pb-0.5 font-jp text-[14px] outline-none focus:border-ink"
-                />
-                <input
-                  value={t.romaji}
-                  onChange={(e) => onLineChange(j, { romaji: e.target.value })}
-                  placeholder="romaji"
-                  className="mt-1 w-full border-b border-line bg-transparent pb-0.5 text-[12px] text-ink2 outline-none focus:border-ink"
-                />
-                <input
-                  value={t.en}
-                  onChange={(e) => onLineChange(j, { en: e.target.value })}
-                  placeholder="English"
-                  className="mt-1 w-full border-b border-line bg-transparent pb-0.5 text-[12.5px] text-ink2 outline-none focus:border-ink"
-                />
-              </div>
-            ))}
+            {panel.lines.map((line, j) => {
+              const meta = LINE_META[line.kind];
+              return (
+                <div key={j} className="rounded-md border-2 border-line p-2.5">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                    {LINE_KINDS.map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        aria-pressed={line.kind === k}
+                        onClick={() => setLine(j, { kind: k, speaker: LINE_META[k].hasSpeaker ? line.speaker : "" })}
+                        className={
+                          "rounded-full border px-2 py-0.5 text-[10.5px] font-extrabold transition " +
+                          (line.kind === k ? "border-ink bg-ink text-bg" : "border-line text-ink3 hover:text-ink")
+                        }
+                      >
+                        {LINE_META[k].label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      aria-label="Remove line"
+                      onClick={() => removeLine(j)}
+                      className="ml-auto text-[12px] text-ink3 hover:text-danger"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {meta.hasSpeaker && (
+                    <input
+                      value={line.speaker}
+                      onChange={(e) => setLine(j, { speaker: e.target.value })}
+                      placeholder="Speaker"
+                      className="mb-1.5 w-32 border-b border-line bg-transparent pb-0.5 text-[11px] font-black text-accent outline-none focus:border-ink"
+                    />
+                  )}
+                  <input
+                    value={line.text}
+                    onChange={(e) => setLine(j, { text: e.target.value })}
+                    placeholder={line.kind === "sfx" ? "BOOM" : line.kind === "narration" ? "Caption…" : "Line…"}
+                    className="w-full border-b border-line bg-transparent pb-0.5 text-[13.5px] outline-none focus:border-ink"
+                  />
+                </div>
+              );
+            })}
+            {panel.lines.length < MAX_LINES_PER_PANEL && (
+              <button
+                type="button"
+                onClick={addLine}
+                className="text-[12px] font-extrabold text-ink3 hover:text-ink"
+              >
+                + Add line
+              </button>
+            )}
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -746,12 +904,7 @@ function PanelCard({
                 Rough it out — stick figures are fine. The AI redraws it in your style.
               </p>
               <SketchCanvas ref={sketchRef} />
-              <button
-                type="button"
-                onClick={beautify}
-                disabled={busy}
-                className="av-btn av-btn-primary mt-3"
-              >
+              <button type="button" onClick={beautify} disabled={busy} className="av-btn av-btn-primary mt-3">
                 {busy ? "Beautifying…" : "✨ Beautify my sketch"}
               </button>
             </div>
@@ -767,18 +920,13 @@ function PanelCard({
               )}
             </div>
           )}
-          {words.length > 0 && (
-            <p className="mt-2 text-[11px] text-ink3">
-              Keep your words in the dialogue: <span className="font-jp text-accent">{words.join("、")}</span>
-            </p>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Step 3: Saved manga (read, word check, share) ──────────────────────────
+// ── Step 3: Saved manga (read + share) ─────────────────────────────────────
 
 function SavedManga({
   meta,
@@ -795,6 +943,10 @@ function SavedManga({
 }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const panelImageUrls = useMemo(
+    () => meta.panels.map((_, i) => `/api/studio/${meta.id}/panel/${i}`),
+    [meta.id, meta.panels]
+  );
 
   const toggleShare = async () => {
     setBusy(true);
@@ -848,122 +1000,31 @@ function SavedManga({
         <StudioReaderView
           meta={meta}
           imageUrl={`/api/studio/${meta.id}/image`}
-          panelImageUrls={meta.panels.map((_, i) => `/api/studio/${meta.id}/panel/${i}`)}
+          panelImageUrls={panelImageUrls}
           footer={
-            <>
-              <WordCheck meta={meta} />
-              {canManage && (
-                <>
-                  <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
-                    <button type="button" onClick={() => void toggleShare()} disabled={busy} className="av-btn av-btn-ghost">
-                      {meta.isPublic ? "Make private" : "Publish to gallery"}
-                    </button>
-                    {meta.isPublic && (
-                      <button type="button" onClick={() => void copyLink()} className="av-btn av-btn-quiet">
-                        {copied ? "Copied ✓" : "Copy public link"}
-                      </button>
-                    )}
-                    <button type="button" onClick={() => void remove()} disabled={busy} className="av-btn av-btn-quiet">
-                      Delete
-                    </button>
-                  </div>
+            canManage ? (
+              <>
+                <div className="flex flex-wrap items-center gap-3 border-t border-line pt-5">
+                  <button type="button" onClick={() => void toggleShare()} disabled={busy} className="av-btn av-btn-ghost">
+                    {meta.isPublic ? "Make private" : "Publish to gallery"}
+                  </button>
                   {meta.isPublic && (
-                    <p className="mt-2 break-all text-[12px] text-ink3">
-                      Public — in the gallery and at /m/{meta.id}
-                    </p>
+                    <button type="button" onClick={() => void copyLink()} className="av-btn av-btn-quiet">
+                      {copied ? "Copied ✓" : "Copy public link"}
+                    </button>
                   )}
-                </>
-              )}
-            </>
+                  <button type="button" onClick={() => void remove()} disabled={busy} className="av-btn av-btn-quiet">
+                    Delete
+                  </button>
+                </div>
+                {meta.isPublic && (
+                  <p className="mt-2 break-all text-[12px] text-ink3">Public — in the gallery and at /m/{meta.id}</p>
+                )}
+              </>
+            ) : null
           }
         />
       </div>
     </section>
-  );
-}
-
-// ── Word check ──────────────────────────────────────────────────────────
-
-function shuffled<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function WordCheck({ meta }: { meta: StudioCreationMeta }) {
-  const progress = useStudioProgress();
-  const passed = hasPassedWordCheck(progress, meta.id);
-  const [picks, setPicks] = useState<Record<string, string>>({});
-
-  const options = useMemo(() => {
-    const decoyPool = [...meta.words.map((w) => w.gloss), ...STARTER_WORDS.map((w) => w.gloss)];
-    const map: Record<string, string[]> = {};
-    for (const w of meta.words) {
-      const decoys = shuffled(decoyPool.filter((g) => g !== w.gloss)).slice(0, 2);
-      map[w.base] = shuffled([w.gloss, ...decoys]);
-    }
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one quiz layout per creation
-  }, [meta.id]);
-
-  const allCorrect = meta.words.every((w) => picks[w.base] === w.gloss);
-  const allPicked = meta.words.every((w) => picks[w.base] !== undefined);
-
-  useEffect(() => {
-    if (allPicked && allCorrect && !passed) markWordCheckPassed(meta.id);
-  }, [allPicked, allCorrect, passed, meta.id]);
-
-  if (passed) {
-    return (
-      <p className="text-[13px] font-extrabold text-accent">
-        ✓ Word check passed · +{XP_PER_WORD_CHECK} XP earned
-      </p>
-    );
-  }
-
-  return (
-    <div>
-      <h2 className="av-eyebrow">Word check · 確認 — +{XP_PER_WORD_CHECK} XP</h2>
-      <div className="mt-3 space-y-4">
-        {meta.words.map((w) => {
-          const pick = picks[w.base];
-          return (
-            <div key={w.base}>
-              <p className="font-jp text-[16px] font-black">
-                {w.base}
-                {w.reading && <span className="ml-2 text-[13px] font-bold text-ink2">{w.reading}</span>}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {options[w.base]?.map((opt) => {
-                  const chosen = pick === opt;
-                  const wrong = chosen && opt !== w.gloss;
-                  const right = chosen && opt === w.gloss;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setPicks((cur) => ({ ...cur, [w.base]: opt }))}
-                      className={
-                        "rounded-full border-2 px-3 py-1.5 text-[12.5px] font-bold transition " +
-                        (right
-                          ? "border-ok text-ok"
-                          : wrong
-                            ? "border-danger text-danger"
-                            : "border-line text-ink2 hover:text-ink")
-                      }
-                    >
-                      {opt}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }

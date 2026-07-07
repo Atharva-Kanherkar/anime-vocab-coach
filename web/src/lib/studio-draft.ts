@@ -1,17 +1,12 @@
 "use client";
 
 // Client-side working copy of a manga while it's being edited, plus persistence
-// so an anonymous learner's in-progress manga survives the trip through login.
-// Images are data URLs; we try to persist them but fall back to text-only if
-// the browser's localStorage quota can't hold the PNGs (the story + edits are
-// what matter most across the login hop — art can be redrawn).
+// so an anonymous creator's in-progress chapter survives the trip through login.
+// Images are data URLs; we try to persist them but fall back to text-only if the
+// browser's localStorage quota can't hold the PNGs (the script + edits matter
+// most across the login hop — art can be redrawn).
 
-import type {
-  StudioCastMember,
-  StudioPanelScript,
-  StudioText,
-  StudioWord,
-} from "@/lib/studio";
+import type { MangaLine, StudioCastMember, StudioPanelScript } from "@/lib/studio";
 import type { StyleKey } from "@/lib/cards";
 
 export interface DraftPanel extends StudioPanelScript {
@@ -20,31 +15,40 @@ export interface DraftPanel extends StudioPanelScript {
 }
 
 export interface StudioDraft {
-  title: { en: string; ja: string; romaji: string };
-  words: StudioWord[];
+  title: { en: string; sub: string };
+  logline: string;
+  genre: string;
+  tone: string;
+  setting: string;
+  language: string;
   styleKey: StyleKey;
-  premise: string;
   cast: StudioCastMember[];
   panels: DraftPanel[];
 }
 
-export const DRAFT_KEY = "animevocab.studioDraft.v1";
+export const DRAFT_KEY = "animevocab.studioDraft.v2";
 
 export function newDraftFromScript(args: {
-  words: StudioWord[];
+  genre: string;
+  tone: string;
+  setting: string;
+  language: string;
   styleKey: StyleKey;
-  premise: string;
-  title: { en: string; ja: string; romaji: string };
+  title: { en: string; sub: string };
+  logline: string;
   cast: StudioCastMember[];
   panels: StudioPanelScript[];
 }): StudioDraft {
   return {
     title: args.title,
-    words: args.words,
+    logline: args.logline,
+    genre: args.genre,
+    tone: args.tone,
+    setting: args.setting,
+    language: args.language,
     styleKey: args.styleKey,
-    premise: args.premise,
     cast: args.cast,
-    panels: args.panels.map((p) => ({ art: p.art, texts: p.texts, image: null })),
+    panels: args.panels.map((p) => ({ scene: p.scene, lines: p.lines, image: null })),
   };
 }
 
@@ -66,12 +70,9 @@ export function saveDraft(draft: StudioDraft): void {
   try {
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   } catch {
-    // Quota exceeded (big PNGs) — keep the story + edits, drop the art.
+    // Quota exceeded (big PNGs) — keep the script + edits, drop the art.
     try {
-      const lite: StudioDraft = {
-        ...draft,
-        panels: draft.panels.map((p) => ({ ...p, image: null })),
-      };
+      const lite: StudioDraft = { ...draft, panels: draft.panels.map((p) => ({ ...p, image: null })) };
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify(lite));
     } catch {
       // Give up silently; the in-memory draft still works this session.
@@ -93,10 +94,6 @@ export function panelsMissingArt(draft: StudioDraft): number {
   return draft.panels.filter((p) => !p.image).length;
 }
 
-export function updateLine(
-  texts: StudioText[],
-  j: number,
-  patch: Partial<StudioText>
-): StudioText[] {
-  return texts.map((t, k) => (k === j ? { ...t, ...patch } : t));
+export function updateLine(lines: MangaLine[], j: number, patch: Partial<MangaLine>): MangaLine[] {
+  return lines.map((l, k) => (k === j ? { ...l, ...patch } : l));
 }

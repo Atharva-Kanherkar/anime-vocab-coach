@@ -51,18 +51,18 @@ export async function generatePanelImage(
     model: string;
     quality: string;
     styleKey: import("./cards").StyleKey;
-    art: string;
+    scene: string;
     cast: StudioCastMember[];
     sketchB64?: string;
   }
 ): Promise<string> {
-  const { model, quality, styleKey, art, cast, sketchB64 } = opts;
+  const { model, quality, styleKey, scene, cast, sketchB64 } = opts;
 
   if (sketchB64) {
     // images/edits: the sketch defines composition; the model renders it in style.
     const form = new FormData();
     form.append("model", model);
-    form.append("prompt", buildSketchPrompt(styleKey, art, cast));
+    form.append("prompt", buildSketchPrompt(styleKey, scene, cast));
     form.append("size", STUDIO_PANEL_SIZE);
     form.append("quality", quality);
     form.append("n", "1");
@@ -88,7 +88,7 @@ export async function generatePanelImage(
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
-      prompt: buildPanelPrompt(styleKey, art, cast),
+      prompt: buildPanelPrompt(styleKey, scene, cast),
       size: STUDIO_PANEL_SIZE,
       quality,
       n: 1,

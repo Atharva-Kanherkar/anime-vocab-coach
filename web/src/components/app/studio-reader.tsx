@@ -1,50 +1,46 @@
 "use client";
 
-// Reader for a Manga Studio creation — used inside the app panel AND on the
-// public /m/<id> share page. One generated page image, then per-panel
-// dialogue in the saga reader's translation-box style with an EN/JA/romaji
-// toggle. The learner's target words are highlighted in the Japanese lines,
-// which is the point: you wrote the manga to practice exactly these words.
+// Immersive reader for a Manga Studio creation — used inside the editor's saved
+// view AND on the public /m/<id> share page. A chapter cover (title, subtitle,
+// genre · tone, logline, cast) followed by the panels in sequence: each panel's
+// art with its dialogue rendered as manga elements — speech bubbles, thought
+// bubbles, narration caption boxes, and SFX.
 
-import { Fragment, useState } from "react";
-import { STORY_LANGS, type StoryLang } from "@/lib/manga";
-import { studioStyleLabel, type StudioCreationMeta, type StudioText } from "@/lib/studio";
+import { studioStyleLabel, type MangaLine, type StudioCreationMeta } from "@/lib/studio";
 
-/** Wrap occurrences of the target words in the accent style. */
-function HighlightJa({ text, words }: { text: string; words: string[] }) {
-  const needles = words.filter(Boolean);
-  if (needles.length === 0) return <>{text}</>;
-  // Split on any target word, longest first so 大丈夫 wins over 丈夫.
-  const pattern = needles
-    .slice()
-    .sort((a, b) => b.length - a.length)
-    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("|");
-  const parts = text.split(new RegExp(`(${pattern})`, "g"));
+function Line({ line }: { line: MangaLine }) {
+  if (line.kind === "narration") {
+    return (
+      <p className="border-l-4 border-ink bg-panel px-3 py-2 text-[13.5px] font-medium italic leading-relaxed text-ink2">
+        {line.text}
+      </p>
+    );
+  }
+  if (line.kind === "sfx") {
+    return (
+      <p className="select-none text-center font-jpround text-[22px] font-black uppercase italic tracking-wide text-accent">
+        {line.text}
+      </p>
+    );
+  }
+  // speech / thought
+  const thought = line.kind === "thought";
   return (
-    <>
-      {parts.map((part, i) =>
-        needles.includes(part) ? (
-          <mark key={i} className="bg-transparent font-black text-accent underline decoration-2 underline-offset-4">
-            {part}
-          </mark>
-        ) : (
-          <Fragment key={i}>{part}</Fragment>
-        )
+    <div
+      className={
+        "relative w-fit max-w-[92%] rounded-2xl border-2 bg-bg px-3.5 py-2 " +
+        (thought ? "border-dashed border-line" : "border-ink")
+      }
+    >
+      {line.speaker && (
+        <span className="mb-0.5 block text-[11px] font-black uppercase tracking-wide text-accent">
+          {line.speaker}
+        </span>
       )}
-    </>
-  );
-}
-
-function DialogueLine({ t, lang, words }: { t: StudioText; lang: StoryLang; words: string[] }) {
-  const value = lang === "ja" ? t.ja : lang === "romaji" ? t.romaji || t.ja : t.en || t.ja;
-  return (
-    <p lang={lang === "ja" ? "ja" : undefined} className={"text-[14.5px] leading-relaxed " + (lang === "ja" ? "font-jp" : "")}>
-      {t.speaker && (
-        <span className="mr-1.5 font-jpround text-[12px] font-black text-accent">{t.speaker}：</span>
-      )}
-      {lang === "ja" ? <HighlightJa text={value} words={words} /> : value}
-    </p>
+      <p className={"text-[14px] leading-snug " + (thought ? "italic text-ink2" : "font-medium")}>
+        {line.text}
+      </p>
+    </div>
   );
 }
 
@@ -60,62 +56,50 @@ export function StudioReaderView({
   /** Per-panel image sources (URL or data URL), one per panel. Used when
    * meta.layout === "panels". Must be serializable (passed from server pages). */
   panelImageUrls?: (string | null | undefined)[];
-  /** Extra UI under the dialogue (share controls, word check, CTA…). */
+  /** Extra UI under the chapter (share controls, CTA…). */
   footer?: React.ReactNode;
 }) {
-  const [lang, setLang] = useState<StoryLang>("en");
-  const wordBases = meta.words.map((w) => w.base);
   const perPanel = meta.layout === "panels";
+  const tags = [meta.genre, meta.tone].filter(Boolean);
 
   return (
     <article>
-      <header>
+      <header className="mx-auto w-full max-w-[600px] text-center">
         <p className="av-eyebrow">Manga Studio · 創作 — {studioStyleLabel(meta.styleKey)}</p>
-        <h1 className="mt-2 font-jpround text-[clamp(22px,3.5vw,34px)] font-black leading-tight">
-          {lang === "ja" ? meta.title.ja || meta.title.en : meta.title.en}
+        <h1 className="mt-2 font-jpround text-[clamp(26px,5vw,44px)] font-black leading-[1.05]">
+          {meta.title.en}
         </h1>
-        {(meta.title.ja || meta.title.romaji) && lang !== "ja" && (
-          <p className="mt-1 font-jp text-[15px] font-bold text-ink2">
-            {meta.title.ja}
-            {meta.title.romaji ? ` · ${meta.title.romaji}` : ""}
+        {meta.title.sub && (
+          <p className="mt-1.5 font-jpround text-[15px] font-bold text-ink2">{meta.title.sub}</p>
+        )}
+        {tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {tags.map((t) => (
+              <span
+                key={t}
+                className="rounded-full border-2 border-line px-3 py-1 text-[11.5px] font-extrabold uppercase tracking-wide text-ink2"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+        {meta.logline && (
+          <p className="mx-auto mt-4 max-w-[52ch] text-[14.5px] italic leading-relaxed text-ink2">
+            {meta.logline}
+          </p>
+        )}
+        {meta.cast.length > 0 && (
+          <p className="mt-3 text-[12px] text-ink3">
+            {meta.cast.map((c, i) => (
+              <span key={i}>
+                {i > 0 && " · "}
+                <b className="text-ink2">{c.name || "?"}</b>
+              </span>
+            ))}
           </p>
         )}
       </header>
-
-      {/* The words this manga was written to teach. */}
-      <ul className="mt-4 flex list-none flex-wrap gap-2 pl-0">
-        {meta.words.map((w) => (
-          <li
-            key={w.base}
-            className="rounded-full border-2 border-line px-3 py-1 text-[12px] font-bold text-ink2"
-          >
-            <span className="font-jp font-black text-accent">{w.base}</span>
-            {w.reading && <span className="ml-1.5 font-jp">{w.reading}</span>}
-            <span className="ml-1.5">· {w.gloss}</span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Reading language">
-        {STORY_LANGS.map(({ id, label }) => {
-          const active = lang === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setLang(id)}
-              className={
-                "rounded-full border-2 px-4 py-1.5 text-[12px] font-extrabold transition " +
-                (active ? "border-ink bg-ink text-bg" : "border-line text-ink2 hover:text-ink")
-              }
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
 
       {!perPanel && imageUrl && (
         <figure className="mx-auto mt-6 w-full max-w-[560px] overflow-hidden border-2 border-ink bg-panel">
@@ -124,36 +108,40 @@ export function StudioReaderView({
         </figure>
       )}
 
-      <section className="mx-auto mt-6 w-full max-w-[560px] space-y-4">
+      <section className="mx-auto mt-8 w-full max-w-[560px] space-y-8">
         {meta.panels.map((panel, i) => {
           const src = perPanel ? panelImageUrls?.[i] : null;
           return (
-            <div key={i} className="overflow-hidden border-2 border-ink bg-bg">
+            <div key={i} className="relative">
+              <span className="absolute -left-3 -top-3 z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-ink bg-bg text-[12px] font-black">
+                {i + 1}
+              </span>
               {perPanel &&
                 (src ? (
                   // eslint-disable-next-line @next/next/no-img-element -- runtime-generated / data URL
-                  <img src={src} alt={`Panel ${i + 1}`} className="block aspect-square w-full object-cover" />
+                  <img
+                    src={src}
+                    alt={`Panel ${i + 1}`}
+                    className="block aspect-square w-full border-2 border-ink object-cover"
+                  />
                 ) : (
-                  <div className="grid aspect-square w-full place-items-center bg-panel text-[12px] font-bold text-ink3">
+                  <div className="grid aspect-square w-full place-items-center border-2 border-dashed border-line bg-panel text-[12px] font-bold text-ink3">
                     Panel {i + 1} — art not drawn yet
                   </div>
                 ))}
-              <div className="px-4 py-3 sm:px-5">
-                <p className="mb-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-ink3">
-                  Panel {i + 1}
-                </p>
-                <div className="space-y-1.5">
-                  {panel.texts.map((t, j) => (
-                    <DialogueLine key={j} t={t} lang={lang} words={wordBases} />
+              {panel.lines.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {panel.lines.map((line, j) => (
+                    <Line key={j} line={line} />
                   ))}
                 </div>
-              </div>
+              )}
             </div>
           );
         })}
       </section>
 
-      {footer && <div className="mx-auto mt-8 w-full max-w-[560px]">{footer}</div>}
+      {footer && <div className="mx-auto mt-10 w-full max-w-[560px]">{footer}</div>}
     </article>
   );
 }

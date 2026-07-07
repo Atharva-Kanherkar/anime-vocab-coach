@@ -48,6 +48,7 @@ export async function POST(req: Request) {
     const script = await generateScript(apiKey, scriptModel, normalized.req);
     return NextResponse.json({
       title: script.title,
+      logline: script.logline,
       cast: script.cast,
       panels: script.panels,
     });

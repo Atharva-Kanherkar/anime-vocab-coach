@@ -9,9 +9,9 @@ import { SITE_URL } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Manga Gallery — learner-made manga",
+  title: "Manga Gallery — manga made in the Studio",
   description:
-    "Read manga written by learners to practice Japanese vocabulary. Every one was drafted, drawn, and published in AnimeVocab's Manga Studio — free to read, no account needed.",
+    "Read original manga created by people in AnimeVocab's Manga Studio — storyboarded, drawn, and published with AI. Free to read, no account needed.",
   alternates: { canonical: `${SITE_URL}/gallery` },
 };
 
@@ -27,11 +27,11 @@ export default async function GalleryPage() {
       <header>
         <p className="av-eyebrow">Manga Gallery · 本棚</p>
         <h1 className="mt-2 font-jpround text-[clamp(26px,4vw,40px)] font-black leading-tight">
-          Manga made by learners
+          Manga made in the Studio
         </h1>
         <p className="mt-3 max-w-[62ch] text-[14.5px] leading-relaxed text-ink2">
-          Every manga here was written by someone learning Japanese — the words they practiced are
-          woven into the dialogue. Free to read, always.{" "}
+          Original chapters storyboarded, drawn, and published by people using AI. Free to read,
+          always.{" "}
           <Link href="/studio" className="font-extrabold text-accent underline">
             Make your own →
           </Link>
@@ -64,7 +64,8 @@ export default async function GalleryPage() {
                 <div className="p-3">
                   <p className="truncate font-jpround text-[14px] font-black leading-tight">{e.title.en}</p>
                   <p className="mt-1 truncate text-[11.5px] text-ink3">
-                    {studioStyleLabel(e.styleKey)} · {e.words.join("、")}
+                    {studioStyleLabel(e.styleKey)}
+                    {e.genre ? ` · ${e.genre}` : ""}
                   </p>
                   <p className="mt-0.5 truncate text-[11px] text-ink3">by {e.authorName}</p>
                 </div>

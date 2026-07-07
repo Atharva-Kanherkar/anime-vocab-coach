@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       model: imageModel,
       quality: imageQuality,
       styleKey: normalized.req.styleKey,
-      art: normalized.req.art,
+      scene: normalized.req.scene,
       cast: normalized.req.cast,
       sketchB64: normalized.req.sketchB64 || undefined,
     });

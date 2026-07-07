@@ -121,15 +121,14 @@ Weekly review checklist:
 
 ## Manga Studio (launched free, capped)
 
-Users pick up to 3 words they're learning and write their story; the studio
-drafts a 6-panel script (every target word must appear in the Japanese
-dialogue), then draws **one image per panel** so each can be edited or redrawn
-independently. A learner can also hand-draw a rough sketch that the image model
-redraws into the chosen style (`images/edits`) — "bad drawers become good manga
-makers." Reading it back trilingually + a word recall check is the learning
-loop; creations/reads/checks grant XP on the chapter/card ladder. The public
-front door (`/studio`) needs no account to try; the gallery (`/gallery`) is
-free to read forever.
+A **creative** manga maker (not a learning tool). Users give a concept (genre,
+tone, setting, premise) and the studio drafts a whole chapter: a titled sequence
+of panels with a recurring cast and manga dialogue (speech / thought / narration
+/ SFX, in any language). It draws **one image per panel** so each can be edited
+or redrawn independently, and a creator can hand-draw a rough sketch the image
+model redraws into the chosen style (`images/edits`) — "bad drawers become good
+manga makers." The public front door (`/studio`) needs no account to try; the
+gallery (`/gallery`) of published manga is free to read forever.
 
 Per-panel art is the real cost driver, so metering moved from "saved count" to
 **art calls**:
