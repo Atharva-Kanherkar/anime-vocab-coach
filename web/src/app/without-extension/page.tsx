@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
 export default function WithoutExtensionPage() {
   return (
     <>
+      <LandingJsonLd path="/without-extension" title={TITLE} description={DESC} />
       <SiteHeader compact />
       <main id="main">
         <section className="legal wrap narrow" style={{ paddingTop: 48 }}>

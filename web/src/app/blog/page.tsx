@@ -81,6 +81,11 @@ export default function BlogIndexPage() {
               <h2>Tool comparisons & guides</h2>
               <ul>
                 <li>
+                  <Link href="/blog/asbplayer-alternative-beginners-anime-japanese">
+                    asbplayer vs beginner tools
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/best-chrome-extensions-learn-japanese-anime-2026">
                     Best Chrome extensions for anime Japanese (2026)
                   </Link>

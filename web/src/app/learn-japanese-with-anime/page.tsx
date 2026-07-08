@@ -154,6 +154,38 @@ export default function LearnJapaneseWithAnimePage() {
                     </td>
                   </tr>
                   <tr>
+                    <th scope="row">Lexirise</th>
+                    <td>Chrome ext</td>
+                    <td>Free · Pro tier</td>
+                    <td>
+                      <span className="no">No</span>
+                      <span className="cell-note">needs on-screen JP text</span>
+                    </td>
+                    <td>
+                      <span className="no">No</span>
+                    </td>
+                    <td>Pro SRS</td>
+                    <td>
+                      <span className="no">No</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">ManabiDojo</th>
+                    <td>Chrome ext</td>
+                    <td>Free core · premium</td>
+                    <td>
+                      <span className="no">Partial</span>
+                      <span className="cell-note">fan JP subs overlay</span>
+                    </td>
+                    <td>
+                      <span className="no">No</span>
+                    </td>
+                    <td>Premium flashcards</td>
+                    <td>
+                      <span className="no">No</span>
+                    </td>
+                  </tr>
+                  <tr>
                     <th scope="row">asbplayer</th>
                     <td>Chrome ext + web</td>
                     <td>
