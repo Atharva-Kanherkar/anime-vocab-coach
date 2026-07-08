@@ -81,6 +81,9 @@ export default function BlogIndexPage() {
               <h2>Tool comparisons & guides</h2>
               <ul>
                 <li>
+                  <Link href="/vs-yumego">AnimeVocab vs YumeGo</Link>
+                </li>
+                <li>
                   <Link href="/vs-lingoku">AnimeVocab vs Lingoku</Link>
                 </li>
                 <li>

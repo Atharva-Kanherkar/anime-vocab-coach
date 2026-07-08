@@ -395,6 +395,7 @@ export default function LearnJapaneseWithAnimePage() {
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
           { href: "/vs-animelon", label: "vs Animelon" },
           { href: "/vs-lingoku", label: "vs Lingoku" },
+          { href: "/vs-yumego", label: "vs YumeGo" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },

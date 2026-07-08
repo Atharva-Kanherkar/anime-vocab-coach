@@ -2,6 +2,58 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "yumego-alternative-anime-japanese-2026",
+    title: "YumeGo Alternative (2026): Netflix Grammar Reader vs Crunchyroll Romaji",
+    description:
+      "YumeGo adds AI grammar and dual subtitles on Netflix and Disney+. When to use it vs AnimeVocab for Crunchyroll, romaji beginners, and Listening Mode.",
+    publishedAt: "2026-07-08T22:00:00.000Z",
+    updatedAt: "2026-07-08T22:00:00.000Z",
+    keywords: [
+      "YumeGo alternative",
+      "YumeGo Japanese Netflix",
+      "learn japanese disney plus extension",
+      "dual subtitles netflix japanese",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/05-private.jpg",
+    canonicalPath: "/vs-yumego",
+    blocks: [
+      {
+        type: "p",
+        text: "**YumeGo** targets Netflix and Disney+ with hover grammar breakdowns, JLPT-tagged saves, phrase libraries, and dual subtitles — strong if you already read Japanese on screen. Free users get a **daily active translation cap** (~20 minutes). If you searched **YumeGo alternative** because you watch **Crunchyroll** or cannot read kana yet, the comparison shifts fast. Side-by-side: [AnimeVocab vs YumeGo](/vs-yumego).",
+      },
+      { type: "h2", text: "YumeGo strengths" },
+      {
+        type: "ul",
+        items: [
+          "**Grammar popups** — particles and conjugation explained in context (DeepSeek-backed).",
+          "**Phrase library** — save lines with JLPT level and review queue.",
+          "**Dual subs** — Japanese + your language with optional blur-for-test mode.",
+          "**Netflix + Disney+** — polished overlay without leaving the player.",
+        ],
+      },
+      { type: "h2", text: "Gaps YumeGo does not cover" },
+      {
+        type: "ul",
+        items: [
+          "**No Crunchyroll** — simulcast learners need a different extension.",
+          "**Assumes script literacy** — romaji-first month-zero is out of scope.",
+          "**No audio transcription** when JP subtitle text is missing.",
+          "**Daily free cap** on active translation vs unlimited card capture elsewhere.",
+        ],
+      },
+      { type: "h2", text: "Pick AnimeVocab instead when…" },
+      {
+        type: "p",
+        text: "You watch **Crunchyroll** without Japanese subtitles, want **romaji-first cards**, or need **Listening Mode** on tab audio. Netflix readers can still pair HASHIGO + Yomitan ([reader stack](/blog/hashigo-yomitan-netflix-japanese-anime-2026)) or try **Lingoku** ([vs Lingoku](/vs-lingoku)) for AI dual subs.",
+      },
+      {
+        type: "p",
+        text: "Netflix hub: [learn Japanese on Netflix anime](/learn-japanese-netflix-anime). Extension ranking: [best Chrome extensions (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "lingoku-alternative-anime-japanese-2026",
     title: "Lingoku vs AnimeVocab: AI Dual Subs vs Romaji-First Anime Cards (2026)",
     description:
@@ -254,6 +306,7 @@ export const blogPosts: BlogPost[] = [
           "**Netflix + YouTube dual subtitles** → Language Reactor (free tier) or **Lingoku** (AI + BYOK)",
           "**Power-user Anki mining** → Migaku (subscription)",
           "**AI bilingual subs + mobile app** → Trancy ([comparison](/vs-trancy))",
+          "**Netflix grammar reader** → YumeGo ([vs AnimeVocab](/vs-yumego))",
           "**AI web blending + dual subs** → [Lingoku](/blog/lingoku-alternative-anime-japanese-2026) (no account)",
         ],
       },
@@ -291,6 +344,11 @@ export const blogPosts: BlogPost[] = [
       {
         type: "p",
         text: "**Platforms:** Netflix, YouTube, mobile apps. **Price:** free tier; ~$4/mo Pro. **Best for:** learners who want **AI-generated bilingual subs** and pronunciation coaching without Anki. Overlaps Language Reactor on desktop. [AnimeVocab vs Trancy](/vs-trancy).",
+      },
+      { type: "h2", text: "8. YumeGo — Netflix grammar reader" },
+      {
+        type: "p",
+        text: "**Platforms:** Netflix, Disney+, YouTube. **Price:** free with daily cap; Premium unlimited. **Best for:** readers who want **JLPT-tagged phrase saves** and grammar popups on Netflix. No Crunchyroll. [AnimeVocab vs YumeGo](/vs-yumego).",
       },
       { type: "h2", text: "What most rankings get wrong" },
       {

@@ -27,6 +27,7 @@ export const SEO_KEYWORDS = [
   "SubMiner Japanese",
   "SubMiner vs asbplayer",
   "mpv sentence mining anime",
+  "YumeGo alternative",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
