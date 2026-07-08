@@ -50,6 +50,8 @@ export const SEO_KEYWORDS = [
   "best chrome extension learn japanese",
   "chrome extension japanese anime",
   "learn japanese netflix extension",
+  "asbplayer alternative",
+  "sentence mining japanese",
 ];
 
 export const STUDIO_DESCRIPTION =

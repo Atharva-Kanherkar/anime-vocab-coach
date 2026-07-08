@@ -270,7 +270,8 @@ export default function LearnJapaneseWithAnimePage() {
               <li>
                 <strong>asbplayer</strong>: free and open source, the immersion crowd&apos;s favorite for mining
                 audio + screenshot + sentence cards into Anki. No dictionary or romaji of its own; you bolt on
-                Yomitan. Powerful, not beginner-usable.
+                Yomitan. Powerful, not beginner-usable.{" "}
+                <Link href="/blog/asbplayer-alternative-beginners-anime-japanese">asbplayer vs beginner tools →</Link>
               </li>
               <li>
                 <strong>Memento</strong>: a free, actively maintained desktop player (mpv-based) with a

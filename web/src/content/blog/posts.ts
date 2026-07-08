@@ -2,6 +2,56 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "asbplayer-alternative-beginners-anime-japanese",
+    title: "asbplayer vs AnimeVocab: Sentence Mining vs One-Word Beginner Cards (2026)",
+    description:
+      "asbplayer and SubMiner are built for Anki sentence miners who read Japanese subtitles. AnimeVocab is the romaji-first on-ramp when you cannot — honest comparison for anime learners.",
+    publishedAt: "2026-07-08T16:00:00.000Z",
+    updatedAt: "2026-07-08T16:00:00.000Z",
+    keywords: [
+      "asbplayer alternative",
+      "sentence mining japanese anime",
+      "anki anime mining",
+      "subminer japanese",
+      "beginner japanese immersion",
+    ],
+    readingMinutes: 8,
+    blocks: [
+      {
+        type: "p",
+        text: "**asbplayer** is the immersion community's favorite browser miner: sync fan subtitles, screenshot+audio+sentence into Anki, bolt on Yomitan. New desktop tools like **SubMiner** (mpv-native) push the same workflow without browser overhead. None of them solve the **month-zero** problem: you still need to **read Japanese subtitles** and run a mining stack.",
+      },
+      { type: "h2", text: "What asbplayer-style tools assume" },
+      {
+        type: "ul",
+        items: [
+          "You have or can find **Japanese subtitle files** (Jimaku, Kitsunekko).",
+          "You read kana/kanji well enough to click tokens.",
+          "You maintain **Anki** as the review system of record.",
+          "You tolerate **setup per show** (alignment, decks, note types).",
+        ],
+      },
+      { type: "h2", text: "Where AnimeVocab differs" },
+      {
+        type: "p",
+        text: "AnimeVocab is not a sentence miner. It pushes **one curated romaji-first word per line** with **built-in SRS** on Crunchyroll, Netflix, and YouTube — including **Listening Mode** when no JP subtitle track exists. Think **on-ramp**, not Anki pipeline replacement. Compare [vs Migaku](/vs-migaku) (deeper mining suite) and [vs Language Reactor](/vs-language-reactor) (dual-sub reader).",
+      },
+      { type: "h2", text: "When to use which" },
+      {
+        type: "ul",
+        items: [
+          "**asbplayer / SubMiner / Migaku** — you read JP subs and want rich sentence cards.",
+          "**AnimeVocab** — you hear words but cannot read them yet, or Crunchyroll has no minable text.",
+          "**Both over time** — romaji cards first, graduate to miners once kana clicks ([romaji guide](/romaji-japanese-learning)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Extension roundup: [best Chrome extensions for anime Japanese (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026). Master ranking: [learn Japanese with anime](/learn-japanese-with-anime).",
+      },
+    ],
+  },
+  {
     slug: "best-chrome-extensions-learn-japanese-anime-2026",
     title: "Best Chrome Extensions to Learn Japanese from Anime (2026 Ranked)",
     description:

@@ -28,6 +28,9 @@ function ClerkAuthButtons() {
 const LINKS = [
   { href: "/studio", label: "Studio" },
   { href: "/gallery", label: "Gallery" },
+  { href: "/ai-manga-maker", label: "AI manga maker" },
+  { href: "/blog", label: "Blog" },
+  { href: "/learn-japanese-with-anime", label: "Guides" },
 ];
 
 export function StudioChrome() {
