@@ -590,6 +590,7 @@ export const blogPosts: BlogPost[] = [
       "language reactor netflix",
     ],
     readingMinutes: 8,
+    ogImage: "/slides/05-private.jpg",
     blocks: [
       {
         type: "p",
