@@ -21,7 +21,7 @@ export const SEO_KEYWORDS = [
   "spaced repetition Japanese",
   "Language Reactor alternative",
   "Migaku alternative",
-  "ManabiDojo alternative",
+  "Animelon alternative",
   "Trancy alternative",
   "Animelon alternative",
   "Japanese immersion",

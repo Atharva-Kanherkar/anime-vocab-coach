@@ -281,7 +281,8 @@ export default function LearnJapaneseWithAnimePage() {
                 <strong>Animelon</strong>: a free website that streams anime with switchable romaji, hiragana,
                 kanji, and English subtitle tracks plus a hover dictionary and quizzes. Genuinely
                 beginner-friendly. The catch: it hosts content on a legally gray basis and is unreliable (titles
-                vanish and playback breaks).
+                vanish and playback breaks).{" "}
+                <Link href="/vs-animelon">Animelon alternative →</Link>
               </li>
             </ul>
 
@@ -371,6 +372,7 @@ export default function LearnJapaneseWithAnimePage() {
           { href: "/blog", label: "Blog" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
+          { href: "/vs-animelon", label: "vs Animelon" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },

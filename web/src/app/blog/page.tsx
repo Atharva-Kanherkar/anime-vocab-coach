@@ -134,6 +134,9 @@ export default function BlogIndexPage() {
                   <Link href="/vs-lexirise">AnimeVocab vs Lexirise</Link>
                 </li>
                 <li>
+                  <Link href="/vs-animelon">AnimeVocab vs Animelon</Link>
+                </li>
+                <li>
                   <Link href="/vs-manabidojo">AnimeVocab vs ManabiDojo</Link>
                 </li>
                 <li>

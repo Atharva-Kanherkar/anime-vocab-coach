@@ -616,7 +616,7 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Compare Netflix vs Crunchyroll workflows in our [Netflix anime guide](/learn-japanese-netflix-anime) and [master tool ranking](/learn-japanese-with-anime).",
+        text: "Reader stack deep dive: [HASHIGO, Yomitan & Netflix](/blog/hashigo-yomitan-netflix-japanese-anime-2026). Compare Netflix vs Crunchyroll workflows in our [Netflix anime guide](/learn-japanese-netflix-anime) and [master tool ranking](/learn-japanese-with-anime).",
       },
     ],
   },
