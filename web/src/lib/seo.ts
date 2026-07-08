@@ -127,6 +127,29 @@ export function blogJsonLd(posts: { title: string; url: string; publishedAt: str
   };
 }
 
+export const HOME_FAQ = [
+  {
+    question: "Can I learn Japanese just by watching anime?",
+    answer:
+      "Only if you actively notice and remember words. AnimeVocab handles that: one word at a time, in context, with scheduled reviews.",
+  },
+  {
+    question: "I can't read hiragana yet. Can I still use this?",
+    answer:
+      "Yes. That's the default setup. Cards show romaji before kana. Switch to kana-first or kanji-first when you're ready.",
+  },
+  {
+    question: "How is this different from subtitle dictionary tools?",
+    answer:
+      "Most tools assume you can read Japanese subtitles and hover words yourself. AnimeVocab pushes one curated word to you in romaji and tracks SRS for you.",
+  },
+  {
+    question: "Where is my data stored?",
+    answer:
+      "On your device by default — the extension works with no account. Create a free account only if you want cloud backup, sync across devices, or the AI coach. No ads, no tracking.",
+  },
+] as const;
+
 export function faqJsonLd(items: { question: string; answer: string }[]) {
   return {
     "@context": "https://schema.org",
@@ -211,11 +234,6 @@ export function homeJsonLd() {
         description: SITE_DESCRIPTION,
         inLanguage: "en-US",
         publisher: { "@id": `${SITE_URL}/#organization` },
-        potentialAction: {
-          "@type": "SearchAction",
-          target: `${SITE_URL}/blog?q={search_term_string}`,
-          "query-input": "required name=search_term_string",
-        },
       },
       {
         "@type": "Organization",

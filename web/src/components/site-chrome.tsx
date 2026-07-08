@@ -13,7 +13,14 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         <Link className="logo" href="/" aria-label="AnimeVocab home">
           アニメ<b>Vocab</b>
         </Link>
-        {!compact && (
+        {compact ? (
+          <nav aria-label="Primary" className="top-nav-compact">
+            <Link href="/blog">Blog</Link>
+            <Link href="/studio">Studio</Link>
+            <Link href="/gallery">Gallery</Link>
+            <Link href="/learn-japanese-with-anime">Guides</Link>
+          </nav>
+        ) : (
           <nav aria-label="Primary">
             <Link href="/#features">Features</Link>
             <Link href="/studio">Studio</Link>

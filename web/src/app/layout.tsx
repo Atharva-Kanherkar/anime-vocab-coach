@@ -90,7 +90,6 @@ export const metadata: Metadata = {
   publisher: SITE_NAME,
   category: "education",
   alternates: {
-    canonical: SITE_URL,
     types: {
       "application/rss+xml": `${SITE_URL}/feed.xml`,
     },

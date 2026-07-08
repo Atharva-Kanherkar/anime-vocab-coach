@@ -134,6 +134,8 @@ body::after {
   transition: color 120ms;
 }
 .top nav a:hover { color: var(--ink); }
+.top-nav-compact { gap: 16px; }
+.top-nav-compact a { font-size: 13px; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -379,7 +381,9 @@ section { padding: clamp(64px, 9vw, 100px) 0; }
   .flow li { border-right: none; border-bottom: 1px solid var(--line); }
   .flow li:last-child { border-bottom: none; }
   .feat-grid, .price-grid { grid-template-columns: 1fr; }
-  .top nav { display: none; }
+  .top nav:not(.top-nav-compact) { display: none; }
+  .top-nav-compact { gap: 10px; }
+  .top-nav-compact a { font-size: 12px; }
 }
 
 @media (max-width: 520px) {

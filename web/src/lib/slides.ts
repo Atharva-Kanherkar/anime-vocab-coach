@@ -125,7 +125,7 @@ export const heroSlides: HeroSlide[] = [
     title: "Write your own manga with the words you're learning.",
     body: "Pick up to three words, choose an art style, and the studio writes and draws a 4-panel manga that teaches them — in Japanese, romaji, and English. In your browser, no extension needed.",
     ctaLabel: "Open Manga Studio",
-    ctaHref: "/app#studio",
+    ctaHref: "/studio",
   },
   {
     id: "night",

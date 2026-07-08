@@ -102,6 +102,15 @@ export default function BlogIndexPage() {
                   <Link href="/romaji-japanese-learning">Romaji-first learning</Link>
                 </li>
                 <li>
+                  <Link href="/anime-spaced-repetition">Spaced repetition for anime</Link>
+                </li>
+                <li>
+                  <Link href="/learn-japanese-netflix-anime">Learn Japanese on Netflix</Link>
+                </li>
+                <li>
+                  <Link href="/cloud">AnimeVocab Cloud</Link>
+                </li>
+                <li>
                   <Link href="/vs-lexirise">AnimeVocab vs Lexirise</Link>
                 </li>
                 <li>

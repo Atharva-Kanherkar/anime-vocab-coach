@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./app.css";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 // Set the theme before first paint so there's no dark→light flash. Defaults to
 // the OS preference, then remembers the user's choice. Scoped to /app; the

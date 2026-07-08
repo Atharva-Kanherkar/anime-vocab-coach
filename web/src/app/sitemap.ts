@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 import { blogPosts } from "@/content/blog/posts";
+import { listGallery } from "@/lib/studio-store";
 import { SITE_URL } from "@/lib/site";
+
+export const dynamic = "force-dynamic";
 
 const staticRoutes = [
   { path: "", priority: 1, changeFrequency: "weekly" as const },
@@ -23,10 +26,11 @@ const staticRoutes = [
   { path: "/cloud", priority: 0.7, changeFrequency: "monthly" as const },
   { path: "/without-extension", priority: 0.6, changeFrequency: "monthly" as const },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" as const },
+  { path: "/feed.xml", priority: 0.5, changeFrequency: "daily" as const },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date("2026-07-07");
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const lastModified = new Date("2026-07-08");
   const blogEntries = blogPosts.map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt),
@@ -41,5 +45,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: route.priority,
   }));
 
-  return [...pages, ...blogEntries];
+  let galleryEntries: MetadataRoute.Sitemap = [];
+  try {
+    const gallery = await listGallery();
+    galleryEntries = gallery.map((entry) => ({
+      url: `${SITE_URL}/m/${entry.id}`,
+      lastModified: new Date(entry.createdAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }));
+  } catch {
+    // KV unavailable at build/preview time — static + blog URLs still ship.
+  }
+
+  return [...pages, ...blogEntries, ...galleryEntries];
 }

@@ -4,6 +4,8 @@ import { HeroImagePreloader } from "@/components/hero-preload";
 import {
   defaultOpenGraph,
   defaultTwitter,
+  faqJsonLd,
+  HOME_FAQ,
   homeJsonLd,
   SITE_DESCRIPTION,
   SITE_OG_DESCRIPTION,
@@ -31,6 +33,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   const jsonLd = homeJsonLd();
+  const faqLd = faqJsonLd([...HOME_FAQ]);
 
   return (
     <>
@@ -51,6 +54,10 @@ export default function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
       />
       <HeroImagePreloader slides={heroSlides} />
       {/* Free public front door to the creative Manga Studio + gallery. */}

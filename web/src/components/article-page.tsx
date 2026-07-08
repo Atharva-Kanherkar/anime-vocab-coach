@@ -90,6 +90,9 @@ export function ArticlePageShell({
         links={[
           { href: "/blog", label: "Blog" },
           { href: "/learn-japanese-with-anime", label: "Compare tools" },
+          { href: "/studio", label: "Manga Studio" },
+          { href: "/ai-manga-maker", label: "AI manga maker" },
+          { href: "/learn-japanese-manga", label: "Learn with manga" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll guide" },
           { href: GITHUB_URL, label: "GitHub" },
         ]}
