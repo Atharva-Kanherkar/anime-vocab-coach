@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { listGallery } from "@/lib/studio-store";
 import { studioStyleLabel } from "@/lib/studio";
+import { galleryCollectionJsonLd } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 
 // The public gallery — every learner's published manga. Free forever, no login.
@@ -30,9 +31,13 @@ function coverUrl(id: string, layout: "page" | "panels", cover: number): string 
 
 export default async function GalleryPage() {
   const entries = await listGallery();
+  const galleryLd = galleryCollectionJsonLd(
+    entries.map((e) => ({ id: e.id, title: e.title.en }))
+  );
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(galleryLd) }} />
       <LandingJsonLd
         path="/gallery"
         title="Manga Gallery — read original AI manga free"
@@ -46,7 +51,11 @@ export default async function GalleryPage() {
         </h1>
         <p className="mt-3 max-w-[62ch] text-[14.5px] leading-relaxed text-ink2">
           Original chapters storyboarded, drawn, and published by people using AI. Free to read,
-          always.{" "}
+          always. Learning path:{" "}
+          <Link href="/learn-japanese-manga" className="font-extrabold text-accent underline">
+            Learn Japanese with manga
+          </Link>
+          .{" "}
           <Link href="/studio" className="font-extrabold text-accent underline">
             Make your own →
           </Link>

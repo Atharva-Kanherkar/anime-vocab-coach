@@ -29,6 +29,9 @@ export const SEO_KEYWORDS = [
   "mpv sentence mining anime",
   "YumeGo alternative",
   "Uplang Netflix",
+  "Kitsunekko subtitles",
+  "kitsunekko anime japanese subs",
+  "asbplayer vs animevocab",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
@@ -233,6 +236,34 @@ export function mangaCreativeWorkJsonLd(input: {
       "@type": "Organization",
       name: SITE_NAME,
       url: SITE_URL,
+    },
+  };
+}
+
+export function galleryCollectionJsonLd(
+  entries: { id: string; title: string }[]
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "AnimeVocab Manga Gallery",
+    description: "Original manga chapters created in AnimeVocab Manga Studio — free to read.",
+    url: `${SITE_URL}/gallery`,
+    isAccessibleForFree: true,
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: entries.length,
+      itemListElement: entries.map((entry, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: entry.title,
+        url: `${SITE_URL}/m/${entry.id}`,
+      })),
     },
   };
 }

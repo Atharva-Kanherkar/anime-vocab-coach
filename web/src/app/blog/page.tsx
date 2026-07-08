@@ -81,6 +81,15 @@ export default function BlogIndexPage() {
               <h2>Tool comparisons & guides</h2>
               <ul>
                 <li>
+                  <Link href="/vs-asbplayer">AnimeVocab vs asbplayer</Link>
+                </li>
+                <li>
+                  <Link href="/blog/kitsunekko-subtitles-anime-2026">Kitsunekko subtitle guide</Link>
+                </li>
+                <li>
+                  <Link href="/blog/word-manga-vocabulary-practice-2026">Word Manga vocabulary</Link>
+                </li>
+                <li>
                   <Link href="/blog/uplang-netflix-dual-subtitles-2026">
                     Uplang vs HASHIGO on Netflix
                   </Link>

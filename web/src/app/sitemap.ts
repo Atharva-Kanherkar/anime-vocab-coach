@@ -27,6 +27,7 @@ const staticRoutes = [
   { path: "/vs-animelon", priority: 0.77, changeFrequency: "monthly" as const },
   { path: "/vs-lingoku", priority: 0.78, changeFrequency: "monthly" as const },
   { path: "/vs-yumego", priority: 0.76, changeFrequency: "monthly" as const },
+  { path: "/vs-asbplayer", priority: 0.77, changeFrequency: "monthly" as const },
   { path: "/vs-manabidojo", priority: 0.78, changeFrequency: "monthly" as const },
   { path: "/cloud", priority: 0.7, changeFrequency: "monthly" as const },
   { path: "/without-extension", priority: 0.6, changeFrequency: "monthly" as const },

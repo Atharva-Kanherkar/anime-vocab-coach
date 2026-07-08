@@ -2,6 +2,110 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "word-manga-vocabulary-practice-2026",
+    title: "Word Manga: Turn Anime Vocabulary Into a 4-Panel Story (2026)",
+    description:
+      "AnimeVocab Word Manga writes a 4-panel manga around the Japanese words you are learning — active recall with romaji, recall checks, and shareable /wm links.",
+    publishedAt: "2026-07-09T00:00:00.000Z",
+    updatedAt: "2026-07-09T00:00:00.000Z",
+    keywords: [
+      "word manga japanese",
+      "learn japanese vocabulary manga",
+      "4 panel manga vocabulary",
+      "active recall japanese anime",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/12-manga.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Word Manga** in AnimeVocab takes the words you saved from anime and **forces them into dialogue** — AI writes a 4-panel script where every target word must appear, then draws one manga page. You read JA/romaji/EN side by side, pass a recall check, and can publish a share link at `/wm/[id]`. It is the fastest output practice between episodes.",
+      },
+      { type: "h2", text: "How Word Manga differs from Manga Studio" },
+      {
+        type: "ul",
+        items: [
+          "**Word Manga** — you pick vocabulary from your deck; the story serves those words (in the app under Word Manga).",
+          "**Manga Studio** — you write a free premise and get a full chapter with cast and panels ([/studio](/studio)).",
+          "**Both** publish publicly when you choose — gallery chapters at `/m/`, word mangas at `/wm/`.",
+        ],
+      },
+      { type: "h2", text: "Suggested loop" },
+      {
+        type: "ol",
+        items: [
+          "Watch one episode with AnimeVocab — save 3–5 words ([one word per episode](/blog/one-word-per-episode-method)).",
+          "Open **Word Manga**, select those words, generate a 4-panel story.",
+          "Read aloud, pass the recall check, publish if you want a shareable link.",
+          "Weekend: graduate to a full **Manga Studio** chapter ([learn with manga](/learn-japanese-manga)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Browse community work: [Manga Gallery](/gallery). AI manga comparison: [best generators (2026)](/blog/ai-manga-generator-comparison-2026).",
+      },
+    ],
+  },
+  {
+    slug: "kitsunekko-subtitles-anime-2026",
+    title: "Kitsunekko Subtitles for Anime Japanese (2026): Find, Sync, Mine",
+    description:
+      "How to use Kitsunekko fan Japanese subtitles with Substital, Jimaku Player, asbplayer, and SubMiner — and when to skip files and use Listening Mode instead.",
+    publishedAt: "2026-07-09T01:00:00.000Z",
+    updatedAt: "2026-07-09T01:00:00.000Z",
+    keywords: [
+      "kitsunekko subtitles",
+      "kitsunekko anime japanese",
+      "fan subtitles japanese anime",
+      "jimaku.cc subtitles",
+      "learn japanese fan subs",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/04-sakura-night.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Kitsunekko** (and mirrors like **jimaku.cc**) host fan-made **Japanese subtitle files** for anime — the fuel for immersion miners who watch on Crunchyroll, Netflix rips, or local files. The workflow is powerful for readers; brittle for beginners. This guide covers find → sync → mine, and when **Listening Mode** beats hunting `.srt` files.",
+      },
+      { type: "h2", text: "Step 1 — find a matching subtitle file" },
+      {
+        type: "ol",
+        items: [
+          "Search Kitsunekko or jimaku.cc for your show + episode.",
+          "Match **release group, resolution, and cut** to your video source — mismatches break timing.",
+          "Prefer `.ass` when you need furigana styling; `.srt` is simpler for overlays.",
+        ],
+      },
+      { type: "h2", text: "Step 2 — overlay on streams" },
+      {
+        type: "ul",
+        items: [
+          "**Substital** (Chrome) — upload subs on Crunchyroll/Netflix in-browser.",
+          "**Jimaku Player** — Tampermonkey userscript with offset memory per series.",
+          "**ManabiDojo** — integrated Jimaku fetch on Crunchyroll ([vs ManabiDojo](/vs-manabidojo)).",
+        ],
+      },
+      { type: "h2", text: "Step 3 — mine to Anki" },
+      {
+        type: "p",
+        text: "**asbplayer** in the browser or **SubMiner** on mpv — sentence cards with audio and screenshots. Compare [AnimeVocab vs asbplayer](/vs-asbplayer) and [SubMiner vs asbplayer](/blog/subminer-vs-asbplayer-anime-mining-2026). You still need **Yomitan** and comfort reading kana.",
+      },
+      { type: "h2", text: "When not to use Kitsunekko" },
+      {
+        type: "ul",
+        items: [
+          "You **cannot read Japanese** yet — use romaji-first cards ([romaji guide](/romaji-japanese-learning)).",
+          "Crunchyroll has **no JP track** and you will not align fan subs — try **Listening Mode** ([Jimaku vs Listening Mode](/blog/jimaku-crunchyroll-subtitles-vs-listening-mode)).",
+          "You want a **legal, zero-setup** nightly habit — official streams + AnimeVocab.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Crunchyroll hub: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Extension ranking: [best Chrome extensions (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "uplang-netflix-dual-subtitles-2026",
     title: "Uplang vs HASHIGO vs Language Reactor on Netflix (2026)",
     description:
@@ -287,10 +391,11 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 8,
     ogImage: "/slides/11-cards.webp",
+    canonicalPath: "/vs-asbplayer",
     blocks: [
       {
         type: "p",
-        text: "**asbplayer** is the immersion community's favorite browser miner: sync fan subtitles, screenshot+audio+sentence into Anki, bolt on Yomitan. New desktop tools like **SubMiner** (mpv-native) push the same workflow without browser overhead — see [SubMiner vs asbplayer](/blog/subminer-vs-asbplayer-anime-mining-2026). None of them solve the **month-zero** problem: you still need to **read Japanese subtitles** and run a mining stack.",
+        text: "**asbplayer** is the immersion community's favorite browser miner: sync fan subtitles, screenshot+audio+sentence into Anki, bolt on Yomitan. New desktop tools like **SubMiner** (mpv-native) push the same workflow without browser overhead — see [SubMiner vs asbplayer](/blog/subminer-vs-asbplayer-anime-mining-2026). None of them solve the **month-zero** problem: you still need to **read Japanese subtitles** and run a mining stack. Side-by-side: [AnimeVocab vs asbplayer](/vs-asbplayer).",
       },
       { type: "h2", text: "What asbplayer-style tools assume" },
       {

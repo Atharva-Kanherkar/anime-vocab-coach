@@ -342,7 +342,7 @@ export default function LearnJapaneseWithAnimePage() {
                 <strong>asbplayer</strong>: free and open source, the immersion crowd&apos;s favorite for mining
                 audio + screenshot + sentence cards into Anki. No dictionary or romaji of its own; you bolt on
                 Yomitan. Powerful, not beginner-usable.{" "}
-                <Link href="/blog/asbplayer-alternative-beginners-anime-japanese">asbplayer vs beginner tools →</Link>
+                <Link href="/vs-asbplayer">AnimeVocab vs asbplayer →</Link>
               </li>
               <li>
                 <strong>Memento</strong>: a free, actively maintained desktop player (mpv-based) with a
@@ -413,6 +413,7 @@ export default function LearnJapaneseWithAnimePage() {
           { href: "/vs-lingoku", label: "vs Lingoku" },
           { href: "/vs-yumego", label: "vs YumeGo" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
+          { href: "/vs-asbplayer", label: "vs asbplayer" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/vs-migaku", label: "vs Migaku" },

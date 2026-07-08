@@ -83,6 +83,7 @@ export default function HomePage() {
           { href: "/blog", label: "Blog" },
           { href: "/studio", label: "Manga Studio" },
           { href: "/gallery", label: "Gallery" },
+          { href: "/learn-japanese-manga", label: "Learn with manga" },
           { href: "/learn-japanese-with-anime", label: "Guides" },
           { href: "/privacy", label: "Privacy" },
         ]}

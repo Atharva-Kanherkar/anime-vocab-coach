@@ -118,6 +118,14 @@ export default function LearnJapaneseMangaPage() {
               <li>Pass the word check; publish to the <Link href="/gallery">gallery</Link> if you want feedback.</li>
             </ol>
 
+            <h2>Word Manga — vocabulary in 4 panels</h2>
+            <p>
+              Inside the extension, <strong>Word Manga</strong> builds a mini-story around words you are
+              already learning — every target word must appear in the Japanese dialogue, with romaji and a
+              recall check after you read. Publish a share link when you are proud of it. Guide:{" "}
+              <Link href="/blog/word-manga-vocabulary-practice-2026">Word Manga vocabulary practice</Link>.
+            </p>
+
             <h2>Manga Studio vs reading graded readers</h2>
             <p>
               Graded readers (N5–N1) are excellent controlled input. Manga Studio is the output side: you set
@@ -163,6 +171,9 @@ export default function LearnJapaneseMangaPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/studio", label: "Manga Studio" },
+          { href: "/gallery", label: "Gallery" },
+          { href: "/blog/word-manga-vocabulary-practice-2026", label: "Word Manga guide" },
           { href: "/ai-manga-maker", label: "AI manga maker" },
           { href: "/blog", label: "Blog" },
           { href: "/learn-japanese-with-anime", label: "Anime guide" },
