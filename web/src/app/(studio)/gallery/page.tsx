@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { listGallery } from "@/lib/studio-store";
 import { studioStyleLabel } from "@/lib/studio";
 import { SITE_URL } from "@/lib/site";
@@ -31,7 +32,13 @@ export default async function GalleryPage() {
   const entries = await listGallery();
 
   return (
-    <main id="main" className="mx-auto mt-8 max-w-[960px] px-5 md:mt-10 md:px-8">
+    <>
+      <LandingJsonLd
+        path="/gallery"
+        title="Manga Gallery — read original AI manga free"
+        description="Read original manga created in AnimeVocab Manga Studio — AI-drawn panels, editable dialogue, free to read. Browse the public gallery, no account needed."
+      />
+      <main id="main" className="mx-auto mt-8 max-w-[960px] px-5 md:mt-10 md:px-8">
       <header>
         <p className="av-eyebrow">Manga Gallery · 本棚</p>
         <h1 className="mt-2 font-jpround text-[clamp(26px,4vw,40px)] font-black leading-tight">
@@ -83,5 +90,6 @@ export default async function GalleryPage() {
         </ul>
       )}
     </main>
+    </>
   );
 }

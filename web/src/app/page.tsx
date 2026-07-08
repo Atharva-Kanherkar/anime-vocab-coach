@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { FxSlider } from "@/components/fx-slider";
 import { HeroImagePreloader } from "@/components/hero-preload";
+import { SiteFooter } from "@/components/site-chrome";
 import {
   defaultOpenGraph,
   defaultTwitter,
@@ -77,6 +78,15 @@ export default function HomePage() {
       >
         Built with <span aria-hidden="true">♥</span> by @attharrva15 · follow the creator
       </a>
+      <SiteFooter
+        links={[
+          { href: "/blog", label: "Blog" },
+          { href: "/studio", label: "Manga Studio" },
+          { href: "/gallery", label: "Gallery" },
+          { href: "/learn-japanese-with-anime", label: "Guides" },
+          { href: "/privacy", label: "Privacy" },
+        ]}
+      />
     </>
   );
 }

@@ -2,12 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthControls, SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { getPromoState, GITHUB_URL, SITE_URL } from "@/lib/site";
+import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "AnimeVocab Cloud | Optional sync and AI for anime Japanese learning",
   description:
     "AnimeVocab Cloud is the optional hosted companion to the local-first Chrome extension: sync, AI scene explanations, notebooks, and social learning without making accounts mandatory.",
   alternates: { canonical: `${SITE_URL}/cloud` },
+  openGraph: {
+    ...defaultOpenGraph,
+    title: "AnimeVocab Cloud — optional sync and AI",
+    description:
+      "Optional cloud sync, AI coach, and notebooks for anime Japanese learners. Extension stays local-first and free.",
+    url: `${SITE_URL}/cloud`,
+  },
+  twitter: {
+    ...defaultTwitter,
+    title: "AnimeVocab Cloud",
+    description: "Optional sync and AI for the AnimeVocab Chrome extension.",
+  },
 };
 
 export default function CloudPage() {
