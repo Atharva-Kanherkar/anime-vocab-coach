@@ -81,6 +81,11 @@ export default function BlogIndexPage() {
               <h2>Tool comparisons & guides</h2>
               <ul>
                 <li>
+                  <Link href="/blog/uplang-netflix-dual-subtitles-2026">
+                    Uplang vs HASHIGO on Netflix
+                  </Link>
+                </li>
+                <li>
                   <Link href="/vs-yumego">AnimeVocab vs YumeGo</Link>
                 </li>
                 <li>

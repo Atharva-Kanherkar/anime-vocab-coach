@@ -92,6 +92,14 @@ export default function LearnJapaneseNetflixPage() {
                 <Link href="/blog/hashigo-yomitan-netflix-japanese-anime-2026">Reader stack guide →</Link>
               </li>
               <li>
+                <strong>Lingoku</strong> — AI dual subs + web blending; BYOK (
+                <Link href="/vs-lingoku">vs AnimeVocab</Link>).
+              </li>
+              <li>
+                <strong>YumeGo</strong> — grammar popups and phrase library on Netflix/Disney+ (
+                <Link href="/vs-yumego">vs AnimeVocab</Link>).
+              </li>
+              <li>
                 <strong>AnimeVocab</strong> — romaji cards + SRS; Listening Mode when you skip reading.
               </li>
               <li>
@@ -121,8 +129,12 @@ export default function LearnJapaneseNetflixPage() {
       </main>
       <SiteFooter
         links={[
-          { href: "/blog", label: "Blog" },
+          { href: "/blog/hashigo-yomitan-netflix-japanese-anime-2026", label: "HASHIGO guide" },
+          { href: "/vs-lingoku", label: "vs Lingoku" },
+          { href: "/vs-yumego", label: "vs YumeGo" },
+          { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
+          { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },
         ]}
       />

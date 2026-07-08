@@ -2,6 +2,52 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "uplang-netflix-dual-subtitles-2026",
+    title: "Uplang vs HASHIGO vs Language Reactor on Netflix (2026)",
+    description:
+      "Uplang Pro adds furigana modes on Netflix dual subs. Compare with HASHIGO JLPT coloring and Language Reactor for anime Japanese readers.",
+    publishedAt: "2026-07-08T23:00:00.000Z",
+    updatedAt: "2026-07-08T23:00:00.000Z",
+    keywords: [
+      "Uplang Netflix Japanese",
+      "Uplang dual subtitles",
+      "furigana Netflix extension",
+      "learn Japanese Netflix subtitles",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/05-private.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Uplang** is a paid Netflix reader extension with **furigana modes** (always, hover, unknown-only) on dual subtitles plus AI translation options. Learners who already read kana often compare it to **HASHIGO!** (JLPT color + furigana) and **Language Reactor** (mature dual-sub player). None of these solve **Crunchyroll without JP subs** — that is still AnimeVocab's Listening Mode lane.",
+      },
+      { type: "h2", text: "Uplang — when furigana control matters" },
+      {
+        type: "ul",
+        items: [
+          "**Furigana modes** — show readings always, on hover, or only for unknown kanji.",
+          "**Dual subs** — Japanese + English on Netflix.",
+          "**Pro tier** — subscription for full feature set.",
+        ],
+      },
+      { type: "h2", text: "HASHIGO! — JLPT coloring lane" },
+      {
+        type: "p",
+        text: "**HASHIGO!** colors vocabulary by JLPT band and adds furigana on Netflix Japanese subs — great for parsing dense slice-of-life dialogue. Stack with **Yomitan** for dictionary mining. Full walkthrough: [HASHIGO + Yomitan reader stack](/blog/hashigo-yomitan-netflix-japanese-anime-2026).",
+      },
+      { type: "h2", text: "Language Reactor — the default dual-sub player" },
+      {
+        type: "p",
+        text: "Free-tier **Language Reactor** on Netflix/YouTube is still the baseline recommendation for readers who do not need furigana overlays. Compare [AnimeVocab vs Language Reactor](/vs-language-reactor) if you are not ready to read kana.",
+      },
+      { type: "h2", text: "Before any Netflix reader extension" },
+      {
+        type: "p",
+        text: "Confirm a **Japanese subtitle track** exists (not English only). Hub: [learn Japanese on Netflix anime](/learn-japanese-netflix-anime). Month-zero path: [romaji-first guide](/romaji-japanese-learning). AI readers: [Lingoku](/vs-lingoku), [YumeGo](/vs-yumego).",
+      },
+    ],
+  },
+  {
     slug: "yumego-alternative-anime-japanese-2026",
     title: "YumeGo Alternative (2026): Netflix Grammar Reader vs Crunchyroll Romaji",
     description:

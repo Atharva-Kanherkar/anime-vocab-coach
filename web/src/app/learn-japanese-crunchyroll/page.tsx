@@ -158,9 +158,12 @@ export default function LearnJapaneseCrunchyrollPage() {
       </main>
       <SiteFooter
         links={[
-          { href: "/blog", label: "Blog" },
-          { href: "/best-anime-to-learn-japanese", label: "Best anime" },
+          { href: "/blog/jimaku-crunchyroll-subtitles-vs-listening-mode", label: "Jimaku vs Listening Mode" },
+          { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
+          { href: "/blog/asbplayer-alternative-beginners-anime-japanese", label: "asbplayer vs beginners" },
+          { href: "/best-anime-to-learn-japanese", label: "Best anime" },
+          { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },
         ]}
       />
