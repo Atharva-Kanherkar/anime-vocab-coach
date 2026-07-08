@@ -44,6 +44,9 @@ export const SEO_KEYWORDS = [
   "Japanese vocabulary from anime",
   "anime subtitle extension",
   "asbplayer alternative",
+  "jimaku player crunchyroll",
+  "substital crunchyroll",
+  "kitsunekko subtitles",
 ];
 
 export const STUDIO_DESCRIPTION =

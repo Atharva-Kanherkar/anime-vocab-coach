@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -30,6 +31,11 @@ export const metadata: Metadata = {
 export default function VsLexirisePage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="AnimeVocab vs Lexirise (2026): Crunchyroll Anime Learning Extensions"
+        description="AnimeVocab vs Lexirise on Crunchyroll — romaji-first Listening Mode vs dual subtitles and click-to-translate. Which fits beginners vs readers?"
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

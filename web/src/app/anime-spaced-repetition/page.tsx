@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -29,6 +30,11 @@ export const metadata: Metadata = {
 export default function AnimeSpacedRepetitionPage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="Spaced Repetition for Anime Vocabulary (2026 Guide)"
+        description="Spaced repetition (SRS) for anime Japanese vocabulary — daily loop, Anki vs built-in review, and why binge watching fails without recall."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

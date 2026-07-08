@@ -2,6 +2,73 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "jimaku-crunchyroll-subtitles-vs-listening-mode",
+    title: "Jimaku Player vs Listening Mode: Crunchyroll Japanese Without Subtitle Files (2026)",
+    description:
+      "Crunchyroll has no Japanese subtitles. Jimaku Player and Substital overlay fan .srt files — or you transcribe audio with Listening Mode. Compare setup, legality, and what actually sticks for beginners.",
+    publishedAt: "2026-07-08T10:00:00.000Z",
+    updatedAt: "2026-07-08T10:00:00.000Z",
+    keywords: [
+      "jimaku player crunchyroll",
+      "add japanese subtitles crunchyroll",
+      "substital crunchyroll",
+      "kitsunekko subtitles",
+      "learn japanese crunchyroll no subs",
+      "crunchyroll japanese subtitles extension",
+    ],
+    readingMinutes: 9,
+    blocks: [
+      {
+        type: "p",
+        text: "If you search **how to add Japanese subtitles to Crunchyroll**, you land in a DIY lane: download fan `.srt` files from **Kitsunekko** or **jimaku.cc**, then overlay them with **Substital**, **Jimaku Player**, or a userscript. That workflow works for intermediate learners who can **read kana**. It is painful for beginners — and brittle every time Crunchyroll changes the player DOM.",
+      },
+      { type: "h2", text: "The Jimaku / Substital workflow (step by step)" },
+      {
+        type: "ol",
+        items: [
+          "Find the show on **Kitsunekko** or **jimaku.cc** and download a matching `.srt` / `.ass` file.",
+          "Install **Substital** (Chrome) or **Jimaku Player** (Tampermonkey userscript).",
+          "Open the Crunchyroll episode, upload or auto-fetch the subtitle file.",
+          "Align timing (Jimaku remembers offset per series).",
+          "Click lines to look up words on Jisho — you still save vocabulary yourself.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Power users love this. You get real Japanese text synced to the stream. The downsides: **setup per show**, subtitle files that do not always match the Crunchyroll cut, burned-in English subs you cannot remove, and zero help if you **cannot read the script yet**.",
+      },
+      { type: "h2", text: "Where Listening Mode differs" },
+      {
+        type: "p",
+        text: "**AnimeVocab Listening Mode** skips the subtitle file hunt: it transcribes **spoken Japanese from tab audio** while you keep English subtitles for plot. One **romaji-first word card** per line, built-in **spaced repetition** — no Anki wiring. It targets the Crunchyroll case where **no official JP sub track exists**, which is most simulcasts outside Japan.",
+      },
+      { type: "h2", text: "Honest comparison" },
+      {
+        type: "ul",
+        items: [
+          "**Can you read hiragana?** Jimaku/Substital assume yes. Listening Mode + romaji assumes not yet.",
+          "**Setup time:** Jimaku = per-show file + alignment. AnimeVocab = install extension, press start.",
+          "**Vocabulary retention:** Overlay tools help lookup; they do not schedule review. AnimeVocab SRS is built in.",
+          "**Reliability:** Userscripts break when Crunchyroll updates. Transcription depends on audio clarity, not DOM hacks.",
+          "**Cost:** Jimaku archive is free; Substital is free. AnimeVocab core is free; Pro pays for transcription quota.",
+        ],
+      },
+      { type: "h2", text: "When to use which" },
+      {
+        type: "ul",
+        items: [
+          "**Jimaku + Substital** — you read Japanese subtitles comfortably and want full-line mining into Anki.",
+          "**Lexirise / dual-sub extensions** — Crunchyroll exposes enough Japanese text for click-to-translate (see [vs Lexirise](/vs-lexirise)).",
+          "**Listening Mode** — month-zero learner, romaji on-ramp, or show with **no minable JP sub track**.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full Crunchyroll guide: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Tool ranking: [learn Japanese with anime (2026)](/learn-japanese-with-anime). Deep dive on no-sub workflows: [Crunchyroll without Japanese subs](/blog/learn-japanese-crunchyroll-no-japanese-subs).",
+      },
+    ],
+  },
+  {
     slug: "best-anime-to-learn-japanese-beginners",
     title: "Best Anime to Learn Japanese for Beginners (2026 Ranked)",
     description:

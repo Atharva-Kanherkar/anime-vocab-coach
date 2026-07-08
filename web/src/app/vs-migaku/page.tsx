@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -30,6 +31,11 @@ export const metadata: Metadata = {
 export default function VsMigakuPage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="AnimeVocab vs Migaku (2026): Beginner On-Ramp or Power-User Mining Suite?"
+        description="AnimeVocab vs Migaku in 2026: zero-setup romaji-first beginner tool vs power-user Anki mining suite. Pricing, features, and who each is for."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -29,6 +30,11 @@ export const metadata: Metadata = {
 export default function LearnJapaneseYoutubePage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="Learn Japanese from Anime on YouTube (2026 Guide)"
+        description="Learn Japanese from anime clips on YouTube — dual subs, vocabulary mining, shadowing clips, and tools for beginners vs advanced miners."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

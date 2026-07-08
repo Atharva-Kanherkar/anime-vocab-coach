@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -29,6 +30,11 @@ export const metadata: Metadata = {
 export default function RomajiJapaneseLearningPage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="Romaji Japanese Learning with Anime (2026): When It Helps"
+        description="Romaji-first Japanese learning for anime fans who cannot read kana yet. When romaji helps, when to switch to hiragana, and tools that support both."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

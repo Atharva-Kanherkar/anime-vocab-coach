@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -29,6 +30,11 @@ export const metadata: Metadata = {
 export default function LearnJapaneseNetflixPage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="Learn Japanese on Netflix Anime (2026): Subtitles & Tools"
+        description="Learn Japanese on Netflix anime — Japanese subtitle tracks, dual subs, Language Reactor, HASHIGO, and AnimeVocab Listening Mode when subs are missing."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

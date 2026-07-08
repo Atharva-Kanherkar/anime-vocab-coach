@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -29,6 +30,11 @@ export const metadata: Metadata = {
 export default function BestAnimePage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="Best Anime to Learn Japanese (2026): Beginner Rankings"
+        description="Best anime to learn Japanese for beginners — Shirokuma Cafe, Non Non Biyori, Doraemon, and shows to avoid. Ranked for slow dialogue and everyday vocabulary."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

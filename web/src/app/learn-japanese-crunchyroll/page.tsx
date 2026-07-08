@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -30,6 +31,11 @@ export const metadata: Metadata = {
 export default function LearnJapaneseCrunchyrollPage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="Learn Japanese on Crunchyroll (2026): No JP Subs, Real Workflows"
+        description="Learn Japanese on Crunchyroll when Japanese subtitles are missing. Compare AnimeVocab, Lexirise, and ManabiDojo — transcription, romaji, and SRS that work on simulcasts."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs
@@ -128,6 +134,10 @@ export default function LearnJapaneseCrunchyrollPage() {
               Deep dive:{" "}
               <Link href="/blog/learn-japanese-crunchyroll-no-japanese-subs">
                 Learn Japanese on Crunchyroll when there are no Japanese subtitles
+              </Link>
+              , or compare{" "}
+              <Link href="/blog/jimaku-crunchyroll-subtitles-vs-listening-mode">
+                Jimaku Player vs Listening Mode
               </Link>
               . Compare <Link href="/vs-lexirise">AnimeVocab vs Lexirise</Link> or see the full{" "}
               <Link href="/learn-japanese-with-anime">2026 tool ranking</Link>.

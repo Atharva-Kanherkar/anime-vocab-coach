@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -29,6 +30,11 @@ export const metadata: Metadata = {
 export default function VsTrancyPage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="AnimeVocab vs Trancy (2026): AI Subtitles vs Romaji Word Cards"
+        description="AnimeVocab vs Trancy for learning Japanese from anime — Whisper subtitles vs romaji-first cards, pricing, and who each tool serves."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

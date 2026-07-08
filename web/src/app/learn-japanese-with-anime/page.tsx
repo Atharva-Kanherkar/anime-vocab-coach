@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -31,6 +32,11 @@ export const metadata: Metadata = {
 export default function LearnJapaneseWithAnimePage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="How to Learn Japanese with Anime (2026): Every Tool, Ranked"
+        description="Learn Japanese from anime in 2026. Compare AnimeVocab, Language Reactor, Migaku, and more on price, romaji support, and no-subtitle watching."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs

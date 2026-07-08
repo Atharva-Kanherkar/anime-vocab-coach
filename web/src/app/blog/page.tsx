@@ -93,6 +93,11 @@ export default function BlogIndexPage() {
                   <Link href="/learn-japanese-crunchyroll">Learn Japanese on Crunchyroll</Link>
                 </li>
                 <li>
+                  <Link href="/blog/jimaku-crunchyroll-subtitles-vs-listening-mode">
+                    Jimaku vs Listening Mode (Crunchyroll)
+                  </Link>
+                </li>
+                <li>
                   <Link href="/best-anime-to-learn-japanese">Best anime for beginners</Link>
                 </li>
                 <li>

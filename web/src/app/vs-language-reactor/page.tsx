@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
+import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
@@ -31,6 +32,11 @@ export const metadata: Metadata = {
 export default function VsLanguageReactorPage() {
   return (
     <>
+      <LandingJsonLd
+        path={path}
+        title="AnimeVocab vs Language Reactor (2026): Which Is Better for Learning Japanese from Anime?"
+        description="AnimeVocab vs Language Reactor: dual-subtitle reader vs romaji-first beginner tool with audio when Japanese subs are missing."
+      />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs
