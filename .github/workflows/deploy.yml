@@ -58,6 +58,12 @@ jobs:
           NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: /app
         run: npm ci && npm run deploy
 
+      - name: Notify search engines (IndexNow)
+        run: |
+          curl -sf -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json" \
+            -d '{"host":"animevocab.com","key":"animevocab-indexnow-key","keyLocation":"https://animevocab.com/animevocab-indexnow-key.txt","urlList":["https://animevocab.com/sitemap.xml"]}'
+
   deploy-api:
     name: Deploy Pro API
     runs-on: ubuntu-latest
