@@ -17,10 +17,11 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 8,
     ogImage: "/slides/10-coach.webp",
+    canonicalPath: "/vs-lingoku",
     blocks: [
       {
         type: "p",
-        text: "**Lingoku** is the 2026 newcomer getting press for **AI dual subtitles** on Netflix, YouTube, and Bilibili — plus **word blending** on English websites so Japanese tokens appear in articles you already read. It is built on comprehensible-input theory with BYOK AI (Ollama, DeepSeek, OpenAI). If you searched **Lingoku alternative**, the real question is whether you are ready to **read Japanese subtitles** or still need **romaji-first audio help**.",
+        text: "**Lingoku** is the 2026 newcomer getting press for **AI dual subtitles** on Netflix, YouTube, and Bilibili — plus **word blending** on English websites so Japanese tokens appear in articles you already read. It is built on comprehensible-input theory with BYOK AI (Ollama, DeepSeek, OpenAI). If you searched **Lingoku alternative**, the real question is whether you are ready to **read Japanese subtitles** or still need **romaji-first audio help**. Side-by-side: [AnimeVocab vs Lingoku](/vs-lingoku).",
       },
       { type: "h2", text: "What Lingoku does well" },
       {
@@ -55,6 +56,59 @@ export const blogPosts: BlogPost[] = [
       {
         type: "p",
         text: "Full extension ranking: [best Chrome extensions (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026). Master hub: [learn Japanese with anime](/learn-japanese-with-anime).",
+      },
+    ],
+  },
+  {
+    slug: "subminer-vs-asbplayer-anime-mining-2026",
+    title: "SubMiner vs asbplayer: Desktop MPV Mining vs Browser Anime Sentence Cards (2026)",
+    description:
+      "SubMiner overlays mpv with bundled Yomitan and one-click Anki sentence cards. asbplayer mines in Chrome from fan subs. Which immersion mining stack fits anime learners?",
+    publishedAt: "2026-07-08T21:00:00.000Z",
+    updatedAt: "2026-07-08T21:00:00.000Z",
+    keywords: [
+      "SubMiner Japanese",
+      "SubMiner vs asbplayer",
+      "mpv sentence mining anime",
+      "anki mining anime desktop",
+      "sentence mining japanese immersion",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**SubMiner** is the 2026 desktop answer to browser miners: an interactive overlay on **mpv** with bundled **Yomitan**, N+1 highlighting against your Anki decks, Jimaku subtitle search, and one-key sentence cards (audio + screenshot + line). **asbplayer** still owns the **Chrome + streaming site** lane. Neither helps if you **cannot read Japanese subtitles** yet — that is the romaji on-ramp gap [AnimeVocab](/) fills.",
+      },
+      { type: "h2", text: "SubMiner workflow (local files & mpv)" },
+      {
+        type: "ol",
+        items: [
+          "Install **mpv**, **Anki + AnkiConnect**, and **SubMiner** (Windows/macOS/Linux).",
+          "Import Yomitan dictionaries on first run.",
+          "Play anime with a Japanese `.srt` / `.ass` — fan subs from Jimaku or your own rips.",
+          "Hover tokens in the on-screen subtitle overlay → Yomitan popup → mine sentence with **Ctrl/Cmd+S**.",
+          "Track immersion hours in SubMiner's local dashboard.",
+        ],
+      },
+      { type: "h2", text: "asbplayer workflow (browser streams)" },
+      {
+        type: "p",
+        text: "**asbplayer** syncs subtitle files to Netflix/YouTube in the browser, mines to Anki with screenshots, and pairs with your own Yomitan install. No mpv required — but you still need **Japanese subtitle text** and comfort reading it. Beginner comparison: [asbplayer vs AnimeVocab](/blog/asbplayer-alternative-beginners-anime-japanese).",
+      },
+      { type: "h2", text: "SubMiner vs asbplayer — pick by habitat" },
+      {
+        type: "ul",
+        items: [
+          "**SubMiner** — you watch **local files** or Jellyfin, want mpv performance, bundled Yomitan, N+1 targeting, immersion stats.",
+          "**asbplayer** — you mine **browser streams** with fan subs and already run a Chrome mining stack.",
+          "**AnimeVocab** — you watch **Crunchyroll legally** without JP subs and need **romaji-first** cards + SRS ([Crunchyroll guide](/learn-japanese-crunchyroll)).",
+          "**Both miners over time** — graduate from romaji audio cards once kana clicks ([romaji path](/romaji-japanese-learning)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Extension roundup for readers: [best Chrome extensions (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026). Master ranking: [learn Japanese with anime](/learn-japanese-with-anime).",
       },
     ],
   },
@@ -138,7 +192,7 @@ export const blogPosts: BlogPost[] = [
     blocks: [
       {
         type: "p",
-        text: "**asbplayer** is the immersion community's favorite browser miner: sync fan subtitles, screenshot+audio+sentence into Anki, bolt on Yomitan. New desktop tools like **SubMiner** (mpv-native) push the same workflow without browser overhead. None of them solve the **month-zero** problem: you still need to **read Japanese subtitles** and run a mining stack.",
+        text: "**asbplayer** is the immersion community's favorite browser miner: sync fan subtitles, screenshot+audio+sentence into Anki, bolt on Yomitan. New desktop tools like **SubMiner** (mpv-native) push the same workflow without browser overhead — see [SubMiner vs asbplayer](/blog/subminer-vs-asbplayer-anime-mining-2026). None of them solve the **month-zero** problem: you still need to **read Japanese subtitles** and run a mining stack.",
       },
       { type: "h2", text: "What asbplayer-style tools assume" },
       {
@@ -265,6 +319,7 @@ export const blogPosts: BlogPost[] = [
       "crunchyroll japanese subtitles extension",
     ],
     readingMinutes: 9,
+    ogImage: "/slides/04-sakura-night.jpg",
     blocks: [
       {
         type: "p",
@@ -331,6 +386,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 8,
     ogImage: "/slides/03-wisteria.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
     blocks: [
       {
         type: "p",
@@ -404,6 +460,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 9,
     ogImage: "/slides/05-torii-night.jpg",
+    canonicalPath: "/learn-japanese-crunchyroll",
     blocks: [
       {
         type: "p",
@@ -463,6 +520,8 @@ export const blogPosts: BlogPost[] = [
       "japanese immersion review",
     ],
     readingMinutes: 7,
+    ogImage: "/slides/11-cards.webp",
+    canonicalPath: "/anime-spaced-repetition",
     blocks: [
       {
         type: "p",
@@ -504,6 +563,7 @@ export const blogPosts: BlogPost[] = [
       "learn japanese speaking anime",
     ],
     readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
     blocks: [
       {
         type: "p",
@@ -540,6 +600,7 @@ export const blogPosts: BlogPost[] = [
       "comprehensible input anime",
     ],
     readingMinutes: 7,
+    ogImage: "/slides/09-faq.jpg",
     blocks: [
       {
         type: "p",
@@ -575,6 +636,7 @@ export const blogPosts: BlogPost[] = [
       "learn japanese from anime realistic",
     ],
     readingMinutes: 8,
+    ogImage: "/slides/06-manifesto.jpg",
     blocks: [
       {
         type: "p",
@@ -619,6 +681,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 6,
     ogImage: "/slides/04-fireflies.jpg",
+    canonicalPath: "/romaji-japanese-learning",
     blocks: [
       {
         type: "p",
@@ -655,6 +718,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 8,
     ogImage: "/slides/05-private.jpg",
+    canonicalPath: "/learn-japanese-netflix-anime",
     blocks: [
       {
         type: "p",
@@ -699,6 +763,7 @@ export const blogPosts: BlogPost[] = [
       "beginner japanese immersion tool",
     ],
     readingMinutes: 7,
+    ogImage: "/slides/07-pricing.jpg",
     blocks: [
       {
         type: "p",
@@ -750,6 +815,7 @@ export const blogPosts: BlogPost[] = [
       "anime study habit",
     ],
     readingMinutes: 5,
+    ogImage: "/slides/10-coach.webp",
     blocks: [
       {
         type: "p",
@@ -787,6 +853,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 9,
     ogImage: "/slides/12-manga.webp",
+    canonicalPath: "/ai-manga-maker",
     blocks: [
       {
         type: "p",
@@ -837,6 +904,8 @@ export const blogPosts: BlogPost[] = [
       "manga vocabulary practice",
     ],
     readingMinutes: 7,
+    ogImage: "/slides/12-manga.webp",
+    canonicalPath: "/learn-japanese-manga",
     blocks: [
       {
         type: "p",
@@ -879,6 +948,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 8,
     ogImage: "/slides/06-manifesto.jpg",
+    canonicalPath: "/vs-animelon",
     blocks: [
       {
         type: "p",
@@ -982,6 +1052,8 @@ export const blogPosts: BlogPost[] = [
       "language reactor youtube",
     ],
     readingMinutes: 8,
+    ogImage: "/slides/04-fireflies.jpg",
+    canonicalPath: "/learn-japanese-youtube-anime",
     blocks: [
       {
         type: "p",
@@ -1026,6 +1098,7 @@ export const blogPosts: BlogPost[] = [
       "anime flashcards japanese",
     ],
     readingMinutes: 8,
+    ogImage: "/slides/11-cards.webp",
     blocks: [
       {
         type: "p",
@@ -1074,6 +1147,8 @@ export const blogPosts: BlogPost[] = [
       "dual subtitle anime extension",
     ],
     readingMinutes: 7,
+    ogImage: "/slides/05-private.jpg",
+    canonicalPath: "/vs-trancy",
     blocks: [
       {
         type: "p",

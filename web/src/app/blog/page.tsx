@@ -81,6 +81,14 @@ export default function BlogIndexPage() {
               <h2>Tool comparisons & guides</h2>
               <ul>
                 <li>
+                  <Link href="/vs-lingoku">AnimeVocab vs Lingoku</Link>
+                </li>
+                <li>
+                  <Link href="/blog/subminer-vs-asbplayer-anime-mining-2026">
+                    SubMiner vs asbplayer mining
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/lingoku-alternative-anime-japanese-2026">
                     Lingoku vs AnimeVocab (2026)
                   </Link>

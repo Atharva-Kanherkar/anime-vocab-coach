@@ -187,6 +187,22 @@ export default function LearnJapaneseWithAnimePage() {
                     </td>
                   </tr>
                   <tr>
+                    <th scope="row">Lingoku</th>
+                    <td>Chrome / Edge / FF ext</td>
+                    <td>Free · BYOK API</td>
+                    <td>
+                      <span className="no">No</span>
+                      <span className="cell-note">needs JP sub text</span>
+                    </td>
+                    <td>
+                      <span className="no">No</span>
+                    </td>
+                    <td>Exposure SRS</td>
+                    <td>
+                      <span className="no">No</span>
+                    </td>
+                  </tr>
+                  <tr>
                     <th scope="row">asbplayer</th>
                     <td>Chrome ext + web</td>
                     <td>
@@ -302,6 +318,11 @@ export default function LearnJapaneseWithAnimePage() {
                 <Link href="/vs-migaku">See how it compares to AnimeVocab →</Link>
               </li>
               <li>
+                <strong>SubMiner</strong>: desktop mpv overlay with bundled Yomitan and one-click Anki sentence
+                cards — the 2026 upgrade path for local-file immersion miners.{" "}
+                <Link href="/blog/subminer-vs-asbplayer-anime-mining-2026">SubMiner vs asbplayer →</Link>
+              </li>
+              <li>
                 <strong>asbplayer</strong>: free and open source, the immersion crowd&apos;s favorite for mining
                 audio + screenshot + sentence cards into Anki. No dictionary or romaji of its own; you bolt on
                 Yomitan. Powerful, not beginner-usable.{" "}
@@ -373,6 +394,7 @@ export default function LearnJapaneseWithAnimePage() {
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
           { href: "/vs-animelon", label: "vs Animelon" },
+          { href: "/vs-lingoku", label: "vs Lingoku" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },

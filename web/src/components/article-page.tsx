@@ -9,12 +9,13 @@ import { articleJsonLd, defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export function blogMetadata(post: BlogPost): Metadata {
   const url = `${SITE_URL}/blog/${post.slug}`;
+  const canonical = post.canonicalPath ? `${SITE_URL}${post.canonicalPath}` : url;
   const ogImage = post.ogImage ?? "/og.png";
   return {
     title: post.title,
     description: post.description,
     keywords: post.keywords,
-    alternates: { canonical: url },
+    alternates: { canonical },
     openGraph: {
       ...defaultOpenGraph,
       type: "article",
@@ -50,10 +51,13 @@ export function ArticlePageShell({
   breadcrumbs: { href?: string; label: string }[];
   children?: React.ReactNode;
 }) {
+  const articleUrl = post.canonicalPath
+    ? `${SITE_URL}${post.canonicalPath}`
+    : `${SITE_URL}/blog/${post.slug}`;
   const jsonLd = articleJsonLd({
     title: post.title,
     description: post.description,
-    url: `${SITE_URL}/blog/${post.slug}`,
+    url: articleUrl,
     publishedAt: post.publishedAt,
     updatedAt: post.updatedAt,
   });

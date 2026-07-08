@@ -15,5 +15,7 @@ export type BlogPost = {
   readingMinutes: number;
   /** Optional OG image path (under /public). Defaults to /og.png */
   ogImage?: string;
+  /** When a landing page is the preferred URL, point canonical here (e.g. /vs-lingoku). */
+  canonicalPath?: string;
   blocks: ArticleBlock[];
 };
