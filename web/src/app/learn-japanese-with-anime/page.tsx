@@ -187,6 +187,22 @@ export default function LearnJapaneseWithAnimePage() {
                     </td>
                   </tr>
                   <tr>
+                    <th scope="row">YumeGo</th>
+                    <td>Chrome ext</td>
+                    <td>Free · Premium</td>
+                    <td>
+                      <span className="no">No</span>
+                      <span className="cell-note">needs JP sub text</span>
+                    </td>
+                    <td>
+                      <span className="no">No</span>
+                    </td>
+                    <td>Phrase library + SRS</td>
+                    <td>
+                      <span className="no">No</span>
+                    </td>
+                  </tr>
+                  <tr>
                     <th scope="row">Lingoku</th>
                     <td>Chrome / Edge / FF ext</td>
                     <td>Free · BYOK API</td>

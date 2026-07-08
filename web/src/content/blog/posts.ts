@@ -257,7 +257,7 @@ export const blogPosts: BlogPost[] = [
         items: [
           "**Language Reactor** — dual subtitles + playback controls on Netflix/YouTube ([vs AnimeVocab](/vs-language-reactor)).",
           "**Subkit + Furigana add-on** — furigana overlay on Netflix, YouTube, Disney+ with AI translation options.",
-          "**Uplang** — dual subs with furigana modes (always / hover / unknown-only) on a paid Pro tier.",
+          "**Uplang** — furigana modes on Netflix dual subs (paid Pro).",
         ],
       },
       { type: "h2", text: "When this stack is the wrong answer" },
@@ -267,7 +267,7 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Netflix hub: [learn Japanese on Netflix anime](/learn-japanese-netflix-anime). Extension roundup: [best Chrome extensions (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026).",
+        text: "Netflix hub: [learn Japanese on Netflix anime](/learn-japanese-netflix-anime). Extension roundup: [best Chrome extensions (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026). Furigana tools: [Uplang vs HASHIGO](/blog/uplang-netflix-dual-subtitles-2026).",
       },
     ],
   },
