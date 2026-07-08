@@ -334,6 +334,7 @@ export default function LearnJapaneseWithAnimePage() {
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
+          { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/vs-migaku", label: "vs Migaku" },
           { href: GITHUB_URL, label: "GitHub" },

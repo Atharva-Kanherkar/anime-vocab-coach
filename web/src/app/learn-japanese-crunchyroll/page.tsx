@@ -139,7 +139,8 @@ export default function LearnJapaneseCrunchyrollPage() {
               <Link href="/blog/jimaku-crunchyroll-subtitles-vs-listening-mode">
                 Jimaku Player vs Listening Mode
               </Link>
-              . Compare <Link href="/vs-lexirise">AnimeVocab vs Lexirise</Link> or see the full{" "}
+              . Compare <Link href="/vs-lexirise">AnimeVocab vs Lexirise</Link>,{" "}
+              <Link href="/vs-manabidojo">vs ManabiDojo</Link>, or see the full{" "}
               <Link href="/learn-japanese-with-anime">2026 tool ranking</Link>.
             </p>
           </div>

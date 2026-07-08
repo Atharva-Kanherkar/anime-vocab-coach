@@ -23,6 +23,7 @@ const staticRoutes = [
   { path: "/vs-language-reactor", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/vs-migaku", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/vs-lexirise", priority: 0.8, changeFrequency: "monthly" as const },
+  { path: "/vs-manabidojo", priority: 0.78, changeFrequency: "monthly" as const },
   { path: "/cloud", priority: 0.7, changeFrequency: "monthly" as const },
   { path: "/without-extension", priority: 0.6, changeFrequency: "monthly" as const },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" as const },
