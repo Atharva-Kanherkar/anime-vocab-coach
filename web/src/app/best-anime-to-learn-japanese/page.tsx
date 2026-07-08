@@ -108,7 +108,7 @@ export default function BestAnimePage() {
               <Link href="/blog/best-anime-to-learn-japanese-beginners">
                 Best anime to learn Japanese for beginners (2026 ranked)
               </Link>
-              . Workflow:{" "}
+              {" "}· hub: <Link href="/best-anime-to-learn-japanese">this landing page</Link>. Workflow:{" "}
               <Link href="/blog/one-word-per-episode-method">one word per episode</Link>,{" "}
               <Link href="/anime-spaced-repetition">spaced repetition</Link>, tools on{" "}
               <Link href="/learn-japanese-crunchyroll">Crunchyroll</Link>.

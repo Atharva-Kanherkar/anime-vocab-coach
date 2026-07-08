@@ -287,7 +287,11 @@ export default function LearnJapaneseWithAnimePage() {
               you&apos;re past kana. But every one of them starts with a subtitle you have to read. If you&apos;re not
               there yet, or you just want to watch tonight&apos;s episode and come away with a word, AnimeVocab
               is the one that meets you where you are, and the only one that keeps working when there&apos;s no
-              subtitle track at all.
+              subtitle track at all. Chrome extension roundup:{" "}
+              <Link href="/blog/best-chrome-extensions-learn-japanese-anime-2026">
+                best extensions ranked (2026)
+              </Link>
+              .
             </p>
 
             <h2>Learn by creating manga</h2>

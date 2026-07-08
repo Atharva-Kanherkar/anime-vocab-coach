@@ -85,9 +85,9 @@ export default function AnimeSpacedRepetitionPage() {
             <p>
               Full guide:{" "}
               <Link href="/blog/spaced-repetition-anime-vocabulary">
-                Spaced repetition for anime vocabulary
+                Spaced repetition for anime vocabulary (blog)
               </Link>
-              . Method:{" "}
+              {" "}· hub: <Link href="/anime-spaced-repetition">SRS landing page</Link>. Method:{" "}
               <Link href="/blog/one-word-per-episode-method">one word per episode</Link>. Tools:{" "}
               <Link href="/learn-japanese-with-anime">2026 ranking</Link>.
             </p>

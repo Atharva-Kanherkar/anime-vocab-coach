@@ -2,6 +2,78 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "best-chrome-extensions-learn-japanese-anime-2026",
+    title: "Best Chrome Extensions to Learn Japanese from Anime (2026 Ranked)",
+    description:
+      "Ranked Chrome extensions for learning Japanese on Crunchyroll and Netflix — AnimeVocab, Lexirise, ManabiDojo, Language Reactor, Migaku, and Trancy. Who each tool is for.",
+    publishedAt: "2026-07-08T14:00:00.000Z",
+    updatedAt: "2026-07-08T14:00:00.000Z",
+    keywords: [
+      "best chrome extension learn japanese",
+      "chrome extension japanese anime",
+      "learn japanese netflix extension",
+      "crunchyroll japanese learning extension",
+      "language reactor alternative",
+    ],
+    readingMinutes: 10,
+    blocks: [
+      {
+        type: "p",
+        text: "Searching **best Chrome extension learn Japanese anime** returns a wall of dual-subtitle miners. Most assume you already **read hiragana**. This ranking sorts extensions by **platform (Crunchyroll vs Netflix)**, **reading level**, and **whether you want setup or a one-word tonight** — not by Chrome Web Store star count alone.",
+      },
+      { type: "h2", text: "Quick picks by situation" },
+      {
+        type: "ul",
+        items: [
+          "**Cannot read kana yet, watch Crunchyroll** → [AnimeVocab](/) (romaji + Listening Mode)",
+          "**Read Japanese subs, mine Crunchyroll** → [Lexirise](/vs-lexirise) or [ManabiDojo](/vs-manabidojo)",
+          "**Netflix + YouTube dual subtitles** → Language Reactor (free tier)",
+          "**Power-user Anki mining** → Migaku (subscription)",
+          "**AI bilingual subs + mobile app** → Trancy ([comparison](/vs-trancy))",
+        ],
+      },
+      { type: "h2", text: "1. AnimeVocab — romaji-first, audio when subs are missing" },
+      {
+        type: "p",
+        text: "**Platforms:** Crunchyroll, Netflix, YouTube. **Price:** free core; Pro for transcription quota. **Best for:** month-zero learners who need **romaji-first** cards and **built-in SRS** without wiring Anki. **Standout:** Listening Mode transcribes tab audio when Crunchyroll has no Japanese subtitle track — the case Jimaku overlays solve with fan `.srt` files. Open source. Hub: [learn Japanese with anime (2026)](/learn-japanese-with-anime), [Crunchyroll guide](/learn-japanese-crunchyroll).",
+      },
+      { type: "h2", text: "2. Lexirise — Crunchyroll-native dual subs" },
+      {
+        type: "p",
+        text: "**Platforms:** Crunchyroll, Netflix, Prime, YouTube, Bilibili, iQIYI. **Price:** free core; Pro for SRS extras. **Best for:** learners who **read Japanese subtitles** and want click-to-translate mining on **Crunchyroll** (where Migaku and Language Reactor do not run). See [AnimeVocab vs Lexirise](/vs-lexirise).",
+      },
+      { type: "h2", text: "3. ManabiDojo — fan Japanese subs + quizzes" },
+      {
+        type: "p",
+        text: "**Platforms:** Crunchyroll, Netflix (beta). **Price:** free core on Crunchyroll; premium for flashcards, AI breakdowns, web manga OCR. **Best for:** readers who want **integrated Jimaku-style subtitles**, in-player quizzes, and word popups. Pulls from jimaku.cc. Compare [vs ManabiDojo](/vs-manabidojo) and [Jimaku vs Listening Mode](/blog/jimaku-crunchyroll-subtitles-vs-listening-mode).",
+      },
+      { type: "h2", text: "4. Language Reactor — Netflix/YouTube dual-sub king" },
+      {
+        type: "p",
+        text: "**Platforms:** Netflix, YouTube (not Crunchyroll). **Price:** free tier; ~$5/mo Pro. **Best for:** intermediate learners with **Japanese subtitle tracks** on Netflix. Mature dictionary, playback controls, Anki export on Pro. [AnimeVocab vs Language Reactor](/vs-language-reactor).",
+      },
+      { type: "h2", text: "5. Migaku — deepest mining suite" },
+      {
+        type: "p",
+        text: "**Platforms:** Netflix, YouTube, Disney+, Viki, Animelon — **not Crunchyroll**. **Price:** ~$9/mo Standard. **Best for:** committed miners building large custom Anki decks with pitch accent and screenshots. Steep setup. [AnimeVocab vs Migaku](/vs-migaku).",
+      },
+      { type: "h2", text: "6. Trancy — AI subtitles + mobile" },
+      {
+        type: "p",
+        text: "**Platforms:** Netflix, YouTube, mobile apps. **Price:** free tier; ~$4/mo Pro. **Best for:** learners who want **AI-generated bilingual subs** and pronunciation coaching without Anki. Overlaps Language Reactor on desktop. [AnimeVocab vs Trancy](/vs-trancy).",
+      },
+      { type: "h2", text: "What most rankings get wrong" },
+      {
+        type: "p",
+        text: "Listicles crown **Migaku or Language Reactor** without asking: *Can you read the subtitle they require?* and *Are you on Crunchyroll?* If both answers are painful, start with **romaji + audio** ([romaji guide](/romaji-japanese-learning)) or a **Crunchyroll-native reader** (Lexirise/ManabiDojo). Graduate tools as kana clicks.",
+      },
+      {
+        type: "p",
+        text: "Decision tree post: [Migaku vs Language Reactor vs AnimeVocab for beginners](/blog/migaku-language-reactor-animevocab-beginners).",
+      },
+    ],
+  },
+  {
     slug: "jimaku-crunchyroll-subtitles-vs-listening-mode",
     title: "Jimaku Player vs Listening Mode: Crunchyroll Japanese Without Subtitle Files (2026)",
     description:

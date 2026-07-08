@@ -47,6 +47,9 @@ export const SEO_KEYWORDS = [
   "jimaku player crunchyroll",
   "substital crunchyroll",
   "kitsunekko subtitles",
+  "best chrome extension learn japanese",
+  "chrome extension japanese anime",
+  "learn japanese netflix extension",
 ];
 
 export const STUDIO_DESCRIPTION =
@@ -165,6 +168,43 @@ export function faqJsonLd(items: { question: string; answer: string }[]) {
         text: item.answer,
       },
     })),
+  };
+}
+
+export function mangaCreativeWorkJsonLd(input: {
+  id: string;
+  title: string;
+  description: string;
+  authorName?: string;
+  genre?: string;
+  createdAt: string;
+}) {
+  const url = `${SITE_URL}/m/${input.id}`;
+  const image =
+    input.id.length > 0
+      ? `${SITE_URL}/api/studio/${input.id}/panel/0`
+      : `${SITE_URL}/og.png`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "VisualArtwork",
+    name: input.title,
+    description: input.description,
+    url,
+    image,
+    dateCreated: input.createdAt,
+    artform: "manga",
+    genre: input.genre || "manga",
+    inLanguage: "en",
+    isAccessibleForFree: true,
+    creator: {
+      "@type": "Person",
+      name: input.authorName?.trim() || "Anonymous",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
   };
 }
 

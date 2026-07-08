@@ -89,6 +89,7 @@ export default function LearnJapaneseYoutubePage() {
 
             <p>
               Compare: <Link href="/learn-japanese-with-anime">full 2026 tool ranking</Link>,{" "}
+              <Link href="/blog/learn-japanese-youtube-anime-subtitles">YouTube anime subtitle guide</Link>,{" "}
               <Link href="/learn-japanese-netflix-anime">Netflix guide</Link>,{" "}
               <Link href="/best-anime-to-learn-japanese">best beginner anime</Link>.
             </p>

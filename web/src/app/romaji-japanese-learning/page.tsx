@@ -85,7 +85,8 @@ export default function RomajiJapaneseLearningPage() {
 
             <p>
               Read more:{" "}
-              <Link href="/blog/romaji-first-japanese-anime">Romaji-first Japanese learning blog post</Link>,{" "}
+              <Link href="/blog/romaji-first-japanese-anime">Romaji-first Japanese learning (blog)</Link>,{" "}
+              hub: <Link href="/romaji-japanese-learning">romaji landing guide</Link>,{" "}
               <Link href="/learn-japanese-crunchyroll">Crunchyroll guide</Link>,{" "}
               <Link href="/vs-language-reactor">vs Language Reactor</Link> (reader-focused).
             </p>

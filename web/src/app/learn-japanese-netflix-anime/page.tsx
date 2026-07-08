@@ -99,8 +99,10 @@ export default function LearnJapaneseNetflixPage() {
 
             <p>
               Full post:{" "}
-              <Link href="/blog/learn-japanese-netflix-anime-2026">Learn Japanese on Netflix anime in 2026</Link>
-              . Compare platforms:{" "}
+              <Link href="/blog/learn-japanese-netflix-anime-2026">
+                Learn Japanese on Netflix anime in 2026 (blog)
+              </Link>
+              {" "}· hub: <Link href="/learn-japanese-netflix-anime">Netflix landing guide</Link>. Compare platforms:{" "}
               <Link href="/learn-japanese-crunchyroll">Crunchyroll guide</Link>.
             </p>
           </div>
