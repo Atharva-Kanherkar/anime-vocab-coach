@@ -43,6 +43,7 @@ export default function LearnJapaneseNetflixPage() {
             { href: "/learn-japanese-with-anime", label: "Guides" },
             { label: "Netflix anime" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero
@@ -87,7 +88,8 @@ export default function LearnJapaneseNetflixPage() {
                 <Link href="/vs-language-reactor">comparison</Link>).
               </li>
               <li>
-                <strong>HASHIGO!</strong> — furigana and JLPT coloring on Netflix.
+                <strong>HASHIGO!</strong> — furigana and JLPT coloring on Netflix.{" "}
+                <Link href="/blog/hashigo-yomitan-netflix-japanese-anime-2026">Reader stack guide →</Link>
               </li>
               <li>
                 <strong>AnimeVocab</strong> — romaji cards + SRS; Listening Mode when you skip reading.

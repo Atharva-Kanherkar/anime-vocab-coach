@@ -9,6 +9,7 @@ import { articleJsonLd, defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export function blogMetadata(post: BlogPost): Metadata {
   const url = `${SITE_URL}/blog/${post.slug}`;
+  const ogImage = post.ogImage ?? "/og.png";
   return {
     title: post.title,
     description: post.description,
@@ -22,11 +23,20 @@ export function blogMetadata(post: BlogPost): Metadata {
       url,
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: post.title,
+        },
+      ],
     },
     twitter: {
       ...defaultTwitter,
       title: post.title,
       description: post.description,
+      images: [ogImage],
     },
   };
 }
@@ -53,7 +63,7 @@ export function ArticlePageShell({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <SiteHeader compact />
       <main id="main">
-        <Breadcrumbs items={breadcrumbs} />
+        <Breadcrumbs items={breadcrumbs} currentPath={`/blog/${post.slug}`} />
         <section className="cmp-hero">
           <div className="wrap">
             <p className="eyebrow">

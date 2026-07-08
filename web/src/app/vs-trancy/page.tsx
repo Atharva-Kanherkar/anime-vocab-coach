@@ -43,6 +43,7 @@ export default function VsTrancyPage() {
             { href: "/learn-japanese-with-anime", label: "Compare" },
             { label: "vs Trancy" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

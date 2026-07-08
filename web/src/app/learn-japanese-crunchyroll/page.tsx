@@ -44,6 +44,7 @@ export default function LearnJapaneseCrunchyrollPage() {
             { href: "/learn-japanese-with-anime", label: "Guides" },
             { label: "Crunchyroll" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

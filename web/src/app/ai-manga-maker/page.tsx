@@ -85,6 +85,7 @@ export default function AiMangaMakerPage() {
             { href: "/studio", label: "Manga Studio" },
             { label: "AI manga maker" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

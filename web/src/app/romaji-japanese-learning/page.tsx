@@ -43,6 +43,7 @@ export default function RomajiJapaneseLearningPage() {
             { href: "/learn-japanese-with-anime", label: "Guides" },
             { label: "Romaji learning" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

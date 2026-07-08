@@ -57,6 +57,7 @@ export default function LearnJapaneseMangaPage() {
             { href: "/learn-japanese-with-anime", label: "Guides" },
             { label: "Learn with manga" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

@@ -44,6 +44,7 @@ export default function VsMigakuPage() {
             { href: "/learn-japanese-with-anime", label: "Compare" },
             { label: "vs Migaku" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

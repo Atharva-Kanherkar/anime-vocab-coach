@@ -2,6 +2,67 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "hashigo-yomitan-netflix-japanese-anime-2026",
+    title: "HASHIGO, Yomitan, and Netflix Japanese Subtitles: A 2026 Reader's Stack",
+    description:
+      "Netflix anime often has Japanese subtitle tracks. HASHIGO adds furigana and JLPT colors; Yomitan mines to Anki. When you still cannot read kana, use romaji-first audio tools instead.",
+    publishedAt: "2026-07-08T18:00:00.000Z",
+    updatedAt: "2026-07-08T18:00:00.000Z",
+    keywords: [
+      "HASHIGO Netflix",
+      "Yomitan anime",
+      "Netflix Japanese subtitles furigana",
+      "learn Japanese Netflix extension",
+      "JLPT coloring subtitles",
+    ],
+    readingMinutes: 9,
+    ogImage: "/slides/05-private.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Once you confirm a **Japanese subtitle track** on Netflix anime, the tooling splits into two camps: **readers** who want furigana, dictionary popups, and Anki mining — and **listeners** who still need **romaji-first** help. This guide maps the reader stack (**HASHIGO!**, **Yomitan**, Language Reactor, Subkit) and when to skip straight to **audio-first** tools.",
+      },
+      { type: "h2", text: "Step zero: find real Japanese subs" },
+      {
+        type: "ul",
+        items: [
+          "Open Netflix subtitle settings on an anime title.",
+          "Look for **Japanese** (not English only).",
+          "Prefer standard dialogue subs over **[CC]** when both exist — CC includes sound descriptions but dialogue is still verbatim.",
+          "If only English exists, jump to [Listening Mode / romaji tools](/learn-japanese-netflix-anime) instead of forcing a reading workflow.",
+        ],
+      },
+      { type: "h2", text: "HASHIGO! — furigana and JLPT coloring on Netflix" },
+      {
+        type: "p",
+        text: "**HASHIGO!** (Chrome) enhances Netflix Japanese subtitles with **furigana readings** and **JLPT-based color coding** so you can parse kanji-heavy lines while watching. It targets learners who already read kana but choke on unknown kanji density — not month-zero beginners. Pairs well with slice-of-life shows from our [best beginner anime](/best-anime-to-learn-japanese) list once you are past pure romaji.",
+      },
+      { type: "h2", text: "Yomitan — the dictionary layer everything bolts onto" },
+      {
+        type: "p",
+        text: "**Yomitan** (successor to Yomichan) is the immersion community's default popup dictionary on any Japanese text in the browser. **asbplayer**, **Migaku**, and **ManabiDojo** all assume you will Yomitan-click unknown words. It does not teach you from zero — it accelerates lookup once you can see Japanese subtitles. Mining comparison: [asbplayer vs beginner tools](/blog/asbplayer-alternative-beginners-anime-japanese).",
+      },
+      { type: "h2", text: "Alternatives in the same lane" },
+      {
+        type: "ul",
+        items: [
+          "**Language Reactor** — dual subtitles + playback controls on Netflix/YouTube ([vs AnimeVocab](/vs-language-reactor)).",
+          "**Subkit + Furigana add-on** — furigana overlay on Netflix, YouTube, Disney+ with AI translation options.",
+          "**Uplang** — dual subs with furigana modes (always / hover / unknown-only) on a paid Pro tier.",
+        ],
+      },
+      { type: "h2", text: "When this stack is the wrong answer" },
+      {
+        type: "p",
+        text: "If you cannot read hiragana yet, furigana on Japanese subtitles still feels like a wall. Use **romaji-first** cards from audio ([romaji guide](/romaji-japanese-learning)) or **Crunchyroll audio transcription** ([Crunchyroll guide](/learn-japanese-crunchyroll)). Graduate into HASHIGO + Yomitan after ~50 words by sound.",
+      },
+      {
+        type: "p",
+        text: "Netflix hub: [learn Japanese on Netflix anime](/learn-japanese-netflix-anime). Extension roundup: [best Chrome extensions (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "asbplayer-alternative-beginners-anime-japanese",
     title: "asbplayer vs AnimeVocab: Sentence Mining vs One-Word Beginner Cards (2026)",
     description:
@@ -66,6 +127,7 @@ export const blogPosts: BlogPost[] = [
       "language reactor alternative",
     ],
     readingMinutes: 10,
+    ogImage: "/slides/11-cards.webp",
     blocks: [
       {
         type: "p",
@@ -204,6 +266,7 @@ export const blogPosts: BlogPost[] = [
       "slice of life japanese learning",
     ],
     readingMinutes: 8,
+    ogImage: "/slides/03-wisteria.jpg",
     blocks: [
       {
         type: "p",
@@ -276,6 +339,7 @@ export const blogPosts: BlogPost[] = [
       "crunchyroll vocabulary",
     ],
     readingMinutes: 9,
+    ogImage: "/slides/05-torii-night.jpg",
     blocks: [
       {
         type: "p",
@@ -490,6 +554,7 @@ export const blogPosts: BlogPost[] = [
       "beginner japanese anime",
     ],
     readingMinutes: 6,
+    ogImage: "/slides/04-fireflies.jpg",
     blocks: [
       {
         type: "p",
@@ -656,6 +721,7 @@ export const blogPosts: BlogPost[] = [
       "make manga with ai",
     ],
     readingMinutes: 9,
+    ogImage: "/slides/12-manga.webp",
     blocks: [
       {
         type: "p",
@@ -794,6 +860,7 @@ export const blogPosts: BlogPost[] = [
       "comicory vs manga studio",
     ],
     readingMinutes: 10,
+    ogImage: "/slides/12-manga.webp",
     blocks: [
       {
         type: "p",
@@ -831,7 +898,7 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Full feature table and FAQ: [AI manga maker guide](/ai-manga-maker). Try Studio: [/studio](/studio).",
+        text: "Full feature table and FAQ: [AI manga maker guide](/ai-manga-maker). Browse published work: [Manga Gallery](/gallery). Try Studio: [/studio](/studio).",
       },
     ],
   },

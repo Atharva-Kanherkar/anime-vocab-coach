@@ -45,6 +45,7 @@ export default function VsLanguageReactorPage() {
             { href: "/learn-japanese-with-anime", label: "Compare" },
             { label: "vs Language Reactor" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

@@ -44,6 +44,7 @@ export default function LearnJapaneseWithAnimePage() {
             { href: "/", label: "Home" },
             { label: "How to learn Japanese with anime" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

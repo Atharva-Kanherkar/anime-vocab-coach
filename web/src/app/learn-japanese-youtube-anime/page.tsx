@@ -43,6 +43,7 @@ export default function LearnJapaneseYoutubePage() {
             { href: "/blog", label: "Blog" },
             { label: "YouTube anime" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

@@ -43,6 +43,7 @@ export default function BestAnimePage() {
             { href: "/blog", label: "Blog" },
             { label: "Best anime" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

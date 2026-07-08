@@ -43,6 +43,7 @@ export default function AnimeSpacedRepetitionPage() {
             { href: "/blog", label: "Blog" },
             { label: "Spaced repetition" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

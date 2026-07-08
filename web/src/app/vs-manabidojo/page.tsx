@@ -44,6 +44,7 @@ export default function VsManabiDojoPage() {
             { href: "/learn-japanese-with-anime", label: "Compare" },
             { label: "vs ManabiDojo" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

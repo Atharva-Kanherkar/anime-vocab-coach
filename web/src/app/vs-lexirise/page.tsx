@@ -44,6 +44,7 @@ export default function VsLexirisePage() {
             { href: "/learn-japanese-with-anime", label: "Compare" },
             { label: "vs Lexirise" },
           ]}
+          currentPath={path}
         />
 
         <CompareHero

@@ -13,5 +13,7 @@ export type BlogPost = {
   updatedAt: string;
   keywords: string[];
   readingMinutes: number;
+  /** Optional OG image path (under /public). Defaults to /og.png */
+  ogImage?: string;
   blocks: ArticleBlock[];
 };

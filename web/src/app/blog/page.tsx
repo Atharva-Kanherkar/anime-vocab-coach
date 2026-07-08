@@ -81,6 +81,11 @@ export default function BlogIndexPage() {
               <h2>Tool comparisons & guides</h2>
               <ul>
                 <li>
+                  <Link href="/blog/hashigo-yomitan-netflix-japanese-anime-2026">
+                    HASHIGO, Yomitan & Netflix subs
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/asbplayer-alternative-beginners-anime-japanese">
                     asbplayer vs beginner tools
                   </Link>
