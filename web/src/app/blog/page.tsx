@@ -81,6 +81,11 @@ export default function BlogIndexPage() {
               <h2>Tool comparisons & guides</h2>
               <ul>
                 <li>
+                  <Link href="/blog/lingoku-alternative-anime-japanese-2026">
+                    Lingoku vs AnimeVocab (2026)
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/hashigo-yomitan-netflix-japanese-anime-2026">
                     HASHIGO, Yomitan & Netflix subs
                   </Link>

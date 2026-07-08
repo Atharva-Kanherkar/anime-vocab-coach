@@ -70,6 +70,25 @@ export function toIndexEntry(meta: StudioCreationMeta): StudioIndexEntry {
   };
 }
 
+/** Row in the global public gallery (everyone's published word mangas). */
+export interface WordMangaGalleryEntry {
+  id: string;
+  title: { en: string; ja: string; romaji: string };
+  words: string[];
+  styleKey: StyleKey;
+  createdAt: string;
+}
+
+export function toGalleryEntry(meta: StudioCreationMeta): WordMangaGalleryEntry {
+  return {
+    id: meta.id,
+    title: meta.title,
+    words: meta.words.map((w) => w.base),
+    styleKey: meta.styleKey,
+    createdAt: meta.createdAt,
+  };
+}
+
 // ── Composer options ─────────────────────────────────────────────────────
 
 /** Styles offered in the composer (subset of the card art families). */

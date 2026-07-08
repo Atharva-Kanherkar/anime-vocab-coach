@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StudioReaderView } from "@/components/app/word-manga-reader";
 import { getCreation } from "@/lib/word-manga-store";
+import { mangaCreativeWorkJsonLd } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 
 // Public, shareable page for a Manga Studio creation. Only creations the
@@ -40,8 +41,23 @@ export default async function SharedMangaPage({ params }: Params) {
   const meta = await getCreation(id);
   if (!meta?.isPublic) notFound();
 
+  const description = `A 4-panel manga written to practice ${meta.words
+    .map((w) => w.base)
+    .join("、")} — made in AnimeVocab Manga Studio.`;
+  const jsonLd = mangaCreativeWorkJsonLd({
+    id,
+    title: meta.title.en,
+    description,
+    genre: "learner manga",
+    createdAt: meta.createdAt,
+    pathPrefix: "wm",
+    imagePath: `/api/word-manga/${id}/image`,
+  });
+
   return (
-    <main id="main" className="mx-auto max-w-[720px] px-5 py-9 md:px-8">
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <main id="main" className="mx-auto max-w-[720px] px-5 py-9 md:px-8">
       <StudioReaderView
         meta={meta}
         imageUrl={`/api/word-manga/${id}/image`}
@@ -63,5 +79,6 @@ export default async function SharedMangaPage({ params }: Params) {
         }
       />
     </main>
+    </>
   );
 }

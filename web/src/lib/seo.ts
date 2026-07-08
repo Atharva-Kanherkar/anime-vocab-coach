@@ -23,7 +23,7 @@ export const SEO_KEYWORDS = [
   "Migaku alternative",
   "Animelon alternative",
   "Trancy alternative",
-  "Animelon alternative",
+  "Lingoku alternative",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
@@ -196,12 +196,18 @@ export function mangaCreativeWorkJsonLd(input: {
   authorName?: string;
   genre?: string;
   createdAt: string;
+  /** Share URL prefix — studio chapters use /m/, word-manga uses /wm/. */
+  pathPrefix?: "m" | "wm";
+  /** OG/social image path, e.g. /api/word-manga/:id/image */
+  imagePath?: string;
 }) {
-  const url = `${SITE_URL}/m/${input.id}`;
-  const image =
-    input.id.length > 0
-      ? `${SITE_URL}/api/studio/${input.id}/panel/0`
-      : `${SITE_URL}/og.png`;
+  const prefix = input.pathPrefix ?? "m";
+  const url = `${SITE_URL}/${prefix}/${input.id}`;
+  const image = input.imagePath
+    ? `${SITE_URL}${input.imagePath}`
+    : prefix === "wm"
+      ? `${SITE_URL}/api/word-manga/${input.id}/image`
+      : `${SITE_URL}/api/studio/${input.id}/panel/0`;
   return {
     "@context": "https://schema.org",
     "@type": "VisualArtwork",

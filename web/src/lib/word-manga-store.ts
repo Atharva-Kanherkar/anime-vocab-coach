@@ -13,8 +13,10 @@ import {
   DEFAULT_STUDIO_LIMIT,
   DEFAULT_STUDIO_SCRIPT_MODEL,
   toIndexEntry,
+  toGalleryEntry,
   type StudioCreationMeta,
   type StudioIndexEntry,
+  type WordMangaGalleryEntry,
 } from "./word-manga";
 
 interface StudioKV {
@@ -113,6 +115,8 @@ export async function incrementStudioUsage(userId: string, month: string): Promi
 const itemKey = (id: string) => `wordmanga:item:${id}`;
 const imageKey = (id: string) => `wordmanga:img:${id}`;
 const indexKey = (userId: string) => `wordmanga:index:${userId}`;
+const GALLERY_KEY = "wordmanga:gallery";
+const MAX_GALLERY_ENTRIES = 240;
 
 export async function listCreations(userId: string): Promise<StudioIndexEntry[]> {
   const raw = await kvGet(indexKey(userId));
@@ -150,6 +154,32 @@ export async function getCreationImage(id: string): Promise<string | null> {
   return kvGet(imageKey(id));
 }
 
+export async function listGallery(): Promise<WordMangaGalleryEntry[]> {
+  const raw = await kvGet(GALLERY_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as WordMangaGalleryEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeGallery(entries: WordMangaGalleryEntry[]): Promise<void> {
+  await kvPut(GALLERY_KEY, JSON.stringify(entries.slice(0, MAX_GALLERY_ENTRIES)));
+}
+
+async function addToGallery(meta: StudioCreationMeta): Promise<void> {
+  const gallery = await listGallery();
+  await writeGallery([toGalleryEntry(meta), ...gallery.filter((e) => e.id !== meta.id)]);
+}
+
+async function removeFromGallery(id: string): Promise<void> {
+  const gallery = await listGallery();
+  const next = gallery.filter((e) => e.id !== id);
+  if (next.length !== gallery.length) await writeGallery(next);
+}
+
 export async function setCreationPublic(
   meta: StudioCreationMeta,
   isPublic: boolean
@@ -161,12 +191,15 @@ export async function setCreationPublic(
     meta.ownerId,
     index.map((e) => (e.id === meta.id ? { ...e, isPublic } : e))
   );
+  if (isPublic) await addToGallery(updated);
+  else await removeFromGallery(meta.id);
   return updated;
 }
 
 export async function deleteCreation(meta: StudioCreationMeta): Promise<void> {
   await kvDelete(itemKey(meta.id));
   await kvDelete(imageKey(meta.id));
+  await removeFromGallery(meta.id);
   const index = await listCreations(meta.ownerId);
   await writeIndex(
     meta.ownerId,

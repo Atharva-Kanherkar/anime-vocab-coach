@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { blogPosts } from "@/content/blog/posts";
 import { listGallery } from "@/lib/studio-store";
+import { listGallery as listWordMangaGallery } from "@/lib/word-manga-store";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   let galleryEntries: MetadataRoute.Sitemap = [];
+  let wordMangaEntries: MetadataRoute.Sitemap = [];
   try {
     const gallery = await listGallery();
     galleryEntries = gallery.map((entry) => ({
@@ -60,5 +62,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // KV unavailable at build/preview time — static + blog URLs still ship.
   }
 
-  return [...pages, ...blogEntries, ...galleryEntries];
+  try {
+    const wordManga = await listWordMangaGallery();
+    wordMangaEntries = wordManga.map((entry) => ({
+      url: `${SITE_URL}/wm/${entry.id}`,
+      lastModified: new Date(entry.createdAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.55,
+    }));
+  } catch {
+    // Same KV caveat as studio gallery.
+  }
+
+  return [...pages, ...blogEntries, ...galleryEntries, ...wordMangaEntries];
 }

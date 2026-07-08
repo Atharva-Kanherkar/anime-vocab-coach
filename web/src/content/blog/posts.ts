@@ -2,6 +2,63 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "lingoku-alternative-anime-japanese-2026",
+    title: "Lingoku vs AnimeVocab: AI Dual Subs vs Romaji-First Anime Cards (2026)",
+    description:
+      "Lingoku blends AI dual subtitles and web word injection on Netflix and YouTube. AnimeVocab targets month-zero learners with romaji-first cards and Listening Mode on Crunchyroll.",
+    publishedAt: "2026-07-08T20:00:00.000Z",
+    updatedAt: "2026-07-08T20:00:00.000Z",
+    keywords: [
+      "Lingoku alternative",
+      "Lingoku Japanese Netflix",
+      "AI dual subtitles Japanese",
+      "learn Japanese browser extension",
+      "comprehensible input anime",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/10-coach.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Lingoku** is the 2026 newcomer getting press for **AI dual subtitles** on Netflix, YouTube, and Bilibili — plus **word blending** on English websites so Japanese tokens appear in articles you already read. It is built on comprehensible-input theory with BYOK AI (Ollama, DeepSeek, OpenAI). If you searched **Lingoku alternative**, the real question is whether you are ready to **read Japanese subtitles** or still need **romaji-first audio help**.",
+      },
+      { type: "h2", text: "What Lingoku does well" },
+      {
+        type: "ul",
+        items: [
+          "**AI dual subs** — hover definitions without pausing on Netflix/YouTube.",
+          "**Web immersion** — swaps ~10% of English page words into Japanese at your JLPT band.",
+          "**No account required** — install, bring your own API key, start.",
+          "**SRS exposure** — reviews words you have seen in real browsing contexts.",
+        ],
+      },
+      { type: "h2", text: "Where Lingoku assumes more than beginners have" },
+      {
+        type: "p",
+        text: "Dual subtitles and web word injection still assume you can **parse kana** and tolerate Japanese script on screen. Crunchyroll often ships **English-only** subs on simulcasts — Lingoku cannot invent Japanese text that is not there. Month-zero learners hear words but cannot read them; that is the gap **AnimeVocab** fills with **romaji-first cards** and **Listening Mode** transcription.",
+      },
+      { type: "h2", text: "AnimeVocab vs Lingoku — quick matrix" },
+      {
+        type: "ul",
+        items: [
+          "**Lingoku** — AI-heavy reader stack for Netflix/YouTube; great if you read kana and want contextual AI glosses.",
+          "**AnimeVocab** — one romaji word per line + built-in SRS on Crunchyroll, Netflix, YouTube; no API key setup.",
+          "**Language Reactor** — mature dual-sub player without AI blending ([comparison](/vs-language-reactor)).",
+          "**HASHIGO + Yomitan** — furigana + dictionary mining when JP subs exist ([Netflix reader stack](/blog/hashigo-yomitan-netflix-japanese-anime-2026)).",
+        ],
+      },
+      { type: "h2", text: "Suggested progression" },
+      {
+        type: "p",
+        text: "Start with **romaji-first audio cards** until ~50 words stick by sound ([romaji guide](/romaji-japanese-learning)). Add **Lingoku or Language Reactor** once hiragana feels familiar. Graduate to **asbplayer sentence mining** when you want Anki pipelines ([asbplayer vs beginners](/blog/asbplayer-alternative-beginners-anime-japanese)).",
+      },
+      {
+        type: "p",
+        text: "Full extension ranking: [best Chrome extensions (2026)](/blog/best-chrome-extensions-learn-japanese-anime-2026). Master hub: [learn Japanese with anime](/learn-japanese-with-anime).",
+      },
+    ],
+  },
+  {
     slug: "hashigo-yomitan-netflix-japanese-anime-2026",
     title: "HASHIGO, Yomitan, and Netflix Japanese Subtitles: A 2026 Reader's Stack",
     description:
@@ -77,6 +134,7 @@ export const blogPosts: BlogPost[] = [
       "beginner japanese immersion",
     ],
     readingMinutes: 8,
+    ogImage: "/slides/11-cards.webp",
     blocks: [
       {
         type: "p",
@@ -139,9 +197,10 @@ export const blogPosts: BlogPost[] = [
         items: [
           "**Cannot read kana yet, watch Crunchyroll** → [AnimeVocab](/) (romaji + Listening Mode)",
           "**Read Japanese subs, mine Crunchyroll** → [Lexirise](/vs-lexirise) or [ManabiDojo](/vs-manabidojo)",
-          "**Netflix + YouTube dual subtitles** → Language Reactor (free tier)",
+          "**Netflix + YouTube dual subtitles** → Language Reactor (free tier) or **Lingoku** (AI + BYOK)",
           "**Power-user Anki mining** → Migaku (subscription)",
           "**AI bilingual subs + mobile app** → Trancy ([comparison](/vs-trancy))",
+          "**AI web blending + dual subs** → [Lingoku](/blog/lingoku-alternative-anime-japanese-2026) (no account)",
         ],
       },
       { type: "h2", text: "1. AnimeVocab — romaji-first, audio when subs are missing" },
@@ -169,7 +228,12 @@ export const blogPosts: BlogPost[] = [
         type: "p",
         text: "**Platforms:** Netflix, YouTube, Disney+, Viki, Animelon — **not Crunchyroll**. **Price:** ~$9/mo Standard. **Best for:** committed miners building large custom Anki decks with pitch accent and screenshots. Steep setup. [AnimeVocab vs Migaku](/vs-migaku).",
       },
-      { type: "h2", text: "6. Trancy — AI subtitles + mobile" },
+      { type: "h2", text: "6. Lingoku — AI dual subs + web word blending" },
+      {
+        type: "p",
+        text: "**Platforms:** Netflix, YouTube, Bilibili, any website. **Price:** free tier with points; BYOK for Ollama/DeepSeek/OpenAI. **Best for:** learners who read kana and want **AI contextual glosses** on dual subs plus passive vocabulary on English pages. No signup. [Lingoku vs AnimeVocab](/blog/lingoku-alternative-anime-japanese-2026).",
+      },
+      { type: "h2", text: "7. Trancy — AI subtitles + mobile" },
       {
         type: "p",
         text: "**Platforms:** Netflix, YouTube, mobile apps. **Price:** free tier; ~$4/mo Pro. **Best for:** learners who want **AI-generated bilingual subs** and pronunciation coaching without Anki. Overlaps Language Reactor on desktop. [AnimeVocab vs Trancy](/vs-trancy).",
@@ -814,10 +878,11 @@ export const blogPosts: BlogPost[] = [
       "learn japanese anime streaming",
     ],
     readingMinutes: 8,
+    ogImage: "/slides/06-manifesto.jpg",
     blocks: [
       {
         type: "p",
-        text: "**Animelon** was the romaji learner's secret — synced Japanese dialogue with word-by-word hover translations. Catalog gaps, downtime, and legal gray areas pushed learners back to Netflix, YouTube, and Crunchyroll. If you searched **Animelon alternative** in 2026, here is what actually replaces it by use case.",
+        text: "**Animelon** was the romaji learner's secret — synced Japanese dialogue with word-by-word hover translations. Catalog gaps, downtime, and legal gray areas pushed learners back to Netflix, YouTube, and Crunchyroll. If you searched **Animelon alternative** in 2026, here is what actually replaces it by use case. Full comparison: [AnimeVocab vs Animelon](/vs-animelon).",
       },
       { type: "h2", text: "If you need romaji without reading kana" },
       {
