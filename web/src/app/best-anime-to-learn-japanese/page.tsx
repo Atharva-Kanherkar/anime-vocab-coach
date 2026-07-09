@@ -143,6 +143,11 @@ export default function BestAnimePage() {
             <h2>Save for later</h2>
             <ul>
               <li>
+                <strong>Natsume / Mushishi</strong> — calm fantasy; Natsume first, Mushishi when ready.{" "}
+                <Link href="/blog/natsume-yuujinchou-learn-japanese-2026">Natsume</Link> ·{" "}
+                <Link href="/blog/mushishi-learn-japanese-2026">Mushishi →</Link>
+              </li>
+              <li>
                 <strong>Frieren</strong> — beautiful pacing; better once basics stick.{" "}
                 <Link href="/blog/frieren-learn-japanese-2026">Honest Frieren take →</Link>
               </li>

@@ -2,6 +2,166 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "natsume-yuujinchou-learn-japanese-2026",
+    title: "Natsume's Book of Friends for Learning Japanese (2026)",
+    description:
+      "Natsume Yuujinchou for Japanese study — calm dialogue, emotional vocabulary, and why soft fantasy works better than shonen for listening practice.",
+    publishedAt: "2026-07-11T10:00:00.000Z",
+    updatedAt: "2026-07-11T10:00:00.000Z",
+    keywords: [
+      "natsume yuujinchou learn japanese",
+      "natsume book of friends japanese study",
+      "calm anime learn japanese",
+      "natsume immersion beginners",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Natsume's Book of Friends** speaks softly. That is a feature for learners — you can hear word boundaries and emotional particles without battle noise.",
+      },
+      { type: "h2", text: "What to mine" },
+      {
+        type: "ul",
+        items: [
+          "Feelings and kindness phrases",
+          "Rural / everyday life lines",
+          "Skip dense youkai proper nouns at first",
+        ],
+      },
+      {
+        type: "p",
+        text: "Similar calm picks: [Mushishi](/blog/mushishi-learn-japanese-2026), [Yuru Camp](/blog/laid-back-camp-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "mushishi-learn-japanese-2026",
+    title: "Mushishi for Learning Japanese (2026 Honest Guide)",
+    description:
+      "Is Mushishi good for learning Japanese? Slow narration, literary vocabulary, and who should wait before using it as immersion.",
+    publishedAt: "2026-07-11T10:30:00.000Z",
+    updatedAt: "2026-07-11T10:30:00.000Z",
+    keywords: [
+      "mushishi learn japanese",
+      "mushishi japanese study",
+      "mushishi immersion",
+      "slow anime learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Mushishi** is gorgeous and slow — excellent for intermediate listening, harder for absolute beginners because narration can feel literary.",
+      },
+      { type: "h2", text: "Who it fits" },
+      {
+        type: "ul",
+        items: [
+          "You already know basic grammar",
+          "You like rewatching quiet episodes",
+          "You can tolerate unknown nature/fantasy nouns",
+        ],
+      },
+      {
+        type: "p",
+        text: "Month zero? Start with [Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026) or [Chiikawa](/blog/chiikawa-learn-japanese-2026), then return. Hub: [best anime](/best-anime-to-learn-japanese).",
+      },
+    ],
+  },
+  {
+    slug: "best-free-websites-learn-japanese-anime-2026",
+    title: "Best Free Websites to Learn Japanese with Anime (2026)",
+    description:
+      "Best free websites and tools for learning Japanese from anime in 2026 — dictionaries, graded reading, stream overlays, and what to skip.",
+    publishedAt: "2026-07-11T11:00:00.000Z",
+    updatedAt: "2026-07-11T11:00:00.000Z",
+    keywords: [
+      "best free websites learn japanese anime",
+      "free japanese learning websites 2026",
+      "learn japanese anime free online",
+      "free anime japanese study sites",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Free Japanese websites are endless. Anime fans only need a short stack: **dictionary**, **grammar explainer**, **capture + review**, and **legal video**.",
+      },
+      { type: "h2", text: "The free stack that works" },
+      {
+        type: "ol",
+        items: [
+          "**Capture** — [AnimeVocab](/free-japanese-anime-extension) on Crunchyroll/Netflix/YouTube",
+          "**Dictionary** — Jisho when you need a deeper look ([guide](/blog/jisho-vs-anime-vocabulary-tools-2026))",
+          "**Grammar** — Tae Kim or Bunpro later ([Tae Kim vs anime](/blog/tae-kim-grammar-vs-anime-2026))",
+          "**Reading** — NHK Easy / graded readers on off days ([NHK Easy](/blog/nhk-easy-vs-anime-2026))",
+        ],
+      },
+      { type: "h2", text: "Skip for month zero" },
+      {
+        type: "ul",
+        items: [
+          "Twenty browser tabs of \"ultimate resource lists\"",
+          "Paying for mining suites before a habit exists",
+          "Illegal stream sites that break every week",
+        ],
+      },
+      {
+        type: "p",
+        text: "App roundups: [best free apps](/blog/best-free-japanese-learning-apps-anime-2026), [best apps 2026](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "how-to-remember-anime-vocabulary-2026",
+    title: "How to Remember Vocabulary from Anime (2026)",
+    description:
+      "How to actually remember words from anime — spaced repetition, one-word caps, context cards, and why notebooks fail after three episodes.",
+    publishedAt: "2026-07-11T11:30:00.000Z",
+    updatedAt: "2026-07-11T11:30:00.000Z",
+    keywords: [
+      "how to remember anime vocabulary",
+      "remember words from anime",
+      "anime vocabulary retention",
+      "learn vocabulary watching anime",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Watching is not remembering. Remembering needs **retrieval** — seeing the word again tomorrow, not highlighting a notebook you never open.",
+      },
+      { type: "h2", text: "Rules that stick" },
+      {
+        type: "ol",
+        items: [
+          "Cap new words ([one per episode](/blog/one-word-per-episode-method))",
+          "Keep the line/context with the meaning",
+          "Review with [spaced repetition](/anime-spaced-repetition)",
+          "Say the word aloud once when you save it",
+        ],
+      },
+      { type: "h2", text: "What fails" },
+      {
+        type: "ul",
+        items: [
+          "Screenshot folders with no review",
+          "Mining 40 cards from one episode",
+          "English-sub bingeing with zero capture ([why](/blog/english-subtitles-not-learning-japanese))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Tooling: [AnimeVocab](/free-japanese-anime-extension). Notebook vs SRS: [comparison](/blog/vocabulary-notebook-vs-srs-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "migaku-free-alternative-2026",
     title: "Migaku Free Alternative (2026): Start Before You Subscribe",
     description:

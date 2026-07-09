@@ -84,6 +84,24 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/natsume-yuujinchou-learn-japanese-2026">
+                    Natsume for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/mushishi-learn-japanese-2026">Mushishi for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/best-free-websites-learn-japanese-anime-2026">
+                    Best free Japanese websites
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/how-to-remember-anime-vocabulary-2026">
+                    How to remember anime vocab
+                  </Link>
+                </li>
+                <li>
                   <Link href="/learn-japanese-hulu">Learn Japanese on Hulu</Link>
                 </li>
                 <li>
