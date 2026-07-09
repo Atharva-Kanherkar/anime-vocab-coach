@@ -2,6 +2,91 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "podcasts-vs-anime-learn-japanese-2026",
+    title: "Podcasts vs Anime for Learning Japanese (2026)",
+    description:
+      "Podcasts vs anime for Japanese listening — when graded podcasts win, when anime motivation wins, and how to combine both without burnout.",
+    publishedAt: "2026-07-10T13:00:00.000Z",
+    updatedAt: "2026-07-10T13:00:00.000Z",
+    keywords: [
+      "podcasts vs anime learn japanese",
+      "japanese podcasts or anime",
+      "best listening practice japanese anime podcast",
+      "anime vs podcast immersion",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Podcasts vs anime for learning Japanese** is about control vs motivation. Graded podcasts are cleaner i+1. Anime is messier but you will actually open it.",
+      },
+      { type: "h2", text: "Pick podcasts when…" },
+      {
+        type: "ul",
+        items: [
+          "You want slow, learner-directed speech",
+          "Commute listening without a screen",
+        ],
+      },
+      { type: "h2", text: "Pick anime when…" },
+      {
+        type: "ul",
+        items: [
+          "You already watch nightly",
+          "Visual context helps meaning",
+          "You can capture words with [AnimeVocab](/free-japanese-anime-extension)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Best combo: anime at night + short podcast in the morning. Listening routine: [guide](/blog/japanese-listening-practice-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "drama-vs-anime-learn-japanese-2026",
+    title: "Japanese Dramas vs Anime for Learning (2026)",
+    description:
+      "J-dramas vs anime for Japanese study — real-world speech vs clearer anime acting, and which beginners should start with.",
+    publishedAt: "2026-07-10T13:30:00.000Z",
+    updatedAt: "2026-07-10T13:30:00.000Z",
+    keywords: [
+      "japanese drama vs anime learn",
+      "jdrama or anime learn japanese",
+      "best japanese dramas for beginners",
+      "anime vs live action japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/04-sakura-night.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Japanese dramas vs anime**: dramas sound more like real life; anime voice acting is often clearer and slower in slice-of-life. Beginners usually win with **anime first**, dramas later.",
+      },
+      { type: "h2", text: "Start with anime if…" },
+      {
+        type: "ul",
+        items: [
+          "You need clear enunciation ([slice-of-life](/blog/slice-of-life-anime-learn-japanese-2026))",
+          "You want extension tooling on CR/Netflix",
+        ],
+      },
+      { type: "h2", text: "Add dramas when…" },
+      {
+        type: "ul",
+        items: [
+          "Anime listening feels easy",
+          "You want workplace/school realism",
+        ],
+      },
+      {
+        type: "p",
+        text: "Register note: [anime vs real Japanese](/blog/anime-japanese-vs-real-japanese). Free tool: [extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "genshin-impact-learn-japanese-2026",
     title: "Genshin Impact for Learning Japanese (2026): Games vs Anime",
     description:

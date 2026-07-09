@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/podcasts-vs-anime-learn-japanese-2026">
+                    Podcasts vs anime for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/drama-vs-anime-learn-japanese-2026">
+                    J-dramas vs anime for learning
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/genshin-impact-learn-japanese-2026">
                     Genshin Impact for learning Japanese
                   </Link>
