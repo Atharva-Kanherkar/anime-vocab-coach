@@ -16,22 +16,29 @@ const source = readFileSync(
   "utf8"
 );
 
-function matcherPatterns(): string[] {
-  const block = source.match(/matcher:\s*\[([\s\S]*?)\]/);
-  if (!block) throw new Error("no matcher found in middleware.ts");
+function patterns(block: RegExpMatchArray | null, what: string): string[] {
+  if (!block) throw new Error(`no ${what} found in middleware.ts`);
   return [...block[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) =>
     m[1].replace(/\\\\/g, "\\")
   );
 }
 
-function covered(path: string): boolean {
-  return matcherPatterns().some((pattern) => {
+function matches(list: string[], path: string): boolean {
+  return list.some((pattern) => {
     try {
       return match(pattern, { decode: decodeURIComponent })(path) !== false;
     } catch {
       return false;
     }
   });
+}
+
+const matcherPatterns = () => patterns(source.match(/matcher:\s*\[([\s\S]*?)\]/), "matcher");
+const clerkPatterns = () => patterns(source.match(/CLERK_ROUTES\s*=\s*\[([\s\S]*?)\]/), "CLERK_ROUTES");
+
+/** A page runs clerkMiddleware only if the matcher AND the Clerk early-return allow it. */
+function covered(path: string): boolean {
+  return matches(matcherPatterns(), path) && matches(clerkPatterns(), path);
 }
 
 describe("middleware matcher", () => {
@@ -50,5 +57,15 @@ describe("middleware matcher", () => {
   it("skips Next internals and static assets", () => {
     expect(covered("/_next/static/chunks/main.js")).toBe(false);
     expect(covered("/og.png")).toBe(false);
+  });
+
+  it("skips Clerk on marketing pages (1102 resource-limit regression)", () => {
+    // Static pages must NOT pay Clerk's per-request cost — running it
+    // site-wide caused Worker 1102s under bursts. www redirect still needs
+    // the matcher to see these paths, so only the Clerk list may exclude them.
+    for (const path of ["/", "/blog", "/gallery", "/vs-migaku", "/learn-japanese-with-anime"]) {
+      expect(matches(matcherPatterns(), path), `matcher should see ${path} for www redirect`).toBe(true);
+      expect(matches(clerkPatterns(), path), `clerk should skip ${path}`).toBe(false);
+    }
   });
 });
