@@ -175,6 +175,10 @@ export default function LearnJapaneseCrunchyrollPage() {
               <Link href="/blog/funimation-to-crunchyroll-learn-japanese-2026">
                 Keep your Japanese study habit after the Funimation → Crunchyroll move
               </Link>
+              . Extension acting up after a player update?{" "}
+              <Link href="/blog/chrome-extension-not-working-crunchyroll-2026">
+                Crunchyroll extension troubleshooting
+              </Link>
               .
             </p>
 

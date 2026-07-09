@@ -2,6 +2,139 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "one-piece-learn-japanese-beginners-2026",
+    title: "One Piece for Learning Japanese? Beginners (2026)",
+    description:
+      "Can you learn Japanese with One Piece? Why the length helps and the slang hurts — plus a safer beginner ladder before you sail.",
+    publishedAt: "2026-07-11T20:00:00.000Z",
+    updatedAt: "2026-07-11T20:00:00.000Z",
+    keywords: [
+      "one piece learn japanese",
+      "one piece japanese study",
+      "one piece immersion beginners",
+      "is one piece good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**One Piece** will give you years of audio — and years of pirate slang. Beginners should not start here. Return when everyday speech is less scary.",
+      },
+      {
+        type: "p",
+        text: "If you insist: mine quiet crew conversations, not fight arcs. Starters: [best anime](/best-anime-to-learn-japanese). Tool later: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "naruto-learn-japanese-beginners-2026",
+    title: "Naruto for Learning Japanese? Beginners (2026)",
+    description:
+      "Is Naruto good for learning Japanese? Ninja jargon vs village talk, and an honest beginner verdict for 2026.",
+    publishedAt: "2026-07-11T20:30:00.000Z",
+    updatedAt: "2026-07-11T20:30:00.000Z",
+    keywords: [
+      "naruto learn japanese",
+      "naruto japanese study",
+      "naruto immersion beginners",
+      "is naruto good for learning japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Naruto** taught a generation to love Japan — not to parse jutsu names as N5 vocab. Treat early filler village scenes as optional listening; skip technique lists.",
+      },
+      {
+        type: "p",
+        text: "Better first shows: [Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026), [Chiikawa](/blog/chiikawa-learn-japanese-2026). Method: [one word per episode](/blog/one-word-per-episode-method).",
+      },
+    ],
+  },
+  {
+    slug: "free-japanese-learning-discord-anime-2026",
+    title: "Free Japanese Learning Discords for Anime Fans (2026)",
+    description:
+      "How to use free Japanese Discord servers with anime immersion — what helps, what wastes time, and a capture habit that beats voice-chat FOMO.",
+    publishedAt: "2026-07-11T21:00:00.000Z",
+    updatedAt: "2026-07-11T21:00:00.000Z",
+    keywords: [
+      "japanese learning discord anime",
+      "free japanese discord",
+      "anime immersion discord",
+      "learn japanese discord server",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Discord can give accountability — or infinite scroll. Anime fans need **output partners** and **resource channels**, not 40 muted servers.",
+      },
+      { type: "h2", text: "Use Discord for" },
+      {
+        type: "ul",
+        items: [
+          "Asking \"is this natural?\" about one line you saved",
+          "Watch-along events with Japanese audio",
+          "Finding study buddies at your level",
+        ],
+      },
+      { type: "h2", text: "Do not use Discord for" },
+      {
+        type: "ul",
+        items: [
+          "Replacing daily review",
+          "Downloading every shared Anki deck",
+          "Arguing about the One True Method",
+        ],
+      },
+      {
+        type: "p",
+        text: "Related: [Discord immersion guide](/blog/discord-japanese-immersion-anime-2026). Keep capture on-stream with [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "chrome-extension-not-working-crunchyroll-2026",
+    title: "Japanese Learning Extension Not Working on Crunchyroll? (2026 Fixes)",
+    description:
+      "Chrome extension broken on Crunchyroll after an update? Common causes, quick fixes, and when to switch tools for Japanese study.",
+    publishedAt: "2026-07-11T21:30:00.000Z",
+    updatedAt: "2026-07-11T21:30:00.000Z",
+    keywords: [
+      "crunchyroll extension not working",
+      "chrome extension crunchyroll broken",
+      "japanese learning extension crunchyroll fix",
+      "subtitle extension crunchyroll 2026",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Crunchyroll updates its player often. Learning extensions break. Before you rage-uninstall, run a short checklist.",
+      },
+      { type: "h2", text: "Quick fixes" },
+      {
+        type: "ol",
+        items: [
+          "Hard refresh the tab / restart Chrome",
+          "Disable other subtitle extensions (conflicts are common)",
+          "Confirm you are on the supported site URL (not a weird embed)",
+          "Update the extension; check its GitHub/issues for CR player changes",
+        ],
+      },
+      { type: "h2", text: "If JP subs were never there" },
+      {
+        type: "p",
+        text: "Many tools need on-screen Japanese text. For missing tracks, use Listening Mode workflows: [Crunchyroll guide](/learn-japanese-crunchyroll). Install hub: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "demon-slayer-learn-japanese-beginners-2026",
     title: "Demon Slayer for Learning Japanese? Beginners (2026)",
     description:

@@ -84,6 +84,24 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/one-piece-learn-japanese-beginners-2026">
+                    One Piece for beginners?
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/naruto-learn-japanese-beginners-2026">Naruto for beginners?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/free-japanese-learning-discord-anime-2026">
+                    Free Japanese Discords for anime fans
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/chrome-extension-not-working-crunchyroll-2026">
+                    Extension broken on Crunchyroll?
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/demon-slayer-learn-japanese-beginners-2026">
                     Demon Slayer for beginners?
                   </Link>
