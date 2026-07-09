@@ -81,11 +81,13 @@ export default function HomePage() {
       <SiteFooter
         links={[
           { href: "/free-japanese-anime-extension", label: "Free extension" },
+          { href: "/blog/how-to-learn-japanese-watching-anime-2026", label: "How to learn" },
           { href: "/blog", label: "Blog" },
           { href: "/studio", label: "Manga Studio" },
           { href: "/gallery", label: "Gallery" },
           { href: "/learn-japanese-manga", label: "Learn with manga" },
           { href: "/learn-japanese-with-anime", label: "Guides" },
+          { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/privacy", label: "Privacy" },
         ]}
       />

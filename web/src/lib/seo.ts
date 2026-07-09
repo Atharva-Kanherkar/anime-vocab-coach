@@ -46,6 +46,8 @@ export const SEO_KEYWORDS = [
   "polar bear cafe japanese",
   "non non biyori learn japanese",
   "is migaku worth it",
+  "how to learn japanese watching anime",
+  "language reactor free alternative",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

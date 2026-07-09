@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/how-to-learn-japanese-watching-anime-2026">
+                    How to learn Japanese watching anime
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/language-reactor-free-alternative-2026">
+                    Language Reactor free alternative
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/is-migaku-worth-it-2026">Is Migaku worth it? (2026)</Link>
                 </li>
                 <li>

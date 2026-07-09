@@ -262,10 +262,12 @@ export default function VsLanguageReactorPage() {
       </main>
       <SiteFooter
         links={[
-          { href: "/", label: "Home" },
+          { href: "/blog/language-reactor-free-alternative-2026", label: "LR free alternative" },
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
+          { href: "/learn-japanese-netflix-anime", label: "Netflix guide" },
           { href: "/learn-japanese-with-anime", label: "Compare" },
+          { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },
-          { href: "/privacy", label: "Privacy" },
         ]}
       />
     </>

@@ -2,6 +2,103 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "how-to-learn-japanese-watching-anime-2026",
+    title: "How to Learn Japanese by Watching Anime (2026 Method)",
+    description:
+      "A practical method to learn Japanese by watching anime — one word per episode, romaji on-ramp, spaced repetition, and which free tools to install first.",
+    publishedAt: "2026-07-09T16:00:00.000Z",
+    updatedAt: "2026-07-09T16:00:00.000Z",
+    keywords: [
+      "how to learn japanese watching anime",
+      "learn japanese by watching anime",
+      "learn japanese from anime method",
+      "anime immersion method beginners",
+    ],
+    readingMinutes: 9,
+    ogImage: "/slides/06-manifesto.jpg",
+    canonicalPath: "/learn-japanese-with-anime",
+    blocks: [
+      {
+        type: "p",
+        text: "**How to learn Japanese by watching anime** is not \"binge with English subs and hope.\" It is a loop: notice one spoken word, save it in context, review on a schedule, then watch again. This 2026 method is built for beginners who still need **romaji** and often watch **Crunchyroll without Japanese subtitles**.",
+      },
+      { type: "h2", text: "The 4-step nightly loop" },
+      {
+        type: "ol",
+        items: [
+          "**Pick a slow show** — [Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026) or [Non Non Biyori](/blog/non-non-biyori-learn-japanese-2026).",
+          "**Install a free capture tool** — [AnimeVocab](/free-japanese-anime-extension) for romaji cards + SRS.",
+          "**One word per episode** — not twenty ([method](/blog/one-word-per-episode-method)).",
+          "**Review before the next episode** — five minutes of SRS beats three hours of passive watching ([guide](/anime-spaced-repetition)).",
+        ],
+      },
+      { type: "h2", text: "English subs: allowed, with rules" },
+      {
+        type: "p",
+        text: "Keep English subs for plot if you need them — but do not call that study. Study is the word you saved and reviewed. Full argument: [why English subs don't teach Japanese](/blog/english-subtitles-not-learning-japanese).",
+      },
+      { type: "h2", text: "When to graduate tools" },
+      {
+        type: "ul",
+        items: [
+          "After kana: Language Reactor / HASHIGO on Netflix, Lexirise on Crunchyroll.",
+          "After Anki comfort: asbplayer or Migaku ([is Migaku worth it?](/blog/is-migaku-worth-it-2026)).",
+          "For output: write a [Word Manga](/blog/word-manga-vocabulary-practice-2026) or full [Manga Studio](/studio) chapter.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Master hub: [learn Japanese with anime (2026)](/learn-japanese-with-anime). App ranking: [best apps](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "language-reactor-free-alternative-2026",
+    title: "Language Reactor Free Alternative (2026): When Dual Subs Aren't Enough",
+    description:
+      "Language Reactor's free tier is excellent for Netflix dual subs. Free alternatives for Crunchyroll, romaji beginners, and learners who need Listening Mode instead.",
+    publishedAt: "2026-07-09T16:30:00.000Z",
+    updatedAt: "2026-07-09T16:30:00.000Z",
+    keywords: [
+      "language reactor free alternative",
+      "language reactor alternative free",
+      "language reactor crunchyroll",
+      "free dual subtitles japanese",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/05-private.jpg",
+    canonicalPath: "/vs-language-reactor",
+    blocks: [
+      {
+        type: "p",
+        text: "**Language Reactor** free tier is still the default Netflix/YouTube dual-sub tool. People search **Language Reactor free alternative** when they hit three walls: no Crunchyroll support, no romaji-first beginner path, or they want built-in SRS without Pro. Honest comparison: [AnimeVocab vs Language Reactor](/vs-language-reactor).",
+      },
+      { type: "h2", text: "Keep Language Reactor if…" },
+      {
+        type: "ul",
+        items: [
+          "You watch Netflix/YouTube with Japanese subtitle tracks",
+          "You can read hiragana",
+          "Dual subs + dictionary is enough for now",
+        ],
+      },
+      { type: "h2", text: "Switch (or add) these free alternatives" },
+      {
+        type: "ul",
+        items: [
+          "**AnimeVocab** — romaji + Crunchyroll Listening Mode ([free hub](/free-japanese-anime-extension))",
+          "**asbplayer** — free Anki mining with fan subs ([vs asbplayer](/vs-asbplayer))",
+          "**Lexirise / ManabiDojo** — Crunchyroll for readers",
+          "**Lingoku / YumeGo** — AI dual-sub readers on Netflix ([vs Lingoku](/vs-lingoku), [vs YumeGo](/vs-yumego))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full ranking: [best Chrome extensions](/blog/best-chrome-extensions-learn-japanese-anime-2026) · [best apps 2026](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "non-non-biyori-learn-japanese-2026",
     title: "Non Non Biyori for Learning Japanese (2026): Slow Rural Immersion",
     description:

@@ -409,6 +409,7 @@ export default function LearnJapaneseWithAnimePage() {
       <SiteFooter
         links={[
           { href: "/free-japanese-anime-extension", label: "Free extension" },
+          { href: "/blog/how-to-learn-japanese-watching-anime-2026", label: "How-to method" },
           { href: "/blog/best-apps-learn-japanese-anime-2026", label: "Best apps 2026" },
           { href: "/blog", label: "Blog" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
