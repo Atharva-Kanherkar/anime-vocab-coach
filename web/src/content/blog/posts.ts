@@ -2,6 +2,84 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "pimsleur-vs-anime-learn-japanese-2026",
+    title: "Pimsleur vs Learning Japanese from Anime (2026)",
+    description:
+      "Pimsleur audio drills vs anime immersion — structured speaking practice versus motivated listening, and how to combine them without paying twice for the same hour.",
+    publishedAt: "2026-07-10T15:00:00.000Z",
+    updatedAt: "2026-07-10T15:00:00.000Z",
+    keywords: [
+      "pimsleur vs anime",
+      "pimsleur or anime learn japanese",
+      "anime instead of pimsleur",
+      "pimsleur japanese anime",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/07-pricing.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Pimsleur vs anime**: Pimsleur forces spoken recall on a script. Anime gives messy real input you care about. Pimsleur is paid and narrow; anime + free SRS can cover listening vocabulary if you stay consistent.",
+      },
+      { type: "h2", text: "Use Pimsleur if…" },
+      {
+        type: "ul",
+        items: ["You want forced speaking drills on a commute", "You will finish the course"],
+      },
+      { type: "h2", text: "Use anime (+ free tools) if…" },
+      {
+        type: "ul",
+        items: [
+          "You already watch nightly",
+          "You want [AnimeVocab](/free-japanese-anime-extension) capture + review",
+        ],
+      },
+      {
+        type: "p",
+        text: "Free stack: [free ways](/blog/free-ways-learn-japanese-anime-2026). Speaking lite: [shadowing](/blog/shadowing-anime-japanese-pronunciation).",
+      },
+    ],
+  },
+  {
+    slug: "duolingo-vs-anime-learn-japanese-2026",
+    title: "Duolingo vs Anime for Learning Japanese (2026)",
+    description:
+      "Duolingo streaks vs anime immersion — gamified drills versus real listening. Why anime fans outgrow Duo, and the free habit that replaces it.",
+    publishedAt: "2026-07-10T15:30:00.000Z",
+    updatedAt: "2026-07-10T15:30:00.000Z",
+    keywords: [
+      "duolingo vs anime japanese",
+      "duolingo or anime learn japanese",
+      "quit duolingo anime immersion",
+      "anime instead of duolingo",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/11-cards.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Duolingo vs anime**: Duo is a streak machine with weak listening transfer. Anime is listening in context — if you capture and review words. Many learners do Duo for months and still freeze on real speech.",
+      },
+      { type: "h2", text: "Keep Duo only if…" },
+      {
+        type: "ul",
+        items: ["It is your only 5-minute habit and you will quit otherwise"],
+      },
+      { type: "h2", text: "Switch the streak to anime SRS" },
+      {
+        type: "ol",
+        items: [
+          "Night: one episode + one word ([method](/blog/one-word-per-episode-method))",
+          "Morning: review in [AnimeVocab](/free-japanese-anime-extension) / any SRS",
+        ],
+      },
+      {
+        type: "p",
+        text: "Related: [WaniKani vs anime](/blog/wanikani-vs-anime-vocabulary-2026) · [is anime enough?](/blog/is-anime-enough-to-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
     slug: "spotify-japanese-podcasts-anime-fans-2026",
     title: "Best Japanese Podcasts for Anime Fans (2026)",
     description:

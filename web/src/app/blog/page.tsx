@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/duolingo-vs-anime-learn-japanese-2026">
+                    Duolingo vs anime for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/pimsleur-vs-anime-learn-japanese-2026">
+                    Pimsleur vs anime for Japanese
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/spotify-japanese-podcasts-anime-fans-2026">
                     Best Japanese podcasts for anime fans
                   </Link>
