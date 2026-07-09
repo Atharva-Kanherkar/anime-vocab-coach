@@ -197,12 +197,13 @@ export default function LearnJapaneseCrunchyrollPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/blog/crunchyroll-japanese-learning-extension-2026", label: "CR extensions ranked" },
           { href: "/blog/substital-crunchyroll-japanese-subtitles-2026", label: "Substital guide" },
           { href: "/blog/kitsunekko-subtitles-anime-2026", label: "Kitsunekko guide" },
           { href: "/blog/jimaku-crunchyroll-subtitles-vs-listening-mode", label: "Jimaku vs Listening Mode" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
-          { href: "/blog/asbplayer-alternative-beginners-anime-japanese", label: "asbplayer vs beginners" },
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
           { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },

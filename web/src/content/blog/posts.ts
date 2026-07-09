@@ -2,6 +2,92 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "free-ways-learn-japanese-anime-2026",
+    title: "Free Ways to Learn Japanese from Anime (2026 Stack)",
+    description:
+      "A complete free stack to learn Japanese from anime — Chrome extensions, shows, SRS habits, and when you actually need to pay.",
+    publishedAt: "2026-07-09T19:00:00.000Z",
+    updatedAt: "2026-07-09T19:00:00.000Z",
+    keywords: [
+      "free ways learn japanese anime",
+      "learn japanese anime free",
+      "free japanese immersion tools",
+      "free anime japanese study",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/07-pricing.jpg",
+    canonicalPath: "/free-japanese-anime-extension",
+    blocks: [
+      {
+        type: "p",
+        text: "You can build a real **free Japanese-from-anime** habit in 2026 without Migaku or a $400 lifetime deal. The stack: free capture tool + slow shows + tiny SRS + optional free dual-sub reader later.",
+      },
+      { type: "h2", text: "The free stack" },
+      {
+        type: "ol",
+        items: [
+          "**Capture** — [AnimeVocab](/free-japanese-anime-extension) (romaji cards + local SRS)",
+          "**Shows** — [Shirokuma](/blog/shirokuma-cafe-learn-japanese-2026), [Doraemon](/blog/doraemon-learn-japanese-2026), [Non Non Biyori](/blog/non-non-biyori-learn-japanese-2026)",
+          "**Netflix dual subs (when you can read)** — Language Reactor free tier",
+          "**Anki mining (advanced, free)** — [asbplayer](/vs-asbplayer) + Kitsunekko files",
+          "**Output** — [Manga Studio](/studio) / [Word Manga](/blog/word-manga-vocabulary-practice-2026)",
+        ],
+      },
+      { type: "h2", text: "What is worth paying for later" },
+      {
+        type: "p",
+        text: "Pay only after the free habit sticks: Migaku if you mine daily ([worth it?](/blog/is-migaku-worth-it-2026)), Lexirise/ManabiDojo Pro for Crunchyroll reader extras, or AnimeVocab Pro for hosted Listening Mode without your own API key.",
+      },
+      {
+        type: "p",
+        text: "Method: [how to learn watching anime](/blog/how-to-learn-japanese-watching-anime-2026). Ranking: [best apps](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "crunchyroll-japanese-learning-extension-2026",
+    title: "Best Crunchyroll Extension to Learn Japanese (2026 Ranked)",
+    description:
+      "Best Chrome extensions for learning Japanese on Crunchyroll — AnimeVocab, Lexirise, ManabiDojo, Substital. Ranked for beginners vs readers when JP subs are missing.",
+    publishedAt: "2026-07-09T19:30:00.000Z",
+    updatedAt: "2026-07-09T19:30:00.000Z",
+    keywords: [
+      "crunchyroll japanese learning extension",
+      "best crunchyroll extension learn japanese",
+      "chrome extension crunchyroll japanese",
+      "learn japanese crunchyroll chrome",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/05-torii-night.jpg",
+    canonicalPath: "/learn-japanese-crunchyroll",
+    blocks: [
+      {
+        type: "p",
+        text: "Crunchyroll is where anime fans watch — and where most Netflix tools die. Searching **Crunchyroll Japanese learning extension** means you need something that works **without Japanese subtitle tracks** or with fan-sub overlays. Here is the 2026 ranking.",
+      },
+      { type: "h2", text: "Ranked picks" },
+      {
+        type: "ol",
+        items: [
+          "**AnimeVocab** — romaji-first + Listening Mode when JP text is missing ([free hub](/free-japanese-anime-extension))",
+          "**Lexirise** — click-to-translate when on-screen JP text exists ([vs](/vs-lexirise))",
+          "**ManabiDojo** — fan JP subs + quizzes ([vs](/vs-manabidojo))",
+          "**Substital / Jimaku** — overlay `.srt` files ([Substital guide](/blog/substital-crunchyroll-japanese-subtitles-2026))",
+          "**asbplayer** — mine fan subs to Anki ([vs](/vs-asbplayer))",
+        ],
+      },
+      { type: "h2", text: "Tools that do NOT work on Crunchyroll" },
+      {
+        type: "p",
+        text: "**Migaku** and **Language Reactor** are Netflix/YouTube-first. Do not install them expecting Crunchyroll magic — see [Migaku CR alternative](/blog/migaku-crunchyroll-alternative-2026).",
+      },
+      {
+        type: "p",
+        text: "Full hub: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). App ranking: [best apps 2026](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "k-on-learn-japanese-2026",
     title: "K-On! for Learning Japanese (2026): School Speech After Month One",
     description:

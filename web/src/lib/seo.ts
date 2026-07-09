@@ -52,6 +52,8 @@ export const SEO_KEYWORDS = [
   "doraemon learn japanese",
   "k-on learn japanese",
   "chrome extension learn japanese netflix",
+  "crunchyroll japanese learning extension",
+  "free ways learn japanese anime",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

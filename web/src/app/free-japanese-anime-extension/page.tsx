@@ -167,7 +167,9 @@ export default function FreeJapaneseAnimeExtensionPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/blog/free-ways-learn-japanese-anime-2026", label: "Free stack guide" },
           { href: "/blog/best-apps-learn-japanese-anime-2026", label: "Best apps 2026" },
+          { href: "/blog/crunchyroll-japanese-learning-extension-2026", label: "Crunchyroll extensions" },
           { href: "/learn-japanese-with-anime", label: "Full tool ranking" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/vs-migaku", label: "vs Migaku" },
