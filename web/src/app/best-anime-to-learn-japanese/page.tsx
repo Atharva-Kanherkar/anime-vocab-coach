@@ -152,6 +152,11 @@ export default function BestAnimePage() {
                 <Link href="/blog/frieren-learn-japanese-2026">Honest Frieren take →</Link>
               </li>
               <li>
+                <strong>Haikyuu!! / Vinland Saga (farm arc)</strong> — mine human talk, not sports/war noise.{" "}
+                <Link href="/blog/haikyuu-learn-japanese-2026">Haikyuu</Link> ·{" "}
+                <Link href="/blog/vinland-saga-learn-japanese-2026">Vinland →</Link>
+              </li>
+              <li>
                 <strong>Attack on Titan, Jujutsu Kaisen, Chainsaw Man</strong> — great shows, bad first
                 textbooks (slang, shouting, fantasy terms).
               </li>

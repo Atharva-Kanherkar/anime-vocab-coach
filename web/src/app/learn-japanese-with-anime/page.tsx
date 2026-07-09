@@ -368,6 +368,26 @@ export default function LearnJapaneseWithAnimePage() {
               .
             </p>
 
+            <h2>Where you watch (platform guides)</h2>
+            <ul>
+              <li>
+                <Link href="/learn-japanese-crunchyroll">Crunchyroll</Link> — simulcasts + Listening Mode when
+                JP subs are missing
+              </li>
+              <li>
+                <Link href="/learn-japanese-netflix-anime">Netflix anime</Link> — dual-sub / reader ecosystem
+              </li>
+              <li>
+                <Link href="/learn-japanese-youtube-anime">YouTube anime</Link> — free clips and channels
+              </li>
+              <li>
+                <Link href="/learn-japanese-disney-plus">Disney+</Link> ·{" "}
+                <Link href="/learn-japanese-prime-video">Prime Video</Link> ·{" "}
+                <Link href="/learn-japanese-hidive">HIDIVE</Link> ·{" "}
+                <Link href="/learn-japanese-hulu">Hulu</Link>
+              </li>
+            </ul>
+
             <h2>Learn by creating manga</h2>
             <p>
               Watching builds listening vocabulary; <strong>writing short manga</strong> forces you to produce

@@ -88,6 +88,8 @@ export default function HomePage() {
           { href: "/learn-japanese-manga", label: "Learn with manga" },
           { href: "/learn-japanese-with-anime", label: "Guides" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
+          { href: "/learn-japanese-hulu", label: "Hulu" },
+          { href: "/best-anime-to-learn-japanese", label: "Best anime" },
           { href: "/privacy", label: "Privacy" },
         ]}
       />

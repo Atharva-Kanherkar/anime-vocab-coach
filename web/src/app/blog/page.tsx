@@ -84,6 +84,22 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/vinland-saga-learn-japanese-2026">Vinland Saga for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/haikyuu-learn-japanese-2026">Haikyuu for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/language-reactor-crunchyroll-2026">
+                    Language Reactor on Crunchyroll?
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/is-duolingo-enough-japanese-anime-2026">
+                    Is Duolingo enough + anime?
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/natsume-yuujinchou-learn-japanese-2026">
                     Natsume for Japanese
                   </Link>

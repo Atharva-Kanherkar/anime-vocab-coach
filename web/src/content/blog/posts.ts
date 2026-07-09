@@ -2,6 +2,155 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "vinland-saga-learn-japanese-2026",
+    title: "Vinland Saga for Learning Japanese (2026)",
+    description:
+      "Can you learn Japanese with Vinland Saga? Farm-arc dialogue vs war shouting, and a practical capture plan for intermediate beginners.",
+    publishedAt: "2026-07-11T12:00:00.000Z",
+    updatedAt: "2026-07-11T12:00:00.000Z",
+    keywords: [
+      "vinland saga learn japanese",
+      "vinland saga japanese study",
+      "vinland saga immersion",
+      "best seinen anime learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Vinland Saga** Season 1 is war and shouting — hard for month zero. The **farm arc** slows down into clearer, emotional dialogue many learners can actually use.",
+      },
+      { type: "h2", text: "What to mine" },
+      {
+        type: "ul",
+        items: [
+          "Farm / daily-life conversations",
+          "Short moral and friendship lines",
+          "Skip battle commands and names on first pass",
+        ],
+      },
+      {
+        type: "p",
+        text: "If you are brand new, start with [slice-of-life](/blog/slice-of-life-anime-learn-japanese-2026) first. Tool: [AnimeVocab](/free-japanese-anime-extension). Hub: [best anime](/best-anime-to-learn-japanese).",
+      },
+    ],
+  },
+  {
+    slug: "haikyuu-learn-japanese-2026",
+    title: "Haikyuu!! for Learning Japanese (2026)",
+    description:
+      "Haikyuu for Japanese learners — sports jargon warnings, school dialogue gold, and how to capture without pausing every spike.",
+    publishedAt: "2026-07-11T12:30:00.000Z",
+    updatedAt: "2026-07-11T12:30:00.000Z",
+    keywords: [
+      "haikyuu learn japanese",
+      "haikyuu japanese study",
+      "volleyball anime learn japanese",
+      "haikyuu immersion",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Haikyuu!!** is energetic — lots of sports terms — but locker-room and school scenes are packed with reusable Japanese. Mine the human talk, not every volleyball call.",
+      },
+      { type: "h2", text: "Beginner rules" },
+      {
+        type: "ul",
+        items: [
+          "One word per episode max ([method](/blog/one-word-per-episode-method))",
+          "Prefer after-match conversations over play-by-play",
+          "Rewatch favorite episodes for listening stamina",
+        ],
+      },
+      {
+        type: "p",
+        text: "Similar school energy: [Bocchi](/blog/bocchi-the-rock-learn-japanese-2026), [K-On!](/blog/k-on-learn-japanese-2026). Extension: [free install](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "language-reactor-crunchyroll-2026",
+    title: "Does Language Reactor Work on Crunchyroll? (2026)",
+    description:
+      "Language Reactor is Netflix/YouTube-first. What Crunchyroll learners should use instead in 2026 — honest answer and free beginner alternatives.",
+    publishedAt: "2026-07-11T13:00:00.000Z",
+    updatedAt: "2026-07-11T13:00:00.000Z",
+    keywords: [
+      "language reactor crunchyroll",
+      "language reactor on crunchyroll",
+      "language reactor crunchyroll alternative",
+      "dual subtitles crunchyroll japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Short answer: **do not plan your Crunchyroll study life around Language Reactor.** LR is built around Netflix/YouTube subtitle tracks. Crunchyroll's player and missing JP subs break that model.",
+      },
+      { type: "h2", text: "What to use on Crunchyroll instead" },
+      {
+        type: "ul",
+        items: [
+          "[AnimeVocab Listening Mode](/learn-japanese-crunchyroll) when JP text is missing",
+          "Reader tools like Lexirise/ManabiDojo when JP text is on screen ([vs Lexirise](/vs-lexirise))",
+          "Keep LR for Netflix nights ([vs Language Reactor](/vs-language-reactor))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Free alternative overview: [Language Reactor free alternative](/blog/language-reactor-free-alternative-2026).",
+      },
+    ],
+  },
+  {
+    slug: "is-duolingo-enough-japanese-anime-2026",
+    title: "Is Duolingo Enough for Japanese If I Watch Anime? (2026)",
+    description:
+      "Duolingo plus anime is a popular combo — what it covers, what it misses, and a free capture habit that turns binge nights into vocabulary.",
+    publishedAt: "2026-07-11T13:30:00.000Z",
+    updatedAt: "2026-07-11T13:30:00.000Z",
+    keywords: [
+      "is duolingo enough for japanese",
+      "duolingo and anime learn japanese",
+      "duolingo anime enough",
+      "duolingo not enough japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Duolingo alone is not enough** for real Japanese. **Duolingo + passive English-sub anime** is also not enough. **Duolingo + active anime capture** can be a solid beginner stack.",
+      },
+      { type: "h2", text: "What Duolingo gives you" },
+      {
+        type: "ul",
+        items: [
+          "Daily streak habit",
+          "Basic vocab and script exposure",
+          "Low-friction minutes on your phone",
+        ],
+      },
+      { type: "h2", text: "What anime must add" },
+      {
+        type: "ul",
+        items: [
+          "Real speech speed and emotion",
+          "Words you chose from stories you care about",
+          "Review that is not only owl lessons ([SRS](/anime-spaced-repetition))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full comparison: [Duolingo vs anime](/blog/duolingo-vs-anime-learn-japanese-2026). Capture tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "natsume-yuujinchou-learn-japanese-2026",
     title: "Natsume's Book of Friends for Learning Japanese (2026)",
     description:
