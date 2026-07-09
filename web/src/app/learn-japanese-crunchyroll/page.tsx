@@ -196,6 +196,7 @@ export default function LearnJapaneseCrunchyrollPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/blog/substital-crunchyroll-japanese-subtitles-2026", label: "Substital guide" },
           { href: "/blog/kitsunekko-subtitles-anime-2026", label: "Kitsunekko guide" },
           { href: "/blog/jimaku-crunchyroll-subtitles-vs-listening-mode", label: "Jimaku vs Listening Mode" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },

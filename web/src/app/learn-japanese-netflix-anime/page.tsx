@@ -132,6 +132,7 @@ export default function LearnJapaneseNetflixPage() {
           { href: "/blog/hashigo-yomitan-netflix-japanese-anime-2026", label: "HASHIGO guide" },
           { href: "/vs-lingoku", label: "vs Lingoku" },
           { href: "/vs-yumego", label: "vs YumeGo" },
+          { href: "/learn-japanese-disney-plus", label: "Disney+" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/blog", label: "Blog" },

@@ -38,6 +38,8 @@ export const SEO_KEYWORDS = [
   "free japanese anime extension",
   "Wordy alternative",
   "animevocab vs wordy",
+  "learn japanese disney plus",
+  "substital crunchyroll",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

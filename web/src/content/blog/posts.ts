@@ -2,6 +2,58 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "substital-crunchyroll-japanese-subtitles-2026",
+    title: "Substital on Crunchyroll: Add Japanese Subtitles (2026 Guide)",
+    description:
+      "How to use Substital to overlay Japanese .srt files on Crunchyroll — setup, Kitsunekko sources, timing tips, and when Listening Mode is easier for beginners.",
+    publishedAt: "2026-07-09T12:00:00.000Z",
+    updatedAt: "2026-07-09T12:00:00.000Z",
+    keywords: [
+      "substital crunchyroll",
+      "substital japanese subtitles",
+      "add japanese subtitles crunchyroll",
+      "substital anime",
+      "crunchyroll srt overlay",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/04-sakura-night.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Substital** is a Chrome extension that overlays custom subtitle files on streaming video — including **Crunchyroll**. Learners searching **add Japanese subtitles to Crunchyroll** often land here: download a fan `.srt` from Kitsunekko or jimaku.cc, upload it in Substital, align timing, then read Japanese while the English burn-in stays on screen.",
+      },
+      { type: "h2", text: "Substital setup (step by step)" },
+      {
+        type: "ol",
+        items: [
+          "Install **Substital** from the Chrome Web Store.",
+          "Find a matching Japanese subtitle file ([Kitsunekko guide](/blog/kitsunekko-subtitles-anime-2026)).",
+          "Open the Crunchyroll episode and load the `.srt` / `.ass` in Substital.",
+          "Nudge the offset until dialogue lines up with speech.",
+          "Look up words with Yomitan or your dictionary of choice — Substital does not teach romaji.",
+        ],
+      },
+      { type: "h2", text: "Substital vs Jimaku Player vs Listening Mode" },
+      {
+        type: "ul",
+        items: [
+          "**Substital** — simple file overlay; you manage downloads and offsets.",
+          "**Jimaku Player** — userscript with series offset memory and jimaku.cc fetch ([deep dive](/blog/jimaku-crunchyroll-subtitles-vs-listening-mode)).",
+          "**AnimeVocab Listening Mode** — no `.srt` hunt; romaji cards from audio for beginners ([Crunchyroll hub](/learn-japanese-crunchyroll)).",
+        ],
+      },
+      { type: "h2", text: "When Substital is the wrong tool" },
+      {
+        type: "p",
+        text: "If you **cannot read Japanese**, overlaying a perfect `.srt` still feels like a wall. Start with [romaji-first learning](/romaji-japanese-learning) or the [free AnimeVocab extension](/free-japanese-anime-extension). If you can read and want Anki mining, pair Substital/Jimaku with [asbplayer](/vs-asbplayer).",
+      },
+      {
+        type: "p",
+        text: "Related: [ManabiDojo](/vs-manabidojo) integrates fan-sub workflows; [best apps 2026](/blog/best-apps-learn-japanese-anime-2026) ranks the full stack.",
+      },
+    ],
+  },
+  {
     slug: "best-apps-learn-japanese-anime-2026",
     title: "Best Apps to Learn Japanese with Anime (2026): Ranked by Reading Level",
     description:

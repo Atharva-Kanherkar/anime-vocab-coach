@@ -84,6 +84,14 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/substital-crunchyroll-japanese-subtitles-2026">
+                    Substital on Crunchyroll guide
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/learn-japanese-disney-plus">Learn Japanese on Disney+</Link>
+                </li>
+                <li>
                   <Link href="/blog/best-apps-learn-japanese-anime-2026">
                     Best apps to learn Japanese with anime (2026)
                   </Link>
