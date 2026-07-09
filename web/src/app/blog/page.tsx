@@ -84,6 +84,14 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/refold-anime-immersion-beginners-2026">
+                    Refold-style immersion with anime
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/tofugu-anime-advice-2026">Tofugu-style advice vs anime</Link>
+                </li>
+                <li>
                   <Link href="/blog/lingodeer-vs-anime-learn-japanese-2026">LingoDeer vs anime</Link>
                 </li>
                 <li>

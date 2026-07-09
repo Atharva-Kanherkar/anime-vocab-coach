@@ -2,6 +2,89 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "tofugu-anime-advice-2026",
+    title: "Tofugu-Style Advice vs Anime Immersion (2026 Practical Take)",
+    description:
+      "How classic Tofugu-style Japanese learning advice fits anime immersion in 2026 — kana first debates, Anki culture, and a kinder beginner path.",
+    publishedAt: "2026-07-10T20:00:00.000Z",
+    updatedAt: "2026-07-10T20:00:00.000Z",
+    keywords: [
+      "tofugu anime immersion",
+      "tofugu learn japanese anime",
+      "tofugu style japanese study 2026",
+      "japanese learning blog anime",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Classic **Tofugu-style advice** (kana early, Anki culture, resource lists) built a generation of learners. Anime fans in 2026 still need that discipline — plus tools that work on **Crunchyroll without JP subs**.",
+      },
+      { type: "h2", text: "Keep from the classics" },
+      {
+        type: "ul",
+        items: [
+          "Consistency over perfect resources",
+          "SRS matters ([guide](/anime-spaced-repetition))",
+          "Don't only binge English subs",
+        ],
+      },
+      { type: "h2", text: "Update for 2026 anime fans" },
+      {
+        type: "ul",
+        items: [
+          "Romaji-first is OK at month zero ([timing](/blog/hiragana-before-anime-or-after-2026))",
+          "Use [AnimeVocab](/free-japanese-anime-extension) when JP text is missing",
+        ],
+      },
+      {
+        type: "p",
+        text: "Community synthesis: [Reddit advice](/blog/learn-japanese-from-anime-reddit-2026).",
+      },
+    ],
+  },
+  {
+    slug: "refold-anime-immersion-beginners-2026",
+    title: "Refold-Style Immersion with Anime for Beginners (2026)",
+    description:
+      "Refold-style immersion applied to anime beginners — free-flow listening, when to start sentence mining, and a gentler on-ramp with romaji cards.",
+    publishedAt: "2026-07-10T20:30:00.000Z",
+    updatedAt: "2026-07-10T20:30:00.000Z",
+    keywords: [
+      "refold anime immersion",
+      "refold japanese anime beginners",
+      "immersion learning anime refold",
+      "free flow anime japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Refold-style immersion** pushes massive comprehensible input and delayed output. For anime beginners, that can become \"watch confused forever\" without a tiny active layer.",
+      },
+      { type: "h2", text: "Refold ideas that help" },
+      {
+        type: "ul",
+        items: [
+          "Prefer enjoyable content ([slice-of-life](/blog/slice-of-life-anime-learn-japanese-2026))",
+          "Don't force speaking on day one",
+          "Build listening hours",
+        ],
+      },
+      { type: "h2", text: "Gentler on-ramp" },
+      {
+        type: "p",
+        text: "Add **one word per episode** with [AnimeVocab](/free-japanese-anime-extension) so immersion has retrieval. Delay asbplayer/Migaku mining until kana ([Anki timing](/blog/anki-anime-beginners-2026)).",
+      },
+      {
+        type: "p",
+        text: "CI guide: [comprehensible input anime](/blog/comprehensible-input-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "lingodeer-vs-anime-learn-japanese-2026",
     title: "LingoDeer vs Anime for Learning Japanese (2026)",
     description:
