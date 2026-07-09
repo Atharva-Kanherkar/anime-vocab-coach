@@ -2,6 +2,76 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "rewatching-anime-learn-japanese-2026",
+    title: "Rewatching Anime to Learn Japanese (2026 Strategy)",
+    description:
+      "Why rewatching anime beats chasing new shows for Japanese study — second-pass listening, JP-sub upgrades, and a free capture routine.",
+    publishedAt: "2026-07-10T07:00:00.000Z",
+    updatedAt: "2026-07-10T07:00:00.000Z",
+    keywords: [
+      "rewatching anime learn japanese",
+      "rewatch anime japanese study",
+      "second watch anime immersion",
+      "rewatch for japanese listening",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Rewatching anime to learn Japanese** is underrated. First watch = plot. Second watch = ears. You already know what happens, so attention can land on sound.",
+      },
+      { type: "h2", text: "Second-pass rules" },
+      {
+        type: "ol",
+        items: [
+          "Pick a show you finished and loved ([Tier 1](/best-anime-to-learn-japanese)).",
+          "Try JP audio + fewer English glances ([wean off EN subs](/blog/stop-using-english-subtitles-japanese-2026)).",
+          "Save words you *hear* this time with [AnimeVocab](/free-japanese-anime-extension).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Listening routine: [practice guide](/blog/japanese-listening-practice-anime-2026). Shadowing: [15-min routine](/blog/shadowing-anime-japanese-pronunciation).",
+      },
+    ],
+  },
+  {
+    slug: "mobile-learn-japanese-anime-2026",
+    title: "Learn Japanese from Anime on Mobile (2026 Options)",
+    description:
+      "Can you learn Japanese from anime on your phone? Mobile limits vs desktop extensions, Wordy-style apps, and the best free desktop-first workflow.",
+    publishedAt: "2026-07-10T07:30:00.000Z",
+    updatedAt: "2026-07-10T07:30:00.000Z",
+    keywords: [
+      "learn japanese anime mobile",
+      "anime japanese learning app phone",
+      "mobile immersion japanese anime",
+      "study anime japanese on phone",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/10-coach.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Learn Japanese from anime on mobile** is harder than desktop — Chrome extensions do not run inside most phone apps. You need either a **mobile library app** or a **desktop capture + phone review** split.",
+      },
+      { type: "h2", text: "Practical setups" },
+      {
+        type: "ul",
+        items: [
+          "**Best free habit** — capture on desktop with [AnimeVocab](/free-japanese-anime-extension), review cards on phone if synced/exported later",
+          "**Mobile clip apps** — Wordy-style libraries ([vs Wordy](/vs-wordy))",
+          "**Tablet + Chrome** — closest to full extension workflows",
+        ],
+      },
+      {
+        type: "p",
+        text: "Free stack: [free ways](/blog/free-ways-learn-japanese-anime-2026). Apps ranking: [best apps](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "learn-japanese-from-anime-reddit-2026",
     title: "Learn Japanese from Anime: What Reddit Gets Right (2026)",
     description:
