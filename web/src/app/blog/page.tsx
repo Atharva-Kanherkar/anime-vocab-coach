@@ -84,6 +84,22 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/google-search-console-anime-site-indexing-2026">
+                    GSC after sitemap submit
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/re-zero-learn-japanese-2026">Re:Zero for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/konosuba-learn-japanese-2026">KonoSuba for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/that-time-i-got-reincarnated-as-a-slime-learn-japanese-2026">
+                    Slime / Tensura for Japanese?
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/my-hero-academia-learn-japanese-2026">
                     My Hero Academia for Japanese?
                   </Link>

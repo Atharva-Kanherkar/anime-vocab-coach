@@ -2,6 +2,129 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "re-zero-learn-japanese-2026",
+    title: "Re:Zero for Learning Japanese? (2026)",
+    description:
+      "Is Re:Zero good for learning Japanese? Isekai jargon vs emotional dialogue — honest beginner advice and what to mine.",
+    publishedAt: "2026-07-12T20:00:00.000Z",
+    updatedAt: "2026-07-12T20:00:00.000Z",
+    keywords: [
+      "re zero learn japanese",
+      "re:zero japanese study",
+      "rezero immersion",
+      "is re zero good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Re:Zero** is emotional and dense. Mine short character conversations; treat isekai system talk and long monologues as optional for month zero.",
+      },
+      {
+        type: "p",
+        text: "Softer drama first: [Fruits Basket](/blog/fruits-basket-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "konosuba-learn-japanese-2026",
+    title: "KonoSuba for Learning Japanese? (2026)",
+    description:
+      "KonoSuba for Japanese learners — comedy speed, party banter, and whether beginners should use it for immersion.",
+    publishedAt: "2026-07-12T20:30:00.000Z",
+    updatedAt: "2026-07-12T20:30:00.000Z",
+    keywords: [
+      "konosuba learn japanese",
+      "konosuba japanese study",
+      "konosuba immersion",
+      "is konosuba good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**KonoSuba** is rapid comedy — great taste, rough for absolute beginners. Mine short deadpan lines; skip overlapping yelling matches.",
+      },
+      {
+        type: "p",
+        text: "Calmer comedy first: [Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026). Method: [one word per episode](/blog/one-word-per-episode-method).",
+      },
+    ],
+  },
+  {
+    slug: "that-time-i-got-reincarnated-as-a-slime-learn-japanese-2026",
+    title: "That Time I Got Reincarnated as a Slime for Japanese? (2026)",
+    description:
+      "Tensura / Slime for Japanese study — nation-building vocab vs everyday talk, and an honest beginner take.",
+    publishedAt: "2026-07-12T21:00:00.000Z",
+    updatedAt: "2026-07-12T21:00:00.000Z",
+    keywords: [
+      "tensura learn japanese",
+      "slime anime learn japanese",
+      "that time i got reincarnated as a slime japanese",
+      "isekai learn japanese beginners",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Tensura** mixes chill slime vibes with fantasy nation jargon. Mine friendly conversations; skip council/worldbuilding dumps as flashcard fuel.",
+      },
+      {
+        type: "p",
+        text: "Isekai in general is a late-game immersion pick. Hub: [best anime](/best-anime-to-learn-japanese). Capture: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "google-search-console-anime-site-indexing-2026",
+    title: "Google Search Console for an Anime Learning Site (2026 Checklist)",
+    description:
+      "Just submitted your sitemap? What to do next in Google Search Console for an anime Japanese learning site — coverage, queries, and patience.",
+    publishedAt: "2026-07-12T21:30:00.000Z",
+    updatedAt: "2026-07-12T21:30:00.000Z",
+    keywords: [
+      "google search console sitemap anime site",
+      "index anime learning website",
+      "search console japanese blog",
+      "sitemap submitted what next seo",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Submitting a sitemap is step one — not traffic day one. New anime-learning URLs often take days to weeks to show impressions. Use GSC to watch, not to panic.",
+      },
+      { type: "h2", text: "After sitemap submit" },
+      {
+        type: "ol",
+        items: [
+          "Confirm sitemap status is Success (not \"Couldn't fetch\")",
+          "Use URL Inspection on 3–5 money pages (home, free extension, Crunchyroll hub)",
+          "Watch Pages → why URLs are excluded (redirect, soft 404, crawled not indexed)",
+          "Ignore vanity rankings for 2–4 weeks; ship more internal links instead",
+        ],
+      },
+      { type: "h2", text: "What actually moves the needle" },
+      {
+        type: "ul",
+        items: [
+          "Internal links from hubs to new posts ([best anime](/best-anime-to-learn-japanese), [blog](/blog))",
+          "IndexNow pings after deploy (Bing/Yandex-friendly)",
+          "Honest pages that match search intent — not keyword stuffing",
+        ],
+      },
+      {
+        type: "p",
+        text: "Also submit the same sitemap in Bing Webmaster. Product hub: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "my-hero-academia-learn-japanese-2026",
     title: "My Hero Academia for Learning Japanese? (2026)",
     description:
