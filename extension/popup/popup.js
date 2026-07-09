@@ -58,6 +58,14 @@
       chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
     });
   }
+  function getSyncProfile() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncProfile"], (r) => {
+        const p = r.syncProfile;
+        resolve(p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null } : null);
+      });
+    });
+  }
 
   // src/lib/review.ts
   function dueCount(vocab, now = Date.now()) {
@@ -133,6 +141,20 @@
       }
     });
   }
+  async function renderAccount() {
+    const el = byId("account");
+    const token = await getSyncToken();
+    if (!token) {
+      el.innerHTML = `<div class="av-account-row"><span class="av-dot av-dot-off"></span><div><b>Not signed in</b><span class="av-account-sub">Progress stays on this device only</span></div></div><button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">Sign in to sync \u2014 animevocab.com</button>`;
+      byId("signin-btn").addEventListener("click", () => {
+        chrome.tabs.create({ url: `${WEB_URL}/app` });
+      });
+      return;
+    }
+    const profile = await getSyncProfile();
+    const who = profile?.email || profile?.name || "your account";
+    el.innerHTML = `<div class="av-account-row"><span class="av-dot"></span><div><b>Cloud sync on</b><span class="av-account-sub">Synced as ${esc(who)}</span></div></div>`;
+  }
   async function render() {
     const vocab = await getVocab();
     const stats = await getStats();
@@ -202,8 +224,12 @@
   document.addEventListener("DOMContentLoaded", () => {
     initTheme();
     void render();
+    void renderAccount();
     void initListening();
     void initCopilotToggle();
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && (changes.syncToken || changes.syncProfile)) void renderAccount();
+    });
     byId("cloud-link").addEventListener("click", (e) => {
       e.preventDefault();
       chrome.tabs.create({ url: `${WEB_URL}/app` });

@@ -24,7 +24,11 @@
     if (data.type === "avc-sync-token") {
       const token = typeof data.token === "string" ? data.token : "";
       if (!token) return;
-      chrome.storage.local.set({ syncToken: token }, () => {
+      const p = data.profile;
+      const syncProfile = p && typeof p === "object" ? { email: typeof p.email === "string" ? p.email : null, name: typeof p.name === "string" ? p.name : null } : void 0;
+      const update = { syncToken: token };
+      if (syncProfile !== void 0) update.syncProfile = syncProfile;
+      chrome.storage.local.set(update, () => {
         chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {
         });
       });
