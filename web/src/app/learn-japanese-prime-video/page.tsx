@@ -124,6 +124,7 @@ export default function LearnJapanesePrimeVideoPage() {
               Compare platforms: <Link href="/learn-japanese-crunchyroll">Crunchyroll</Link>,{" "}
               <Link href="/learn-japanese-netflix-anime">Netflix</Link>,{" "}
               <Link href="/learn-japanese-disney-plus">Disney+</Link>,{" "}
+              <Link href="/learn-japanese-hidive">HIDIVE</Link>,{" "}
               <Link href="/blog/best-apps-learn-japanese-anime-2026">best apps 2026</Link>.
             </p>
           </div>

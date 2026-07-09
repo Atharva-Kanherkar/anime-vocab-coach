@@ -84,6 +84,20 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/learn-japanese-hidive">Learn Japanese on HIDIVE</Link>
+                </li>
+                <li>
+                  <Link href="/blog/jpdb-vs-anime-vocabulary-2026">jpdb vs anime vocab</Link>
+                </li>
+                <li>
+                  <Link href="/blog/tae-kim-grammar-vs-anime-2026">Tae Kim vs anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/free-anki-alternative-anime-srs-2026">
+                    Free Anki alternative for anime
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/lingq-vs-anime-learn-japanese-2026">LingQ vs anime</Link>
                 </li>
                 <li>

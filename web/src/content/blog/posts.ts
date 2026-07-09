@@ -2,6 +2,167 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "jpdb-vs-anime-vocabulary-2026",
+    title: "jpdb vs Anime Vocabulary Capture (2026)",
+    description:
+      "jpdb is a powerful frequency and mining database. Anime fans still need a capture loop on Crunchyroll — honest comparison and a hybrid plan.",
+    publishedAt: "2026-07-11T00:00:00.000Z",
+    updatedAt: "2026-07-11T00:00:00.000Z",
+    keywords: [
+      "jpdb japanese anime",
+      "jpdb vs anime",
+      "jpdb immersion",
+      "jpdb alternative beginners",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**jpdb** is beloved for frequency lists, media decks, and mining workflows. It assumes you can already navigate Japanese text and Anki-style review. Month-zero anime fans often bounce before the first deck sticks.",
+      },
+      { type: "h2", text: "When jpdb wins" },
+      {
+        type: "ul",
+        items: [
+          "You want frequency-ranked vocab for a specific show or game",
+          "You already read kana and like deck building",
+          "You mine from text-heavy media",
+        ],
+      },
+      { type: "h2", text: "When stream capture wins" },
+      {
+        type: "ul",
+        items: [
+          "Your habit is watching, not deck shopping",
+          "You need [romaji-first](/romaji-japanese-learning) on night one",
+          "JP subs are missing ([Crunchyroll](/learn-japanese-crunchyroll))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Hybrid: [AnimeVocab](/free-japanese-anime-extension) for nightly capture, jpdb later for frequency cleanup. Related: [Anki for anime beginners](/blog/anki-anime-beginners-2026).",
+      },
+    ],
+  },
+  {
+    slug: "tae-kim-grammar-vs-anime-2026",
+    title: "Tae Kim Grammar Guide vs Anime Immersion (2026)",
+    description:
+      "Tae Kim's free grammar guide vs learning Japanese from anime — how to use both without turning every episode into a textbook session.",
+    publishedAt: "2026-07-11T00:30:00.000Z",
+    updatedAt: "2026-07-11T00:30:00.000Z",
+    keywords: [
+      "tae kim anime",
+      "tae kim grammar anime immersion",
+      "learn japanese tae kim or anime",
+      "free japanese grammar anime",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Tae Kim's Guide to Japanese** is still one of the best free grammar explanations online. Anime will not teach you the て-form systematically — but Tae Kim alone will not give you listening stamina.",
+      },
+      { type: "h2", text: "Use Tae Kim for" },
+      {
+        type: "ul",
+        items: [
+          "Why a particle appeared in a line you saved",
+          "Short explanation sessions (15–20 minutes)",
+          "Free alternative to waiting for a class",
+        ],
+      },
+      { type: "h2", text: "Use anime for" },
+      {
+        type: "ul",
+        items: [
+          "Hearing grammar in emotional context",
+          "Building the habit you will keep ([does anime help?](/blog/does-watching-anime-help-learn-japanese-2026))",
+          "Capturing one word/line with [AnimeVocab](/free-japanese-anime-extension)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Same hybrid as textbooks: [Genki vs anime](/blog/genki-textbook-vs-anime-immersion-2026), [Bunpro vs anime](/blog/bunpro-vs-anime-grammar-2026).",
+      },
+    ],
+  },
+  {
+    slug: "free-anki-alternative-anime-srs-2026",
+    title: "Free Anki Alternative for Anime Learners (2026)",
+    description:
+      "Looking for a free Anki alternative for anime vocabulary? Compare built-in SRS in AnimeVocab with Anki, AnkiApp, and when to graduate to full decks.",
+    publishedAt: "2026-07-11T01:00:00.000Z",
+    updatedAt: "2026-07-11T01:00:00.000Z",
+    keywords: [
+      "free anki alternative japanese",
+      "anki alternative anime",
+      "free srs anime vocabulary",
+      "anki alternative chrome extension",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Search **free Anki alternative** and you get mobile apps, gamified decks, and regret. For anime learners the real question is: do you need a general flashcard OS, or a review loop tied to tonight's episode?",
+      },
+      { type: "h2", text: "Options that actually fit anime fans" },
+      {
+        type: "ul",
+        items: [
+          "**AnimeVocab built-in SRS** — free, cards from your stream, romaji-first ([guide](/anime-spaced-repetition))",
+          "**Anki** — free desktop power tool; steep for month zero ([beginner Anki](/blog/anki-anime-beginners-2026))",
+          "**AnkiApp / Memrise / Clozemaster** — easier UX, less tied to your episode ([comparisons](/blog/ankiapp-vs-animevocab-srs-2026))",
+        ],
+      },
+      { type: "h2", text: "Recommendation" },
+      {
+        type: "p",
+        text: "Start with stream-native review so you do not maintain two systems. Graduate to Anki when you want custom note types, shared decks, or jpdb exports. Install: [free Japanese anime extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "hidive-learn-japanese-anime-2026",
+    title: "Learn Japanese on HIDIVE (2026): Catalog Immersion Guide",
+    description:
+      "How to learn Japanese with HIDIVE anime — subtitle checks, exclusives vs Crunchyroll, and a beginner capture method that works across platforms.",
+    publishedAt: "2026-07-11T01:30:00.000Z",
+    updatedAt: "2026-07-11T01:30:00.000Z",
+    keywords: [
+      "hidive learn japanese",
+      "learn japanese hidive anime",
+      "hidive japanese subtitles",
+      "hidive immersion",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    canonicalPath: "/learn-japanese-hidive",
+    blocks: [
+      {
+        type: "p",
+        text: "**HIDIVE** is a legal anime platform with exclusives many fans chase. For Japanese learning, treat it like any stream: confirm audio/subs, keep enjoyment high, capture lightly.",
+      },
+      { type: "h2", text: "Study checklist" },
+      {
+        type: "ol",
+        items: [
+          "Japanese audio on",
+          "Japanese subs if available and readable",
+          "One memorable word saved for review",
+          "No full-episode dictionary pauses",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full hub: [learn Japanese on HIDIVE](/learn-japanese-hidive). Daily tooling often lives on [Crunchyroll](/learn-japanese-crunchyroll) with [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "lingq-vs-anime-learn-japanese-2026",
     title: "LingQ vs Anime for Learning Japanese (2026)",
     description:

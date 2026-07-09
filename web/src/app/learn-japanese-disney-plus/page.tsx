@@ -121,6 +121,7 @@ export default function LearnJapaneseDisneyPlusPage() {
 
             <p>
               Related: <Link href="/learn-japanese-netflix-anime">Netflix anime guide</Link>,{" "}
+              <Link href="/learn-japanese-hidive">HIDIVE</Link>,{" "}
               <Link href="/blog/best-apps-learn-japanese-anime-2026">best apps 2026</Link>,{" "}
               <Link href="/romaji-japanese-learning">romaji path</Link>.
             </p>
