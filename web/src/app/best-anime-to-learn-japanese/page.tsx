@@ -150,6 +150,13 @@ export default function BestAnimePage() {
                 clip-based study.{" "}
                 <Link href="/blog/ghibli-movies-learn-japanese-2026">Ghibli study guide →</Link>
               </li>
+              <li>
+                <strong>Your Name / A Silent Voice / Violet Evergarden</strong> — film-length emotional
+                Japanese; rewatch to mine.{" "}
+                <Link href="/blog/your-name-learn-japanese-2026">Your Name</Link> ·{" "}
+                <Link href="/blog/a-silent-voice-learn-japanese-2026">Silent Voice</Link> ·{" "}
+                <Link href="/blog/violet-evergarden-learn-japanese-2026">Violet →</Link>
+              </li>
             </ul>
 
             <h2>Save for later</h2>

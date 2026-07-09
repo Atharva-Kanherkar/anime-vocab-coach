@@ -2,6 +2,120 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "your-name-learn-japanese-2026",
+    title: "Your Name (Kimi no Na wa) for Learning Japanese (2026)",
+    description:
+      "Learn Japanese with Your Name — emotional lines worth replaying, dialect notes, and a film-length study session that does not ruin the movie.",
+    publishedAt: "2026-07-12T02:00:00.000Z",
+    updatedAt: "2026-07-12T02:00:00.000Z",
+    keywords: [
+      "your name learn japanese",
+      "kimi no na wa japanese study",
+      "your name immersion",
+      "makoto shinkai learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Your Name** is a perfect **rewatch** film for learners: strong emotion, clear teenage dialogue, and lines you will want to hear again. Do not pause every sentence on first watch.",
+      },
+      {
+        type: "p",
+        text: "First watch for story; second watch capture 3–5 words max. Related: [Ghibli films](/blog/ghibli-movies-learn-japanese-2026), [Kiki](/blog/kikis-delivery-service-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "a-silent-voice-learn-japanese-2026",
+    title: "A Silent Voice for Learning Japanese (2026)",
+    description:
+      "A Silent Voice / Koe no Katachi for Japanese study — school speech, emotional vocabulary, and a respectful beginner capture plan.",
+    publishedAt: "2026-07-12T02:30:00.000Z",
+    updatedAt: "2026-07-12T02:30:00.000Z",
+    keywords: [
+      "a silent voice learn japanese",
+      "koe no katachi japanese study",
+      "a silent voice immersion",
+      "silent voice japanese learners",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**A Silent Voice** is heavy and human — school Japanese plus apology/friendship language you will actually reuse. Treat it as a film study session, not background noise.",
+      },
+      {
+        type: "p",
+        text: "Capture feelings words; skip rushing the plot. Pair with [Horimiya](/blog/horimiya-learn-japanese-2026) for lighter school talk. Extension: [free install](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "violet-evergarden-learn-japanese-2026",
+    title: "Violet Evergarden for Learning Japanese (2026)",
+    description:
+      "Violet Evergarden for Japanese learners — letter-writing vocabulary, clear delivery, and when the literary tone is too hard for beginners.",
+    publishedAt: "2026-07-12T03:00:00.000Z",
+    updatedAt: "2026-07-12T03:00:00.000Z",
+    keywords: [
+      "violet evergarden learn japanese",
+      "violet evergarden japanese study",
+      "violet evergarden immersion",
+      "emotional anime learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Violet Evergarden** has careful, emotional speech — excellent for intermediate listening. Absolute beginners may find letter diction formal.",
+      },
+      {
+        type: "p",
+        text: "Mine short spoken lines between letters; rewatch favorite episodes. Calm ladder: [Natsume](/blog/natsume-yuujinchou-learn-japanese-2026) → Violet. Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "should-i-turn-off-english-subtitles-anime-2026",
+    title: "Should I Turn Off English Subtitles for Anime? (2026)",
+    description:
+      "Should you turn off English subtitles to learn Japanese? A staged plan from EN subs + capture to JP audio focus — without quitting your shows.",
+    publishedAt: "2026-07-12T03:30:00.000Z",
+    updatedAt: "2026-07-12T03:30:00.000Z",
+    keywords: [
+      "turn off english subtitles learn japanese",
+      "should i watch anime without subtitles",
+      "anime no english subtitles japanese",
+      "remove english subs immersion",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Cold-turkey **no English subs** makes most beginners quit. Better: keep comprehension, add capture, then gradually reduce EN dependence.",
+      },
+      { type: "h2", text: "Staged plan" },
+      {
+        type: "ol",
+        items: [
+          "EN subs ON + one word saved ([method](/blog/one-word-per-episode-method))",
+          "Rewatch a scene with EN OFF",
+          "Try JP subs when readable ([JP vs EN](/blog/japanese-subtitles-vs-english-anime-2026))",
+          "Full immersion nights only when you still enjoy the show",
+        ],
+      },
+      {
+        type: "p",
+        text: "Why EN-only fails: [English subs not learning](/blog/english-subtitles-not-learning-japanese). Bridge tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "kaguya-sama-learn-japanese-2026",
     title: "Kaguya-sama: Love Is War for Learning Japanese (2026)",
     description:

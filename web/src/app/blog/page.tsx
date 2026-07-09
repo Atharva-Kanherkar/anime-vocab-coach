@@ -84,6 +84,22 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/your-name-learn-japanese-2026">Your Name for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/a-silent-voice-learn-japanese-2026">A Silent Voice for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/violet-evergarden-learn-japanese-2026">
+                    Violet Evergarden for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/should-i-turn-off-english-subtitles-anime-2026">
+                    Should I turn off English subs?
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/kaguya-sama-learn-japanese-2026">Kaguya-sama for Japanese</Link>
                 </li>
                 <li>
