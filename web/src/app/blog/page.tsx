@@ -84,6 +84,14 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/spotify-japanese-podcasts-anime-fans-2026">
+                    Best Japanese podcasts for anime fans
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/nhk-easy-vs-anime-2026">NHK Easy vs anime</Link>
+                </li>
+                <li>
                   <Link href="/blog/podcasts-vs-anime-learn-japanese-2026">
                     Podcasts vs anime for Japanese
                   </Link>

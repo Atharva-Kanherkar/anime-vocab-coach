@@ -2,6 +2,75 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "spotify-japanese-podcasts-anime-fans-2026",
+    title: "Best Japanese Podcasts for Anime Fans (2026)",
+    description:
+      "Japanese podcasts that complement anime study — graded shows for beginners, native chat for intermediates, and how to pair them with nightly anime capture.",
+    publishedAt: "2026-07-10T14:00:00.000Z",
+    updatedAt: "2026-07-10T14:00:00.000Z",
+    keywords: [
+      "japanese podcasts anime fans",
+      "best japanese podcasts beginners",
+      "learn japanese podcasts anime",
+      "spotify japanese podcasts beginners",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Japanese podcasts for anime fans** fill the commute gap when you cannot open Crunchyroll. Use graded podcasts for clean i+1, then keep anime as your night habit.",
+      },
+      { type: "h2", text: "How to pair with anime" },
+      {
+        type: "ol",
+        items: [
+          "Morning: 10–15 min graded podcast",
+          "Night: one anime episode + one word ([AnimeVocab](/free-japanese-anime-extension))",
+          "Compare input styles: [podcasts vs anime](/blog/podcasts-vs-anime-learn-japanese-2026)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Listening routine: [anime listening practice](/blog/japanese-listening-practice-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "nhk-easy-vs-anime-2026",
+    title: "NHK Easy News vs Anime for Japanese (2026)",
+    description:
+      "NHK Easy News vs anime immersion — reading practice vs listening motivation, and how beginners can use both without quitting either.",
+    publishedAt: "2026-07-10T14:30:00.000Z",
+    updatedAt: "2026-07-10T14:30:00.000Z",
+    keywords: [
+      "nhk easy vs anime",
+      "nhk easy news learn japanese",
+      "anime or nhk easy",
+      "reading vs anime japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/04-fireflies.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**NHK Easy vs anime**: NHK Easy builds **reading**. Anime builds **listening + motivation**. You need both eventually; start with whichever you will open daily.",
+      },
+      { type: "h2", text: "Suggested split" },
+      {
+        type: "ul",
+        items: [
+          "**Anime nightly** — capture with [free extension](/free-japanese-anime-extension)",
+          "**NHK Easy 1 article** — after kana clicks ([hiragana timing](/blog/hiragana-before-anime-or-after-2026))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Is anime enough alone? [Honest take](/blog/is-anime-enough-to-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
     slug: "podcasts-vs-anime-learn-japanese-2026",
     title: "Podcasts vs Anime for Learning Japanese (2026)",
     description:
