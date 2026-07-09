@@ -84,6 +84,22 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/cowboy-bebop-learn-japanese-2026">Cowboy Bebop for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/fullmetal-alchemist-learn-japanese-2026">
+                    Fullmetal Alchemist for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/steins-gate-learn-japanese-2026">Steins;Gate for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/how-to-take-notes-while-watching-anime-japanese-2026">
+                    How to take notes while watching anime
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/free-vs-paid-japanese-anime-tools-2026">
                     Free vs paid anime Japanese tools
                   </Link>

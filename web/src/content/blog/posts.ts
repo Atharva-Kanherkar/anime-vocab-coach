@@ -2,6 +2,120 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "cowboy-bebop-learn-japanese-2026",
+    title: "Cowboy Bebop for Learning Japanese? (2026)",
+    description:
+      "Is Cowboy Bebop good for learning Japanese? Cool dialogue, jazz pacing, and an honest take for beginners vs intermediate listeners.",
+    publishedAt: "2026-07-12T10:00:00.000Z",
+    updatedAt: "2026-07-12T10:00:00.000Z",
+    keywords: [
+      "cowboy bebop learn japanese",
+      "cowboy bebop japanese study",
+      "bebop immersion japanese",
+      "is cowboy bebop good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Cowboy Bebop** has stylish, often clear adult dialogue — better than shonen shouting, still not month-zero slice-of-life. Mine quiet crew scenes; skip dense bounty jargon.",
+      },
+      {
+        type: "p",
+        text: "Start softer: [best anime](/best-anime-to-learn-japanese). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "fullmetal-alchemist-learn-japanese-2026",
+    title: "Fullmetal Alchemist for Learning Japanese (2026)",
+    description:
+      "FMA / FMAB for Japanese learners — brotherly talk vs alchemy jargon, and which arcs are friendlier for study.",
+    publishedAt: "2026-07-12T10:30:00.000Z",
+    updatedAt: "2026-07-12T10:30:00.000Z",
+    keywords: [
+      "fullmetal alchemist learn japanese",
+      "fmab japanese study",
+      "fullmetal alchemist immersion",
+      "fma learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Fullmetal Alchemist: Brotherhood** mixes warm sibling dialogue with dense alchemy terms. Mine the human talk; treat equivalent exchange lectures as optional.",
+      },
+      {
+        type: "p",
+        text: "Similar \"story first\" energy to [Vinland farm arc](/blog/vinland-saga-learn-japanese-2026). Method: [one word per episode](/blog/one-word-per-episode-method).",
+      },
+    ],
+  },
+  {
+    slug: "steins-gate-learn-japanese-2026",
+    title: "Steins;Gate for Learning Japanese? (2026)",
+    description:
+      "Steins;Gate immersion for Japanese — otaku slang, lab banter, and when beginners should wait for clearer shows.",
+    publishedAt: "2026-07-12T11:00:00.000Z",
+    updatedAt: "2026-07-12T11:00:00.000Z",
+    keywords: [
+      "steins gate learn japanese",
+      "steins;gate japanese study",
+      "steins gate immersion",
+      "is steins gate good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Steins;Gate** is beloved and slang-heavy. Great for intermediate fans of the show; rough as a first textbook. Capture short emotional lines, not every chuuni rant.",
+      },
+      {
+        type: "p",
+        text: "Beginner ladder: [slice-of-life](/blog/slice-of-life-anime-learn-japanese-2026) first. Extension: [free install](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "how-to-take-notes-while-watching-anime-japanese-2026",
+    title: "How to Take Notes While Watching Anime in Japanese (2026)",
+    description:
+      "Note-taking systems for anime Japanese study — why notebooks die, what to write, and a one-line capture template that survives binge nights.",
+    publishedAt: "2026-07-12T11:30:00.000Z",
+    updatedAt: "2026-07-12T11:30:00.000Z",
+    keywords: [
+      "take notes watching anime japanese",
+      "anime japanese notebook",
+      "how to note vocabulary anime",
+      "anime study notes system",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Pretty notebooks look productive. They usually die after episode three. Prefer **one line in a review system** over a full transcript.",
+      },
+      { type: "h2", text: "Minimum viable note" },
+      {
+        type: "ul",
+        items: [
+          "Word / phrase",
+          "Rough meaning",
+          "Show + episode (optional)",
+          "Review tomorrow ([SRS](/anime-spaced-repetition))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Notebook vs SRS: [comparison](/blog/vocabulary-notebook-vs-srs-anime-2026). Auto-capture: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "free-vs-paid-japanese-anime-tools-2026",
     title: "Free vs Paid Japanese Anime Learning Tools (2026)",
     description:
