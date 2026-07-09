@@ -122,6 +122,10 @@ export default function BestAnimePage() {
                 <Link href="/blog/spy-x-family-learn-japanese-2026">Spy x Family guide →</Link>
               </li>
               <li>
+                <strong>Horimiya</strong> — school romance with reusable everyday lines.{" "}
+                <Link href="/blog/horimiya-learn-japanese-2026">Horimiya guide →</Link>
+              </li>
+              <li>
                 <strong>Laid-Back Camp / Yuru Camp</strong> — calm pacing for anxious beginners.{" "}
                 <Link href="/blog/laid-back-camp-learn-japanese-2026">Yuru Camp guide →</Link>
               </li>

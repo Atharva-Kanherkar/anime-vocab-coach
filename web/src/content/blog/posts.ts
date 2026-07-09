@@ -2,6 +2,129 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "horimiya-learn-japanese-2026",
+    title: "Horimiya for Learning Japanese (2026)",
+    description:
+      "Horimiya for Japanese learners — school romance dialogue, everyday vocab, and a capture plan that skips filler noise.",
+    publishedAt: "2026-07-11T14:00:00.000Z",
+    updatedAt: "2026-07-11T14:00:00.000Z",
+    keywords: [
+      "horimiya learn japanese",
+      "horimiya japanese study",
+      "romance anime learn japanese",
+      "horimiya immersion beginners",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Horimiya** is packed with school and relationship talk — high reuse value for beginners who want words they will hear in real life, not battle cries.",
+      },
+      {
+        type: "p",
+        text: "Mine short emotional lines; skip rapid group banter on first watch. Method: [one word per episode](/blog/one-word-per-episode-method). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "my-neighbor-totoro-learn-japanese-kids-2026",
+    title: "My Neighbor Totoro for Kids Learning Japanese (2026)",
+    description:
+      "Totoro as a family Japanese learning film — clear speech, gentle pacing, and how parents can capture words without turning movie night into school.",
+    publishedAt: "2026-07-11T14:30:00.000Z",
+    updatedAt: "2026-07-11T14:30:00.000Z",
+    keywords: [
+      "totoro learn japanese kids",
+      "my neighbor totoro japanese study",
+      "ghibli kids learn japanese",
+      "family anime japanese learning",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**My Neighbor Totoro** is one of the kindest Japanese listening experiences for kids and tired adults. Speech is clear; scenes give visual meaning.",
+      },
+      {
+        type: "p",
+        text: "Adult deep dive: [Totoro guide](/blog/totoro-learn-japanese-2026). More Ghibli: [Ghibli movies](/blog/ghibli-movies-learn-japanese-2026). Capture lightly with [AnimeVocab](/free-japanese-anime-extension) if watching on a supported stream.",
+      },
+    ],
+  },
+  {
+    slug: "anki-shared-decks-anime-beginners-2026",
+    title: "Anki Shared Decks for Anime Beginners (2026 Warning)",
+    description:
+      "Should beginners download Anki anime shared decks? Why premade decks fail, and a better capture-from-your-show workflow.",
+    publishedAt: "2026-07-11T15:00:00.000Z",
+    updatedAt: "2026-07-11T15:00:00.000Z",
+    keywords: [
+      "anki anime shared deck",
+      "anki anime deck beginners",
+      "best anki deck anime japanese",
+      "anime vocabulary anki deck",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Premade **Anki anime decks** look efficient. For beginners they often become guilt piles — thousands of cards with no emotional context from *your* watching.",
+      },
+      { type: "h2", text: "Better default" },
+      {
+        type: "ol",
+        items: [
+          "Watch a show you like",
+          "Save one word from a line you felt ([method](/blog/one-word-per-episode-method))",
+          "Review with built-in SRS or a tiny personal Anki deck",
+        ],
+      },
+      {
+        type: "p",
+        text: "When Anki makes sense: [Anki for anime beginners](/blog/anki-anime-beginners-2026). Free stream SRS: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "japanese-subtitles-vs-english-anime-2026",
+    title: "Japanese Subtitles vs English Subtitles for Learning (2026)",
+    description:
+      "JP subs vs EN subs for anime learning — when to switch, dual-sub traps, and what to do when Crunchyroll has no Japanese track.",
+    publishedAt: "2026-07-11T15:30:00.000Z",
+    updatedAt: "2026-07-11T15:30:00.000Z",
+    keywords: [
+      "japanese subtitles vs english learning",
+      "anime japanese subs or english",
+      "dual subtitles japanese learning",
+      "crunchyroll no japanese subtitles learn",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**English subs** keep the story. **Japanese subs** train reading + listening alignment. Beginners often need a bridge — romaji cards or Listening Mode — before JP-text-only nights.",
+      },
+      { type: "h2", text: "Practical ladder" },
+      {
+        type: "ol",
+        items: [
+          "EN subs + one-word capture (month zero)",
+          "Dual subs briefly if available ([guide](/blog/dual-subtitles-japanese-beginners-2026))",
+          "JP subs when you can read without freezing",
+          "If no JP track: [Crunchyroll Listening Mode](/learn-japanese-crunchyroll)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Why EN-only fails long-term: [English subs not learning](/blog/english-subtitles-not-learning-japanese). Tool: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "vinland-saga-learn-japanese-2026",
     title: "Vinland Saga for Learning Japanese (2026)",
     description:

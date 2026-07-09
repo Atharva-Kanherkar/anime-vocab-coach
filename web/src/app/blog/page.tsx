@@ -84,6 +84,24 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/horimiya-learn-japanese-2026">Horimiya for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/my-neighbor-totoro-learn-japanese-kids-2026">
+                    Totoro for kids / families
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/anki-shared-decks-anime-beginners-2026">
+                    Anki anime shared decks warning
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/japanese-subtitles-vs-english-anime-2026">
+                    JP vs EN subtitles for learning
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/vinland-saga-learn-japanese-2026">Vinland Saga for Japanese</Link>
                 </li>
                 <li>
