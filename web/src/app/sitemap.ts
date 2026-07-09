@@ -20,6 +20,7 @@ const staticRoutes = [
   { path: "/learn-japanese-netflix-anime", priority: 0.86, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-youtube-anime", priority: 0.84, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-disney-plus", priority: 0.82, changeFrequency: "monthly" as const },
+  { path: "/learn-japanese-prime-video", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/romaji-japanese-learning", priority: 0.85, changeFrequency: "monthly" as const },
   { path: "/anime-spaced-repetition", priority: 0.84, changeFrequency: "monthly" as const },
   { path: "/vs-trancy", priority: 0.78, changeFrequency: "monthly" as const },

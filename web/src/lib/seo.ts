@@ -40,6 +40,8 @@ export const SEO_KEYWORDS = [
   "animevocab vs wordy",
   "learn japanese disney plus",
   "substital crunchyroll",
+  "migaku crunchyroll alternative",
+  "learn japanese prime video",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

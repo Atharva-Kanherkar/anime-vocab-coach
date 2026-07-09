@@ -84,6 +84,11 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/migaku-crunchyroll-alternative-2026">
+                    Migaku Crunchyroll alternative
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/substital-crunchyroll-japanese-subtitles-2026">
                     Substital on Crunchyroll guide
                   </Link>

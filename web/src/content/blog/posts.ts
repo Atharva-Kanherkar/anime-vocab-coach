@@ -2,6 +2,50 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "migaku-crunchyroll-alternative-2026",
+    title: "Migaku Crunchyroll Alternative (2026): What Actually Works",
+    description:
+      "Migaku does not support Crunchyroll. Here are the real 2026 alternatives for learning Japanese on Crunchyroll — AnimeVocab, Lexirise, ManabiDojo, and fan-sub miners.",
+    publishedAt: "2026-07-09T13:00:00.000Z",
+    updatedAt: "2026-07-09T13:00:00.000Z",
+    keywords: [
+      "migaku crunchyroll",
+      "migaku crunchyroll alternative",
+      "migaku alternative crunchyroll",
+      "learn japanese crunchyroll extension",
+      "does migaku work on crunchyroll",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/05-torii-night.jpg",
+    canonicalPath: "/learn-japanese-crunchyroll",
+    blocks: [
+      {
+        type: "p",
+        text: "If you searched **Migaku Crunchyroll**, the short answer is: **Migaku does not run on Crunchyroll**. Their supported platforms center on Netflix, YouTube, Disney+, Viki, and similar — not the anime simulcast hub most fans use. This post maps **Migaku Crunchyroll alternatives** by skill level so you stop bouncing between dead ends.",
+      },
+      { type: "h2", text: "Why Migaku skips Crunchyroll" },
+      {
+        type: "p",
+        text: "Crunchyroll's player and licensing make Japanese subtitle text scarce outside Japan. Mining suites that need selectable JP subs hit a wall. Migaku invested elsewhere. That leaves a gap AnimeVocab, Lexirise, and ManabiDojo fill differently.",
+      },
+      { type: "h2", text: "Pick your Migaku replacement" },
+      {
+        type: "ul",
+        items: [
+          "**Cannot read kana** → [AnimeVocab](/free-japanese-anime-extension) — romaji cards + Listening Mode ([vs Migaku](/vs-migaku)).",
+          "**Can read JP text on screen** → [Lexirise](/vs-lexirise) — click-to-translate on Crunchyroll.",
+          "**Want fan JP subs + quizzes** → [ManabiDojo](/vs-manabidojo).",
+          "**Want Anki sentence mining anyway** → Jimaku/Substital + [asbplayer](/vs-asbplayer) ([Substital guide](/blog/substital-crunchyroll-japanese-subtitles-2026)).",
+        ],
+      },
+      { type: "h2", text: "Keep Migaku for Netflix — use something else for CR" },
+      {
+        type: "p",
+        text: "Many power users run **Migaku on Netflix** and a **Crunchyroll-native tool** for simulcasts. That is rational. Do not force one suite to cover every platform. Hub: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Ranking: [best apps 2026](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "substital-crunchyroll-japanese-subtitles-2026",
     title: "Substital on Crunchyroll: Add Japanese Subtitles (2026 Guide)",
     description:

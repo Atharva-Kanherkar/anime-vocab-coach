@@ -103,8 +103,9 @@ export default function LearnJapaneseCrunchyrollPage() {
               Licensing limits Japanese subtitle tracks in many regions. Community threads (WaniKani, Reddit)
               have documented this for years: you get English translations, not Japanese transcriptions. Migaku
               does not support Crunchyroll; learners searching <strong>Migaku Crunchyroll</strong> hit a dead
-              end. Fan subtitle workflows (Jimaku + asbplayer) work for advanced readers, not month-zero
-              beginners.
+              end — see our{" "}
+              <Link href="/blog/migaku-crunchyroll-alternative-2026">Migaku Crunchyroll alternative guide</Link>.
+              Fan subtitle workflows (Jimaku + asbplayer) work for advanced readers, not month-zero beginners.
             </p>
 
             <h2>Tools that work on Crunchyroll in 2026</h2>
