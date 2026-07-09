@@ -4,9 +4,28 @@ import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
-import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
+import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/best-anime-to-learn-japanese";
+
+const faqs = [
+  {
+    question: "What is the best anime to learn Japanese for beginners?",
+    answer:
+      "Shirokuma Cafe (Polar Bear Cafe) is the most recommended beginner show — slow dialogue and everyday vocabulary. Non Non Biyori and Doraemon are strong alternatives.",
+  },
+  {
+    question: "Can I learn Japanese from Attack on Titan or Jujutsu Kaisen?",
+    answer:
+      "Later, yes. As a first textbook, no — slang, shouting, and fantasy terms make listening practice harder than slice-of-life shows.",
+  },
+  {
+    question: "Do I need Japanese subtitles to learn from anime?",
+    answer:
+      "Not at month zero. Romaji-first tools and Listening Mode work from audio when Japanese subtitle tracks are missing, which is common on Crunchyroll.",
+  },
+];
+
 
 export const metadata: Metadata = {
   title: "Best Anime to Learn Japanese (2026): Beginner Rankings",
@@ -28,6 +47,8 @@ export const metadata: Metadata = {
 };
 
 export default function BestAnimePage() {
+  const faqLd = faqJsonLd(faqs);
+
   return (
     <>
       <LandingJsonLd
@@ -35,6 +56,7 @@ export default function BestAnimePage() {
         title="Best Anime to Learn Japanese (2026): Beginner Rankings"
         description="Best anime to learn Japanese for beginners — Shirokuma Cafe, Non Non Biyori, Doraemon, and shows to avoid. Ranked for slow dialogue and everyday vocabulary."
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs
@@ -71,7 +93,8 @@ export default function BestAnimePage() {
             <ul>
               <li>
                 <strong>Shirokuma Cafe</strong> — slow dialogue, daily-life vocabulary, community favorite on
-                r/LearnJapanese.
+                r/LearnJapanese. Deep dive:{" "}
+                <Link href="/blog/shirokuma-cafe-learn-japanese-2026">Shirokuma Cafe study guide</Link>.
               </li>
               <li>
                 <strong>Non Non Biyori</strong> — rural slice-of-life, long pauses, perfect for shadowing.
@@ -104,14 +127,25 @@ export default function BestAnimePage() {
               </li>
             </ul>
 
+            <h2>FAQ</h2>
+            <ul>
+              {faqs.map((f) => (
+                <li key={f.question}>
+                  <strong>{f.question}</strong>
+                  <br />
+                  {f.answer}
+                </li>
+              ))}
+            </ul>
+
             <p>
               Full write-up with ranking criteria:{" "}
               <Link href="/blog/best-anime-to-learn-japanese-beginners">
                 Best anime to learn Japanese for beginners (2026 ranked)
               </Link>
-              {" "}· hub: <Link href="/best-anime-to-learn-japanese">this landing page</Link>. Workflow:{" "}
-              <Link href="/blog/one-word-per-episode-method">one word per episode</Link>,{" "}
-              <Link href="/anime-spaced-repetition">spaced repetition</Link>, tools on{" "}
+              . Workflow: <Link href="/blog/one-word-per-episode-method">one word per episode</Link>,{" "}
+              <Link href="/anime-spaced-repetition">spaced repetition</Link>,{" "}
+              <Link href="/free-japanese-anime-extension">free extension</Link>, tools on{" "}
               <Link href="/learn-japanese-crunchyroll">Crunchyroll</Link>.
             </p>
           </div>
@@ -128,9 +162,11 @@ export default function BestAnimePage() {
       </main>
       <SiteFooter
         links={[
-          { href: "/blog", label: "Blog" },
+          { href: "/blog/shirokuma-cafe-learn-japanese-2026", label: "Shirokuma Cafe guide" },
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/learn-japanese-with-anime", label: "Compare tools" },
+          { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },
         ]}
       />

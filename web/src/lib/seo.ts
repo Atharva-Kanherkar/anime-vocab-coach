@@ -42,6 +42,8 @@ export const SEO_KEYWORDS = [
   "substital crunchyroll",
   "migaku crunchyroll alternative",
   "learn japanese prime video",
+  "shirokuma cafe learn japanese",
+  "polar bear cafe japanese",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

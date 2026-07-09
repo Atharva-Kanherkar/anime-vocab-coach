@@ -2,6 +2,48 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "shirokuma-cafe-learn-japanese-2026",
+    title: "Shirokuma Cafe for Learning Japanese (2026): Why It Still Wins",
+    description:
+      "Why Shirokuma Cafe (Polar Bear Cafe) is the best beginner anime for Japanese listening — slow speech, daily vocabulary, and how to study each episode with romaji cards.",
+    publishedAt: "2026-07-09T14:00:00.000Z",
+    updatedAt: "2026-07-09T14:00:00.000Z",
+    keywords: [
+      "shirokuma cafe learn japanese",
+      "polar bear cafe japanese",
+      "best anime learn japanese beginners",
+      "shirokuma cafe vocabulary",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/03-wisteria.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**Shirokuma Cafe** (Polar Bear Cafe) appears in almost every Reddit thread on **best anime to learn Japanese**. The reason is boring and correct: characters speak **slowly**, jokes are conversational, and vocabulary skews toward food, small talk, and mild workplace humor — not battle cries.",
+      },
+      { type: "h2", text: "How to study one episode" },
+      {
+        type: "ol",
+        items: [
+          "Watch with English subs for plot if you need them — guilt-free.",
+          "Save **one repeated word** per scene with AnimeVocab ([free extension](/free-japanese-anime-extension)).",
+          "Replay the line aloud once (light [shadowing](/blog/shadowing-anime-japanese-pronunciation)).",
+          "Review due cards for five minutes before the next episode ([SRS guide](/anime-spaced-repetition)).",
+        ],
+      },
+      { type: "h2", text: "Where to watch" },
+      {
+        type: "p",
+        text: "Availability rotates by region — check Crunchyroll, Netflix, or legal free archives. Pair with our full ranked list: [best anime to learn Japanese](/best-anime-to-learn-japanese). Avoid jumping to shonen until slice-of-life listening feels easy.",
+      },
+      {
+        type: "p",
+        text: "Crunchyroll workflow: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Romaji on-ramp: [romaji guide](/romaji-japanese-learning).",
+      },
+    ],
+  },
+  {
     slug: "migaku-crunchyroll-alternative-2026",
     title: "Migaku Crunchyroll Alternative (2026): What Actually Works",
     description:

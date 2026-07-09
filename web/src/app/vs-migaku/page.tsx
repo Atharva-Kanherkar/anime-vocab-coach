@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
@@ -233,6 +234,8 @@ export default function VsMigakuPage() {
             <p style={{ marginTop: 20 }}>
               Plenty of people never need more than this. If you do eventually want a full sentence-mining
               rig, Migaku will be there, but &quot;eventually&quot; is carrying a lot of weight in that sentence.
+              Watching Crunchyroll? Migaku does not support it — see{" "}
+              <Link href="/blog/migaku-crunchyroll-alternative-2026">Migaku Crunchyroll alternatives</Link>.
             </p>
           </div>
         </section>
@@ -248,10 +251,12 @@ export default function VsMigakuPage() {
       </main>
       <SiteFooter
         links={[
-          { href: "/", label: "Home" },
+          { href: "/blog/migaku-crunchyroll-alternative-2026", label: "Migaku Crunchyroll alt" },
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
+          { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/learn-japanese-with-anime", label: "Compare" },
+          { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },
-          { href: "/privacy", label: "Privacy" },
         ]}
       />
     </>
