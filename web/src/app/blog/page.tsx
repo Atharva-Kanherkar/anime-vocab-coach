@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/avoid-shonen-learn-japanese-beginners-2026">
+                    Why beginners should avoid shonen
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/dual-subtitles-japanese-beginners-2026">
+                    Dual subtitles for beginners
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/slice-of-life-anime-learn-japanese-2026">
                     Best slice-of-life anime for Japanese
                   </Link>

@@ -2,6 +2,85 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "avoid-shonen-learn-japanese-beginners-2026",
+    title: "Why Beginners Should Avoid Shonen for Japanese Study (2026)",
+    description:
+      "Why Attack on Titan and Jujutsu Kaisen are bad first textbooks — slang, shouting, fantasy terms — and what to watch instead for real listening gains.",
+    publishedAt: "2026-07-10T09:00:00.000Z",
+    updatedAt: "2026-07-10T09:00:00.000Z",
+    keywords: [
+      "avoid shonen learn japanese",
+      "is shonen good for learning japanese",
+      "attack on titan learn japanese",
+      "jujutsu kaisen learn japanese beginners",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/09-faq.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**Shonen is great entertainment and a bad first Japanese textbook.** Fast slang, battle shouts, and fantasy ranks teach words you will not use at a konbini. Save AOT/JJK for later.",
+      },
+      { type: "h2", text: "Watch instead" },
+      {
+        type: "ul",
+        items: [
+          "[Slice-of-life list](/blog/slice-of-life-anime-learn-japanese-2026)",
+          "[Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026)",
+          "[Best anime hub](/best-anime-to-learn-japanese)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Register guide: [anime vs real Japanese](/blog/anime-japanese-vs-real-japanese). Tool: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "dual-subtitles-japanese-beginners-2026",
+    title: "Dual Subtitles for Japanese Beginners (2026): Help or Harm?",
+    description:
+      "Are dual subtitles good for Japanese beginners? When JP+EN dual subs help, when they become a crutch, and romaji-first alternatives for month zero.",
+    publishedAt: "2026-07-10T09:30:00.000Z",
+    updatedAt: "2026-07-10T09:30:00.000Z",
+    keywords: [
+      "dual subtitles japanese beginners",
+      "dual subs learn japanese",
+      "japanese english dual subtitles anime",
+      "are dual subtitles good japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/05-private.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Dual subtitles** (Japanese + English) help once you can **read kana**. Before that, your eyes glue to English and Japanese becomes wallpaper. Month-zero learners often need **romaji-from-audio** first.",
+      },
+      { type: "h2", text: "Use dual subs when…" },
+      {
+        type: "ul",
+        items: [
+          "You read hiragana",
+          "Netflix/YouTube has a JP track ([Netflix hub](/learn-japanese-netflix-anime))",
+          "You use Language Reactor / HASHIGO / YumeGo",
+        ],
+      },
+      { type: "h2", text: "Skip dual subs when…" },
+      {
+        type: "ul",
+        items: [
+          "You cannot parse Japanese text yet — use [romaji path](/romaji-japanese-learning)",
+          "Crunchyroll has no JP text — use [Listening Mode](/blog/chrome-extension-crunchyroll-no-japanese-subs-2026)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Weaning plan: [stop English-only](/blog/stop-using-english-subtitles-japanese-2026). Free tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "slice-of-life-anime-learn-japanese-2026",
     title: "Best Slice-of-Life Anime to Learn Japanese (2026)",
     description:
