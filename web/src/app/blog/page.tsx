@@ -84,6 +84,24 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/free-vs-paid-japanese-anime-tools-2026">
+                    Free vs paid anime Japanese tools
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/how-to-shadow-anime-japanese-beginners-2026">
+                    How to shadow anime (beginners)
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/anime-japanese-slang-beginners-2026">Anime slang for beginners</Link>
+                </li>
+                <li>
+                  <Link href="/blog/netflix-japanese-audio-not-available-2026">
+                    Netflix Japanese audio missing?
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/princess-mononoke-learn-japanese-2026">
                     Princess Mononoke for Japanese
                   </Link>

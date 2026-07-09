@@ -2,6 +2,158 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "free-vs-paid-japanese-anime-tools-2026",
+    title: "Free vs Paid Japanese Anime Learning Tools (2026)",
+    description:
+      "When free Japanese anime tools are enough — and when Migaku, Language Reactor Pro, or AnimeVocab Pro actually earn the subscription.",
+    publishedAt: "2026-07-12T08:00:00.000Z",
+    updatedAt: "2026-07-12T08:00:00.000Z",
+    keywords: [
+      "free vs paid japanese anime tools",
+      "best free japanese anime extension",
+      "should i pay migaku",
+      "animevocab pro worth it",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Pay only after a **free habit** survives two weeks. Most beginners quit tools, not languages — a subscription cannot fix that.",
+      },
+      { type: "h2", text: "Stay free when" },
+      {
+        type: "ul",
+        items: [
+          "You still need romaji-first ([path](/romaji-japanese-learning))",
+          "You watch a few nights a week",
+          "Built-in SRS covers your card load ([AnimeVocab free](/free-japanese-anime-extension))",
+        ],
+      },
+      { type: "h2", text: "Pay when" },
+      {
+        type: "ul",
+        items: [
+          "You mine daily and want automation ([Migaku](/vs-migaku))",
+          "You need hosted Listening Mode without BYOK API keys",
+          "Netflix dual-sub Pro features unblock you ([vs LR](/vs-language-reactor))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Related: [Migaku free alternative](/blog/migaku-free-alternative-2026), [best free apps](/blog/best-free-japanese-learning-apps-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "how-to-shadow-anime-japanese-beginners-2026",
+    title: "How to Shadow Anime in Japanese (Beginner Guide 2026)",
+    description:
+      "How beginners should shadow anime — short loops, when to pause, and how to combine shadowing with vocabulary capture without burnout.",
+    publishedAt: "2026-07-12T08:30:00.000Z",
+    updatedAt: "2026-07-12T08:30:00.000Z",
+    keywords: [
+      "how to shadow anime japanese",
+      "anime shadowing beginners",
+      "shadowing japanese anime guide",
+      "speak japanese with anime",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Shadowing** means speaking along with audio almost in real time. For anime beginners, full-episode shadowing is a trap — use **10–20 second loops**.",
+      },
+      { type: "h2", text: "Beginner protocol" },
+      {
+        type: "ol",
+        items: [
+          "Pick a clear line from a calm show ([picks](/best-anime-to-learn-japanese))",
+          "Listen once",
+          "Speak along 3–5 times",
+          "Save one unknown word if needed",
+          "Stop before your throat hates you",
+        ],
+      },
+      {
+        type: "p",
+        text: "Deeper: [shadowing guide](/blog/shadowing-anime-japanese-pronunciation). Capture: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "anime-japanese-slang-beginners-2026",
+    title: "Anime Japanese Slang for Beginners (2026 Reality Check)",
+    description:
+      "Should beginners learn anime slang? What to ignore, what transfers to real life, and how not to sound like a cartoon villain.",
+    publishedAt: "2026-07-12T09:00:00.000Z",
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    keywords: [
+      "anime japanese slang beginners",
+      "learn anime slang japanese",
+      "anime japanese vs real japanese slang",
+      "should i learn anime slang",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Anime slang is fun and often **not** what you should say to a coworker. Beginners should prioritize clear everyday speech from slice-of-life, then collect slang as flavor.",
+      },
+      { type: "h2", text: "Safe approach" },
+      {
+        type: "ul",
+        items: [
+          "Mine school/home talk first",
+          "Tag slang cards so you know register",
+          "Confirm with a dictionary/native before using IRL",
+        ],
+      },
+      {
+        type: "p",
+        text: "Context: [anime Japanese vs real Japanese](/blog/anime-japanese-vs-real-japanese). Shows: [avoid shonen early](/blog/avoid-shonen-learn-japanese-beginners-2026).",
+      },
+    ],
+  },
+  {
+    slug: "netflix-japanese-audio-not-available-2026",
+    title: "Netflix Japanese Audio Not Available? Fixes for Learners (2026)",
+    description:
+      "Netflix missing Japanese audio on anime — region/title checks, alternatives, and how to keep your study streak on other platforms.",
+    publishedAt: "2026-07-12T09:30:00.000Z",
+    updatedAt: "2026-07-12T09:30:00.000Z",
+    keywords: [
+      "netflix japanese audio not available",
+      "netflix no japanese audio anime",
+      "netflix japanese dub missing",
+      "watch anime japanese audio netflix",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "If **Japanese audio is missing** on Netflix, it is usually a **title/region licensing** issue — not your TV settings. Switch titles or platforms rather than fighting the menu for an hour.",
+      },
+      { type: "h2", text: "What to do" },
+      {
+        type: "ol",
+        items: [
+          "Confirm the title page lists Japanese audio in your country",
+          "Try another device/app once (sometimes UI glitches)",
+          "Move the study session to [Crunchyroll](/learn-japanese-crunchyroll) / [YouTube](/learn-japanese-youtube-anime)",
+          "Keep capturing with [AnimeVocab](/free-japanese-anime-extension) wherever JP audio exists",
+        ],
+      },
+      {
+        type: "p",
+        text: "Netflix hub: [learn Japanese on Netflix anime](/learn-japanese-netflix-anime).",
+      },
+    ],
+  },
+  {
     slug: "princess-mononoke-learn-japanese-2026",
     title: "Princess Mononoke for Learning Japanese (2026)",
     description:
