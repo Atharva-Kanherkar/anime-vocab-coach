@@ -2,6 +2,145 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "princess-mononoke-learn-japanese-2026",
+    title: "Princess Mononoke for Learning Japanese (2026)",
+    description:
+      "Princess Mononoke for Japanese learners — epic vocabulary warnings, clear emotional lines, and when to use Ghibli films for study.",
+    publishedAt: "2026-07-12T06:00:00.000Z",
+    updatedAt: "2026-07-12T06:00:00.000Z",
+    keywords: [
+      "princess mononoke learn japanese",
+      "mononoke hime japanese study",
+      "princess mononoke immersion",
+      "ghibli mononoke japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Princess Mononoke** is denser than Totoro — nature, war, and moral speeches. Intermediate learners can mine short human conversations; beginners should start softer.",
+      },
+      {
+        type: "p",
+        text: "Softer Ghibli first: [Totoro](/blog/totoro-learn-japanese-2026), [Kiki](/blog/kikis-delivery-service-learn-japanese-2026), [Spirited Away](/blog/spirited-away-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "weathering-with-you-learn-japanese-2026",
+    title: "Weathering with You for Learning Japanese (2026)",
+    description:
+      "Weathering with You / Tenki no Ko for Japanese study — teenage dialogue, Tokyo life vocab, and a rewatch capture plan.",
+    publishedAt: "2026-07-12T06:30:00.000Z",
+    updatedAt: "2026-07-12T06:30:00.000Z",
+    keywords: [
+      "weathering with you learn japanese",
+      "tenki no ko japanese study",
+      "weathering with you immersion",
+      "makoto shinkai japanese learning",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Weathering with You** continues the Shinkai teenage-dialogue lane — city life, feelings, and lines worth a second listen. Same rule as Your Name: story first, mine second.",
+      },
+      {
+        type: "p",
+        text: "Pair with [Your Name](/blog/your-name-learn-japanese-2026). Method: [one word per episode](/blog/one-word-per-episode-method) adapted to films (3–5 words total).",
+      },
+    ],
+  },
+  {
+    slug: "best-youtube-channels-learn-japanese-anime-fans-2026",
+    title: "Best YouTube Channels for Anime Fans Learning Japanese (2026)",
+    description:
+      "Best YouTube channels for anime fans learning Japanese — comprehensible input, grammar explainers, and how to pair clips with capture tools.",
+    publishedAt: "2026-07-12T07:00:00.000Z",
+    updatedAt: "2026-07-12T07:00:00.000Z",
+    keywords: [
+      "best youtube channels learn japanese anime",
+      "youtube japanese anime learners",
+      "comprehensible input youtube japanese",
+      "anime japanese youtube study",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "YouTube is where anime fans actually study between episodes. Pick channels by job: **CI listening**, **grammar glue**, or **raw anime clips** — not 40 subscriptions.",
+      },
+      { type: "h2", text: "Channel jobs" },
+      {
+        type: "ul",
+        items: [
+          "Slow / graded Japanese speaking (CI)",
+          "Grammar explainers in English (short)",
+          "Anime clip channels with JP audio (capture practice)",
+        ],
+      },
+      { type: "h2", text: "How to not waste the algorithm" },
+      {
+        type: "ol",
+        items: [
+          "One CI video OR one anime clip block per day",
+          "Save one word max",
+          "Review tomorrow ([SRS](/anime-spaced-repetition))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Platform hub: [learn Japanese on YouTube anime](/learn-japanese-youtube-anime). Extension on YT: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "is-crunchyroll-premium-worth-it-learn-japanese-2026",
+    title: "Is Crunchyroll Premium Worth It for Learning Japanese? (2026)",
+    description:
+      "Is Crunchyroll Premium worth it if your goal is Japanese? Ads vs catalog, offline, audio tracks, and when free tiers + Netflix are enough.",
+    publishedAt: "2026-07-12T07:30:00.000Z",
+    updatedAt: "2026-07-12T07:30:00.000Z",
+    keywords: [
+      "crunchyroll premium worth it japanese",
+      "crunchyroll premium learn japanese",
+      "is crunchyroll worth it immersion",
+      "crunchyroll subscription japanese study",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Pay for **Crunchyroll Premium** if you will watch Japanese-audio simulcasts weekly. Do not pay hoping the subscription alone teaches Japanese — the capture habit does.",
+      },
+      { type: "h2", text: "Worth it when" },
+      {
+        type: "ul",
+        items: [
+          "You need legal JP audio on new shows",
+          "Ads kill your study focus",
+          "You actually open CR 3+ nights a week",
+        ],
+      },
+      { type: "h2", text: "Maybe skip when" },
+      {
+        type: "ul",
+        items: [
+          "Your library is mostly Netflix/HIDIVE already",
+          "You only rewatch old comfort shows elsewhere",
+        ],
+      },
+      {
+        type: "p",
+        text: "Study stack: [Crunchyroll guide](/learn-japanese-crunchyroll) + [AnimeVocab](/free-japanese-anime-extension). Compare catalogs: [Netflix vs CR](/blog/netflix-vs-crunchyroll-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
     slug: "spirited-away-learn-japanese-2026",
     title: "Spirited Away for Learning Japanese (2026)",
     description:

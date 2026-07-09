@@ -156,8 +156,10 @@ export default function BestAnimePage() {
                 <strong>Your Name / A Silent Voice / Violet Evergarden</strong> — film-length emotional
                 Japanese; rewatch to mine.{" "}
                 <Link href="/blog/your-name-learn-japanese-2026">Your Name</Link> ·{" "}
+                <Link href="/blog/weathering-with-you-learn-japanese-2026">Weathering</Link> ·{" "}
                 <Link href="/blog/a-silent-voice-learn-japanese-2026">Silent Voice</Link> ·{" "}
-                <Link href="/blog/violet-evergarden-learn-japanese-2026">Violet →</Link>
+                <Link href="/blog/violet-evergarden-learn-japanese-2026">Violet</Link> ·{" "}
+                <Link href="/blog/princess-mononoke-learn-japanese-2026">Mononoke →</Link>
               </li>
             </ul>
 

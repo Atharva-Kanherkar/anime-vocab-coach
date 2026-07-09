@@ -84,6 +84,26 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/princess-mononoke-learn-japanese-2026">
+                    Princess Mononoke for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/weathering-with-you-learn-japanese-2026">
+                    Weathering with You for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/best-youtube-channels-learn-japanese-anime-fans-2026">
+                    Best YouTube channels for anime fans
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/is-crunchyroll-premium-worth-it-learn-japanese-2026">
+                    Is Crunchyroll Premium worth it?
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/spirited-away-learn-japanese-2026">Spirited Away for Japanese</Link>
                 </li>
                 <li>

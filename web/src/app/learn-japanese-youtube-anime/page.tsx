@@ -89,6 +89,13 @@ export default function LearnJapaneseYoutubePage() {
             </ul>
 
             <p>
+              Channel ideas:{" "}
+              <Link href="/blog/best-youtube-channels-learn-japanese-anime-fans-2026">
+                best YouTube channels for anime fans learning Japanese
+              </Link>
+              .
+            </p>
+            <p>
               Compare: <Link href="/learn-japanese-with-anime">full 2026 tool ranking</Link>,{" "}
               <Link href="/blog/learn-japanese-youtube-anime-subtitles">YouTube anime subtitle guide</Link>,{" "}
               <Link href="/learn-japanese-netflix-anime">Netflix guide</Link>,{" "}
