@@ -84,6 +84,27 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/lingq-vs-anime-learn-japanese-2026">LingQ vs anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/japanesepod101-vs-anime-2026">JapanesePod101 vs anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/clozemaster-vs-anime-vocabulary-2026">
+                    Clozemaster vs anime vocab
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/genki-textbook-vs-anime-immersion-2026">
+                    Genki vs anime immersion
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/graded-readers-vs-writing-manga-2026">
+                    Graded readers vs writing manga
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/refold-anime-immersion-beginners-2026">
                     Refold-style immersion with anime
                   </Link>

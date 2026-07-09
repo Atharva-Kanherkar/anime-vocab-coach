@@ -2,6 +2,235 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "lingq-vs-anime-learn-japanese-2026",
+    title: "LingQ vs Anime for Learning Japanese (2026)",
+    description:
+      "LingQ is excellent for reading immersion. Anime fans who live on Crunchyroll need a different capture loop — honest comparison and a hybrid plan.",
+    publishedAt: "2026-07-10T21:00:00.000Z",
+    updatedAt: "2026-07-10T21:00:00.000Z",
+    keywords: [
+      "lingq vs anime",
+      "lingq japanese anime",
+      "lingq alternative anime",
+      "learn japanese lingq or anime",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**LingQ** shines for graded reading and podcasts with click-to-save vocabulary. If your daily habit is **anime on Crunchyroll**, LingQ alone does not solve missing Japanese subtitles or romaji-first month zero.",
+      },
+      { type: "h2", text: "When LingQ wins" },
+      {
+        type: "ul",
+        items: [
+          "You prefer books, news, and learner podcasts",
+          "You already read kana comfortably",
+          "You want a huge known-word % tracker",
+        ],
+      },
+      { type: "h2", text: "When anime tools win" },
+      {
+        type: "ul",
+        items: [
+          "You watch legal streams nightly ([Crunchyroll guide](/learn-japanese-crunchyroll))",
+          "You need Listening Mode when JP subs are missing",
+          "You want [romaji-first cards](/romaji-japanese-learning) before heavy reading",
+        ],
+      },
+      {
+        type: "p",
+        text: "Hybrid: LingQ for morning reading, [AnimeVocab](/free-japanese-anime-extension) for evening episodes. Related: [NHK Easy vs anime](/blog/nhk-easy-vs-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "japanesepod101-vs-anime-2026",
+    title: "JapanesePod101 vs Anime Immersion (2026)",
+    description:
+      "JapanesePod101 lessons vs learning from anime you already watch — structured audio vs authentic dialogue, and how to combine both without burnout.",
+    publishedAt: "2026-07-10T21:30:00.000Z",
+    updatedAt: "2026-07-10T21:30:00.000Z",
+    keywords: [
+      "japanesepod101 vs anime",
+      "japanesepod101 anime immersion",
+      "learn japanese podcast vs anime",
+      "japanesepod101 alternative",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**JapanesePod101** gives curated dialogues and explanations. **Anime** gives the speech you actually want to understand. Most beginners need both — but not two full study systems fighting for the same hour.",
+      },
+      { type: "h2", text: "JapanesePod101 strengths" },
+      {
+        type: "ul",
+        items: [
+          "Clear lesson structure and host explanations",
+          "Topic-based vocabulary packs",
+          "Good commute audio when you cannot watch video",
+        ],
+      },
+      { type: "h2", text: "Anime strengths" },
+      {
+        type: "ul",
+        items: [
+          "Motivation you already have ([does anime help?](/blog/does-watching-anime-help-learn-japanese-2026))",
+          "Natural speed and emotion",
+          "Capture with [one word per episode](/blog/one-word-per-episode-method)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Practical split: one short Pod101 lesson for grammar glue, then tonight's show with [AnimeVocab](/free-japanese-anime-extension). Also see [podcasts vs anime](/blog/podcasts-vs-anime-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
+    slug: "clozemaster-vs-anime-vocabulary-2026",
+    title: "Clozemaster vs Anime Vocabulary (2026)",
+    description:
+      "Clozemaster drills sentence gaps; anime gives living context. Compare both for Japanese vocabulary and a workflow that uses each where it wins.",
+    publishedAt: "2026-07-10T22:00:00.000Z",
+    updatedAt: "2026-07-10T22:00:00.000Z",
+    keywords: [
+      "clozemaster japanese anime",
+      "clozemaster vs anime",
+      "clozemaster japanese vocabulary",
+      "sentence mining anime alternative",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Clozemaster** is a sentence-gap gym: fast reps, huge coverage, little emotional context. **Anime vocabulary** sticks when the line made you laugh — but only if you capture and review it.",
+      },
+      { type: "h2", text: "Use Clozemaster for" },
+      {
+        type: "ul",
+        items: [
+          "Filling JLPT gaps between episodes ([N5 anime vocab](/blog/jlpt-n5-anime-vocabulary-2026))",
+          "Days you cannot watch a full show",
+        ],
+      },
+      { type: "h2", text: "Use anime capture for" },
+      {
+        type: "ul",
+        items: [
+          "Words tied to scenes you care about",
+          "Listening + reading together on stream sites",
+          "Built-in [SRS from watching](/anime-spaced-repetition)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Do not mine 40 Cloze sentences *and* 40 anime cards. Cap total new cards. Start with [AnimeVocab](/free-japanese-anime-extension) if Crunchyroll is your habit.",
+      },
+    ],
+  },
+  {
+    slug: "genki-textbook-vs-anime-immersion-2026",
+    title: "Genki Textbook vs Anime Immersion (2026)",
+    description:
+      "Should you finish Genki before anime, or immerse from week one? A practical 2026 plan for textbook structure plus anime listening without guilt.",
+    publishedAt: "2026-07-10T22:30:00.000Z",
+    updatedAt: "2026-07-10T22:30:00.000Z",
+    keywords: [
+      "genki vs anime immersion",
+      "genki textbook anime",
+      "learn japanese genki or anime",
+      "genki before watching anime",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "The internet loves extremes: **finish Genki I+II first** or **drop textbooks forever**. Real beginners who love anime need a middle path — grammar scaffolding without waiting a year to press play.",
+      },
+      { type: "h2", text: "What Genki is for" },
+      {
+        type: "ul",
+        items: [
+          "Core particles and verb forms in order",
+          "Classroom-style drills and answer keys",
+          "Confidence that \"I covered the basics\"",
+        ],
+      },
+      { type: "h2", text: "What anime is for" },
+      {
+        type: "ul",
+        items: [
+          "Listening stamina and real speech rate",
+          "Motivation that textbooks rarely match",
+          "Vocabulary that appears in your hobbies",
+        ],
+      },
+      { type: "h2", text: "Recommended hybrid" },
+      {
+        type: "ol",
+        items: [
+          "Do one Genki lesson (or equivalent) a few times a week",
+          "Watch beginner-friendly shows ([picks](/best-anime-to-learn-japanese)) the same week",
+          "Capture **one** word per episode with [AnimeVocab](/free-japanese-anime-extension)",
+          "Do not pause every line — that kills immersion ([passive vs active](/blog/passive-anime-watching-vs-active-study-2026))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Kana timing: [hiragana before anime or after](/blog/hiragana-before-anime-or-after-2026). Grammar apps: [Bunpro vs anime](/blog/bunpro-vs-anime-grammar-2026).",
+      },
+    ],
+  },
+  {
+    slug: "graded-readers-vs-writing-manga-2026",
+    title: "Japanese Graded Readers vs Writing Your Own Manga (2026)",
+    description:
+      "Graded readers give controlled input; writing manga forces output. Compare both for Japanese learners and a weekly plan that uses each.",
+    publishedAt: "2026-07-10T23:00:00.000Z",
+    updatedAt: "2026-07-10T23:00:00.000Z",
+    keywords: [
+      "japanese graded readers vs manga",
+      "graded readers learn japanese",
+      "write manga learn japanese",
+      "tadoku vs writing practice",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/12-manga.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Graded readers** (Tadoku-style books, N5–N3 stories) are the gold standard for controlled reading. **Writing your own manga** is the missing output half — you must choose words, not only recognize them.",
+      },
+      { type: "h2", text: "Graded readers win for" },
+      {
+        type: "ul",
+        items: [
+          "Safe difficulty curves and furigana editions",
+          "Quiet reading practice without streaming",
+          "Building reading stamina before raw manga",
+        ],
+      },
+      { type: "h2", text: "Writing manga wins for" },
+      {
+        type: "ul",
+        items: [
+          "Retrieval practice and personal stories",
+          "Editing AI drafts into natural dialogue ([Manga Studio](/studio))",
+          "Pairing with anime vocab you already care about",
+        ],
+      },
+      {
+        type: "p",
+        text: "Weekly plan: 2–3 graded-reader chapters + one short [Word Manga](/blog/word-manga-vocabulary-practice-2026) or Studio chapter. Full hub: [learn Japanese with manga](/learn-japanese-manga).",
+      },
+    ],
+  },
+  {
     slug: "tofugu-anime-advice-2026",
     title: "Tofugu-Style Advice vs Anime Immersion (2026 Practical Take)",
     description:
