@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/slice-of-life-anime-learn-japanese-2026">
+                    Best slice-of-life anime for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/open-source-japanese-anime-tools-2026">
+                    Open source anime Japanese tools
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/rewatching-anime-learn-japanese-2026">
                     Rewatching anime to learn Japanese
                   </Link>

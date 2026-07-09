@@ -2,6 +2,80 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "slice-of-life-anime-learn-japanese-2026",
+    title: "Best Slice-of-Life Anime to Learn Japanese (2026)",
+    description:
+      "Best slice-of-life anime for Japanese beginners — why daily-life shows beat shonen for listening, plus a ranked starter list and free study workflow.",
+    publishedAt: "2026-07-10T08:00:00.000Z",
+    updatedAt: "2026-07-10T08:00:00.000Z",
+    keywords: [
+      "slice of life anime learn japanese",
+      "best slice of life anime japanese",
+      "iyashikei learn japanese",
+      "slow anime japanese study",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/03-wisteria.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**Slice-of-life anime** is the correct beginner genre for Japanese study: slow speech, everyday vocab, low slang density. Shonen can wait.",
+      },
+      { type: "h2", text: "Starter list" },
+      {
+        type: "ol",
+        items: [
+          "[Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026)",
+          "[Non Non Biyori](/blog/non-non-biyori-learn-japanese-2026)",
+          "[Doraemon](/blog/doraemon-learn-japanese-2026) / [Sazae-san](/blog/sazae-san-learn-japanese-2026)",
+          "[K-On!](/blog/k-on-learn-japanese-2026) after a month",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full rankings: [best anime hub](/best-anime-to-learn-japanese). Tool: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "open-source-japanese-anime-tools-2026",
+    title: "Open Source Tools to Learn Japanese from Anime (2026)",
+    description:
+      "Open source anime Japanese learning tools — AnimeVocab, asbplayer, Yomitan, SubMiner — free stacks without subscriptions for immersion learners.",
+    publishedAt: "2026-07-10T08:30:00.000Z",
+    updatedAt: "2026-07-10T08:30:00.000Z",
+    keywords: [
+      "open source japanese anime tools",
+      "open source learn japanese anime",
+      "free open source japanese immersion",
+      "asbplayer yomitan stack",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/07-pricing.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "You can build a serious **open source Japanese-from-anime** stack without Migaku. Match tools to reading level.",
+      },
+      { type: "h2", text: "Open source / free core" },
+      {
+        type: "ul",
+        items: [
+          "**AnimeVocab** — romaji-first + SRS ([GitHub/install](/free-japanese-anime-extension))",
+          "**asbplayer** — browser mining ([vs](/vs-asbplayer))",
+          "**Yomitan** — popup dictionary ([anime alternatives](/blog/yomitan-anime-alternative-video-immersion-2026))",
+          "**SubMiner** — desktop mpv mining ([vs asbplayer](/blog/subminer-vs-asbplayer-anime-mining-2026))",
+          "**Anki** — free SRS when ready ([beginners](/blog/anki-anime-beginners-2026))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Free stack guide: [free ways](/blog/free-ways-learn-japanese-anime-2026). Ranking: [best apps](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "rewatching-anime-learn-japanese-2026",
     title: "Rewatching Anime to Learn Japanese (2026 Strategy)",
     description:
