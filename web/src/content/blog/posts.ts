@@ -2,6 +2,103 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "doraemon-learn-japanese-2026",
+    title: "Doraemon for Learning Japanese (2026): Repetition That Sticks",
+    description:
+      "Why Doraemon works for Japanese beginners — repetitive family speech, short episodes, and a simple capture-and-review routine with romaji cards.",
+    publishedAt: "2026-07-09T17:00:00.000Z",
+    updatedAt: "2026-07-09T17:00:00.000Z",
+    keywords: [
+      "doraemon learn japanese",
+      "doraemon japanese study",
+      "best anime learn japanese kids",
+      "doraemon vocabulary japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/03-wisteria.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**Doraemon** is a classic beginner immersion pick for a reason: short episodes, **repetitive family Japanese**, and vocabulary that shows up in real life more often than shonen attack names. It sits in Tier 1 on our [best anime for beginners](/best-anime-to-learn-japanese) list next to Shirokuma Cafe and Non Non Biyori.",
+      },
+      { type: "h2", text: "How to study Doraemon without burning out" },
+      {
+        type: "ol",
+        items: [
+          "Watch one short episode — English subs OK for plot.",
+          "Save one household word (食べる, 行く, 大丈夫) with [AnimeVocab](/free-japanese-anime-extension).",
+          "Replay the line once aloud ([shadowing](/blog/shadowing-anime-japanese-pronunciation)).",
+          "Review five minutes tomorrow before the next episode.",
+        ],
+      },
+      { type: "h2", text: "Doraemon vs Shirokuma Cafe" },
+      {
+        type: "p",
+        text: "Doraemon wins on **repetition and episode length**. Shirokuma wins on **cafe/daily adult small talk** ([guide](/blog/shirokuma-cafe-learn-japanese-2026)). Alternate both. Avoid jumping to battle anime until these feel easy by ear.",
+      },
+      {
+        type: "p",
+        text: "Method overview: [how to learn Japanese watching anime](/blog/how-to-learn-japanese-watching-anime-2026). Crunchyroll tips: [CR guide](/learn-japanese-crunchyroll).",
+      },
+    ],
+  },
+  {
+    slug: "anime-immersion-beginners-guide-2026",
+    title: "Anime Immersion for Beginners (2026): Start Without Burning Out",
+    description:
+      "Beginner anime immersion guide — comprehensible input without Anki guilt, romaji on-ramps, show picks, and free tools that work on Crunchyroll and Netflix.",
+    publishedAt: "2026-07-09T17:30:00.000Z",
+    updatedAt: "2026-07-09T17:30:00.000Z",
+    keywords: [
+      "anime immersion beginners",
+      "japanese immersion anime beginners",
+      "comprehensible input anime",
+      "start anime immersion",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Anime immersion for beginners** fails when people copy power-user stacks on day one: Yomitan, Anki, fan subs, Migaku. Immersion works when input is **comprehensible** and review is **tiny**. This guide is the anti-burnout path.",
+      },
+      { type: "h2", text: "Beginner immersion rules" },
+      {
+        type: "ul",
+        items: [
+          "Watch shows you understand ~70% with English subs for plot ([best shows](/best-anime-to-learn-japanese)).",
+          "Capture **one word**, not a sentence mine ([method](/blog/one-word-per-episode-method)).",
+          "Use **romaji** until kana clicks ([romaji guide](/romaji-japanese-learning)).",
+          "Review daily for five minutes — immersion without SRS is entertainment ([SRS](/anime-spaced-repetition)).",
+        ],
+      },
+      { type: "h2", text: "Free starter stack" },
+      {
+        type: "ol",
+        items: [
+          "Install [AnimeVocab](/free-japanese-anime-extension).",
+          "Open tonight's Crunchyroll/Netflix episode.",
+          "Save one romaji card. Review tomorrow.",
+          "Optional weekend: write a [Word Manga](/blog/word-manga-vocabulary-practice-2026) with those words.",
+        ],
+      },
+      { type: "h2", text: "What to ignore for 90 days" },
+      {
+        type: "ul",
+        items: [
+          "Full Anki sentence mining setups",
+          "Paying for Migaku before you have a habit ([worth it?](/blog/is-migaku-worth-it-2026))",
+          "Shonen as your only input",
+        ],
+      },
+      {
+        type: "p",
+        text: "Longer method: [how to learn Japanese watching anime](/blog/how-to-learn-japanese-watching-anime-2026). Tool map: [learn Japanese with anime](/learn-japanese-with-anime).",
+      },
+    ],
+  },
+  {
     slug: "how-to-learn-japanese-watching-anime-2026",
     title: "How to Learn Japanese by Watching Anime (2026 Method)",
     description:

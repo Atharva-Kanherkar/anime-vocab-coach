@@ -102,7 +102,7 @@ export default function BestAnimePage() {
               </li>
               <li>
                 <strong>Doraemon / Sazae-san</strong> — repetitive family Japanese; classic beginner immersion
-                picks in Migaku and Trancy guides.
+                picks. <Link href="/blog/doraemon-learn-japanese-2026">Doraemon study guide →</Link>
               </li>
             </ul>
 

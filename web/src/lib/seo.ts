@@ -48,6 +48,8 @@ export const SEO_KEYWORDS = [
   "is migaku worth it",
   "how to learn japanese watching anime",
   "language reactor free alternative",
+  "anime immersion beginners",
+  "doraemon learn japanese",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
