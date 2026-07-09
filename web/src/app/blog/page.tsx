@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/genshin-impact-learn-japanese-2026">
+                    Genshin Impact for learning Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/discord-japanese-immersion-anime-2026">
+                    Discord Japanese immersion + anime
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/wanikani-vs-anime-vocabulary-2026">
                     WaniKani vs anime vocabulary
                   </Link>

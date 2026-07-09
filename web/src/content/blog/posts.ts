@@ -2,6 +2,82 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "genshin-impact-learn-japanese-2026",
+    title: "Genshin Impact for Learning Japanese (2026): Games vs Anime",
+    description:
+      "Can Genshin Impact help you learn Japanese? How game immersion compares to anime listening, and a free workflow that still prioritizes slow shows.",
+    publishedAt: "2026-07-10T12:00:00.000Z",
+    updatedAt: "2026-07-10T12:00:00.000Z",
+    keywords: [
+      "genshin impact learn japanese",
+      "learn japanese genshin",
+      "genshin japanese immersion",
+      "games vs anime learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/12-manga.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Genshin Impact for learning Japanese** works as **extra input** — quest text, voice lines, UI vocab — but it is denser and more fantasy-heavy than slice-of-life anime. Use it as dessert, not the whole diet.",
+      },
+      { type: "h2", text: "Genshin strengths" },
+      {
+        type: "ul",
+        items: [
+          "Hours of voiced Japanese if you switch the language",
+          "Repeated UI verbs (開く, 行く, 話す)",
+          "Motivation if you already play daily",
+        ],
+      },
+      { type: "h2", text: "Keep anime as the core" },
+      {
+        type: "p",
+        text: "Slow shows still win for beginners ([slice-of-life list](/blog/slice-of-life-anime-learn-japanese-2026)). Capture anime words with [AnimeVocab](/free-japanese-anime-extension); treat Genshin lines as bonus recognition.",
+      },
+    ],
+  },
+  {
+    slug: "discord-japanese-immersion-anime-2026",
+    title: "Discord for Japanese Immersion + Anime Study (2026)",
+    description:
+      "How to use Discord Japanese immersion servers with anime study — voice chats, accountability, and why capture+SRS still beats lurking alone.",
+    publishedAt: "2026-07-10T12:30:00.000Z",
+    updatedAt: "2026-07-10T12:30:00.000Z",
+    keywords: [
+      "discord japanese immersion",
+      "japanese immersion discord anime",
+      "learn japanese discord server",
+      "anime immersion community",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/10-coach.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Discord Japanese immersion** communities are great for accountability and voice practice — terrible as a substitute for a nightly vocabulary loop.",
+      },
+      { type: "h2", text: "Use Discord for…" },
+      {
+        type: "ul",
+        items: ["Language exchange voice chats", "Show recommendations", "Streak buddies"],
+      },
+      { type: "h2", text: "Still do this alone every night" },
+      {
+        type: "ol",
+        items: [
+          "One episode + one word ([method](/blog/one-word-per-episode-method))",
+          "[AnimeVocab](/free-japanese-anime-extension) or any SRS",
+          "Five-minute morning review",
+        ],
+      },
+      {
+        type: "p",
+        text: "Reddit synthesis: [community advice](/blog/learn-japanese-from-anime-reddit-2026).",
+      },
+    ],
+  },
+  {
     slug: "wanikani-vs-anime-vocabulary-2026",
     title: "WaniKani vs Learning Vocabulary from Anime (2026)",
     description:
