@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/learn-japanese-from-anime-reddit-2026">
+                    Learn Japanese from anime — Reddit advice
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/vocabulary-notebook-vs-srs-anime-2026">
+                    Vocabulary notebook vs SRS
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/is-anime-enough-to-learn-japanese-2026">
                     Is anime enough to learn Japanese?
                   </Link>

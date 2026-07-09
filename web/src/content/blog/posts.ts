@@ -2,6 +2,82 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "learn-japanese-from-anime-reddit-2026",
+    title: "Learn Japanese from Anime: What Reddit Gets Right (2026)",
+    description:
+      "What r/LearnJapanese actually recommends for anime immersion in 2026 — slow shows, Anki timing, tool stacks — and where beginners should start free.",
+    publishedAt: "2026-07-10T06:00:00.000Z",
+    updatedAt: "2026-07-10T06:00:00.000Z",
+    keywords: [
+      "learn japanese from anime reddit",
+      "r/learnjapanese anime",
+      "reddit best anime learn japanese",
+      "anime immersion reddit advice",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Reddit's **r/LearnJapanese** repeats the same truths: English-sub bingeing is not study, **Shirokuma Cafe** beats shonen for beginners, and Anki too early causes guilt. Here is the 2026 synthesis — plus free tools the threads often skip.",
+      },
+      { type: "h2", text: "What Reddit gets right" },
+      {
+        type: "ul",
+        items: [
+          "Slow slice-of-life first ([best anime](/best-anime-to-learn-japanese))",
+          "Active noticing beats passive hours ([passive vs active](/blog/passive-anime-watching-vs-active-study-2026))",
+          "Don't start Migaku/Anki mining on day one ([Anki beginners](/blog/anki-anime-beginners-2026))",
+        ],
+      },
+      { type: "h2", text: "What threads under-explain" },
+      {
+        type: "p",
+        text: "Crunchyroll often has **no JP subs**. Romaji-first capture with [AnimeVocab](/free-japanese-anime-extension) fills that gap before Yomitan stacks. Method: [how to learn watching anime](/blog/how-to-learn-japanese-watching-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "vocabulary-notebook-vs-srs-anime-2026",
+    title: "Vocabulary Notebook vs SRS for Anime Japanese (2026)",
+    description:
+      "Paper notebooks vs spaced repetition for anime vocabulary — why lists die, when notebooks still help, and the free SRS habit that sticks.",
+    publishedAt: "2026-07-10T06:30:00.000Z",
+    updatedAt: "2026-07-10T06:30:00.000Z",
+    keywords: [
+      "vocabulary notebook vs srs",
+      "anime vocabulary notebook",
+      "srs vs notebook japanese",
+      "flashcards vs notebook anime",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/11-cards.webp",
+    canonicalPath: "/anime-spaced-repetition",
+    blocks: [
+      {
+        type: "p",
+        text: "A **vocabulary notebook** feels productive. **SRS** is what makes words survive next week. For anime learners, capture in context — then schedule review.",
+      },
+      { type: "h2", text: "Use a notebook for…" },
+      {
+        type: "ul",
+        items: ["Quick scratch while traveling", "Writing practice / manga dialogue drafts"],
+      },
+      { type: "h2", text: "Use SRS for…" },
+      {
+        type: "ul",
+        items: [
+          "Anything you want to remember in 30 days",
+          "Audio-forward anime cards ([AnimeVocab](/free-japanese-anime-extension))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Deep dive: [spaced repetition for anime](/anime-spaced-repetition). One-word rule: [method](/blog/one-word-per-episode-method).",
+      },
+    ],
+  },
+  {
     slug: "is-anime-enough-to-learn-japanese-2026",
     title: "Is Anime Enough to Learn Japanese? (2026 Honest Take)",
     description:
