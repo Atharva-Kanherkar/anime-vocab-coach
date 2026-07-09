@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/ankiapp-vs-animevocab-srs-2026">
+                    AnkiApp vs built-in anime SRS
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/hello-talk-vs-anime-immersion-2026">
+                    HelloTalk vs anime immersion
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/duolingo-vs-anime-learn-japanese-2026">
                     Duolingo vs anime for Japanese
                   </Link>

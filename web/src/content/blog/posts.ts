@@ -2,6 +2,82 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "ankiapp-vs-animevocab-srs-2026",
+    title: "AnkiApp vs Built-in Anime SRS (2026): What Beginners Need",
+    description:
+      "Mobile Anki apps vs built-in anime vocabulary SRS — when to stay inside your watching tool and when a dedicated Anki app is worth the switch.",
+    publishedAt: "2026-07-10T16:00:00.000Z",
+    updatedAt: "2026-07-10T16:00:00.000Z",
+    keywords: [
+      "ankiapp vs anime srs",
+      "best srs for anime vocabulary",
+      "anki mobile anime japanese",
+      "built-in srs vs anki",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/11-cards.webp",
+    canonicalPath: "/anime-spaced-repetition",
+    blocks: [
+      {
+        type: "p",
+        text: "**AnkiApp vs built-in anime SRS**: dedicated Anki apps win for power users. Built-in SRS wins when friction would kill the habit. Beginners should optimize for **opening reviews**, not note-type perfection.",
+      },
+      { type: "h2", text: "Stay built-in if…" },
+      {
+        type: "ul",
+        items: [
+          "You are month zero",
+          "Cards come from watching ([AnimeVocab](/free-japanese-anime-extension))",
+          "You have failed Anki setups before ([Anki beginners](/blog/anki-anime-beginners-2026))",
+        ],
+      },
+      { type: "h2", text: "Move to Anki when…" },
+      {
+        type: "ul",
+        items: ["You mine sentences daily", "You need sync/plugins across devices"],
+      },
+      {
+        type: "p",
+        text: "SRS hub: [anime spaced repetition](/anime-spaced-repetition).",
+      },
+    ],
+  },
+  {
+    slug: "hello-talk-vs-anime-immersion-2026",
+    title: "HelloTalk vs Anime Immersion (2026): Speaking vs Listening",
+    description:
+      "HelloTalk language exchange vs anime immersion — when to chat with natives, when to keep watching, and how beginners should sequence both.",
+    publishedAt: "2026-07-10T16:30:00.000Z",
+    updatedAt: "2026-07-10T16:30:00.000Z",
+    keywords: [
+      "hellotalk vs anime",
+      "hellotalk or anime learn japanese",
+      "language exchange vs immersion anime",
+      "speaking practice vs anime",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/10-coach.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**HelloTalk vs anime immersion**: HelloTalk trains messy speaking/text chat. Anime trains listening vocabulary. Beginners who cannot understand slow anime yet often freeze in chat — build ears first.",
+      },
+      { type: "h2", text: "Sequence that works" },
+      {
+        type: "ol",
+        items: [
+          "Nightly anime + capture ([free extension](/free-japanese-anime-extension))",
+          "Light shadowing ([guide](/blog/shadowing-anime-japanese-pronunciation))",
+          "HelloTalk/Discord after ~1–3 months of listening ([Discord](/blog/discord-japanese-immersion-anime-2026))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Timeline: [how long](/blog/how-long-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "pimsleur-vs-anime-learn-japanese-2026",
     title: "Pimsleur vs Learning Japanese from Anime (2026)",
     description:
