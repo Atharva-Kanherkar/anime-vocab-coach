@@ -115,7 +115,8 @@ export default function BestAnimePage() {
               </li>
               <li>
                 <strong>Studio Ghibli films</strong> — short runtime, emotional lines worth replaying in
-                clip-based study.
+                clip-based study.{" "}
+                <Link href="/blog/ghibli-movies-learn-japanese-2026">Ghibli study guide →</Link>
               </li>
             </ul>
 

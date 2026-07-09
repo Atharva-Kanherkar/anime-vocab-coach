@@ -2,6 +2,87 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "ghibli-movies-learn-japanese-2026",
+    title: "Studio Ghibli Movies to Learn Japanese (2026 Picks)",
+    description:
+      "Best Studio Ghibli films for Japanese listening practice — short runtime, emotional lines worth replaying, and a clip-based study routine for beginners.",
+    publishedAt: "2026-07-10T01:00:00.000Z",
+    updatedAt: "2026-07-10T01:00:00.000Z",
+    keywords: [
+      "ghibli learn japanese",
+      "studio ghibli japanese study",
+      "best ghibli movie learn japanese",
+      "spirited away learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/03-wisteria.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**Studio Ghibli** films are Tier 2 on our [best anime for beginners](/best-anime-to-learn-japanese) list — not as slow as Shirokuma Cafe, but perfect for **clip study**: short runtime, emotional lines you will gladly replay.",
+      },
+      { type: "h2", text: "Good starter films" },
+      {
+        type: "ul",
+        items: [
+          "**My Neighbor Totoro** — gentle dialogue, family speech",
+          "**Kiki's Delivery Service** — everyday errands and feelings",
+          "**Spirited Away** — richer vocab; save for after a month of slice-of-life",
+        ],
+      },
+      { type: "h2", text: "Clip routine" },
+      {
+        type: "ol",
+        items: [
+          "Pick a 60-second scene. Shadow one line ([shadowing](/blog/shadowing-anime-japanese-pronunciation)).",
+          "Save one word with [AnimeVocab](/free-japanese-anime-extension) if the platform is supported, or notebook + review.",
+          "Do not mine the whole film in one night.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Still too hard? Stay on [Doraemon](/blog/doraemon-learn-japanese-2026) / [Non Non Biyori](/blog/non-non-biyori-learn-japanese-2026) first.",
+      },
+    ],
+  },
+  {
+    slug: "netflix-vs-crunchyroll-learn-japanese-2026",
+    title: "Netflix vs Crunchyroll for Learning Japanese (2026)",
+    description:
+      "Netflix vs Crunchyroll for Japanese study — subtitle availability, tool support, simulcasts, and which platform beginners should prioritize.",
+    publishedAt: "2026-07-10T01:30:00.000Z",
+    updatedAt: "2026-07-10T01:30:00.000Z",
+    keywords: [
+      "netflix vs crunchyroll learn japanese",
+      "best streaming learn japanese anime",
+      "crunchyroll or netflix japanese",
+      "where to watch anime learn japanese",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/05-private.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Netflix vs Crunchyroll for learning Japanese** is not about which catalog is cooler — it is about **Japanese subtitle availability** and **which extensions work**.",
+      },
+      { type: "h2", text: "Quick verdict" },
+      {
+        type: "ul",
+        items: [
+          "**Netflix** — often better JP subtitle tracks; Language Reactor / HASHIGO / YumeGo shine ([Netflix hub](/learn-japanese-netflix-anime))",
+          "**Crunchyroll** — best simulcasts, worse JP subs; need Listening Mode or fan overlays ([CR hub](/learn-japanese-crunchyroll))",
+          "**Beginners** — either platform + [AnimeVocab](/free-japanese-anime-extension) romaji cards",
+        ],
+      },
+      { type: "h2", text: "Ideal combo" },
+      {
+        type: "p",
+        text: "Many learners use **Crunchyroll for new shows** and **Netflix for JP-sub study nights**. Tool map: [learn Japanese with anime](/learn-japanese-with-anime). Disney+/Prime: [Disney+](/learn-japanese-disney-plus), [Prime](/learn-japanese-prime-video).",
+      },
+    ],
+  },
+  {
     slug: "jlpt-n5-anime-vocabulary-2026",
     title: "JLPT N5 Vocabulary from Anime (2026): What Actually Appears",
     description:

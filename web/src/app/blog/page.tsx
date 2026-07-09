@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/netflix-vs-crunchyroll-learn-japanese-2026">
+                    Netflix vs Crunchyroll for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/ghibli-movies-learn-japanese-2026">
+                    Ghibli movies to learn Japanese
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/jlpt-n5-anime-vocabulary-2026">JLPT N5 vocabulary from anime</Link>
                 </li>
                 <li>

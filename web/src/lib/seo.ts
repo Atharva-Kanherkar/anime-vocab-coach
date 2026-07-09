@@ -64,6 +64,8 @@ export const SEO_KEYWORDS = [
   "japanese listening practice anime",
   "jlpt n5 anime",
   "comprehensible input anime",
+  "ghibli learn japanese",
+  "netflix vs crunchyroll learn japanese",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
