@@ -84,6 +84,24 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/death-note-learn-japanese-2026">Death Note for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/attack-on-titan-learn-japanese-beginners-2026">
+                    Attack on Titan for beginners?
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/privacy-chrome-extension-japanese-learning-2026">
+                    Extension privacy checklist
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/best-time-watch-anime-learn-japanese-2026">
+                    Best time to watch for study
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/horimiya-learn-japanese-2026">Horimiya for Japanese</Link>
                 </li>
                 <li>

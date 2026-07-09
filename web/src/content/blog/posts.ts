@@ -2,6 +2,146 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "death-note-learn-japanese-2026",
+    title: "Death Note for Learning Japanese? (2026 Honest Answer)",
+    description:
+      "Is Death Note good for learning Japanese? Fast debate dialogue, legal/fantasy vocab, and when beginners should wait.",
+    publishedAt: "2026-07-11T16:00:00.000Z",
+    updatedAt: "2026-07-11T16:00:00.000Z",
+    keywords: [
+      "death note learn japanese",
+      "death note japanese study",
+      "death note immersion",
+      "is death note good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Death Note** is iconic — and hard for beginners. Rapid debate, names, and abstract nouns will bury you if it is your first immersion show.",
+      },
+      { type: "h2", text: "When it helps" },
+      {
+        type: "ul",
+        items: [
+          "You already follow basic grammar",
+          "You rewatch and mine short lines only",
+          "You treat it as listening stamina, not a textbook",
+        ],
+      },
+      {
+        type: "p",
+        text: "Start instead with [best beginner anime](/best-anime-to-learn-japanese). Why shonen fails early: [avoid shonen guide](/blog/avoid-shonen-learn-japanese-beginners-2026).",
+      },
+    ],
+  },
+  {
+    slug: "attack-on-titan-learn-japanese-beginners-2026",
+    title: "Attack on Titan for Beginners Learning Japanese? (2026)",
+    description:
+      "Should beginners learn Japanese with Attack on Titan? Why AOT is a bad first textbook — and how to use it later without quitting.",
+    publishedAt: "2026-07-11T16:30:00.000Z",
+    updatedAt: "2026-07-11T16:30:00.000Z",
+    keywords: [
+      "attack on titan learn japanese",
+      "aot learn japanese beginners",
+      "shingeki no kyojin japanese study",
+      "attack on titan immersion",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Attack on Titan** will teach you military shouting and despair vocabulary. That is not month-zero Japanese. Save it until everyday speech feels less alien.",
+      },
+      {
+        type: "p",
+        text: "Beginner path: [Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026) → [one word method](/blog/one-word-per-episode-method) → return to AOT later. Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "privacy-chrome-extension-japanese-learning-2026",
+    title: "Privacy Checklist for Japanese Learning Chrome Extensions (2026)",
+    description:
+      "What permissions Japanese anime learning extensions need — Listening Mode, subtitles, local storage — and red flags before you install.",
+    publishedAt: "2026-07-11T17:00:00.000Z",
+    updatedAt: "2026-07-11T17:00:00.000Z",
+    keywords: [
+      "chrome extension privacy japanese",
+      "anime learning extension permissions",
+      "safe chrome extension learn japanese",
+      "listening mode privacy extension",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Learning extensions ask for broad site access because Netflix/Crunchyroll players are hostile environments. That does not mean every permission is fine — read the privacy story.",
+      },
+      { type: "h2", text: "Healthy signs" },
+      {
+        type: "ul",
+        items: [
+          "Local-first card storage explained clearly",
+          "Listening Mode / transcription documented ([how CR works](/learn-japanese-crunchyroll))",
+          "Open source or a real privacy page ([ours](/privacy))",
+        ],
+      },
+      { type: "h2", text: "Red flags" },
+      {
+        type: "ul",
+        items: [
+          "Vague \"we may share data with partners\"",
+          "Permissions far beyond video sites you use",
+          "No explanation of audio capture",
+        ],
+      },
+      {
+        type: "p",
+        text: "Install checklist: [Chrome Web Store guide](/blog/chrome-web-store-japanese-anime-extension-2026). Product: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "best-time-watch-anime-learn-japanese-2026",
+    title: "Best Time of Day to Watch Anime for Japanese Study (2026)",
+    description:
+      "Morning vs night anime study — when listening sticks, how to protect sleep, and a realistic daily schedule for busy learners.",
+    publishedAt: "2026-07-11T17:30:00.000Z",
+    updatedAt: "2026-07-11T17:30:00.000Z",
+    keywords: [
+      "best time watch anime learn japanese",
+      "morning or night anime study",
+      "anime study schedule japanese",
+      "when to study japanese with anime",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "The best time is the time you will **repeat tomorrow**. Science favors focused morning blocks for hard study — but anime habits often live at night. Design around reality.",
+      },
+      { type: "h2", text: "A schedule that survives" },
+      {
+        type: "ul",
+        items: [
+          "Night: watch + capture one word",
+          "Next morning: 5-minute SRS review before phone doomscroll",
+          "Weekend: one rewatch or manga writing session",
+        ],
+      },
+      {
+        type: "p",
+        text: "Related: [best time of day study](/blog/best-time-of-day-study-japanese-anime-2026), [how long with anime](/blog/how-long-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "horimiya-learn-japanese-2026",
     title: "Horimiya for Learning Japanese (2026)",
     description:
