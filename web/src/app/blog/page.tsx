@@ -84,6 +84,20 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/kaguya-sama-learn-japanese-2026">Kaguya-sama for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/pokemon-learn-japanese-beginners-2026">Pokémon for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/detective-conan-learn-japanese-2026">Detective Conan for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/learn-japanese-commute-anime-clips-2026">
+                    Commute anime clip study
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/does-crunchyroll-have-japanese-subtitles-2026">
                     Does Crunchyroll have JP subs?
                   </Link>

@@ -2,6 +2,128 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "kaguya-sama-learn-japanese-2026",
+    title: "Kaguya-sama: Love Is War for Learning Japanese (2026)",
+    description:
+      "Kaguya-sama for Japanese learners — rapid comedy warnings, mind-monologue gold, and what beginners should actually mine.",
+    publishedAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
+    keywords: [
+      "kaguya sama learn japanese",
+      "kaguya-sama japanese study",
+      "love is war japanese immersion",
+      "kaguya sama immersion beginners",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Kaguya-sama** is dialogue fireworks — hilarious, fast, and rough for absolute beginners. Mine short romantic/school lines; skip dense internal-monologue jokes on first pass.",
+      },
+      {
+        type: "p",
+        text: "Similar school energy: [Horimiya](/blog/horimiya-learn-japanese-2026), [Spy x Family](/blog/spy-x-family-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "pokemon-learn-japanese-beginners-2026",
+    title: "Pokémon for Learning Japanese (2026 Beginner Guide)",
+    description:
+      "Is Pokémon good for learning Japanese? Repetitive dialogue, kid-friendly speech, and a practical capture plan for beginners and parents.",
+    publishedAt: "2026-07-12T00:30:00.000Z",
+    updatedAt: "2026-07-12T00:30:00.000Z",
+    keywords: [
+      "pokemon learn japanese",
+      "pokemon japanese study",
+      "pokemon immersion beginners",
+      "learn japanese with pokemon",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Pokémon** repeats useful patterns — greetings, simple adventure talk, emotional reactions. Creature names are noise; trainer conversations are the lesson.",
+      },
+      { type: "h2", text: "How to study it" },
+      {
+        type: "ul",
+        items: [
+          "Japanese audio when available",
+          "Ignore Pokédex dumps",
+          "Save one reusable phrase per episode",
+        ],
+      },
+      {
+        type: "p",
+        text: "Kid/family adjacent: [Totoro for families](/blog/my-neighbor-totoro-learn-japanese-kids-2026), [Doraemon](/blog/doraemon-learn-japanese-2026). Extension: [free install](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "detective-conan-learn-japanese-2026",
+    title: "Detective Conan for Learning Japanese (2026)",
+    description:
+      "Case Closed / Detective Conan for Japanese study — everyday speech vs mystery jargon, and how to use long-running episodes without burnout.",
+    publishedAt: "2026-07-12T01:00:00.000Z",
+    updatedAt: "2026-07-12T01:00:00.000Z",
+    keywords: [
+      "detective conan learn japanese",
+      "case closed japanese study",
+      "meitantei conan immersion",
+      "conan learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Detective Conan** never ends — which is great for habit and rough for mystery vocabulary. Mine café/school/friend scenes; treat crime jargon as optional.",
+      },
+      {
+        type: "p",
+        text: "Long-show strategy matches [Sazae-san](/blog/sazae-san-learn-japanese-2026): consistency over completionism. Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "learn-japanese-commute-anime-clips-2026",
+    title: "Learn Japanese on Your Commute with Anime Clips (2026)",
+    description:
+      "How to learn Japanese on a commute using anime clips — phone constraints, YouTube shorts vs full episodes, and a review habit that fits 20 minutes.",
+    publishedAt: "2026-07-12T01:30:00.000Z",
+    updatedAt: "2026-07-12T01:30:00.000Z",
+    keywords: [
+      "learn japanese commute anime",
+      "anime clips learn japanese phone",
+      "japanese study commute youtube",
+      "learn japanese on the train anime",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Commutes are perfect for **review**, awkward for full mining. Use the train for SRS + short clips; save deep capture for a laptop night.",
+      },
+      { type: "h2", text: "20-minute template" },
+      {
+        type: "ol",
+        items: [
+          "5 min card review",
+          "10 min Japanese-audio clip (YouTube anime channel or downloaded episode)",
+          "Note one word in your phone; sync to deck later",
+        ],
+      },
+      {
+        type: "p",
+        text: "YouTube hub: [learn Japanese on YouTube anime](/learn-japanese-youtube-anime). Mobile limits: [mobile anime study](/blog/mobile-learn-japanese-anime-2026). Desktop capture: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "does-crunchyroll-have-japanese-subtitles-2026",
     title: "Does Crunchyroll Have Japanese Subtitles? (2026)",
     description:

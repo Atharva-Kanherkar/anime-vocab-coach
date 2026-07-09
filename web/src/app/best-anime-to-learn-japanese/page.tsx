@@ -126,6 +126,14 @@ export default function BestAnimePage() {
                 <Link href="/blog/horimiya-learn-japanese-2026">Horimiya guide →</Link>
               </li>
               <li>
+                <strong>Pokémon</strong> — repetitive, kid-clear speech if you ignore creature-name dumps.{" "}
+                <Link href="/blog/pokemon-learn-japanese-beginners-2026">Pokémon guide →</Link>
+              </li>
+              <li>
+                <strong>Kaguya-sama</strong> — advanced comedy speed; mine short lines only.{" "}
+                <Link href="/blog/kaguya-sama-learn-japanese-2026">Kaguya guide →</Link>
+              </li>
+              <li>
                 <strong>Laid-Back Camp / Yuru Camp</strong> — calm pacing for anxious beginners.{" "}
                 <Link href="/blog/laid-back-camp-learn-japanese-2026">Yuru Camp guide →</Link>
               </li>
