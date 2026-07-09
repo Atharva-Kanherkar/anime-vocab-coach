@@ -1,0 +1,28 @@
+diff --git a/node_modules/@opennextjs/aws/dist/core/routing/cacheInterceptor.js b/node_modules/@opennextjs/aws/dist/core/routing/cacheInterceptor.js
+index b88e58f..eb4855c 100644
+--- a/node_modules/@opennextjs/aws/dist/core/routing/cacheInterceptor.js
++++ b/node_modules/@opennextjs/aws/dist/core/routing/cacheInterceptor.js
+@@ -204,6 +204,12 @@ export async function cacheInterceptor(event) {
+     }
+     // We also need to remove trailing slash
+     localizedPath = localizedPath.replace(/\/$/, "");
++    // PATCH(animevocab): the root path becomes "" after the trailing-slash
++    // strip, which never matches the prerender manifest ("/"), so the home
++    // page always bypassed cache interception. Keep it as "/".
++    if (localizedPath === "") {
++        localizedPath = "/";
++    }
+     // Then we decode the path params
+     localizedPath = decodePathParams(localizedPath);
+     debug("Checking cache for", localizedPath, PrerenderManifest);
+@@ -212,7 +218,9 @@ export async function cacheInterceptor(event) {
+     debug("isISR", isISR);
+     if (isISR) {
+         try {
+-            const cachedData = await globalThis.incrementalCache.get(localizedPath ?? "/index");
++            // PATCH(animevocab): the cache key namespace uses "/index" for the
++            // root route (populateCache writes index.cache), not "/".
++            const cachedData = await globalThis.incrementalCache.get(localizedPath === "/" ? "/index" : localizedPath);
+             debug("cached data in interceptor", cachedData);
+             if (!cachedData?.value) {
+                 return event;
