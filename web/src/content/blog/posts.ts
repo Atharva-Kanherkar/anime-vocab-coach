@@ -2,6 +2,86 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "furigana-anime-subtitles-beginners-2026",
+    title: "Furigana on Anime Subtitles for Beginners (2026 Tools)",
+    description:
+      "Furigana on Netflix anime subtitles — HASHIGO, Uplang, and when furigana still fails beginners who need romaji-first audio tools instead.",
+    publishedAt: "2026-07-10T10:00:00.000Z",
+    updatedAt: "2026-07-10T10:00:00.000Z",
+    keywords: [
+      "furigana anime subtitles",
+      "furigana netflix japanese",
+      "furigana extension anime",
+      "learn japanese furigana subs",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/05-private.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Furigana on anime subtitles** helps once you can read **hiragana**. It does not help if Japanese text itself is still a wall — then you need romaji-from-audio first.",
+      },
+      { type: "h2", text: "Furigana tools" },
+      {
+        type: "ul",
+        items: [
+          "**HASHIGO!** — JLPT colors + furigana on Netflix ([stack](/blog/hashigo-yomitan-netflix-japanese-anime-2026))",
+          "**Uplang** — furigana modes ([comparison](/blog/uplang-netflix-dual-subtitles-2026))",
+          "**Language Reactor** — dual subs; furigana via add-ons varies",
+        ],
+      },
+      { type: "h2", text: "Before furigana" },
+      {
+        type: "p",
+        text: "Month zero: [romaji path](/romaji-japanese-learning) + [AnimeVocab](/free-japanese-anime-extension). Hiragana timing: [before or after anime?](/blog/hiragana-before-anime-or-after-2026).",
+      },
+    ],
+  },
+  {
+    slug: "pitch-accent-anime-beginners-2026",
+    title: "Pitch Accent from Anime for Beginners (2026): Worth It?",
+    description:
+      "Should beginners study Japanese pitch accent from anime? When to ignore it, when Migaku-style tools help, and what to prioritize first.",
+    publishedAt: "2026-07-10T10:30:00.000Z",
+    updatedAt: "2026-07-10T10:30:00.000Z",
+    keywords: [
+      "pitch accent anime beginners",
+      "japanese pitch accent anime",
+      "learn pitch accent from anime",
+      "migaku pitch accent beginners",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Pitch accent from anime** is a power-user rabbit hole. Beginners should prioritize **hearing words at all** and reviewing them — not graphing every mora on day one.",
+      },
+      { type: "h2", text: "Ignore pitch accent until…" },
+      {
+        type: "ul",
+        items: [
+          "You have ~200–300 words by sound",
+          "You can read kana",
+          "You enjoy pronunciation geekery",
+        ],
+      },
+      { type: "h2", text: "Do this first" },
+      {
+        type: "ol",
+        items: [
+          "One-word capture ([AnimeVocab](/free-japanese-anime-extension))",
+          "Light shadowing ([guide](/blog/shadowing-anime-japanese-pronunciation))",
+          "Daily SRS ([guide](/anime-spaced-repetition))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Later: Migaku-style tools ([worth it?](/blog/is-migaku-worth-it-2026)).",
+      },
+    ],
+  },
+  {
     slug: "avoid-shonen-learn-japanese-beginners-2026",
     title: "Why Beginners Should Avoid Shonen for Japanese Study (2026)",
     description:

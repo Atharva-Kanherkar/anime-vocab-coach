@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/furigana-anime-subtitles-beginners-2026">
+                    Furigana on anime subtitles
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/pitch-accent-anime-beginners-2026">
+                    Pitch accent from anime for beginners
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/avoid-shonen-learn-japanese-beginners-2026">
                     Why beginners should avoid shonen
                   </Link>
