@@ -2,6 +2,81 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "wanikani-vs-anime-vocabulary-2026",
+    title: "WaniKani vs Learning Vocabulary from Anime (2026)",
+    description:
+      "WaniKani builds kanji systematically; anime builds spoken vocabulary in context. How to combine both without burning out — and what to do at month zero.",
+    publishedAt: "2026-07-10T11:00:00.000Z",
+    updatedAt: "2026-07-10T11:00:00.000Z",
+    keywords: [
+      "wanikani vs anime",
+      "wanikani or anime vocabulary",
+      "learn kanji or anime first",
+      "wanikani anime immersion",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/11-cards.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**WaniKani vs anime vocabulary** is a false war. WaniKani teaches **kanji readings** on a schedule. Anime teaches **spoken words in scenes**. Beginners often need listening wins before a kanji SRS grind.",
+      },
+      { type: "h2", text: "Start with anime listening if…" },
+      {
+        type: "ul",
+        items: [
+          "You will quit a 100-level kanji course",
+          "You already watch weekly and need motivation",
+          "You want romaji-first capture ([AnimeVocab](/free-japanese-anime-extension))",
+        ],
+      },
+      { type: "h2", text: "Add WaniKani when…" },
+      {
+        type: "ul",
+        items: [
+          "Hiragana is solid",
+          "You want structured kanji",
+          "Your anime habit already sticks",
+        ],
+      },
+      {
+        type: "p",
+        text: "Immersion path: [beginners guide](/blog/anime-immersion-beginners-guide-2026). SRS: [anime spaced repetition](/anime-spaced-repetition).",
+      },
+    ],
+  },
+  {
+    slug: "bunpro-vs-anime-grammar-2026",
+    title: "Bunpro vs Learning Grammar from Anime (2026)",
+    description:
+      "Bunpro drills Japanese grammar SRS-style; anime shows grammar in the wild. When to use each — and why beginners should not parse every particle on day one.",
+    publishedAt: "2026-07-10T11:30:00.000Z",
+    updatedAt: "2026-07-10T11:30:00.000Z",
+    keywords: [
+      "bunpro vs anime",
+      "learn grammar from anime",
+      "bunpro anime immersion",
+      "japanese grammar anime beginners",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/10-coach.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Bunpro vs anime grammar**: Bunpro is deliberate practice. Anime is messy input. You need both eventually — but month-zero learners should **collect words**, not diagram every は/が.",
+      },
+      { type: "h2", text: "Anime-first grammar exposure" },
+      {
+        type: "p",
+        text: "Notice patterns after you know the words in the line. Save vocabulary with [AnimeVocab](/free-japanese-anime-extension). Add Bunpro when reviews feel easy and you want structured grammar SRS.",
+      },
+      {
+        type: "p",
+        text: "Related: [is anime enough?](/blog/is-anime-enough-to-learn-japanese-2026) · [comprehensible input](/blog/comprehensible-input-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "furigana-anime-subtitles-beginners-2026",
     title: "Furigana on Anime Subtitles for Beginners (2026 Tools)",
     description:

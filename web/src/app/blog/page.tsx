@@ -84,6 +84,14 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/wanikani-vs-anime-vocabulary-2026">
+                    WaniKani vs anime vocabulary
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/bunpro-vs-anime-grammar-2026">Bunpro vs anime grammar</Link>
+                </li>
+                <li>
                   <Link href="/blog/furigana-anime-subtitles-beginners-2026">
                     Furigana on anime subtitles
                   </Link>
