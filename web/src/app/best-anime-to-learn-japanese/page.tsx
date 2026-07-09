@@ -126,6 +126,12 @@ export default function BestAnimePage() {
                 <Link href="/blog/horimiya-learn-japanese-2026">Horimiya guide →</Link>
               </li>
               <li>
+                <strong>Fruits Basket / Toradora / Clannad</strong> — drama & school talk; mine gently.{" "}
+                <Link href="/blog/fruits-basket-learn-japanese-2026">Furuba</Link> ·{" "}
+                <Link href="/blog/toradora-learn-japanese-2026">Toradora</Link> ·{" "}
+                <Link href="/blog/clannad-learn-japanese-2026">Clannad →</Link>
+              </li>
+              <li>
                 <strong>Pokémon</strong> — repetitive, kid-clear speech if you ignore creature-name dumps.{" "}
                 <Link href="/blog/pokemon-learn-japanese-beginners-2026">Pokémon guide →</Link>
               </li>

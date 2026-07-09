@@ -2,6 +2,120 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "clannad-learn-japanese-2026",
+    title: "Clannad for Learning Japanese (2026)",
+    description:
+      "Clannad for Japanese learners — school talk, emotional vocabulary, and how to study without turning every cry scene into a dictionary session.",
+    publishedAt: "2026-07-12T14:00:00.000Z",
+    updatedAt: "2026-07-12T14:00:00.000Z",
+    keywords: [
+      "clannad learn japanese",
+      "clannad japanese study",
+      "clannad immersion",
+      "clannad after story japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Clannad** is school Japanese plus heavy emotion — excellent for feelings vocab if you can handle the tears. Mine short lines; do not pause the whole After Story arc.",
+      },
+      {
+        type: "p",
+        text: "Similar: [A Silent Voice](/blog/a-silent-voice-learn-japanese-2026), [Horimiya](/blog/horimiya-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "toradora-learn-japanese-2026",
+    title: "Toradora! for Learning Japanese (2026)",
+    description:
+      "Toradora for Japanese study — tsundere comedy speed, school dialogue gold, and a beginner capture plan.",
+    publishedAt: "2026-07-12T14:30:00.000Z",
+    updatedAt: "2026-07-12T14:30:00.000Z",
+    keywords: [
+      "toradora learn japanese",
+      "toradora japanese study",
+      "toradora immersion",
+      "tsundere anime learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Toradora!** is fast comedy with reusable school/relationship lines. Mine calm conversations; skip rapid yelling matches on first pass.",
+      },
+      {
+        type: "p",
+        text: "Pair with [Kaguya-sama](/blog/kaguya-sama-learn-japanese-2026) later. Method: [one word per episode](/blog/one-word-per-episode-method).",
+      },
+    ],
+  },
+  {
+    slug: "fruits-basket-learn-japanese-2026",
+    title: "Fruits Basket for Learning Japanese (2026)",
+    description:
+      "Fruits Basket for Japanese learners — soft dialogue, family vocabulary, and why the 2019 remake works for immersion.",
+    publishedAt: "2026-07-12T15:00:00.000Z",
+    updatedAt: "2026-07-12T15:00:00.000Z",
+    keywords: [
+      "fruits basket learn japanese",
+      "fruits basket japanese study",
+      "furuba immersion",
+      "fruits basket 2019 japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Fruits Basket** (2019) has clear, emotional, everyday speech — one of the kinder long shows for learners who want drama without constant battle audio.",
+      },
+      {
+        type: "p",
+        text: "Mine home/school kindness phrases. Hub: [best anime](/best-anime-to-learn-japanese). Extension: [free install](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "can-you-learn-japanese-only-watching-anime-2026",
+    title: "Can You Learn Japanese Only by Watching Anime? (2026)",
+    description:
+      "Can you learn Japanese only by watching anime? Honest limits — listening vs literacy, and the smallest stack that still works.",
+    publishedAt: "2026-07-12T15:30:00.000Z",
+    updatedAt: "2026-07-12T15:30:00.000Z",
+    keywords: [
+      "can you learn japanese only watching anime",
+      "learn japanese only anime",
+      "anime only japanese fluent",
+      "is watching anime enough japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Only watching** — especially with English subs and zero review — will not make you fluent. **Anime as the core habit** plus tiny active study can take you surprisingly far in listening.",
+      },
+      { type: "h2", text: "Minimum viable \"anime-first\" stack" },
+      {
+        type: "ul",
+        items: [
+          "JP audio always",
+          "One word captured + reviewed ([method](/blog/one-word-per-episode-method))",
+          "Some kana eventually ([timing](/blog/hiragana-before-anime-or-after-2026))",
+          "Optional grammar glue (Tae Kim / Genki / Bunpro)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Related: [is anime enough?](/blog/is-anime-enough-to-learn-japanese-2026), [does anime help?](/blog/does-watching-anime-help-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "evangelion-learn-japanese-2026",
     title: "Neon Genesis Evangelion for Learning Japanese? (2026)",
     description:
