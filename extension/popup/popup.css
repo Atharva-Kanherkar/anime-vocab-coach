@@ -88,6 +88,53 @@ body.av {
   flex: none;
 }
 
+.av-account {
+  margin-top: 12px;
+  display: grid;
+  gap: 7px;
+}
+
+.av-account-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--av-line);
+  border-radius: 10px;
+  background: var(--av-panel);
+  font-size: 11.5px;
+  color: var(--av-ink-2);
+}
+
+.av-account-row b {
+  display: block;
+  font-size: 12px;
+  color: var(--av-ink);
+}
+
+.av-account-sub {
+  display: block;
+  font-size: 10.5px;
+  color: var(--av-ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.av-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--av-accent);
+}
+
+.av-dot-off {
+  background: transparent;
+  border: 2px dashed var(--av-line-2);
+}
+
 .av-actions {
   margin-top: 12px;
   display: grid;
@@ -193,6 +240,9 @@ body.av {
   background: transparent;
   transition: background 130ms ease, border-color 130ms ease, opacity 130ms ease;
 }
+/* display:inline-flex above would override the hidden attribute, leaving an
+   empty pill (the due-review button) visible when there is nothing due. */
+.av-btn[hidden] { display: none; }
 .av-btn:active { transform: translateY(1px); }
 .av-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .av-btn-block { width: 100%; }

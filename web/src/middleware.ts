@@ -5,6 +5,15 @@ import { DEV_NO_CLERK } from "@/lib/dev-auth";
 const isProtectedRoute = createRouteMatcher(["/app(.*)"]);
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
+  // Canonical host: www has a proxied DNS record but the Worker serves the
+  // apex; without this redirect www visitors get a Cloudflare 522.
+  const host = req.headers.get("host");
+  if (host === "www.animevocab.com") {
+    const url = new URL(req.url);
+    url.host = "animevocab.com";
+    return NextResponse.redirect(url, 301);
+  }
+
   // Local dev without Clerk keys: let every request through untouched.
   if (DEV_NO_CLERK) return NextResponse.next();
 
@@ -22,7 +31,10 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
 
 export const config = {
   matcher: [
-    "/app(.*)",
+    // All pages except Next internals and static files. Public pages like
+    // /studio call currentUser(), which throws (500) on any route the
+    // clerkMiddleware didn't run on — so it must cover every page route.
+    "/((?!_next|.*\\..*).*)",
     "/(api|trpc)(.*)",
     "/__clerk/:path*",
   ],

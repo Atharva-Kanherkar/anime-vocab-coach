@@ -54,6 +54,12 @@ jobs:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           NEXT_PUBLIC_CLERK_PROXY_URL: https://animevocab.com/__clerk
+          # Use the in-app sign-in/up pages. Without these Clerk redirects
+          # unauthenticated /app visitors to the hosted Account Portal at
+          # accounts.animevocab.com, which serves a Cloudflare "DNS points to
+          # prohibited IP" error (portal domain provisioning is broken).
+          NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+          NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
           NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: /app
           NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: /app
         run: npm ci && npm run deploy

@@ -8,6 +8,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // The apex is bound as a custom domain (dashboard). www has a proxied DNS
+  // record but nothing serving it, so www.animevocab.com returned a Cloudflare
+  // 522. This route makes the Worker answer www; middleware.ts 301s to apex.
+  "routes": [
+    { "pattern": "www.animevocab.com/*", "zone_name": "animevocab.com" }
+  ],
   "kv_namespaces": [
     {
       "binding": "AVC_SYNC_KV",

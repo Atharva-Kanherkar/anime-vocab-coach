@@ -25,9 +25,15 @@ async function broadcastToken(): Promise<void> {
   try {
     const res = await fetch("/api/sync/token", { method: "POST" });
     if (!res.ok) throw new Error(`token HTTP ${res.status}`);
-    const { token } = (await res.json()) as { token?: string };
+    const { token, profile } = (await res.json()) as {
+      token?: string;
+      profile?: { email?: string | null; name?: string | null };
+    };
     if (!token) throw new Error("no token");
-    window.postMessage({ source: "avc-web", type: "avc-sync-token", token }, window.location.origin);
+    window.postMessage(
+      { source: "avc-web", type: "avc-sync-token", token, profile: profile ?? null },
+      window.location.origin
+    );
   } catch {
     if (linkState === "installed") setLinkState("error");
   }

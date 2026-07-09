@@ -298,7 +298,29 @@ export function getSyncToken(): Promise<string> {
 
 export function setSyncToken(token: string): Promise<void> {
   return enqueue(async () => {
-    await chrome.storage.local.set({ syncToken: token });
+    if (token) {
+      await chrome.storage.local.set({ syncToken: token });
+    } else {
+      // Unlinking (sign-out / expired token): drop the profile too so the
+      // popup doesn't keep claiming "Synced as <email>".
+      await chrome.storage.local.set({ syncToken: "", syncProfile: null });
+    }
+  });
+}
+
+// Who the sync token belongs to, handed over with the token by the web app.
+// Display-only (popup "Synced as <email>"); auth is the token itself.
+export interface SyncProfile {
+  email: string | null;
+  name: string | null;
+}
+
+export function getSyncProfile(): Promise<SyncProfile | null> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["syncProfile"], (r) => {
+      const p = r.syncProfile as SyncProfile | null | undefined;
+      resolve(p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null } : null);
+    });
   });
 }
 

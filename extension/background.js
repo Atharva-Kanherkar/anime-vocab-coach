@@ -60,7 +60,11 @@
   }
   function setSyncToken(token) {
     return enqueue(async () => {
-      await chrome.storage.local.set({ syncToken: token });
+      if (token) {
+        await chrome.storage.local.set({ syncToken: token });
+      } else {
+        await chrome.storage.local.set({ syncToken: "", syncProfile: null });
+      }
     });
   }
 

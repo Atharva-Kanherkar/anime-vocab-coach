@@ -19,7 +19,12 @@ function announceExtension(): void {
 
 window.addEventListener("message", (event) => {
   if (event.source !== window || !isAllowedOrigin(event.origin)) return;
-  const data = event.data as { source?: string; type?: string; token?: string } | null;
+  const data = event.data as {
+    source?: string;
+    type?: string;
+    token?: string;
+    profile?: { email?: string | null; name?: string | null } | null;
+  } | null;
   if (!data || data.source !== "avc-web") return;
 
   if (data.type === "avc-ping-extension") {
@@ -30,7 +35,16 @@ window.addEventListener("message", (event) => {
   if (data.type === "avc-sync-token") {
     const token = typeof data.token === "string" ? data.token : "";
     if (!token) return;
-    chrome.storage.local.set({ syncToken: token }, () => {
+    // Profile is display-only (popup account status). Older web builds don't
+    // send it; keep whatever we had rather than wiping it.
+    const p = data.profile;
+    const syncProfile =
+      p && typeof p === "object"
+        ? { email: typeof p.email === "string" ? p.email : null, name: typeof p.name === "string" ? p.name : null }
+        : undefined;
+    const update: Record<string, unknown> = { syncToken: token };
+    if (syncProfile !== undefined) update.syncProfile = syncProfile;
+    chrome.storage.local.set(update, () => {
       chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
     });
     return;

@@ -93,6 +93,31 @@ function initTheme(): void {
   });
 }
 
+// Account status. The extension never has its own login: signing in on
+// animevocab.com/app hands a sync token to the extension. This section is
+// what tells the user that — and whether it has happened.
+async function renderAccount(): Promise<void> {
+  const el = byId("account");
+  const token = await storage.getSyncToken();
+
+  if (!token) {
+    el.innerHTML =
+      `<div class="av-account-row"><span class="av-dot av-dot-off"></span>` +
+      `<div><b>Not signed in</b><span class="av-account-sub">Progress stays on this device only</span></div></div>` +
+      `<button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">Sign in to sync — animevocab.com</button>`;
+    byId("signin-btn").addEventListener("click", () => {
+      chrome.tabs.create({ url: `${WEB_URL}/app` });
+    });
+    return;
+  }
+
+  const profile = await storage.getSyncProfile();
+  const who = profile?.email || profile?.name || "your account";
+  el.innerHTML =
+    `<div class="av-account-row"><span class="av-dot"></span>` +
+    `<div><b>Cloud sync on</b><span class="av-account-sub">Synced as ${esc(who)}</span></div></div>`;
+}
+
 async function render(): Promise<void> {
   const vocab = await storage.getVocab();
   const stats = await storage.getStats();
@@ -174,8 +199,15 @@ async function initCopilotToggle(): Promise<void> {
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   void render();
+  void renderAccount();
   void initListening();
   void initCopilotToggle();
+
+  // If the user signs in on animevocab.com while this popup is open, the
+  // token lands in storage — flip the account section live.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && (changes.syncToken || changes.syncProfile)) void renderAccount();
+  });
 
   byId("cloud-link").addEventListener("click", (e) => {
     e.preventDefault();

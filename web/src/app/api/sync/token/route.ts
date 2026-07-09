@@ -30,5 +30,7 @@ export async function POST() {
     );
   }
 
-  return NextResponse.json({ token });
+  // Profile rides along so the extension popup can show who is linked
+  // ("Synced as <email>") instead of leaving the account state invisible.
+  return NextResponse.json({ token, profile: { email: profile.email, name: profile.name } });
 }
