@@ -171,6 +171,14 @@ export default function LearnJapaneseCrunchyrollPage() {
             </ol>
 
             <p>
+              Coming from Funimation?{" "}
+              <Link href="/blog/funimation-to-crunchyroll-learn-japanese-2026">
+                Keep your Japanese study habit after the Funimation → Crunchyroll move
+              </Link>
+              .
+            </p>
+
+            <p>
               Deep dive:{" "}
               <Link href="/blog/learn-japanese-crunchyroll-no-japanese-subs">
                 Learn Japanese on Crunchyroll when there are no Japanese subtitles

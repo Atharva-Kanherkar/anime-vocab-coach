@@ -2,6 +2,170 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "satori-reader-vs-anime-2026",
+    title: "Satori Reader vs Anime Immersion (2026)",
+    description:
+      "Satori Reader is premium graded reading with audio. Anime is messy authentic speech. Compare both and build a hybrid Japanese plan that sticks.",
+    publishedAt: "2026-07-11T04:00:00.000Z",
+    updatedAt: "2026-07-11T04:00:00.000Z",
+    keywords: [
+      "satori reader vs anime",
+      "satori reader japanese",
+      "satori reader immersion",
+      "graded reading vs anime japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Satori Reader** gives polished stories, clickable vocab, and native audio — ideal controlled input. **Anime** gives the messy speech you actually want. Paying for both full-time is optional; quitting one habit is not.",
+      },
+      { type: "h2", text: "Pick Satori Reader when" },
+      {
+        type: "ul",
+        items: [
+          "You want reading + audio without hunting streams",
+          "You like literary / narrative Japanese",
+          "You need a calm study block without episode FOMO",
+        ],
+      },
+      { type: "h2", text: "Pick anime capture when" },
+      {
+        type: "ul",
+        items: [
+          "You already watch nightly ([Crunchyroll](/learn-japanese-crunchyroll))",
+          "You need [romaji-first](/romaji-japanese-learning) month zero",
+          "Motivation dies without your shows",
+        ],
+      },
+      {
+        type: "p",
+        text: "Hybrid: Satori mornings, anime nights with [AnimeVocab](/free-japanese-anime-extension). Related: [graded readers vs manga writing](/blog/graded-readers-vs-writing-manga-2026), [LingQ vs anime](/blog/lingq-vs-anime-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
+    slug: "todaii-easy-japanese-vs-anime-2026",
+    title: "Todaii Easy Japanese vs Anime (2026)",
+    description:
+      "Todaii Easy Japanese news reading vs learning from anime — when graded news wins, when streams win, and how to combine them without overload.",
+    publishedAt: "2026-07-11T04:30:00.000Z",
+    updatedAt: "2026-07-11T04:30:00.000Z",
+    keywords: [
+      "todaii easy japanese vs anime",
+      "todaii japanese anime",
+      "easy japanese news vs anime",
+      "todaii immersion",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Todaii Easy Japanese** (and similar news apps) train reading with furigana and level filters. Anime trains listening to emotional, incomplete, real-time speech. Different muscles.",
+      },
+      { type: "h2", text: "Todaii strengths" },
+      {
+        type: "ul",
+        items: [
+          "Daily short articles",
+          "JLPT-ish progression",
+          "Quiet commute study",
+        ],
+      },
+      { type: "h2", text: "Anime strengths" },
+      {
+        type: "ul",
+        items: [
+          "Listening stamina",
+          "Words tied to scenes you care about",
+          "Capture with [one word per episode](/blog/one-word-per-episode-method)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Also compare: [NHK Easy vs anime](/blog/nhk-easy-vs-anime-2026). Stream tool: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "kanji-study-app-vs-anime-2026",
+    title: "Kanji Study Apps vs Anime Vocabulary (2026)",
+    description:
+      "Kanji Study, Anki kanji decks, and WaniKani vs learning words from anime — how to sequence writing systems and immersion without burnout.",
+    publishedAt: "2026-07-11T05:00:00.000Z",
+    updatedAt: "2026-07-11T05:00:00.000Z",
+    keywords: [
+      "kanji study vs anime",
+      "learn kanji or anime first",
+      "kanji app anime immersion",
+      "wanikani anime vocabulary",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Kanji apps sell the dream of finishing the jouyou list. Anime fans need **spoken words** first. You can do both — but not 50 new kanji and 50 anime cards on the same day.",
+      },
+      { type: "h2", text: "Sensible order" },
+      {
+        type: "ol",
+        items: [
+          "Kana (or romaji bridge — [timing](/blog/hiragana-before-anime-or-after-2026))",
+          "Anime listening + tiny vocab capture",
+          "Kanji for words you already know by sound",
+          "Heavier systems like [WaniKani](/blog/wanikani-vs-anime-vocabulary-2026) when ready",
+        ],
+      },
+      {
+        type: "p",
+        text: "If your kanji app kills your anime habit, the app is losing. Keep [AnimeVocab](/free-japanese-anime-extension) as the fun loop.",
+      },
+    ],
+  },
+  {
+    slug: "funimation-to-crunchyroll-learn-japanese-2026",
+    title: "Funimation Moved to Crunchyroll — Keep Learning Japanese (2026)",
+    description:
+      "Funimation merged into Crunchyroll. How to keep your Japanese anime study habit — accounts, subtitles, and the best beginner tools in 2026.",
+    publishedAt: "2026-07-11T05:30:00.000Z",
+    updatedAt: "2026-07-11T05:30:00.000Z",
+    keywords: [
+      "funimation crunchyroll learn japanese",
+      "funimation shut down japanese study",
+      "crunchyroll after funimation immersion",
+      "learn japanese crunchyroll 2026",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "If you learned Japanese habits on **Funimation**, your library now lives in the **Crunchyroll** world. The method did not die — only the app logo did.",
+      },
+      { type: "h2", text: "What to do now" },
+      {
+        type: "ol",
+        items: [
+          "Confirm your shows on Crunchyroll (or Netflix/HIDIVE for exclusives)",
+          "Re-check Japanese audio + subtitle menus per title",
+          "Reinstall a learning extension that supports your main platform",
+        ],
+      },
+      { type: "h2", text: "Best beginner stack in 2026" },
+      {
+        type: "p",
+        text: "Romaji-first cards + Listening Mode when JP subs are missing: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll) and [AnimeVocab](/free-japanese-anime-extension). Power users can still graduate to Migaku/asbplayer later ([vs Migaku](/vs-migaku)).",
+      },
+      {
+        type: "p",
+        text: "Also: [HIDIVE guide](/learn-japanese-hidive) for exclusives outside CR.",
+      },
+    ],
+  },
+  {
     slug: "chiikawa-learn-japanese-2026",
     title: "Chiikawa for Learning Japanese (2026 Beginner Guide)",
     description:

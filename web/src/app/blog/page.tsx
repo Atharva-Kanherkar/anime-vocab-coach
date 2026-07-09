@@ -84,6 +84,20 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/satori-reader-vs-anime-2026">Satori Reader vs anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/todaii-easy-japanese-vs-anime-2026">Todaii vs anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/kanji-study-app-vs-anime-2026">Kanji apps vs anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/funimation-to-crunchyroll-learn-japanese-2026">
+                    Funimation → Crunchyroll study guide
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/chiikawa-learn-japanese-2026">Chiikawa for Japanese</Link>
                 </li>
                 <li>
