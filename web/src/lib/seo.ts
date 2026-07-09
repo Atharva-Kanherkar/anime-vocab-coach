@@ -50,6 +50,8 @@ export const SEO_KEYWORDS = [
   "language reactor free alternative",
   "anime immersion beginners",
   "doraemon learn japanese",
+  "k-on learn japanese",
+  "chrome extension learn japanese netflix",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

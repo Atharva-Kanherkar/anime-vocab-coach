@@ -129,6 +129,7 @@ export default function LearnJapaneseNetflixPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/blog/chrome-extension-learn-japanese-netflix-2026", label: "Netflix extensions" },
           { href: "/blog/hashigo-yomitan-netflix-japanese-anime-2026", label: "HASHIGO guide" },
           { href: "/vs-lingoku", label: "vs Lingoku" },
           { href: "/vs-yumego", label: "vs YumeGo" },

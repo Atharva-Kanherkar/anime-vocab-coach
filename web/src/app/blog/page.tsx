@@ -84,6 +84,14 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/chrome-extension-learn-japanese-netflix-2026">
+                    Best Netflix Japanese extensions
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/k-on-learn-japanese-2026">K-On! for Japanese learners</Link>
+                </li>
+                <li>
                   <Link href="/blog/anime-immersion-beginners-guide-2026">
                     Anime immersion for beginners
                   </Link>

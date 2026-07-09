@@ -109,7 +109,8 @@ export default function BestAnimePage() {
             <h2>Tier 2 — after a month</h2>
             <ul>
               <li>
-                <strong>K-On!</strong> — school speech and music vocab; still mostly standard Japanese.
+                <strong>K-On!</strong> — school speech and music vocab; still mostly standard Japanese.{" "}
+                <Link href="/blog/k-on-learn-japanese-2026">K-On! study guide →</Link>
               </li>
               <li>
                 <strong>Studio Ghibli films</strong> — short runtime, emotional lines worth replaying in

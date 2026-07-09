@@ -2,6 +2,95 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "k-on-learn-japanese-2026",
+    title: "K-On! for Learning Japanese (2026): School Speech After Month One",
+    description:
+      "When K-On! becomes a good anime for Japanese study — school vocabulary, casual speech, and how to graduate from Shirokuma Cafe without jumping to shonen.",
+    publishedAt: "2026-07-09T18:00:00.000Z",
+    updatedAt: "2026-07-09T18:00:00.000Z",
+    keywords: [
+      "k-on learn japanese",
+      "k-on japanese study",
+      "best anime learn japanese school",
+      "k-on vocabulary japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/04-sakura-night.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**K-On!** is Tier 2 on our [best anime for beginners](/best-anime-to-learn-japanese) list — not month-zero, but perfect after a few weeks of Shirokuma Cafe or Doraemon. You get **school speech**, club banter, and music vocab without constant shouting.",
+      },
+      { type: "h2", text: "When you are ready for K-On!" },
+      {
+        type: "ul",
+        items: [
+          "You can catch repeated words by ear on slower shows",
+          "Hiragana is starting to click (or you still use romaji cards — fine)",
+          "You want slightly faster dialogue without fantasy slang",
+        ],
+      },
+      { type: "h2", text: "Study loop" },
+      {
+        type: "ol",
+        items: [
+          "One episode with [AnimeVocab](/free-japanese-anime-extension) — one word max.",
+          "Shadow one club-room line ([shadowing](/blog/shadowing-anime-japanese-pronunciation)).",
+          "Review before the next episode ([SRS](/anime-spaced-repetition)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Still too fast? Stay on [Shirokuma](/blog/shirokuma-cafe-learn-japanese-2026) / [Non Non Biyori](/blog/non-non-biyori-learn-japanese-2026). Method: [how to learn watching anime](/blog/how-to-learn-japanese-watching-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "chrome-extension-learn-japanese-netflix-2026",
+    title: "Best Chrome Extension to Learn Japanese on Netflix (2026)",
+    description:
+      "Ranked Chrome extensions for Netflix anime Japanese — Language Reactor, HASHIGO, Lingoku, YumeGo, AnimeVocab. Pick by reading level, not star count.",
+    publishedAt: "2026-07-09T18:30:00.000Z",
+    updatedAt: "2026-07-09T18:30:00.000Z",
+    keywords: [
+      "chrome extension learn japanese netflix",
+      "best extension learn japanese netflix",
+      "netflix japanese learning extension",
+      "dual subtitles netflix japanese extension",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/05-private.jpg",
+    canonicalPath: "/learn-japanese-netflix-anime",
+    blocks: [
+      {
+        type: "p",
+        text: "Searching **Chrome extension learn Japanese Netflix** returns dual-sub tools that assume you can read Japanese. That is fine for intermediate learners — wrong for month-zero. This ranking sorts Netflix extensions by **reading level**.",
+      },
+      { type: "h2", text: "Quick picks" },
+      {
+        type: "ul",
+        items: [
+          "**Cannot read kana** → [AnimeVocab](/free-japanese-anime-extension) romaji cards + Listening Mode",
+          "**Read kana · free dual subs** → Language Reactor ([vs AnimeVocab](/vs-language-reactor))",
+          "**Furigana / JLPT colors** → HASHIGO ([reader stack](/blog/hashigo-yomitan-netflix-japanese-anime-2026))",
+          "**AI grammar popups** → [YumeGo](/vs-yumego) or [Lingoku](/vs-lingoku)",
+          "**Anki mining** → asbplayer + Yomitan ([vs asbplayer](/vs-asbplayer))",
+        ],
+      },
+      { type: "h2", text: "Step zero: confirm Japanese subs" },
+      {
+        type: "p",
+        text: "Open Netflix subtitle settings. Look for **Japanese**, not English only. Prefer standard dialogue over [CC] when both exist. Hub: [learn Japanese on Netflix anime](/learn-japanese-netflix-anime).",
+      },
+      { type: "h2", text: "Crunchyroll note" },
+      {
+        type: "p",
+        text: "Most Netflix extensions **do not** fix Crunchyroll. For simulcasts see [Crunchyroll guide](/learn-japanese-crunchyroll) and [Migaku CR alternatives](/blog/migaku-crunchyroll-alternative-2026). Full extension list: [best Chrome extensions 2026](/blog/best-chrome-extensions-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "doraemon-learn-japanese-2026",
     title: "Doraemon for Learning Japanese (2026): Repetition That Sticks",
     description:
