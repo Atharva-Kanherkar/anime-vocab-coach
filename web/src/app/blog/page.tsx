@@ -84,6 +84,20 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/learn-japanese-hulu">Learn Japanese on Hulu</Link>
+                </li>
+                <li>
+                  <Link href="/blog/migaku-free-alternative-2026">Migaku free alternative</Link>
+                </li>
+                <li>
+                  <Link href="/blog/cancel-migaku-keep-learning-anime-2026">
+                    Canceling Migaku — keep learning
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/jisho-vs-anime-vocabulary-tools-2026">Jisho vs anime tools</Link>
+                </li>
+                <li>
                   <Link href="/blog/bocchi-the-rock-learn-japanese-2026">Bocchi the Rock for Japanese</Link>
                 </li>
                 <li>

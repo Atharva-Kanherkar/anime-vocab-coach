@@ -65,7 +65,9 @@ export default function VsMigakuPage() {
               <strong>AnimeVocab is the one most people will actually keep open.</strong> Migaku goes
               deeper if you want to build and drill a custom Anki deck and will spend an afternoon wiring
               it up. If you just want to learn from tonight&apos;s episode (no setup, no subscription, no kana
-              course first), that&apos;s AnimeVocab, and it&apos;s free to find out.
+              course first), that&apos;s AnimeVocab, and it&apos;s free to find out. Searching for a{" "}
+              <Link href="/blog/migaku-free-alternative-2026">Migaku free alternative</Link>? Start there
+              before you subscribe.
             </>
           }
         />

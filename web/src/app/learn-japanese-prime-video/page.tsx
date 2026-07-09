@@ -125,6 +125,7 @@ export default function LearnJapanesePrimeVideoPage() {
               <Link href="/learn-japanese-netflix-anime">Netflix</Link>,{" "}
               <Link href="/learn-japanese-disney-plus">Disney+</Link>,{" "}
               <Link href="/learn-japanese-hidive">HIDIVE</Link>,{" "}
+              <Link href="/learn-japanese-hulu">Hulu</Link>,{" "}
               <Link href="/blog/best-apps-learn-japanese-anime-2026">best apps 2026</Link>.
             </p>
           </div>

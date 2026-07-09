@@ -2,6 +2,152 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "migaku-free-alternative-2026",
+    title: "Migaku Free Alternative (2026): Start Before You Subscribe",
+    description:
+      "Looking for a Migaku free alternative? Compare free beginner anime tools vs Migaku's paid mining suite — and when paying actually makes sense.",
+    publishedAt: "2026-07-11T08:00:00.000Z",
+    updatedAt: "2026-07-11T08:00:00.000Z",
+    keywords: [
+      "migaku free alternative",
+      "migaku alternative free",
+      "free migaku alternative anime",
+      "migaku without subscription",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Search **Migaku free alternative** usually means: \"I like the idea of mining anime, but I am not ready for another subscription.\" Fair. Migaku is a power-user suite — not a month-zero on-ramp.",
+      },
+      { type: "h2", text: "Free paths that still teach" },
+      {
+        type: "ul",
+        items: [
+          "**AnimeVocab** — romaji-first cards + built-in SRS on streams you already watch ([hub](/free-japanese-anime-extension))",
+          "**asbplayer + Anki** — free but setup-heavy ([vs asbplayer](/vs-asbplayer))",
+          "**Language Reactor free tier** — Netflix/YouTube dual subs ([vs LR](/vs-language-reactor))",
+        ],
+      },
+      { type: "h2", text: "When Migaku is worth paying" },
+      {
+        type: "p",
+        text: "You already review daily, you can read kana, and you want deep mining automation. Read [is Migaku worth it?](/blog/is-migaku-worth-it-2026) and the full [vs Migaku](/vs-migaku) page before you subscribe.",
+      },
+      {
+        type: "p",
+        text: "Crunchyroll users: Migaku is not a CR magic wand — [CR alternatives](/blog/migaku-crunchyroll-alternative-2026).",
+      },
+    ],
+  },
+  {
+    slug: "cancel-migaku-keep-learning-anime-2026",
+    title: "Canceling Migaku? Keep Learning Japanese from Anime (2026)",
+    description:
+      "Leaving Migaku but still want anime immersion? Export mindset, free tool stack, and a simpler capture habit that survives without a subscription.",
+    publishedAt: "2026-07-11T08:30:00.000Z",
+    updatedAt: "2026-07-11T08:30:00.000Z",
+    keywords: [
+      "cancel migaku",
+      "migaku alternative after cancel",
+      "stop migaku keep learning japanese",
+      "migaku too expensive alternative",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Canceling **Migaku** does not cancel your Japanese. It cancels a workflow. Replace the workflow with something lighter you will actually open tonight.",
+      },
+      { type: "h2", text: "Keep these habits" },
+      {
+        type: "ul",
+        items: [
+          "Japanese audio on",
+          "Tiny daily review (even 5 cards)",
+          "One new word from real media — not zero",
+        ],
+      },
+      { type: "h2", text: "Simpler stack" },
+      {
+        type: "ol",
+        items: [
+          "Watch on Crunchyroll/Netflix/YouTube",
+          "Capture with [AnimeVocab](/free-japanese-anime-extension) if you need romaji / Listening Mode",
+          "Keep Anki only if you already love it ([beginner Anki](/blog/anki-anime-beginners-2026))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Comparisons: [Migaku free alternative](/blog/migaku-free-alternative-2026), [vs Migaku](/vs-migaku).",
+      },
+    ],
+  },
+  {
+    slug: "hulu-learn-japanese-anime-2026",
+    title: "Learn Japanese on Hulu Anime (2026 Guide)",
+    description:
+      "How to learn Japanese with Hulu anime — subtitle checks, US catalog tips, and a beginner capture method across platforms.",
+    publishedAt: "2026-07-11T09:00:00.000Z",
+    updatedAt: "2026-07-11T09:00:00.000Z",
+    keywords: [
+      "hulu learn japanese",
+      "learn japanese hulu anime",
+      "hulu japanese subtitles anime",
+      "hulu immersion japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    canonicalPath: "/learn-japanese-hulu",
+    blocks: [
+      {
+        type: "p",
+        text: "**Hulu** is in a lot of US living rooms. For Japanese learning, treat it like any licensed stream: verify audio/subs, keep enjoyment high, capture lightly.",
+      },
+      {
+        type: "p",
+        text: "Full hub: [learn Japanese on Hulu](/learn-japanese-hulu). Daily tooling often lives on [Crunchyroll](/learn-japanese-crunchyroll) or [Netflix](/learn-japanese-netflix-anime) with [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "jisho-vs-anime-vocabulary-tools-2026",
+    title: "Jisho vs Anime Vocabulary Tools (2026)",
+    description:
+      "Jisho is the dictionary. Anime tools are the capture loop. How to use both without turning every episode into a lookup marathon.",
+    publishedAt: "2026-07-11T09:30:00.000Z",
+    updatedAt: "2026-07-11T09:30:00.000Z",
+    keywords: [
+      "jisho anime vocabulary",
+      "jisho vs yomitan anime",
+      "best japanese dictionary anime",
+      "jisho immersion learning",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Jisho** (and similar dictionaries) answer \"what does this mean?\" They do not schedule review or attach the line to tonight's episode. That is why learners still need a capture tool.",
+      },
+      { type: "h2", text: "Healthy lookup rules" },
+      {
+        type: "ul",
+        items: [
+          "Look up after the scene, not every three seconds",
+          "Save only words you will review ([SRS](/anime-spaced-repetition))",
+          "Prefer tools that store context + meaning together",
+        ],
+      },
+      {
+        type: "p",
+        text: "Beginner path: [AnimeVocab](/free-japanese-anime-extension) for capture, Jisho when you need a deeper sense check. Related: [Yomitan alternatives for video](/blog/yomitan-anime-alternative-video-immersion-2026).",
+      },
+    ],
+  },
+  {
     slug: "bocchi-the-rock-learn-japanese-2026",
     title: "Bocchi the Rock! for Learning Japanese (2026)",
     description:
