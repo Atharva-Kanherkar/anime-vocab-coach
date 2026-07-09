@@ -84,6 +84,20 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/evangelion-learn-japanese-2026">Evangelion for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/hunter-x-hunter-learn-japanese-2026">HxH for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/code-geass-learn-japanese-2026">Code Geass for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/learn-japanese-with-anime-reddit-myths-2026">
+                    Reddit myths about anime immersion
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/cowboy-bebop-learn-japanese-2026">Cowboy Bebop for Japanese?</Link>
                 </li>
                 <li>

@@ -2,6 +2,119 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "evangelion-learn-japanese-2026",
+    title: "Neon Genesis Evangelion for Learning Japanese? (2026)",
+    description:
+      "Is Evangelion good for learning Japanese? Philosophical monologues vs usable speech — honest beginner advice.",
+    publishedAt: "2026-07-12T12:00:00.000Z",
+    updatedAt: "2026-07-12T12:00:00.000Z",
+    keywords: [
+      "evangelion learn japanese",
+      "neon genesis evangelion japanese study",
+      "eva immersion japanese",
+      "is evangelion good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Evangelion** will not teach clean beginner Japanese. Mine short character lines if you love the show; do not treat Instrumentality speeches as N5 material.",
+      },
+      {
+        type: "p",
+        text: "Start with [best beginner anime](/best-anime-to-learn-japanese). Tool later: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "hunter-x-hunter-learn-japanese-2026",
+    title: "Hunter x Hunter for Learning Japanese (2026)",
+    description:
+      "HxH for Japanese learners — adventure talk vs nen jargon, and which arcs are friendlier for listening practice.",
+    publishedAt: "2026-07-12T12:30:00.000Z",
+    updatedAt: "2026-07-12T12:30:00.000Z",
+    keywords: [
+      "hunter x hunter learn japanese",
+      "hxh japanese study",
+      "hunter x hunter immersion",
+      "hunterxhunter learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Hunter x Hunter** has warm early-arc dialogue and later denser power-system talk. Beginners: early Hunter Exam / friendship scenes. Skip nen lectures as vocab sources.",
+      },
+      {
+        type: "p",
+        text: "Similar advice to [FMA](/blog/fullmetal-alchemist-learn-japanese-2026). Method: [one word per episode](/blog/one-word-per-episode-method).",
+      },
+    ],
+  },
+  {
+    slug: "code-geass-learn-japanese-2026",
+    title: "Code Geass for Learning Japanese? (2026)",
+    description:
+      "Code Geass immersion — political speeches, school scenes, and whether beginners should use it for Japanese study.",
+    publishedAt: "2026-07-12T13:00:00.000Z",
+    updatedAt: "2026-07-12T13:00:00.000Z",
+    keywords: [
+      "code geass learn japanese",
+      "code geass japanese study",
+      "code geass immersion",
+      "is code geass good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Code Geass** mixes school banter with political monologues. Mine student-council / daily scenes; treat speeches as listening stamina, not flashcard fuel.",
+      },
+      {
+        type: "p",
+        text: "Beginner hub: [best anime](/best-anime-to-learn-japanese). Capture: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "learn-japanese-with-anime-reddit-myths-2026",
+    title: "Reddit Myths About Learning Japanese with Anime (2026)",
+    description:
+      "Common r/LearnJapanese myths about anime immersion — what is fair, what is gatekeeping, and a kinder beginner plan that still works.",
+    publishedAt: "2026-07-12T13:30:00.000Z",
+    updatedAt: "2026-07-12T13:30:00.000Z",
+    keywords: [
+      "reddit learn japanese anime myths",
+      "learn japanese anime reddit advice",
+      "anime immersion myths",
+      "r learnjapanese anime",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Reddit is full of true warnings and harsh absolutes. \"Never use romaji,\" \"only raw,\" \"Anki or die\" — some advice helps intermediates and crushes beginners.",
+      },
+      { type: "h2", text: "Myths to soften" },
+      {
+        type: "ul",
+        items: [
+          "**Romaji forever ruins you** — bridges are fine ([timing](/blog/hiragana-before-anime-or-after-2026))",
+          "**Anime is useless** — passive EN-sub anime is; active capture is not ([does anime help?](/blog/does-watching-anime-help-learn-japanese-2026))",
+          "**You must mine 20 cards/day** — one good card beats burnout",
+        ],
+      },
+      {
+        type: "p",
+        text: "Community synthesis: [Reddit advice roundup](/blog/learn-japanese-from-anime-reddit-2026). Kind stack: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "cowboy-bebop-learn-japanese-2026",
     title: "Cowboy Bebop for Learning Japanese? (2026)",
     description:
