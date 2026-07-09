@@ -137,6 +137,7 @@ export default function RomajiJapaneseLearningPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/blog/hiragana-before-anime-or-after-2026", label: "Hiragana before anime?" },
           { href: "/free-japanese-anime-extension", label: "Free extension" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },

@@ -2,6 +2,94 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "hiragana-before-anime-or-after-2026",
+    title: "Learn Hiragana Before Anime — or After? (2026)",
+    description:
+      "Should you finish hiragana before watching anime for Japanese study? Why romaji-first immersion can start tonight, and when kana becomes mandatory.",
+    publishedAt: "2026-07-09T23:00:00.000Z",
+    updatedAt: "2026-07-09T23:00:00.000Z",
+    keywords: [
+      "hiragana before anime",
+      "learn hiragana before watching anime",
+      "anime before hiragana",
+      "romaji before hiragana anime",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/04-fireflies.jpg",
+    canonicalPath: "/romaji-japanese-learning",
+    blocks: [
+      {
+        type: "p",
+        text: "Traditional advice: **finish hiragana before anime**. Practical advice for busy fans: **start anime tonight with romaji**, learn kana in parallel, switch display when ~50 words stick by sound. Both paths work — perfectionism kills the habit.",
+      },
+      { type: "h2", text: "Start anime first if…" },
+      {
+        type: "ul",
+        items: [
+          "You already watch weekly and will quit a 30-day kana course",
+          "You need motivation from shows you love",
+          "You have a romaji tool ([AnimeVocab](/free-japanese-anime-extension))",
+        ],
+      },
+      { type: "h2", text: "Finish kana first if…" },
+      {
+        type: "ul",
+        items: [
+          "You enjoy drills and want dictionaries ASAP",
+          "You plan to use Language Reactor / Yomitan immediately",
+        ],
+      },
+      {
+        type: "p",
+        text: "Romaji hub: [romaji Japanese learning](/romaji-japanese-learning). Immersion: [beginners guide](/blog/anime-immersion-beginners-guide-2026).",
+      },
+    ],
+  },
+  {
+    slug: "japanese-listening-practice-anime-2026",
+    title: "Japanese Listening Practice with Anime (2026 Routine)",
+    description:
+      "A daily Japanese listening practice routine using anime — clip shadowing, one-word capture, and free tools for Crunchyroll and Netflix.",
+    publishedAt: "2026-07-09T23:30:00.000Z",
+    updatedAt: "2026-07-09T23:30:00.000Z",
+    keywords: [
+      "japanese listening practice anime",
+      "anime listening practice japanese",
+      "improve japanese listening anime",
+      "japanese ear training anime",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Japanese listening practice with anime** works when you train **ears**, not just eyes on English subs. Use slow shows, short clips, and retrieval — not marathon bingeing.",
+      },
+      { type: "h2", text: "15-minute listening routine" },
+      {
+        type: "ol",
+        items: [
+          "Pick a Tier-1 show ([best anime](/best-anime-to-learn-japanese)).",
+          "Replay one 30–90s scene. Shadow one line ([shadowing](/blog/shadowing-anime-japanese-pronunciation)).",
+          "Save one word you heard clearly ([AnimeVocab](/free-japanese-anime-extension)).",
+          "Review yesterday's cards for five minutes ([SRS](/anime-spaced-repetition)).",
+        ],
+      },
+      { type: "h2", text: "Platform tips" },
+      {
+        type: "ul",
+        items: [
+          "Crunchyroll: audio-first / Listening Mode ([workflow](/blog/learn-japanese-while-watching-crunchyroll-2026))",
+          "Netflix: JP subs + dual-sub tools when you can read ([Netflix hub](/learn-japanese-netflix-anime))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Does anime help? [Honest answer](/blog/does-watching-anime-help-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
     slug: "passive-anime-watching-vs-active-study-2026",
     title: "Passive Anime Watching vs Active Study (2026): Fix the Trap",
     description:

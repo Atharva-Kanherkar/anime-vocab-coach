@@ -60,6 +60,8 @@ export const SEO_KEYWORDS = [
   "learn japanese while watching crunchyroll",
   "passive anime watching japanese",
   "best free japanese learning apps",
+  "hiragana before anime",
+  "japanese listening practice anime",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

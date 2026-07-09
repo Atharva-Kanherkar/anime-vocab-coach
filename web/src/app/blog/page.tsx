@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/japanese-listening-practice-anime-2026">
+                    Japanese listening practice with anime
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/hiragana-before-anime-or-after-2026">
+                    Hiragana before anime — or after?
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/best-free-japanese-learning-apps-anime-2026">
                     Best free Japanese apps for anime fans
                   </Link>
