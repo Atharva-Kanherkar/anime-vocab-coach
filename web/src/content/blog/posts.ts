@@ -2,6 +2,108 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "sazae-san-learn-japanese-2026",
+    title: "Sazae-san for Learning Japanese (2026): Everyday Family Speech",
+    description:
+      "Why Sazae-san helps Japanese beginners — repetitive family dialogue, cultural phrases, and a gentle study routine with romaji cards.",
+    publishedAt: "2026-07-09T20:00:00.000Z",
+    updatedAt: "2026-07-09T20:00:00.000Z",
+    keywords: [
+      "sazae-san learn japanese",
+      "sazaesan japanese study",
+      "best anime learn japanese family",
+      "sazae san vocabulary",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/03-wisteria.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**Sazae-san** is the ultra-long-running family comedy Japanese kids grew up with — and a sleeper pick for learners who want **everyday household Japanese**. Paired with Doraemon on our [best anime](/best-anime-to-learn-japanese) Tier 1 list.",
+      },
+      { type: "h2", text: "What you will hear" },
+      {
+        type: "ul",
+        items: [
+          "Family greetings and mealtime phrases",
+          "Neighborhood small talk",
+          "Repetition that makes SRS cards stick",
+        ],
+      },
+      { type: "h2", text: "Study loop" },
+      {
+        type: "ol",
+        items: [
+          "One short episode with [AnimeVocab](/free-japanese-anime-extension).",
+          "Save one family/daily word — not slang.",
+          "Review five minutes next day ([SRS](/anime-spaced-repetition)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Also try [Doraemon](/blog/doraemon-learn-japanese-2026) and [Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026). Method: [how to learn watching anime](/blog/how-to-learn-japanese-watching-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "anki-anime-beginners-2026",
+    title: "Anki for Anime Beginners (2026): When to Start (and When Not To)",
+    description:
+      "Should beginners use Anki for anime Japanese? When built-in SRS is enough, when to graduate to asbplayer sentence cards, and how to avoid Anki guilt.",
+    publishedAt: "2026-07-09T20:30:00.000Z",
+    updatedAt: "2026-07-09T20:30:00.000Z",
+    keywords: [
+      "anki anime beginners",
+      "anki japanese anime",
+      "should beginners use anki japanese",
+      "anime anki cards",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/11-cards.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Anki for anime beginners** is the #1 way people quit immersion. Power users swear by sentence mining. Month-zero learners drown in note types. Here is the honest timeline.",
+      },
+      { type: "h2", text: "Skip Anki at first if…" },
+      {
+        type: "ul",
+        items: [
+          "You cannot read hiragana yet",
+          "You have never kept a 7-day review streak",
+          "You watch Crunchyroll without JP subs and just need romaji cards",
+        ],
+      },
+      {
+        type: "p",
+        text: "Use [AnimeVocab built-in SRS](/free-japanese-anime-extension) or any light deck until the habit is boringly consistent ([SRS guide](/anime-spaced-repetition)).",
+      },
+      { type: "h2", text: "Graduate to Anki when…" },
+      {
+        type: "ul",
+        items: [
+          "You read Japanese subs and want sentence cards",
+          "You are ready for [asbplayer](/vs-asbplayer) or [SubMiner](/blog/subminer-vs-asbplayer-anime-mining-2026)",
+          "You will open Anki daily even on busy days",
+        ],
+      },
+      { type: "h2", text: "Anti-guilt rules" },
+      {
+        type: "ol",
+        items: [
+          "Cap new cards (5–10/day).",
+          "Prefer audio-forward notes from lines you actually heard.",
+          "Never mine a whole episode into 80 cards.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Immersion path: [beginners guide](/blog/anime-immersion-beginners-guide-2026). Tool map: [learn Japanese with anime](/learn-japanese-with-anime).",
+      },
+    ],
+  },
+  {
     slug: "free-ways-learn-japanese-anime-2026",
     title: "Free Ways to Learn Japanese from Anime (2026 Stack)",
     description:

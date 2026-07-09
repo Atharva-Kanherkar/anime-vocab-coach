@@ -102,7 +102,8 @@ export default function BestAnimePage() {
               </li>
               <li>
                 <strong>Doraemon / Sazae-san</strong> — repetitive family Japanese; classic beginner immersion
-                picks. <Link href="/blog/doraemon-learn-japanese-2026">Doraemon study guide →</Link>
+                picks. <Link href="/blog/doraemon-learn-japanese-2026">Doraemon</Link> ·{" "}
+                <Link href="/blog/sazae-san-learn-japanese-2026">Sazae-san study guide →</Link>
               </li>
             </ul>
 

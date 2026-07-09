@@ -84,6 +84,12 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/anki-anime-beginners-2026">Anki for anime beginners</Link>
+                </li>
+                <li>
+                  <Link href="/blog/sazae-san-learn-japanese-2026">Sazae-san for Japanese learners</Link>
+                </li>
+                <li>
                   <Link href="/blog/crunchyroll-japanese-learning-extension-2026">
                     Best Crunchyroll Japanese extensions
                   </Link>

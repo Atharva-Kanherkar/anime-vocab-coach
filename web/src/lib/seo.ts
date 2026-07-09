@@ -54,6 +54,8 @@ export const SEO_KEYWORDS = [
   "chrome extension learn japanese netflix",
   "crunchyroll japanese learning extension",
   "free ways learn japanese anime",
+  "anki anime beginners",
+  "sazae-san learn japanese",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
