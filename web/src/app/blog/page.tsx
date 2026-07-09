@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/how-long-learn-japanese-anime-2026">
+                    How long to learn Japanese with anime
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/stop-using-english-subtitles-japanese-2026">
+                    Stop relying on English subtitles
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/best-time-of-day-study-japanese-anime-2026">
                     Best time of day to study with anime
                   </Link>

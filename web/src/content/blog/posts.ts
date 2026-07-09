@@ -2,6 +2,87 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "how-long-learn-japanese-anime-2026",
+    title: "How Long to Learn Japanese with Anime? (2026 Realistic Timeline)",
+    description:
+      "How long does it take to learn Japanese with anime? Realistic timelines for listening, kana, and conversation — plus the daily habit that compounds.",
+    publishedAt: "2026-07-10T04:00:00.000Z",
+    updatedAt: "2026-07-10T04:00:00.000Z",
+    keywords: [
+      "how long learn japanese anime",
+      "how long to learn japanese with anime",
+      "learn japanese anime timeline",
+      "anime japanese how many months",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/10-coach.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**How long to learn Japanese with anime?** Not \"fluent in 90 days.\" A realistic path: **1 month** of nightly one-word capture, **3 months** of comfortable beginner listening on slow shows, **12+ months** toward real conversation — if you review daily.",
+      },
+      { type: "h2", text: "Milestones that matter" },
+      {
+        type: "ul",
+        items: [
+          "**Week 2** — you notice repeated words without English",
+          "**Month 1** — ~50–100 cards reviewed; kana starting",
+          "**Month 3** — Tier-1 shows feel easier; optional dual-sub tools",
+          "**Year 1** — broader listening; still not \"native\"",
+        ],
+      },
+      { type: "h2", text: "What speeds it up" },
+      {
+        type: "ol",
+        items: [
+          "Daily 5-min SRS ([guide](/anime-spaced-repetition))",
+          "Slow shows ([best anime](/best-anime-to-learn-japanese))",
+          "Free capture tool ([AnimeVocab](/free-japanese-anime-extension))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Method: [how to learn watching anime](/blog/how-to-learn-japanese-watching-anime-2026). Schedule: [best time of day](/blog/best-time-of-day-study-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "stop-using-english-subtitles-japanese-2026",
+    title: "How to Stop Relying on English Subtitles (2026 Transition)",
+    description:
+      "How to wean off English subtitles while watching anime — dual-sub steps, romaji bridges, and when to go Japanese-only without quitting.",
+    publishedAt: "2026-07-10T04:30:00.000Z",
+    updatedAt: "2026-07-10T04:30:00.000Z",
+    keywords: [
+      "stop using english subtitles japanese",
+      "wean off english subs anime",
+      "japanese only subtitles anime",
+      "remove english subtitles learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/09-faq.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "You do not need to **rip English subs off overnight**. Transition in stages so you keep watching.",
+      },
+      { type: "h2", text: "Four stages" },
+      {
+        type: "ol",
+        items: [
+          "**English + one-word capture** — still plot-safe ([passive vs active](/blog/passive-anime-watching-vs-active-study-2026))",
+          "**Romaji cards from audio** — [AnimeVocab](/free-japanese-anime-extension)",
+          "**JP + English dual subs** — Language Reactor / HASHIGO when you can read",
+          "**JP only on rewatches** — never on first watch of hard shows",
+        ],
+      },
+      {
+        type: "p",
+        text: "Why English alone fails: [deep dive](/blog/english-subtitles-not-learning-japanese). Netflix tools: [extension ranking](/blog/chrome-extension-learn-japanese-netflix-2026).",
+      },
+    ],
+  },
+  {
     slug: "kikis-delivery-service-learn-japanese-2026",
     title: "Kiki's Delivery Service for Learning Japanese (2026)",
     description:
