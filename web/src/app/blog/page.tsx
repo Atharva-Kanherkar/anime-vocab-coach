@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/best-time-of-day-study-japanese-anime-2026">
+                    Best time of day to study with anime
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/kikis-delivery-service-learn-japanese-2026">
+                    Kiki's Delivery Service for Japanese
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/youtube-vs-netflix-learn-japanese-anime-2026">
                     YouTube vs Netflix for Japanese
                   </Link>

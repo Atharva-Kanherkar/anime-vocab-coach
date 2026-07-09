@@ -106,7 +106,16 @@ export default function LearnJapaneseYoutubePage() {
           </div>
         </section>
       </main>
-      <SiteFooter links={[{ href: "/blog", label: "Blog" }, { href: GITHUB_URL, label: "GitHub" }]} />
+      <SiteFooter
+        links={[
+          { href: "/blog/youtube-vs-netflix-learn-japanese-anime-2026", label: "YouTube vs Netflix" },
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
+          { href: "/learn-japanese-netflix-anime", label: "Netflix" },
+          { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
+          { href: "/blog", label: "Blog" },
+          { href: GITHUB_URL, label: "GitHub" },
+        ]}
+      />
     </>
   );
 }

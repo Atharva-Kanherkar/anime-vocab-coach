@@ -2,6 +2,77 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "kikis-delivery-service-learn-japanese-2026",
+    title: "Kiki's Delivery Service for Learning Japanese (2026)",
+    description:
+      "Why Kiki's Delivery Service works for Japanese learners — everyday errands, feelings vocabulary, and a gentle Ghibli study routine after Totoro.",
+    publishedAt: "2026-07-10T03:00:00.000Z",
+    updatedAt: "2026-07-10T03:00:00.000Z",
+    keywords: [
+      "kiki delivery service learn japanese",
+      "kiki's delivery service japanese study",
+      "ghibli kiki japanese",
+      "best ghibli learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/04-sakura-night.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**Kiki's Delivery Service** is the Ghibli pick for **everyday errands and feelings** — work, friendship, confidence — after you finish [Totoro](/blog/totoro-learn-japanese-2026). Part of our [Ghibli guide](/blog/ghibli-movies-learn-japanese-2026).",
+      },
+      { type: "h2", text: "Study tips" },
+      {
+        type: "ol",
+        items: [
+          "Watch once for story.",
+          "Replay bakery / delivery scenes. Shadow one line.",
+          "Save one emotion or daily-life word with [AnimeVocab](/free-japanese-anime-extension) when possible.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Still hard? Stay on [Shirokuma](/blog/shirokuma-cafe-learn-japanese-2026) / [Doraemon](/blog/doraemon-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
+    slug: "best-time-of-day-study-japanese-anime-2026",
+    title: "Best Time of Day to Study Japanese with Anime (2026)",
+    description:
+      "When to watch anime for Japanese study — morning review, evening capture, and a realistic schedule that survives work and binge culture.",
+    publishedAt: "2026-07-10T03:30:00.000Z",
+    updatedAt: "2026-07-10T03:30:00.000Z",
+    keywords: [
+      "best time study japanese anime",
+      "when to watch anime learn japanese",
+      "japanese study schedule anime",
+      "anime study routine daily",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/10-coach.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "The **best time of day to study Japanese with anime** is the time you will actually keep. Still, a simple split works for most people: **review in the morning**, **capture at night**.",
+      },
+      { type: "h2", text: "Recommended split" },
+      {
+        type: "ul",
+        items: [
+          "**Morning (5 min)** — SRS review before phone scrolling ([SRS](/anime-spaced-repetition))",
+          "**Evening (20–40 min)** — one episode + one word ([method](/blog/one-word-per-episode-method))",
+          "**Weekend** — optional shadowing or [Word Manga](/blog/word-manga-vocabulary-practice-2026)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Tool: [free extension](/free-japanese-anime-extension). Habit design: [immersion beginners](/blog/anime-immersion-beginners-guide-2026).",
+      },
+    ],
+  },
+  {
     slug: "totoro-learn-japanese-2026",
     title: "My Neighbor Totoro for Learning Japanese (2026)",
     description:
@@ -105,7 +176,7 @@ export const blogPosts: BlogPost[] = [
         type: "ul",
         items: [
           "**My Neighbor Totoro** — gentle dialogue, family speech ([guide](/blog/totoro-learn-japanese-2026))",
-          "**Kiki's Delivery Service** — everyday errands and feelings",
+          "**Kiki's Delivery Service** — everyday errands and feelings ([guide](/blog/kikis-delivery-service-learn-japanese-2026))",
           "**Spirited Away** — richer vocab; save for after a month of slice-of-life",
         ],
       },
