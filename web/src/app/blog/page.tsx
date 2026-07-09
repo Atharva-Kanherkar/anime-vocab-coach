@@ -84,6 +84,20 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/chiikawa-learn-japanese-2026">Chiikawa for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/spy-x-family-learn-japanese-2026">Spy x Family for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/frieren-learn-japanese-2026">Frieren for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/chrome-web-store-japanese-anime-extension-2026">
+                    Chrome Web Store anime extension guide
+                  </Link>
+                </li>
+                <li>
                   <Link href="/learn-japanese-hidive">Learn Japanese on HIDIVE</Link>
                 </li>
                 <li>

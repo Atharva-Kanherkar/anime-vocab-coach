@@ -114,6 +114,14 @@ export default function BestAnimePage() {
                 <Link href="/blog/k-on-learn-japanese-2026">K-On! study guide →</Link>
               </li>
               <li>
+                <strong>Chiikawa</strong> — tiny episodes, low stress, great for daily streaks.{" "}
+                <Link href="/blog/chiikawa-learn-japanese-2026">Chiikawa study guide →</Link>
+              </li>
+              <li>
+                <strong>Spy x Family</strong> — mine family/school talk, skip dense spy jargon at first.{" "}
+                <Link href="/blog/spy-x-family-learn-japanese-2026">Spy x Family guide →</Link>
+              </li>
+              <li>
                 <strong>Studio Ghibli films</strong> — short runtime, emotional lines worth replaying in
                 clip-based study.{" "}
                 <Link href="/blog/ghibli-movies-learn-japanese-2026">Ghibli study guide →</Link>
@@ -122,6 +130,10 @@ export default function BestAnimePage() {
 
             <h2>Save for later</h2>
             <ul>
+              <li>
+                <strong>Frieren</strong> — beautiful pacing; better once basics stick.{" "}
+                <Link href="/blog/frieren-learn-japanese-2026">Honest Frieren take →</Link>
+              </li>
               <li>
                 <strong>Attack on Titan, Jujutsu Kaisen, Chainsaw Man</strong> — great shows, bad first
                 textbooks (slang, shouting, fantasy terms).

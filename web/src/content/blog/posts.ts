@@ -2,6 +2,175 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "chiikawa-learn-japanese-2026",
+    title: "Chiikawa for Learning Japanese (2026 Beginner Guide)",
+    description:
+      "Is Chiikawa good for learning Japanese? Short episodes, cute dialogue, and a practical capture workflow for beginners who want low-stress immersion.",
+    publishedAt: "2026-07-11T02:00:00.000Z",
+    updatedAt: "2026-07-11T02:00:00.000Z",
+    keywords: [
+      "chiikawa learn japanese",
+      "chiikawa japanese study",
+      "best cute anime learn japanese",
+      "chiikawa immersion beginners",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Chiikawa** is short, soft, and dialogue-light compared with shonen — which is exactly why stressed beginners finish episodes. You will not learn formal keigo from it, but you will practice listening without quitting.",
+      },
+      { type: "h2", text: "Why it works for month zero" },
+      {
+        type: "ul",
+        items: [
+          "Short runtime = easier daily streak",
+          "Emotional clarity even when words blur",
+          "Less battle jargon than action shows ([avoid shonen early](/blog/avoid-shonen-learn-japanese-beginners-2026))",
+        ],
+      },
+      { type: "h2", text: "Study method" },
+      {
+        type: "ol",
+        items: [
+          "Watch once for joy",
+          "Save **one** word or set phrase that stuck",
+          "Review tomorrow with [SRS](/anime-spaced-repetition)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Pair with other gentle picks: [Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026), [Non Non Biyori](/blog/non-non-biyori-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "spy-x-family-learn-japanese-2026",
+    title: "Spy x Family for Learning Japanese (2026)",
+    description:
+      "Can you learn Japanese with Spy x Family? Family dialogue, comedy timing, and a beginner-friendly capture plan that avoids mining every line.",
+    publishedAt: "2026-07-11T02:30:00.000Z",
+    updatedAt: "2026-07-11T02:30:00.000Z",
+    keywords: [
+      "spy x family learn japanese",
+      "spy family japanese study",
+      "best anime learn japanese 2026",
+      "anya learn japanese anime",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Spy x Family** mixes spy jargon with everyday family talk. Beginners should mine the **Forger household lines**, not every mission briefing.",
+      },
+      { type: "h2", text: "What to capture" },
+      {
+        type: "ul",
+        items: [
+          "Home / school / shopping scenes",
+          "Short comedy reactions you will reuse",
+          "Skip dense spy exposition on first pass",
+        ],
+      },
+      { type: "h2", text: "How to watch for study" },
+      {
+        type: "p",
+        text: "Japanese audio when available. One word per episode ([method](/blog/one-word-per-episode-method)). If JP subs are missing on your platform, use [Listening Mode](/learn-japanese-crunchyroll) via [AnimeVocab](/free-japanese-anime-extension).",
+      },
+      {
+        type: "p",
+        text: "More picks: [best anime to learn Japanese](/best-anime-to-learn-japanese).",
+      },
+    ],
+  },
+  {
+    slug: "frieren-learn-japanese-2026",
+    title: "Frieren for Learning Japanese (2026 Honest Take)",
+    description:
+      "Is Frieren good for Japanese learners? Beautiful dialogue and slower pacing — plus when beginners should wait and what to capture first.",
+    publishedAt: "2026-07-11T03:00:00.000Z",
+    updatedAt: "2026-07-11T03:00:00.000Z",
+    keywords: [
+      "frieren learn japanese",
+      "sousou no frieren japanese study",
+      "frieren immersion",
+      "fantasy anime learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Frieren: Beyond Journey's End** has thoughtful, clear delivery and emotional payoff — great for intermediate listening. Absolute beginners may drown in fantasy nouns.",
+      },
+      { type: "h2", text: "Who should start with Frieren" },
+      {
+        type: "ul",
+        items: [
+          "You already know basic particles",
+          "You can tolerate unknown nouns if the scene is clear",
+          "You want slower, reflective dialogue vs rapid comedy",
+        ],
+      },
+      { type: "h2", text: "Beginner alternative path" },
+      {
+        type: "p",
+        text: "If month zero, start with [slice-of-life](/blog/slice-of-life-anime-learn-japanese-2026) or [Chiikawa](/blog/chiikawa-learn-japanese-2026), then return to Frieren. Capture feelings words and everyday travel talk first — not spell names.",
+      },
+      {
+        type: "p",
+        text: "Tooling: [free extension](/free-japanese-anime-extension). Hub: [best anime](/best-anime-to-learn-japanese).",
+      },
+    ],
+  },
+  {
+    slug: "chrome-web-store-japanese-anime-extension-2026",
+    title: "Best Chrome Extensions to Learn Japanese from Anime (Store Guide 2026)",
+    description:
+      "What to look for in a Chrome Web Store Japanese anime learning extension — free tiers, Crunchyroll support, romaji, SRS, and privacy basics.",
+    publishedAt: "2026-07-11T03:30:00.000Z",
+    updatedAt: "2026-07-11T03:30:00.000Z",
+    keywords: [
+      "chrome web store japanese anime extension",
+      "chrome extension learn japanese anime",
+      "best chrome extension japanese subtitles",
+      "free chrome extension anime japanese",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "The Chrome Web Store is full of subtitle helpers. For **learning Japanese from anime**, ignore flashy dual-sub demos until you check four things: platform support, beginner readability, review loop, and permissions.",
+      },
+      { type: "h2", text: "Checklist before you install" },
+      {
+        type: "ol",
+        items: [
+          "**Where it works** — Netflix only vs Crunchyroll/YouTube too",
+          "**Can you start without kana?** — romaji-first matters ([guide](/romaji-japanese-learning))",
+          "**Do cards review themselves?** — [SRS](/anime-spaced-repetition) beats a graveyard notebook",
+          "**Permissions** — prefer local-first tools that explain Listening Mode clearly",
+        ],
+      },
+      { type: "h2", text: "Shortlist categories" },
+      {
+        type: "ul",
+        items: [
+          "Beginner on-ramp: [AnimeVocab](/free-japanese-anime-extension)",
+          "Power mining: Migaku / asbplayer ([comparisons](/vs-migaku))",
+          "Netflix dual subs: Language Reactor ([vs](/vs-language-reactor))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Longer roundup: [best Chrome extensions 2026](/blog/best-chrome-extensions-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "jpdb-vs-anime-vocabulary-2026",
     title: "jpdb vs Anime Vocabulary Capture (2026)",
     description:
