@@ -2,6 +2,84 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "italki-vs-anime-immersion-2026",
+    title: "iTalki vs Anime Immersion (2026): Tutors vs Watching",
+    description:
+      "iTalki tutors vs anime immersion — when paid speaking practice is worth it, and the free listening habit you should build first.",
+    publishedAt: "2026-07-10T17:00:00.000Z",
+    updatedAt: "2026-07-10T17:00:00.000Z",
+    keywords: [
+      "italki vs anime",
+      "italki or anime learn japanese",
+      "tutor vs immersion japanese anime",
+      "is italki worth it anime learner",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/07-pricing.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**iTalki vs anime immersion**: tutors correct your output. Anime fills your ears cheaply. Paying $10–20/hour before you can understand slow anime is usually early.",
+      },
+      { type: "h2", text: "Do anime first if…" },
+      {
+        type: "ul",
+        items: [
+          "Budget is tight",
+          "Listening is still hard on Tier-1 shows",
+          "You can build a free habit ([extension](/free-japanese-anime-extension))",
+        ],
+      },
+      { type: "h2", text: "Add iTalki when…" },
+      {
+        type: "ul",
+        items: [
+          "You can follow slow dialogue",
+          "You want correction and accountability",
+        ],
+      },
+      {
+        type: "p",
+        text: "Related: [HelloTalk vs anime](/blog/hello-talk-vs-anime-immersion-2026) · [is Migaku worth it?](/blog/is-migaku-worth-it-2026).",
+      },
+    ],
+  },
+  {
+    slug: "rosetta-stone-vs-anime-japanese-2026",
+    title: "Rosetta Stone vs Anime for Japanese (2026)",
+    description:
+      "Rosetta Stone's expensive immersion course vs free anime watching with SRS — honest cost comparison for anime fans who already have a content habit.",
+    publishedAt: "2026-07-10T17:30:00.000Z",
+    updatedAt: "2026-07-10T17:30:00.000Z",
+    keywords: [
+      "rosetta stone vs anime",
+      "rosetta stone or anime japanese",
+      "rosetta stone japanese anime fans",
+      "free alternative rosetta stone anime",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/07-pricing.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Rosetta Stone vs anime**: Rosetta sells polished immersion lessons. Anime is immersion you already pay for (or pirate less ideally — use legal streams). For anime fans, a free capture loop usually beats another subscription.",
+      },
+      { type: "h2", text: "Free alternative path" },
+      {
+        type: "ol",
+        items: [
+          "[AnimeVocab](/free-japanese-anime-extension) on CR/Netflix/YouTube",
+          "Slow shows ([best anime](/best-anime-to-learn-japanese))",
+          "Daily SRS ([guide](/anime-spaced-repetition))",
+        ],
+      },
+      {
+        type: "p",
+        text: "More free options: [free ways](/blog/free-ways-learn-japanese-anime-2026) · [Duolingo vs anime](/blog/duolingo-vs-anime-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
     slug: "ankiapp-vs-animevocab-srs-2026",
     title: "AnkiApp vs Built-in Anime SRS (2026): What Beginners Need",
     description:
