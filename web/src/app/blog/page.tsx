@@ -84,6 +84,24 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/demon-slayer-learn-japanese-beginners-2026">
+                    Demon Slayer for beginners?
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/jujutsu-kaisen-learn-japanese-2026">Jujutsu Kaisen for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/how-many-anime-episodes-learn-japanese-2026">
+                    How many episodes to learn Japanese?
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/yomichan-yomitan-anime-netflix-2026">
+                    Yomitan / Yomichan for Netflix anime
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/death-note-learn-japanese-2026">Death Note for Japanese?</Link>
                 </li>
                 <li>

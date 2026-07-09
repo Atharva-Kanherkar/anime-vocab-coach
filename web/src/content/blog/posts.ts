@@ -2,6 +2,137 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "demon-slayer-learn-japanese-beginners-2026",
+    title: "Demon Slayer for Learning Japanese? Beginners (2026)",
+    description:
+      "Is Demon Slayer / Kimetsu no Yaiba good for learning Japanese? Why beginners should wait — and what to mine if you watch anyway.",
+    publishedAt: "2026-07-11T18:00:00.000Z",
+    updatedAt: "2026-07-11T18:00:00.000Z",
+    keywords: [
+      "demon slayer learn japanese",
+      "kimetsu no yaiba japanese study",
+      "demon slayer immersion beginners",
+      "is demon slayer good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Demon Slayer** is beautiful and loud. Breathing styles and battle shouts make terrible first textbooks. Save it until everyday Japanese feels less alien.",
+      },
+      {
+        type: "p",
+        text: "If you watch anyway: mine family/quiet scenes only, one word max. Better starters: [best anime](/best-anime-to-learn-japanese). Related: [avoid shonen early](/blog/avoid-shonen-learn-japanese-beginners-2026).",
+      },
+    ],
+  },
+  {
+    slug: "jujutsu-kaisen-learn-japanese-2026",
+    title: "Jujutsu Kaisen for Learning Japanese? (2026)",
+    description:
+      "Jujutsu Kaisen immersion for Japanese learners — slang, fight audio, and an honest beginner verdict with a safer show ladder.",
+    publishedAt: "2026-07-11T18:30:00.000Z",
+    updatedAt: "2026-07-11T18:30:00.000Z",
+    keywords: [
+      "jujutsu kaisen learn japanese",
+      "jjk japanese study",
+      "jujutsu kaisen immersion",
+      "is jujutsu kaisen good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Jujutsu Kaisen** rewards fans — not month-zero learners. Slang, speed, and curse jargon will feel like noise if you cannot yet hear basic particles.",
+      },
+      {
+        type: "p",
+        text: "Ladder: slice-of-life → school shows → JJK later. Capture tool when ready: [AnimeVocab](/free-japanese-anime-extension). Same warning class as [AOT](/blog/attack-on-titan-learn-japanese-beginners-2026).",
+      },
+    ],
+  },
+  {
+    slug: "how-many-anime-episodes-learn-japanese-2026",
+    title: "How Many Anime Episodes to Learn Japanese? (2026 Reality Check)",
+    description:
+      "How many anime episodes until you \"learn Japanese\"? Honest timelines, why episode count lies, and a weekly habit that compounds.",
+    publishedAt: "2026-07-11T19:00:00.000Z",
+    updatedAt: "2026-07-11T19:00:00.000Z",
+    keywords: [
+      "how many anime episodes learn japanese",
+      "how much anime to learn japanese",
+      "anime episodes japanese fluency",
+      "watch anime learn japanese timeline",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "There is no magic number of episodes. **100 passive English-sub episodes** teach less than **30 episodes with one captured word + review**.",
+      },
+      { type: "h2", text: "Better metrics" },
+      {
+        type: "ul",
+        items: [
+          "Words reviewed this week (not episodes finished)",
+          "Minutes of Japanese audio with attention",
+          "Streak of capture days ([one word method](/blog/one-word-per-episode-method))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Timeline honesty: [how long with anime](/blog/how-long-learn-japanese-anime-2026). Is anime enough?: [guide](/blog/is-anime-enough-to-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
+    slug: "yomichan-yomitan-anime-netflix-2026",
+    title: "Yomichan / Yomitan for Anime on Netflix (2026)",
+    description:
+      "Yomichan became Yomitan — how pop-up dictionaries help Netflix anime learners, limits for beginners, and video-first alternatives.",
+    publishedAt: "2026-07-11T19:30:00.000Z",
+    updatedAt: "2026-07-11T19:30:00.000Z",
+    keywords: [
+      "yomitan netflix anime",
+      "yomichan anime learning",
+      "yomitan japanese subtitles",
+      "yomitan alternative beginners",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Yomitan** (formerly Yomichan) is the immersion community's pop-up dictionary. On Netflix it shines when **Japanese subtitle text** is selectable — useless if you cannot read yet or the track is missing.",
+      },
+      { type: "h2", text: "Use Yomitan when" },
+      {
+        type: "ul",
+        items: [
+          "JP subs are on screen and you can click tokens",
+          "You already know kana",
+          "You export or review somehow (Anki / mining)",
+        ],
+      },
+      { type: "h2", text: "Use a beginner tool when" },
+      {
+        type: "ul",
+        items: [
+          "You need romaji-first ([path](/romaji-japanese-learning))",
+          "You live on Crunchyroll without JP text ([guide](/learn-japanese-crunchyroll))",
+          "You want built-in SRS without Anki day one",
+        ],
+      },
+      {
+        type: "p",
+        text: "Deeper: [Yomitan anime alternatives](/blog/yomitan-anime-alternative-video-immersion-2026). Free on-ramp: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "death-note-learn-japanese-2026",
     title: "Death Note for Learning Japanese? (2026 Honest Answer)",
     description:

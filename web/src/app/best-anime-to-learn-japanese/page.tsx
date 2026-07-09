@@ -161,8 +161,11 @@ export default function BestAnimePage() {
                 <Link href="/blog/vinland-saga-learn-japanese-2026">Vinland →</Link>
               </li>
               <li>
-                <strong>Attack on Titan, Jujutsu Kaisen, Chainsaw Man</strong> — great shows, bad first
-                textbooks (slang, shouting, fantasy terms).
+                <strong>Attack on Titan, Jujutsu Kaisen, Demon Slayer, Chainsaw Man</strong> — great shows,
+                bad first textbooks (slang, shouting, fantasy terms).{" "}
+                <Link href="/blog/attack-on-titan-learn-japanese-beginners-2026">AOT</Link> ·{" "}
+                <Link href="/blog/jujutsu-kaisen-learn-japanese-2026">JJK</Link> ·{" "}
+                <Link href="/blog/demon-slayer-learn-japanese-beginners-2026">Demon Slayer →</Link>
               </li>
               <li>
                 <strong>Heavy dialect comedy</strong> — fun once you hear standard Tokyo pitch reliably.
