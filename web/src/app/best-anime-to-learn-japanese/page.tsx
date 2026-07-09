@@ -214,6 +214,10 @@ export default function BestAnimePage() {
               <Link href="/blog/best-anime-to-learn-japanese-beginners">
                 Best anime to learn Japanese for beginners (2026 ranked)
               </Link>
+              . Films:{" "}
+              <Link href="/blog/best-anime-movies-learn-japanese-2026">
+                best anime movies for Japanese
+              </Link>
               . Workflow: <Link href="/blog/one-word-per-episode-method">one word per episode</Link>,{" "}
               <Link href="/anime-spaced-repetition">spaced repetition</Link>,{" "}
               <Link href="/free-japanese-anime-extension">free extension</Link>, tools on{" "}

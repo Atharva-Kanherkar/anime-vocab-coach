@@ -2,6 +2,130 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "mob-psycho-100-learn-japanese-2026",
+    title: "Mob Psycho 100 for Learning Japanese (2026)",
+    description:
+      "Mob Psycho 100 for Japanese learners — office/school talk vs psychic battles, and what beginners should mine.",
+    publishedAt: "2026-07-12T16:00:00.000Z",
+    updatedAt: "2026-07-12T16:00:00.000Z",
+    keywords: [
+      "mob psycho 100 learn japanese",
+      "mob psycho japanese study",
+      "mob psycho immersion",
+      "mob psycho 100 japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Mob Psycho 100** has surprisingly grounded body-improvement and friendship talk under the psychic chaos. Mine Reigen office scenes and school lines; skip power-screaming as vocab.",
+      },
+      {
+        type: "p",
+        text: "Similar energy to [Spy x Family](/blog/spy-x-family-learn-japanese-2026) for \"human talk first.\" Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "one-punch-man-learn-japanese-2026",
+    title: "One Punch Man for Learning Japanese? (2026)",
+    description:
+      "Is One Punch Man good for Japanese study? Comedy timing, hero jargon, and an honest beginner verdict.",
+    publishedAt: "2026-07-12T16:30:00.000Z",
+    updatedAt: "2026-07-12T16:30:00.000Z",
+    keywords: [
+      "one punch man learn japanese",
+      "one punch man japanese study",
+      "opm immersion japanese",
+      "is one punch man good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**One Punch Man** is comedy-fast with hero-association jargon. Fun listening stamina; weak as a first textbook. Mine deadpan Saitama lines if you must.",
+      },
+      {
+        type: "p",
+        text: "Safer starters: [best anime](/best-anime-to-learn-japanese). Related: [avoid shonen early](/blog/avoid-shonen-learn-japanese-beginners-2026).",
+      },
+    ],
+  },
+  {
+    slug: "dan-da-dan-learn-japanese-2026",
+    title: "Dan Da Dan for Learning Japanese? (2026)",
+    description:
+      "Dandadan / Dan Da Dan for Japanese learners — chaotic comedy speed, slang, and whether beginners should wait.",
+    publishedAt: "2026-07-12T17:00:00.000Z",
+    updatedAt: "2026-07-12T17:00:00.000Z",
+    keywords: [
+      "dandadan learn japanese",
+      "dan da dan japanese study",
+      "dandadan immersion",
+      "dandadan japanese learners",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Dan Da Dan** is chaotic, slangy, and hilarious — great taste, rough month-zero immersion. Save it until you can follow calmer shows without melting.",
+      },
+      {
+        type: "p",
+        text: "If you watch anyway: one word max from quiet scenes. Ladder: [Chiikawa](/blog/chiikawa-learn-japanese-2026) → school shows → Dandadan. Tool: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "best-anime-movies-learn-japanese-2026",
+    title: "Best Anime Movies to Learn Japanese (2026)",
+    description:
+      "Best anime movies for learning Japanese — Ghibli, Shinkai, and emotional films ranked for clear dialogue and rewatch value.",
+    publishedAt: "2026-07-12T17:30:00.000Z",
+    updatedAt: "2026-07-12T17:30:00.000Z",
+    keywords: [
+      "best anime movies learn japanese",
+      "anime films japanese study",
+      "best japanese movies anime learners",
+      "ghibli movies learn japanese",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Movies beat series for **rewatch mining** — finite runtime, emotional peaks, lines you will hear again. Start soft; save dense epics for later.",
+      },
+      { type: "h2", text: "Beginner-friendly films" },
+      {
+        type: "ul",
+        items: [
+          "[My Neighbor Totoro](/blog/totoro-learn-japanese-2026)",
+          "[Kiki's Delivery Service](/blog/kikis-delivery-service-learn-japanese-2026)",
+          "[Spirited Away](/blog/spirited-away-learn-japanese-2026) (rewatch)",
+          "[Your Name](/blog/your-name-learn-japanese-2026)",
+        ],
+      },
+      { type: "h2", text: "After a month" },
+      {
+        type: "ul",
+        items: [
+          "[A Silent Voice](/blog/a-silent-voice-learn-japanese-2026)",
+          "[Weathering with You](/blog/weathering-with-you-learn-japanese-2026)",
+          "[Howl's Moving Castle](/blog/howls-moving-castle-learn-japanese-2026)",
+          "[Violet Evergarden](/blog/violet-evergarden-learn-japanese-2026) (series/film vibes)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Series hub: [best anime to learn Japanese](/best-anime-to-learn-japanese). Capture: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "clannad-learn-japanese-2026",
     title: "Clannad for Learning Japanese (2026)",
     description:
