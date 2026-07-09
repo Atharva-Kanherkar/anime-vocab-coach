@@ -84,6 +84,12 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/busuu-vs-anime-learn-japanese-2026">Busuu vs anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/memrise-vs-anime-vocabulary-2026">Memrise vs anime vocab</Link>
+                </li>
+                <li>
                   <Link href="/blog/italki-vs-anime-immersion-2026">iTalki vs anime immersion</Link>
                 </li>
                 <li>

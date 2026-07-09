@@ -2,6 +2,75 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "busuu-vs-anime-learn-japanese-2026",
+    title: "Busuu vs Anime for Learning Japanese (2026)",
+    description:
+      "Busuu's structured lessons vs anime immersion — when a course app helps, when your watchlist is enough, and a free hybrid habit.",
+    publishedAt: "2026-07-10T18:00:00.000Z",
+    updatedAt: "2026-07-10T18:00:00.000Z",
+    keywords: [
+      "busuu vs anime",
+      "busuu or anime japanese",
+      "busuu japanese anime fans",
+      "structured course vs anime immersion",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/07-pricing.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Busuu vs anime**: Busuu gives a curriculum and corrections. Anime gives listening you will not skip. If you already open Crunchyroll nightly, add capture+SRS before another course subscription.",
+      },
+      { type: "h2", text: "Hybrid that works" },
+      {
+        type: "ul",
+        items: [
+          "Optional: Busuu/textbook 10 min for grammar scaffolding",
+          "Required: anime + [AnimeVocab](/free-japanese-anime-extension) for listening vocab",
+        ],
+      },
+      {
+        type: "p",
+        text: "Also see: [Duolingo vs anime](/blog/duolingo-vs-anime-learn-japanese-2026) · [is anime enough?](/blog/is-anime-enough-to-learn-japanese-2026).",
+      },
+    ],
+  },
+  {
+    slug: "memrise-vs-anime-vocabulary-2026",
+    title: "Memrise vs Learning Vocabulary from Anime (2026)",
+    description:
+      "Memrise video clips vs mining vocabulary from the anime you already watch — which sticks better, and the free alternative for streamers.",
+    publishedAt: "2026-07-10T18:30:00.000Z",
+    updatedAt: "2026-07-10T18:30:00.000Z",
+    keywords: [
+      "memrise vs anime",
+      "memrise or anime vocabulary",
+      "memrise japanese anime",
+      "learn vocab from anime not memrise",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/11-cards.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Memrise vs anime vocabulary**: Memrise uses short native clips in a course. Anime uses *your* shows. Personal context usually wins for retention — if you review.",
+      },
+      { type: "h2", text: "Prefer anime mining if…" },
+      {
+        type: "ul",
+        items: [
+          "You watch the same series weekly",
+          "You want words tied to scenes you love",
+          "You use [AnimeVocab](/free-japanese-anime-extension) or Anki from immersion",
+        ],
+      },
+      {
+        type: "p",
+        text: "SRS science: [spaced repetition](/anime-spaced-repetition). Free apps: [best free apps](/blog/best-free-japanese-learning-apps-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "italki-vs-anime-immersion-2026",
     title: "iTalki vs Anime Immersion (2026): Tutors vs Watching",
     description:
