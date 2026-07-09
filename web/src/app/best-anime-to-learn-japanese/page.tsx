@@ -97,7 +97,8 @@ export default function BestAnimePage() {
                 <Link href="/blog/shirokuma-cafe-learn-japanese-2026">Shirokuma Cafe study guide</Link>.
               </li>
               <li>
-                <strong>Non Non Biyori</strong> — rural slice-of-life, long pauses, perfect for shadowing.
+                <strong>Non Non Biyori</strong> — rural slice-of-life, long pauses, perfect for shadowing.{" "}
+                <Link href="/blog/non-non-biyori-learn-japanese-2026">Study guide →</Link>
               </li>
               <li>
                 <strong>Doraemon / Sazae-san</strong> — repetitive family Japanese; classic beginner immersion

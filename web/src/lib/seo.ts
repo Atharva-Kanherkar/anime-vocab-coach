@@ -44,6 +44,8 @@ export const SEO_KEYWORDS = [
   "learn japanese prime video",
   "shirokuma cafe learn japanese",
   "polar bear cafe japanese",
+  "non non biyori learn japanese",
+  "is migaku worth it",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

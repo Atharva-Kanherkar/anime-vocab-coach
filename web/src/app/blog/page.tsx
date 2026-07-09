@@ -84,6 +84,14 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/is-migaku-worth-it-2026">Is Migaku worth it? (2026)</Link>
+                </li>
+                <li>
+                  <Link href="/blog/non-non-biyori-learn-japanese-2026">
+                    Non Non Biyori for Japanese learners
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/shirokuma-cafe-learn-japanese-2026">
                     Shirokuma Cafe for Japanese learners
                   </Link>

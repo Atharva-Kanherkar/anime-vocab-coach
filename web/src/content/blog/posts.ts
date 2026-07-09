@@ -2,6 +2,95 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "non-non-biyori-learn-japanese-2026",
+    title: "Non Non Biyori for Learning Japanese (2026): Slow Rural Immersion",
+    description:
+      "Why Non Non Biyori is one of the best anime for Japanese beginners — long pauses, simple sentences, and a shadowing-friendly study routine.",
+    publishedAt: "2026-07-09T15:00:00.000Z",
+    updatedAt: "2026-07-09T15:00:00.000Z",
+    keywords: [
+      "non non biyori learn japanese",
+      "non non biyori japanese study",
+      "best slice of life anime japanese",
+      "slow anime learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/04-fireflies.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**Non Non Biyori** is the rural slice-of-life pick for learners who find even Shirokuma Cafe a bit chatty. Long pauses, simple sentences, and low emotional stakes mean you can **shadow lines** without drowning in plot. It ranks Tier 1 on our [best anime for beginners](/best-anime-to-learn-japanese) list.",
+      },
+      { type: "h2", text: "Study routine that fits the show" },
+      {
+        type: "ol",
+        items: [
+          "Watch one episode — keep English subs if you need them.",
+          "Pause on a clear line. Repeat aloud matching rhythm ([shadowing guide](/blog/shadowing-anime-japanese-pronunciation)).",
+          "Save one word into AnimeVocab ([free extension](/free-japanese-anime-extension)).",
+          "Review five minutes before the next episode ([SRS](/anime-spaced-repetition)).",
+        ],
+      },
+      { type: "h2", text: "Pair with Shirokuma Cafe" },
+      {
+        type: "p",
+        text: "Alternate weeks: Shirokuma for cafe/daily vocab ([guide](/blog/shirokuma-cafe-learn-japanese-2026)), Non Non Biyori for countryside speech and patience. Avoid jumping to shonen until both feel easy by ear.",
+      },
+      {
+        type: "p",
+        text: "Platform tips: [Crunchyroll](/learn-japanese-crunchyroll) · [Netflix](/learn-japanese-netflix-anime) · [romaji path](/romaji-japanese-learning).",
+      },
+    ],
+  },
+  {
+    slug: "is-migaku-worth-it-2026",
+    title: "Is Migaku Worth It in 2026? Honest Cost vs Alternatives",
+    description:
+      "Migaku pricing, who actually needs the mining suite, and free alternatives — AnimeVocab, Language Reactor, asbplayer — before you pay for immersion tooling.",
+    publishedAt: "2026-07-09T15:30:00.000Z",
+    updatedAt: "2026-07-09T15:30:00.000Z",
+    keywords: [
+      "is migaku worth it",
+      "migaku pricing 2026",
+      "migaku free alternative",
+      "migaku vs free tools",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/07-pricing.jpg",
+    canonicalPath: "/vs-migaku",
+    blocks: [
+      {
+        type: "p",
+        text: "**Is Migaku worth it?** Only if you already read Japanese subtitles, want a deep Anki mining pipeline, and will use the suite daily. For month-zero anime fans — or anyone on **Crunchyroll** — paying for Migaku first is usually the wrong buy. Side-by-side: [AnimeVocab vs Migaku](/vs-migaku).",
+      },
+      { type: "h2", text: "What you pay for" },
+      {
+        type: "ul",
+        items: [
+          "Browser mining with pitch accent and rich card fields",
+          "Mobile apps and a polished review ecosystem",
+          "Setup time — dictionaries, note types, platform quirks",
+        ],
+      },
+      { type: "h2", text: "Try these before you subscribe" },
+      {
+        type: "ul",
+        items: [
+          "**Free romaji on-ramp** — [AnimeVocab](/free-japanese-anime-extension)",
+          "**Free Netflix dual subs** — Language Reactor ([comparison](/vs-language-reactor))",
+          "**Free Anki mining** — [asbplayer](/vs-asbplayer) or [SubMiner](/blog/subminer-vs-asbplayer-anime-mining-2026)",
+          "**Crunchyroll readers** — [Lexirise](/vs-lexirise) / [ManabiDojo](/vs-manabidojo) (Migaku skips CR — [details](/blog/migaku-crunchyroll-alternative-2026))",
+        ],
+      },
+      { type: "h2", text: "When Migaku is worth it" },
+      {
+        type: "p",
+        text: "You mine Netflix/YouTube daily, already maintain Anki, and want one paid ecosystem instead of duct-taping free tools. If that is not you yet, keep the money and build the habit first. Ranking: [best apps 2026](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "shirokuma-cafe-learn-japanese-2026",
     title: "Shirokuma Cafe for Learning Japanese (2026): Why It Still Wins",
     description:

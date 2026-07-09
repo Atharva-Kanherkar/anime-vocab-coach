@@ -251,6 +251,7 @@ export default function VsMigakuPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/blog/is-migaku-worth-it-2026", label: "Is Migaku worth it?" },
           { href: "/blog/migaku-crunchyroll-alternative-2026", label: "Migaku Crunchyroll alt" },
           { href: "/free-japanese-anime-extension", label: "Free extension" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
