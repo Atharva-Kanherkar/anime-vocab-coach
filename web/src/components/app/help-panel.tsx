@@ -10,8 +10,8 @@ export function HelpPanel() {
         Install the Chrome extension
       </h2>
       <p className="mt-3 max-w-[52ch] text-[15.5px] leading-relaxed text-ink2">
-        The Chrome Web Store listing is still in review. Until one-click install is live, load the
-        extension manually — about three minutes, no GitHub account needed.
+        One-click install from the Chrome Web Store. Prefer a zip? The guide below still covers
+        load-unpacked as a fallback.
       </p>
       <div className="mt-10">
         <ExtensionInstallGuide />

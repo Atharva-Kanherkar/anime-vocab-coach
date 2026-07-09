@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthControls, SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { LandingJsonLd } from "@/components/landing-json-ld";
-import { getPromoState, GITHUB_URL, SITE_URL } from "@/lib/site";
+import { getPromoState, SITE_URL, installUrl } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -46,7 +46,7 @@ export default function CloudPage() {
                 notebooks, streaks, and leaderboards without taking away the free extension.
               </p>
               <div className="hero-cta">
-                <a className="btn btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
+                <a className="btn btn-accent" href={installUrl()} rel="noopener noreferrer">
                   Install free extension
                 </a>
                 <AuthControls />

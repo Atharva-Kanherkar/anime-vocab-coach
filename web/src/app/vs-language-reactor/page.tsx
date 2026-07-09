@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
+import { GITHUB_URL, SITE_URL, TIERS, installUrl } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/vs-language-reactor";
@@ -254,7 +254,7 @@ export default function VsLanguageReactorPage() {
         <section className="closing">
           <div className="wrap narrow">
             <h2>Start before you can read a single kana.</h2>
-            <a className="btn btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
+            <a className="btn btn-accent" href={installUrl()} rel="noopener noreferrer">
               Add AnimeVocab to Chrome (free)
             </a>
           </div>

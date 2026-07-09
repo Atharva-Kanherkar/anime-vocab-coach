@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { GITHUB_URL } from "@/lib/site";
+import { installUrl } from "@/lib/site";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
 
 export function AppTopNav() {
@@ -11,7 +11,7 @@ export function AppTopNav() {
       </Link>
       <nav aria-label="App">
         <Link href="/app">Dashboard</Link>
-        <a href={GITHUB_URL} rel="noopener noreferrer">
+        <a href={installUrl()} rel="noopener noreferrer">
           Extension
         </a>
       </nav>

@@ -2,11 +2,11 @@ export const SITE_URL = "https://animevocab.com";
 export const GITHUB_URL = "https://github.com/Atharva-Kanherkar/anime-vocab-coach";
 export const SPONSOR_URL = "https://github.com/sponsors/Atharva-Kanherkar";
 
-// Chrome Web Store listing. Empty until Google approves the listing. Paste the
-// store URL here to flip every "Add to Chrome" CTA across the whole site at once
-// — nothing else to change. While it's empty, installUrl() falls back to the
-// GitHub repo (load-unpacked install).
-export const CHROME_STORE_URL = "";
+// Chrome Web Store listing. Paste the store URL here to flip every "Add to
+// Chrome" CTA across the whole site at once. While empty, installUrl() falls
+// back to the in-app Help guide (load-unpacked).
+export const CHROME_STORE_URL =
+  "https://chromewebstore.google.com/detail/animevocab-learn-japanese/lkjbomofgfonjjbemobacegffepbdnel";
 
 /** Direct download of the packed extension (built in CI → web/public/downloads/). */
 export const EXTENSION_DOWNLOAD_URL = `${SITE_URL}/downloads/animevocab-chrome-extension.zip`;

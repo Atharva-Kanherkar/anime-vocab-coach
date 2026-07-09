@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { GITHUB_URL, SITE_URL, installUrl } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/free-japanese-anime-extension";
@@ -137,10 +137,10 @@ export default function FreeJapaneseAnimeExtensionPage() {
             <ol>
               <li>
                 Open the{" "}
-                <a href={GITHUB_URL} rel="noopener noreferrer">
-                  AnimeVocab GitHub repo
+                <a href={installUrl()} rel="noopener noreferrer">
+                  Chrome Web Store listing
                 </a>{" "}
-                / Chrome install path.
+                and add AnimeVocab in one click.
               </li>
               <li>Pin the extension. Open Crunchyroll, Netflix, or YouTube anime.</li>
               <li>Keep English subs if you want — save one romaji word per line.</li>
@@ -159,7 +159,7 @@ export default function FreeJapaneseAnimeExtensionPage() {
         <section className="closing">
           <div className="wrap narrow">
             <h2>Free tonight. Keep the habit forever.</h2>
-            <a className="btn btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
+            <a className="btn btn-accent" href={installUrl()} rel="noopener noreferrer">
               Add AnimeVocab to Chrome (free)
             </a>
           </div>

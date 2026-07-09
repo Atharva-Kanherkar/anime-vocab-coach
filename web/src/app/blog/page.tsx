@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { blogPosts } from "@/content/blog/posts";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { GITHUB_URL, SITE_URL, installUrl } from "@/lib/site";
 import { blogJsonLd, defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -873,7 +873,7 @@ export default function BlogIndexPage() {
         <section className="closing">
           <div className="wrap narrow">
             <h2>Ready to learn from tonight&apos;s episode?</h2>
-            <a className="btn btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
+            <a className="btn btn-accent" href={installUrl()} rel="noopener noreferrer">
               Add AnimeVocab to Chrome
             </a>
           </div>

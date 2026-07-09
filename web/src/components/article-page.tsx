@@ -4,7 +4,7 @@ import { ArticleBody } from "@/components/article-body";
 import { Breadcrumbs } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import type { BlogPost } from "@/content/blog/types";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { GITHUB_URL, SITE_URL, installUrl } from "@/lib/site";
 import { articleJsonLd, defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export function blogMetadata(post: BlogPost): Metadata {
@@ -94,7 +94,7 @@ export function ArticlePageShell({
             <p style={{ color: "var(--ink-2)", marginBottom: 18 }}>
               AnimeVocab works on Crunchyroll, Netflix, and YouTube — romaji-first, one useful word per line.
             </p>
-            <a className="btn btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
+            <a className="btn btn-accent" href={installUrl()} rel="noopener noreferrer">
               Add to Chrome (free)
             </a>
           </div>

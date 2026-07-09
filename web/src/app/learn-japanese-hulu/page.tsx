@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { GITHUB_URL, SITE_URL, installUrl } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/learn-japanese-hulu";
@@ -149,7 +149,7 @@ export default function LearnJapaneseHuluPage() {
         <section className="closing">
           <div className="wrap narrow">
             <h2>Your library only helps if you capture.</h2>
-            <a className="btn btn-accent" href={GITHUB_URL} rel="noopener noreferrer">
+            <a className="btn btn-accent" href={installUrl()} rel="noopener noreferrer">
               Add AnimeVocab to Chrome
             </a>
           </div>

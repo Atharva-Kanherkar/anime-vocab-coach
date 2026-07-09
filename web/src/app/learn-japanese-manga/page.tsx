@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { SITE_URL, installUrl } from "@/lib/site";
 import { articleJsonLd, defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const FAQ = [
@@ -196,7 +196,7 @@ export default function LearnJapaneseMangaPage() {
               <Link className="btn btn-accent" href="/studio">
                 Open Manga Studio
               </Link>
-              <a className="btn btn-line" href={GITHUB_URL} rel="noopener noreferrer">
+              <a className="btn btn-line" href={installUrl()} rel="noopener noreferrer">
                 Add extension (free)
               </a>
             </div>

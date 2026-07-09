@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { installUrl } from "@/lib/site";
 
 const STEPS = [
   {
     n: "01",
     title: "Install the extension",
-    body: "Works on Crunchyroll, Netflix, and YouTube. The Chrome Web Store listing is coming soon — use the Help tab for a simple manual install.",
+    body: "Works on Crunchyroll, Netflix, and YouTube. Add it from the Chrome Web Store in one click — Help has a zip fallback if you need it.",
   },
   {
     n: "02",
@@ -59,13 +60,13 @@ export function GettingStarted() {
       </div>
 
       <div className="mt-10 flex flex-wrap items-center gap-4">
-        <Link href="/app#help" className="av-btn av-btn-primary">
-          Install extension
-        </Link>
+        <a href={installUrl()} className="av-btn av-btn-primary" rel="noopener noreferrer">
+          Add to Chrome
+        </a>
         <span className="text-[13px] text-ink3">
           Free — words stay on your device.{" "}
           <Link href="/app#help" className="font-bold text-indigo underline hover:text-ink">
-            Help with install →
+            Install help →
           </Link>
         </span>
       </div>

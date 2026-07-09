@@ -1,4 +1,4 @@
-import { GITHUB_URL, SITE_URL } from "@/lib/site";
+import { CHROME_STORE_URL, GITHUB_URL, SITE_URL } from "@/lib/site";
 
 export const SITE_NAME = "AnimeVocab";
 export const SITE_TAGLINE = "Learn Japanese from the anime you watch";
@@ -402,7 +402,11 @@ export function homeJsonLd() {
           width: 512,
           height: 512,
         },
-        sameAs: [GITHUB_URL, "https://x.com/attharrva15"],
+        sameAs: [
+          GITHUB_URL,
+          "https://x.com/attharrva15",
+          CHROME_STORE_URL,
+        ].filter(Boolean),
       },
       webApplicationJsonLd({
         id: `${SITE_URL}/#extension`,
@@ -411,7 +415,7 @@ export function homeJsonLd() {
         url: SITE_URL,
         operatingSystem: "Chrome",
         applicationCategory: "EducationalApplication",
-        downloadUrl: GITHUB_URL,
+        downloadUrl: CHROME_STORE_URL || GITHUB_URL,
         featureList: [
           "Romaji-first vocabulary cards",
           "Spaced repetition while watching",
