@@ -68,6 +68,8 @@ export const SEO_KEYWORDS = [
   "netflix vs crunchyroll learn japanese",
   "how long learn japanese anime",
   "stop using english subtitles japanese",
+  "is anime enough to learn japanese",
+  "crunchyroll no japanese subtitles extension",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",

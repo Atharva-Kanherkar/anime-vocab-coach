@@ -2,6 +2,95 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "is-anime-enough-to-learn-japanese-2026",
+    title: "Is Anime Enough to Learn Japanese? (2026 Honest Take)",
+    description:
+      "Is anime enough to learn Japanese alone? What immersion covers, what it misses (keigo, literacy), and the minimal stack to add without quitting anime.",
+    publishedAt: "2026-07-10T05:00:00.000Z",
+    updatedAt: "2026-07-10T05:00:00.000Z",
+    keywords: [
+      "is anime enough to learn japanese",
+      "can anime alone teach japanese",
+      "learn japanese only anime",
+      "anime enough for fluency",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Is anime enough to learn Japanese?** Enough for **listening + high-frequency vocab** — not enough for polite workplace Japanese, full literacy, or JLPT alone. Pair anime with light review and eventually reading.",
+      },
+      { type: "h2", text: "Anime covers" },
+      {
+        type: "ul",
+        items: [
+          "Spoken rhythm and emotion",
+          "Daily verbs/adjectives on slice-of-life shows",
+          "Motivation to show up",
+        ],
+      },
+      { type: "h2", text: "Anime misses" },
+      {
+        type: "ul",
+        items: [
+          "Keigo and formal speech",
+          "Kanji without a reading path",
+          "Anything you never review ([does anime help?](/blog/does-watching-anime-help-learn-japanese-2026))",
+        ],
+      },
+      { type: "h2", text: "Minimal complete stack" },
+      {
+        type: "ol",
+        items: [
+          "Anime + [AnimeVocab](/free-japanese-anime-extension)",
+          "Daily SRS ([guide](/anime-spaced-repetition))",
+          "Later: kana + dual subs; optional textbook for polite forms",
+        ],
+      },
+      {
+        type: "p",
+        text: "Register traps: [anime vs real Japanese](/blog/anime-japanese-vs-real-japanese). Timeline: [how long](/blog/how-long-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "chrome-extension-crunchyroll-no-japanese-subs-2026",
+    title: "Chrome Extension for Crunchyroll Without Japanese Subs (2026)",
+    description:
+      "Best Chrome extensions when Crunchyroll has no Japanese subtitles — Listening Mode, fan-sub overlays, and beginner romaji workflows.",
+    publishedAt: "2026-07-10T05:30:00.000Z",
+    updatedAt: "2026-07-10T05:30:00.000Z",
+    keywords: [
+      "chrome extension crunchyroll no japanese subs",
+      "crunchyroll no japanese subtitles extension",
+      "learn japanese crunchyroll without subs",
+      "listening mode crunchyroll",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/05-torii-night.jpg",
+    canonicalPath: "/learn-japanese-crunchyroll",
+    blocks: [
+      {
+        type: "p",
+        text: "If Crunchyroll has **no Japanese subtitles**, dual-sub extensions cannot help. You need **audio transcription**, **fan `.srt` overlays**, or both.",
+      },
+      { type: "h2", text: "Options ranked" },
+      {
+        type: "ol",
+        items: [
+          "**AnimeVocab Listening Mode** — romaji cards from audio ([free](/free-japanese-anime-extension))",
+          "**Substital / Jimaku** — overlay Kitsunekko files ([Substital](/blog/substital-crunchyroll-japanese-subtitles-2026))",
+          "**ManabiDojo** — integrated fan-sub fetch ([vs](/vs-manabidojo))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full hub: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Extension list: [CR ranking](/blog/crunchyroll-japanese-learning-extension-2026).",
+      },
+    ],
+  },
+  {
     slug: "how-long-learn-japanese-anime-2026",
     title: "How Long to Learn Japanese with Anime? (2026 Realistic Timeline)",
     description:

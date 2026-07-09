@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/is-anime-enough-to-learn-japanese-2026">
+                    Is anime enough to learn Japanese?
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/chrome-extension-crunchyroll-no-japanese-subs-2026">
+                    Crunchyroll extension without JP subs
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/how-long-learn-japanese-anime-2026">
                     How long to learn Japanese with anime
                   </Link>
