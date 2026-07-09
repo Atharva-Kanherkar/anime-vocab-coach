@@ -2,6 +2,84 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "totoro-learn-japanese-2026",
+    title: "My Neighbor Totoro for Learning Japanese (2026)",
+    description:
+      "Why My Neighbor Totoro is one of the best Ghibli films for Japanese beginners — gentle dialogue, family speech, and a clip-based study routine.",
+    publishedAt: "2026-07-10T02:00:00.000Z",
+    updatedAt: "2026-07-10T02:00:00.000Z",
+    keywords: [
+      "totoro learn japanese",
+      "my neighbor totoro japanese study",
+      "totoro japanese vocabulary",
+      "ghibli beginners japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/04-fireflies.jpg",
+    canonicalPath: "/best-anime-to-learn-japanese",
+    blocks: [
+      {
+        type: "p",
+        text: "**My Neighbor Totoro** is the gentlest Ghibli entry for learners — family speech, countryside scenes, and lines short enough to shadow. It leads our [Ghibli study guide](/blog/ghibli-movies-learn-japanese-2026).",
+      },
+      { type: "h2", text: "How to study Totoro" },
+      {
+        type: "ol",
+        items: [
+          "Watch once for story (English subs OK).",
+          "Replay the bus-stop or meal scenes. Shadow one line.",
+          "Save one family/nature word — review tomorrow ([SRS](/anime-spaced-repetition)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Too cinematic still? Start with [Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026). Free tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "youtube-vs-netflix-learn-japanese-anime-2026",
+    title: "YouTube vs Netflix for Learning Japanese from Anime (2026)",
+    description:
+      "YouTube vs Netflix for anime Japanese study — free catalog vs simulcast quality, caption tracks, and which free extensions fit each platform.",
+    publishedAt: "2026-07-10T02:30:00.000Z",
+    updatedAt: "2026-07-10T02:30:00.000Z",
+    keywords: [
+      "youtube vs netflix learn japanese",
+      "learn japanese youtube or netflix",
+      "best platform learn japanese anime",
+      "youtube anime japanese subtitles",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/05-private.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**YouTube vs Netflix for learning Japanese from anime** comes down to cost and caption quality. YouTube wins on free official channels with hidden JP captions; Netflix wins on polished dual-sub tooling.",
+      },
+      { type: "h2", text: "Pick YouTube if…" },
+      {
+        type: "ul",
+        items: [
+          "You want free legal clips and often find JP caption tracks",
+          "You use AnimeVocab or Language Reactor on YouTube ([YouTube hub](/learn-japanese-youtube-anime))",
+        ],
+      },
+      { type: "h2", text: "Pick Netflix if…" },
+      {
+        type: "ul",
+        items: [
+          "You want full episodes with reliable JP subs",
+          "You use Language Reactor / HASHIGO / YumeGo ([Netflix hub](/learn-japanese-netflix-anime))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Also compare [Netflix vs Crunchyroll](/blog/netflix-vs-crunchyroll-learn-japanese-2026). Beginners: [free extension](/free-japanese-anime-extension) on whichever you already open tonight.",
+      },
+    ],
+  },
+  {
     slug: "ghibli-movies-learn-japanese-2026",
     title: "Studio Ghibli Movies to Learn Japanese (2026 Picks)",
     description:
@@ -26,7 +104,7 @@ export const blogPosts: BlogPost[] = [
       {
         type: "ul",
         items: [
-          "**My Neighbor Totoro** — gentle dialogue, family speech",
+          "**My Neighbor Totoro** — gentle dialogue, family speech ([guide](/blog/totoro-learn-japanese-2026))",
           "**Kiki's Delivery Service** — everyday errands and feelings",
           "**Spirited Away** — richer vocab; save for after a month of slice-of-life",
         ],
