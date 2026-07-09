@@ -84,6 +84,12 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/lingodeer-vs-anime-learn-japanese-2026">LingoDeer vs anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/renshuu-vs-anime-study-2026">Renshuu vs anime study</Link>
+                </li>
+                <li>
                   <Link href="/blog/busuu-vs-anime-learn-japanese-2026">Busuu vs anime</Link>
                 </li>
                 <li>

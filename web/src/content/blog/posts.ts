@@ -2,6 +2,72 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "lingodeer-vs-anime-learn-japanese-2026",
+    title: "LingoDeer vs Anime for Learning Japanese (2026)",
+    description:
+      "LingoDeer's structured Japanese course vs anime immersion — grammar scaffolding versus listening motivation, and a free hybrid plan.",
+    publishedAt: "2026-07-10T19:00:00.000Z",
+    updatedAt: "2026-07-10T19:00:00.000Z",
+    keywords: [
+      "lingodeer vs anime",
+      "lingodeer or anime japanese",
+      "lingodeer japanese anime",
+      "structured japanese vs anime",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/07-pricing.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**LingoDeer vs anime**: LingoDeer is one of the better structured Japanese apps for grammar. Anime is still where listening vocabulary lives. Use LingoDeer as a supplement, not a replacement for watching with capture.",
+      },
+      { type: "h2", text: "Recommended split" },
+      {
+        type: "ul",
+        items: [
+          "LingoDeer/textbook: grammar explanations",
+          "Anime + [AnimeVocab](/free-japanese-anime-extension): listening words",
+        ],
+      },
+      {
+        type: "p",
+        text: "Also: [Busuu vs anime](/blog/busuu-vs-anime-learn-japanese-2026) · [Bunpro vs anime grammar](/blog/bunpro-vs-anime-grammar-2026).",
+      },
+    ],
+  },
+  {
+    slug: "renshuu-vs-anime-study-2026",
+    title: "Renshuu vs Anime Study (2026): Schedules vs Shows",
+    description:
+      "Renshuu's Japanese study schedules vs learning from anime — when a planner app helps, and how to keep immersion as the fun core.",
+    publishedAt: "2026-07-10T19:30:00.000Z",
+    updatedAt: "2026-07-10T19:30:00.000Z",
+    keywords: [
+      "renshuu vs anime",
+      "renshuu japanese anime",
+      "renshuu or immersion",
+      "japanese study schedule app anime",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/10-coach.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**Renshuu vs anime study**: Renshuu organizes grammar/kanji/vocab practice. Anime supplies motivation and listening. Planners fail when they replace the content you love.",
+      },
+      { type: "h2", text: "Use Renshuu for…" },
+      {
+        type: "ul",
+        items: ["Scheduling reviews", "Grammar quizzes alongside immersion"],
+      },
+      { type: "h2", text: "Keep anime non-negotiable" },
+      {
+        type: "p",
+        text: "One episode + one word nightly ([method](/blog/one-word-per-episode-method)) with [AnimeVocab](/free-japanese-anime-extension). Schedule tips: [best time of day](/blog/best-time-of-day-study-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "busuu-vs-anime-learn-japanese-2026",
     title: "Busuu vs Anime for Learning Japanese (2026)",
     description:
