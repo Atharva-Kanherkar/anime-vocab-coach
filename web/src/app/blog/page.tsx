@@ -84,6 +84,20 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/my-hero-academia-learn-japanese-2026">
+                    My Hero Academia for Japanese?
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/bleach-learn-japanese-beginners-2026">Bleach for beginners?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/blue-lock-learn-japanese-2026">Blue Lock for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/oshi-no-ko-learn-japanese-2026">Oshi no Ko for Japanese?</Link>
+                </li>
+                <li>
                   <Link href="/blog/best-anime-movies-learn-japanese-2026">
                     Best anime movies for Japanese
                   </Link>

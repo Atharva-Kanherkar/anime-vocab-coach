@@ -2,6 +2,110 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "my-hero-academia-learn-japanese-2026",
+    title: "My Hero Academia for Learning Japanese? (2026)",
+    description:
+      "Is My Hero Academia good for learning Japanese? Quirk jargon vs school talk, and an honest beginner verdict with safer alternatives.",
+    publishedAt: "2026-07-12T18:00:00.000Z",
+    updatedAt: "2026-07-12T18:00:00.000Z",
+    keywords: [
+      "my hero academia learn japanese",
+      "boku no hero japanese study",
+      "mha immersion beginners",
+      "is my hero academia good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**My Hero Academia** is school + shouting + quirk names. Mine classroom and friendship lines; treat power explanations as noise for month zero.",
+      },
+      {
+        type: "p",
+        text: "Same bucket as [Demon Slayer](/blog/demon-slayer-learn-japanese-beginners-2026) and [JJK](/blog/jujutsu-kaisen-learn-japanese-2026). Starters: [best anime](/best-anime-to-learn-japanese). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "bleach-learn-japanese-beginners-2026",
+    title: "Bleach for Learning Japanese? Beginners (2026)",
+    description:
+      "Can beginners learn Japanese with Bleach? Soul Society jargon vs everyday scenes — honest advice and a safer show ladder.",
+    publishedAt: "2026-07-12T18:30:00.000Z",
+    updatedAt: "2026-07-12T18:30:00.000Z",
+    keywords: [
+      "bleach learn japanese",
+      "bleach japanese study",
+      "bleach immersion beginners",
+      "is bleach good for learning japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Bleach** will bury beginners in proper nouns. If you love it, mine quiet Karakura scenes only — one word per episode max.",
+      },
+      {
+        type: "p",
+        text: "Related classics: [Naruto](/blog/naruto-learn-japanese-beginners-2026), [One Piece](/blog/one-piece-learn-japanese-beginners-2026). Method: [one word per episode](/blog/one-word-per-episode-method).",
+      },
+    ],
+  },
+  {
+    slug: "blue-lock-learn-japanese-2026",
+    title: "Blue Lock for Learning Japanese? (2026)",
+    description:
+      "Blue Lock for Japanese study — sports jargon warnings, ego monologues, and what learners should actually capture.",
+    publishedAt: "2026-07-12T19:00:00.000Z",
+    updatedAt: "2026-07-12T19:00:00.000Z",
+    keywords: [
+      "blue lock learn japanese",
+      "blue lock japanese study",
+      "blue lock immersion",
+      "soccer anime learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Blue Lock** is sports + ego speeches. Like [Haikyuu](/blog/haikyuu-learn-japanese-2026), mine human talk between plays — not every formation call.",
+      },
+      {
+        type: "p",
+        text: "Beginners: start with calmer shows first ([hub](/best-anime-to-learn-japanese)). Capture: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "oshi-no-ko-learn-japanese-2026",
+    title: "Oshi no Ko for Learning Japanese? (2026)",
+    description:
+      "Oshi no Ko for Japanese learners — industry jargon vs everyday dialogue, and an honest take for beginners.",
+    publishedAt: "2026-07-12T19:30:00.000Z",
+    updatedAt: "2026-07-12T19:30:00.000Z",
+    keywords: [
+      "oshi no ko learn japanese",
+      "oshi no ko japanese study",
+      "oshi no ko immersion",
+      "idol anime learn japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Oshi no Ko** mixes sharp industry talk with sibling/school scenes. Mine the human conversations; treat entertainment-business jargon as optional.",
+      },
+      {
+        type: "p",
+        text: "Similar \"story first\" advice as [Kaguya-sama](/blog/kaguya-sama-learn-japanese-2026). Tool: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "mob-psycho-100-learn-japanese-2026",
     title: "Mob Psycho 100 for Learning Japanese (2026)",
     description:

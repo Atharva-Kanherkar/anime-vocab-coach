@@ -191,7 +191,14 @@ export default function BestAnimePage() {
                 <Link href="/blog/attack-on-titan-learn-japanese-beginners-2026">AOT</Link> ·{" "}
                 <Link href="/blog/jujutsu-kaisen-learn-japanese-2026">JJK</Link> ·{" "}
                 <Link href="/blog/demon-slayer-learn-japanese-beginners-2026">Demon Slayer</Link> ·{" "}
-                <Link href="/blog/chainsaw-man-learn-japanese-2026">Chainsaw Man →</Link>
+                <Link href="/blog/chainsaw-man-learn-japanese-2026">Chainsaw Man</Link> ·{" "}
+                <Link href="/blog/my-hero-academia-learn-japanese-2026">MHA</Link> ·{" "}
+                <Link href="/blog/bleach-learn-japanese-beginners-2026">Bleach →</Link>
+              </li>
+              <li>
+                <strong>Blue Lock / Oshi no Ko</strong> — mine human talk, not sports/idol jargon dumps.{" "}
+                <Link href="/blog/blue-lock-learn-japanese-2026">Blue Lock</Link> ·{" "}
+                <Link href="/blog/oshi-no-ko-learn-japanese-2026">Oshi no Ko →</Link>
               </li>
               <li>
                 <strong>Heavy dialect comedy</strong> — fun once you hear standard Tokyo pitch reliably.
