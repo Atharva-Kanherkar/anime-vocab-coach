@@ -4,9 +4,33 @@ import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
-import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
+import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/learn-japanese-crunchyroll";
+
+const faqs = [
+  {
+    question: "Does Crunchyroll have Japanese subtitles?",
+    answer:
+      "Outside Japan, most Crunchyroll titles ship with English subtitles only. Japanese dialogue audio is available, but Japanese subtitle tracks are often missing — which breaks tools that need on-screen Japanese text.",
+  },
+  {
+    question: "How can I learn Japanese on Crunchyroll without Japanese subtitles?",
+    answer:
+      "Work from audio: save spoken words with romaji and review them with spaced repetition. AnimeVocab Listening Mode transcribes tab audio when JP subs are missing. Advanced readers can overlay fan .srt files from Kitsunekko or jimaku.cc.",
+  },
+  {
+    question: "Does Migaku work on Crunchyroll?",
+    answer:
+      "Migaku does not support Crunchyroll as a first-class platform. Learners searching Migaku Crunchyroll usually need Lexirise, ManabiDojo, AnimeVocab, or a fan-subtitle mining stack instead.",
+  },
+  {
+    question: "What is the best free tool for Crunchyroll Japanese beginners?",
+    answer:
+      "If you cannot read kana yet, AnimeVocab's free romaji-first cards and Listening Mode. If you already read Japanese subtitle text, Lexirise or ManabiDojo free cores are stronger for click-to-translate mining.",
+  },
+];
+
 
 export const metadata: Metadata = {
   title: "Learn Japanese on Crunchyroll (2026): No JP Subs, Real Workflows",
@@ -29,6 +53,8 @@ export const metadata: Metadata = {
 };
 
 export default function LearnJapaneseCrunchyrollPage() {
+  const faqLd = faqJsonLd(faqs);
+
   return (
     <>
       <LandingJsonLd
@@ -36,6 +62,7 @@ export default function LearnJapaneseCrunchyrollPage() {
         title="Learn Japanese on Crunchyroll (2026): No JP Subs, Real Workflows"
         description="Learn Japanese on Crunchyroll when Japanese subtitles are missing. Compare AnimeVocab, Lexirise, and ManabiDojo — transcription, romaji, and SRS that work on simulcasts."
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs
@@ -119,6 +146,17 @@ export default function LearnJapaneseCrunchyrollPage() {
                 </tbody>
               </table>
             </div>
+
+            <h2>FAQ</h2>
+            <ul>
+              {faqs.map((f) => (
+                <li key={f.question}>
+                  <strong>{f.question}</strong>
+                  <br />
+                  {f.answer}
+                </li>
+              ))}
+            </ul>
 
             <h2>20-minute Crunchyroll study session</h2>
             <ol className="article-ol">

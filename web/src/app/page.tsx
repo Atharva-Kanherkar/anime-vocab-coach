@@ -80,6 +80,7 @@ export default function HomePage() {
       </a>
       <SiteFooter
         links={[
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
           { href: "/blog", label: "Blog" },
           { href: "/studio", label: "Manga Studio" },
           { href: "/gallery", label: "Gallery" },

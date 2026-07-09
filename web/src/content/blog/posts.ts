@@ -2,6 +2,148 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "best-apps-learn-japanese-anime-2026",
+    title: "Best Apps to Learn Japanese with Anime (2026): Ranked by Reading Level",
+    description:
+      "Honest 2026 ranking of apps and Chrome extensions for learning Japanese from anime — AnimeVocab, Language Reactor, Lexirise, Migaku, asbplayer, Wordy — sorted by whether you can read kana yet.",
+    publishedAt: "2026-07-09T10:00:00.000Z",
+    updatedAt: "2026-07-09T10:00:00.000Z",
+    keywords: [
+      "best apps learn japanese anime",
+      "best app learn japanese with anime",
+      "learn japanese anime app 2026",
+      "free japanese anime learning app",
+      "chrome extension learn japanese anime",
+    ],
+    readingMinutes: 10,
+    ogImage: "/slides/11-cards.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "Every **best apps to learn Japanese with anime** list in 2026 ranks dual-subtitle miners first. That is correct **if you already read Japanese**. It is wrong for the largest cohort: fans who hear words clearly but cannot parse hiragana yet, or who watch **Crunchyroll** without a Japanese subtitle track. This ranking sorts tools by **reading level** and **platform**, not Chrome Web Store stars.",
+      },
+      { type: "h2", text: "Quick picks" },
+      {
+        type: "ul",
+        items: [
+          "**Cannot read kana · Crunchyroll** → [AnimeVocab](/free-japanese-anime-extension) (romaji + Listening Mode)",
+          "**Read JP subs · Crunchyroll** → [Lexirise](/vs-lexirise) or [ManabiDojo](/vs-manabidojo)",
+          "**Read JP subs · Netflix/YouTube** → Language Reactor free tier ([vs AnimeVocab](/vs-language-reactor))",
+          "**Anki sentence mining** → [asbplayer](/vs-asbplayer) or [SubMiner](/blog/subminer-vs-asbplayer-anime-mining-2026)",
+          "**Paid mining suite** → Migaku ([comparison](/vs-migaku))",
+          "**Curated mobile clips** → Wordy ([vs AnimeVocab](/vs-wordy))",
+        ],
+      },
+      { type: "h2", text: "1. AnimeVocab — free romaji-first on-ramp" },
+      {
+        type: "p",
+        text: "**Best for:** month-zero learners. **Platforms:** Crunchyroll, Netflix, YouTube. **Price:** free core. **Why it ranks #1 for beginners:** one curated word per line in romaji, built-in SRS, Listening Mode when JP subs are missing. Open source. Hub: [free Japanese anime extension](/free-japanese-anime-extension).",
+      },
+      { type: "h2", text: "2. Language Reactor — free Netflix dual subs" },
+      {
+        type: "p",
+        text: "**Best for:** intermediate readers on Netflix/YouTube. Mature dictionary and playback controls. Does **not** run on Crunchyroll. Free tier is excellent; Pro adds Anki export.",
+      },
+      { type: "h2", text: "3. Lexirise — Crunchyroll for readers" },
+      {
+        type: "p",
+        text: "**Best for:** learners who can click Japanese subtitle text on Crunchyroll. Free core mining; Pro for SRS. Compare [AnimeVocab vs Lexirise](/vs-lexirise) — different bottlenecks.",
+      },
+      { type: "h2", text: "4. ManabiDojo — fan JP subs + quizzes" },
+      {
+        type: "p",
+        text: "Integrated Jimaku-style overlays and quizzes on Crunchyroll. Strong for readers; not romaji-first. [vs ManabiDojo](/vs-manabidojo).",
+      },
+      { type: "h2", text: "5. Migaku — deepest paid mining suite" },
+      {
+        type: "p",
+        text: "Sentence mining, pitch accent, mobile sync — steep setup and subscription. Skips Crunchyroll-native workflows. [vs Migaku](/vs-migaku).",
+      },
+      { type: "h2", text: "6. asbplayer / SubMiner — free Anki pipelines" },
+      {
+        type: "p",
+        text: "Browser (asbplayer) or desktop mpv (SubMiner) miners. Free and powerful once you have Japanese subtitle files from Kitsunekko/jimaku.cc. [Kitsunekko guide](/blog/kitsunekko-subtitles-anime-2026).",
+      },
+      { type: "h2", text: "7. Wordy — curated clips, not your stream" },
+      {
+        type: "p",
+        text: "Mobile-first library of Japanese clips with translations and SRS. Great if you want a ready catalog; not a Crunchyroll/Netflix overlay. Pair with AnimeVocab if you still want to learn from **tonight's simulcast**. Side-by-side: [AnimeVocab vs Wordy](/vs-wordy).",
+      },
+      { type: "h2", text: "How to choose in 30 seconds" },
+      {
+        type: "ol",
+        items: [
+          "Can you read hiragana comfortably? **No** → AnimeVocab or romaji path ([guide](/romaji-japanese-learning)).",
+          "Where do you watch? **Crunchyroll** → AnimeVocab / Lexirise / ManabiDojo. **Netflix** → Language Reactor / Lingoku / YumeGo.",
+          "Do you already live in Anki? **Yes** → asbplayer or Migaku after you can read.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Master comparison table: [learn Japanese with anime (2026)](/learn-japanese-with-anime). Extension-only roundup: [best Chrome extensions](/blog/best-chrome-extensions-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "yomitan-anime-alternative-video-immersion-2026",
+    title: "Yomitan for Anime? Better Video Immersion Alternatives (2026)",
+    description:
+      "Yomitan is the best popup dictionary for Japanese text — but it is not a video player. Alternatives for anime immersion on Crunchyroll and Netflix when you need dual subs, mining, or romaji.",
+    publishedAt: "2026-07-09T11:00:00.000Z",
+    updatedAt: "2026-07-09T11:00:00.000Z",
+    keywords: [
+      "yomitan anime",
+      "yomitan alternative anime",
+      "yomitan crunchyroll",
+      "popup dictionary japanese anime",
+      "learn japanese video immersion",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/05-torii-night.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Yomitan** (Yomichan's successor) is still the immersion community's default **popup dictionary** for Japanese text in the browser. Searching **Yomitan for anime** usually means: *how do I look up words while a video plays?* Yomitan alone cannot attach to Crunchyroll's player — you need a **video layer** that exposes Japanese subtitle text, or an **audio-first** tool when that text does not exist.",
+      },
+      { type: "h2", text: "What Yomitan is (and is not)" },
+      {
+        type: "ul",
+        items: [
+          "**Is** — hover dictionary, pitch accent, frequency data, Anki mining from selectable text.",
+          "**Is not** — a dual-subtitle player, a Crunchyroll overlay, or a romaji teacher for beginners.",
+        ],
+      },
+      { type: "h2", text: "Video immersion stacks that use Yomitan" },
+      {
+        type: "ul",
+        items: [
+          "**asbplayer + Yomitan** — sync fan subs, mine sentences to Anki ([vs AnimeVocab](/vs-asbplayer)).",
+          "**SubMiner + bundled Yomitan** — desktop mpv overlay ([SubMiner guide](/blog/subminer-vs-asbplayer-anime-mining-2026)).",
+          "**ManabiDojo / Lexirise** — in-player lookups on Crunchyroll without wiring Yomitan yourself.",
+          "**HASHIGO + Yomitan on Netflix** — furigana coloring then dictionary clicks ([reader stack](/blog/hashigo-yomitan-netflix-japanese-anime-2026)).",
+        ],
+      },
+      { type: "h2", text: "When you need a Yomitan alternative for anime" },
+      {
+        type: "p",
+        text: "If there is **no Japanese subtitle text** (common on Crunchyroll), Yomitan has nothing to hover. Options: fan `.srt` overlays ([Kitsunekko](/blog/kitsunekko-subtitles-anime-2026)), or **Listening Mode** transcription with romaji cards ([Jimaku vs Listening Mode](/blog/jimaku-crunchyroll-subtitles-vs-listening-mode)). Beginners who cannot read kana yet should not force a Yomitan workflow — start [romaji-first](/romaji-japanese-learning).",
+      },
+      { type: "h2", text: "Recommended path" },
+      {
+        type: "ol",
+        items: [
+          "Month zero: AnimeVocab romaji cards on your stream ([free extension hub](/free-japanese-anime-extension)).",
+          "After kana: Language Reactor or HASHIGO on Netflix; Lexirise/ManabiDojo on Crunchyroll.",
+          "After Anki comfort: asbplayer or SubMiner with Yomitan as the dictionary layer.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full app ranking: [best apps to learn Japanese with anime (2026)](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "word-manga-vocabulary-practice-2026",
     title: "Word Manga: Turn Anime Vocabulary Into a 4-Panel Story (2026)",
     description:

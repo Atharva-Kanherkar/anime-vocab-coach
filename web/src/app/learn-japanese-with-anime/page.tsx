@@ -359,7 +359,9 @@ export default function LearnJapaneseWithAnimePage() {
               you&apos;re past kana. But every one of them starts with a subtitle you have to read. If you&apos;re not
               there yet, or you just want to watch tonight&apos;s episode and come away with a word, AnimeVocab
               is the one that meets you where you are, and the only one that keeps working when there&apos;s no
-              subtitle track at all. Chrome extension roundup:{" "}
+              subtitle track at all. Free install hub:{" "}
+              <Link href="/free-japanese-anime-extension">free Japanese anime extension</Link>. App ranking:{" "}
+              <Link href="/blog/best-apps-learn-japanese-anime-2026">best apps (2026)</Link>. Chrome roundup:{" "}
               <Link href="/blog/best-chrome-extensions-learn-japanese-anime-2026">
                 best extensions ranked (2026)
               </Link>
@@ -406,6 +408,8 @@ export default function LearnJapaneseWithAnimePage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
+          { href: "/blog/best-apps-learn-japanese-anime-2026", label: "Best apps 2026" },
           { href: "/blog", label: "Blog" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
@@ -414,6 +418,7 @@ export default function LearnJapaneseWithAnimePage() {
           { href: "/vs-yumego", label: "vs YumeGo" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
           { href: "/vs-asbplayer", label: "vs asbplayer" },
+          { href: "/vs-wordy", label: "vs Wordy" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/vs-migaku", label: "vs Migaku" },

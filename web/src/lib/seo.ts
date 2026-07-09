@@ -32,6 +32,12 @@ export const SEO_KEYWORDS = [
   "Kitsunekko subtitles",
   "kitsunekko anime japanese subs",
   "asbplayer vs animevocab",
+  "best apps learn japanese anime",
+  "yomitan anime alternative",
+  "free chrome extension learn japanese",
+  "free japanese anime extension",
+  "Wordy alternative",
+  "animevocab vs wordy",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
@@ -161,6 +167,16 @@ export const HOME_FAQ = [
     question: "How is this different from subtitle dictionary tools?",
     answer:
       "Most tools assume you can read Japanese subtitles and hover words yourself. AnimeVocab pushes one curated word to you in romaji and tracks SRS for you.",
+  },
+  {
+    question: "Is AnimeVocab free?",
+    answer:
+      "Yes. The core learning loop is free with no account required. Pro is optional for hosted Listening Mode transcription without bringing your own API key.",
+  },
+  {
+    question: "Does it work on Crunchyroll without Japanese subtitles?",
+    answer:
+      "Yes. Listening Mode can work from spoken audio when Japanese subtitle text is missing — the common case on Crunchyroll outside Japan.",
   },
   {
     question: "Where is my data stored?",

@@ -81,6 +81,22 @@ export default function BlogIndexPage() {
               <h2>Tool comparisons & guides</h2>
               <ul>
                 <li>
+                  <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
+                </li>
+                <li>
+                  <Link href="/blog/best-apps-learn-japanese-anime-2026">
+                    Best apps to learn Japanese with anime (2026)
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/yomitan-anime-alternative-video-immersion-2026">
+                    Yomitan for anime — video alternatives
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/vs-wordy">AnimeVocab vs Wordy</Link>
+                </li>
+                <li>
                   <Link href="/vs-asbplayer">AnimeVocab vs asbplayer</Link>
                 </li>
                 <li>

@@ -6,10 +6,12 @@
 ## Primary pages
 
 - [Home](https://animevocab.com/): Learn Japanese from anime — Chrome extension landing
+- [Free Japanese anime extension](https://animevocab.com/free-japanese-anime-extension): Free Chrome extension hub (no credit card)
 - [Manga Studio](https://animevocab.com/studio): Free AI manga maker — draft chapters, edit dialogue, redraw panels
 - [AI Manga Maker guide](https://animevocab.com/ai-manga-maker): SEO hub for create manga online free
 - [Manga Gallery](https://animevocab.com/gallery): Public manga published by learners
 - [Blog](https://animevocab.com/blog): Guides on anime Japanese learning, tools, SRS, shadowing
+- [RSS feed](https://animevocab.com/feed.xml)
 
 ## Learning guides
 
@@ -28,16 +30,32 @@
 - [vs Migaku](https://animevocab.com/vs-migaku)
 - [vs Lexirise](https://animevocab.com/vs-lexirise)
 - [vs Trancy](https://animevocab.com/vs-trancy)
+- [vs ManabiDojo](https://animevocab.com/vs-manabidojo)
+- [vs Animelon](https://animevocab.com/vs-animelon)
+- [vs Lingoku](https://animevocab.com/vs-lingoku)
+- [vs YumeGo](https://animevocab.com/vs-yumego)
+- [vs asbplayer](https://animevocab.com/vs-asbplayer)
+- [vs Wordy](https://animevocab.com/vs-wordy)
+
+## High-intent blog posts
+
+- [Best apps to learn Japanese with anime (2026)](https://animevocab.com/blog/best-apps-learn-japanese-anime-2026)
+- [Best Chrome extensions (2026)](https://animevocab.com/blog/best-chrome-extensions-learn-japanese-anime-2026)
+- [Yomitan for anime alternatives](https://animevocab.com/blog/yomitan-anime-alternative-video-immersion-2026)
+- [Kitsunekko subtitles guide](https://animevocab.com/blog/kitsunekko-subtitles-anime-2026)
+- [Jimaku vs Listening Mode](https://animevocab.com/blog/jimaku-crunchyroll-subtitles-vs-listening-mode)
 
 ## Product facts
 
 - Extension: local-first, open source, romaji-first cards, one word per subtitle line
 - Listening Mode: real-time transcription of tab audio for sites without JP subs
 - Manga Studio: AI script + per-panel art, editable dialogue bubbles, sketch redraw, public gallery
+- Word Manga: 4-panel stories forced to use the learner's target vocabulary
 - Pricing: core learning loop free; Pro for hosted Listening Mode without OpenAI API key
 
 ## Contact & source
 
 - GitHub: https://github.com/Atharva-Kanherkar/anime-vocab-coach
+- Creator: https://x.com/attharrva15
 - RSS: https://animevocab.com/feed.xml
 - Sitemap: https://animevocab.com/sitemap.xml
