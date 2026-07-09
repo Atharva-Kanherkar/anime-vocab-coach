@@ -2,6 +2,130 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "spirited-away-learn-japanese-2026",
+    title: "Spirited Away for Learning Japanese (2026)",
+    description:
+      "Spirited Away / Sen to Chihiro for Japanese study — workplace politeness, clear emotional lines, and a film rewatch plan for learners.",
+    publishedAt: "2026-07-12T04:00:00.000Z",
+    updatedAt: "2026-07-12T04:00:00.000Z",
+    keywords: [
+      "spirited away learn japanese",
+      "sen to chihiro japanese study",
+      "spirited away immersion",
+      "ghibli spirited away japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Spirited Away** mixes kid-clear emotion with bathhouse work talk — gold for politeness and everyday verbs if you rewatch key scenes.",
+      },
+      {
+        type: "p",
+        text: "First watch for wonder; second watch mine 3–5 lines. More Ghibli: [guide](/blog/ghibli-movies-learn-japanese-2026), [Totoro](/blog/totoro-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "howls-moving-castle-learn-japanese-2026",
+    title: "Howl's Moving Castle for Learning Japanese (2026)",
+    description:
+      "Howl's Moving Castle for Japanese learners — dialogue pacing, fantasy nouns to skip, and emotional lines worth capturing.",
+    publishedAt: "2026-07-12T04:30:00.000Z",
+    updatedAt: "2026-07-12T04:30:00.000Z",
+    keywords: [
+      "howls moving castle learn japanese",
+      "howl japanese study",
+      "ghibli howl learn japanese",
+      "howl's moving castle immersion",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Howl's Moving Castle** has warm, reusable relationship talk under the fantasy plot. Skip spell names; mine Sophie/Howl conversations.",
+      },
+      {
+        type: "p",
+        text: "Pair with [Kiki](/blog/kikis-delivery-service-learn-japanese-2026) and [Spirited Away](/blog/spirited-away-learn-japanese-2026). Hub: [best anime](/best-anime-to-learn-japanese).",
+      },
+    ],
+  },
+  {
+    slug: "jlpt-n4-anime-vocabulary-2026",
+    title: "JLPT N4 Vocabulary from Anime (2026 Practical Plan)",
+    description:
+      "How to build JLPT N4 vocabulary from anime without turning every episode into a textbook — frequency, capture caps, and review.",
+    publishedAt: "2026-07-12T05:00:00.000Z",
+    updatedAt: "2026-07-12T05:00:00.000Z",
+    keywords: [
+      "jlpt n4 anime vocabulary",
+      "learn jlpt n4 from anime",
+      "n4 vocabulary anime",
+      "jlpt anime study plan",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Anime will not hand you a clean **N4 list** — but it will make N4 words stick when they appear in scenes you care about. Pair a light list with capture, not 50 random cards.",
+      },
+      { type: "h2", text: "Plan" },
+      {
+        type: "ol",
+        items: [
+          "Keep watching beginner-friendly shows ([picks](/best-anime-to-learn-japanese))",
+          "Save words that also show up in N4 decks — bonus, not requirement",
+          "Review daily with [SRS](/anime-spaced-repetition)",
+          "Add Bunpro/Genki for grammar holes ([Bunpro](/blog/bunpro-vs-anime-grammar-2026))",
+        ],
+      },
+      {
+        type: "p",
+        text: "N5 first: [JLPT N5 from anime](/blog/jlpt-n5-anime-vocabulary-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "watching-anime-with-japanese-audio-english-subs-2026",
+    title: "Watching Anime with Japanese Audio + English Subs (2026)",
+    description:
+      "Is Japanese audio with English subtitles enough to learn? What you gain, what you miss, and how to upgrade the habit without quitting.",
+    publishedAt: "2026-07-12T05:30:00.000Z",
+    updatedAt: "2026-07-12T05:30:00.000Z",
+    keywords: [
+      "japanese audio english subtitles learn",
+      "anime japanese audio english subs",
+      "watch anime japanese dub english subs",
+      "japanese audio english subs enough",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Japanese audio + English subs** is the default legal setup — and a fine month-zero start. It is not enough forever unless you **capture and review**.",
+      },
+      { type: "h2", text: "Upgrade path" },
+      {
+        type: "ul",
+        items: [
+          "Keep JP audio always",
+          "Add one-word capture ([method](/blog/one-word-per-episode-method))",
+          "Gradually reduce EN reliance ([turn off EN?](/blog/should-i-turn-off-english-subtitles-anime-2026))",
+          "Use Listening Mode when JP text is missing ([Crunchyroll](/learn-japanese-crunchyroll))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Reality check: [does anime help?](/blog/does-watching-anime-help-learn-japanese-2026). Tool: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
     slug: "your-name-learn-japanese-2026",
     title: "Your Name (Kimi no Na wa) for Learning Japanese (2026)",
     description:

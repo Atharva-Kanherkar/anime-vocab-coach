@@ -84,6 +84,22 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/spirited-away-learn-japanese-2026">Spirited Away for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/howls-moving-castle-learn-japanese-2026">
+                    Howl&apos;s Moving Castle for Japanese
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/jlpt-n4-anime-vocabulary-2026">JLPT N4 vocab from anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/watching-anime-with-japanese-audio-english-subs-2026">
+                    JP audio + EN subs — enough?
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/your-name-learn-japanese-2026">Your Name for Japanese</Link>
                 </li>
                 <li>

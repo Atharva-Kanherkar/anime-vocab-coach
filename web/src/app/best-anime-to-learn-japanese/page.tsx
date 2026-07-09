@@ -148,7 +148,9 @@ export default function BestAnimePage() {
               <li>
                 <strong>Studio Ghibli films</strong> — short runtime, emotional lines worth replaying in
                 clip-based study.{" "}
-                <Link href="/blog/ghibli-movies-learn-japanese-2026">Ghibli study guide →</Link>
+                <Link href="/blog/ghibli-movies-learn-japanese-2026">Ghibli study guide</Link> ·{" "}
+                <Link href="/blog/spirited-away-learn-japanese-2026">Spirited Away</Link> ·{" "}
+                <Link href="/blog/howls-moving-castle-learn-japanese-2026">Howl →</Link>
               </li>
               <li>
                 <strong>Your Name / A Silent Voice / Violet Evergarden</strong> — film-length emotional
