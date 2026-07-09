@@ -84,6 +84,16 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/best-free-japanese-learning-apps-anime-2026">
+                    Best free Japanese apps for anime fans
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/passive-anime-watching-vs-active-study-2026">
+                    Passive vs active anime study
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/does-watching-anime-help-learn-japanese-2026">
                     Does watching anime help learn Japanese?
                   </Link>

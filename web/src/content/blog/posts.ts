@@ -2,6 +2,81 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "passive-anime-watching-vs-active-study-2026",
+    title: "Passive Anime Watching vs Active Study (2026): Fix the Trap",
+    description:
+      "Passive anime watching feels like studying but isn't. How to turn binge nights into active Japanese practice without killing the fun.",
+    publishedAt: "2026-07-09T22:00:00.000Z",
+    updatedAt: "2026-07-09T22:00:00.000Z",
+    keywords: [
+      "passive anime watching japanese",
+      "active vs passive anime study",
+      "anime immersion active learning",
+      "stop passive anime watching",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/09-faq.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Passive anime watching** — English subs, zero notes, \"I'm immersing\" — is entertainment. **Active study** is noticing one spoken form, saving it, and retrieving it tomorrow. Both are allowed. Mixing them up is why people feel stuck after 500 episodes.",
+      },
+      { type: "h2", text: "Make one episode active" },
+      {
+        type: "ul",
+        items: [
+          "Keep English subs for plot if you need them",
+          "Save **one** word with [AnimeVocab](/free-japanese-anime-extension)",
+          "Review five minutes before the next episode",
+        ],
+      },
+      { type: "h2", text: "Keep other episodes passive (guilt-free)" },
+      {
+        type: "p",
+        text: "Not every night is study night. Label it honestly. Deep dive: [English subs don't teach Japanese](/blog/english-subtitles-not-learning-japanese). Method: [how to learn watching anime](/blog/how-to-learn-japanese-watching-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "best-free-japanese-learning-apps-anime-2026",
+    title: "Best Free Japanese Learning Apps for Anime Fans (2026)",
+    description:
+      "Best free Japanese learning apps if you learn from anime — AnimeVocab, Language Reactor, asbplayer, Anki, and when free tiers beat paid suites.",
+    publishedAt: "2026-07-09T22:30:00.000Z",
+    updatedAt: "2026-07-09T22:30:00.000Z",
+    keywords: [
+      "best free japanese learning apps",
+      "free japanese apps anime",
+      "best free app learn japanese anime",
+      "free japanese immersion apps",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/11-cards.webp",
+    canonicalPath: "/free-japanese-anime-extension",
+    blocks: [
+      {
+        type: "p",
+        text: "Searching **best free Japanese learning apps** as an anime fan is different from searching as a textbook learner. You need tools that touch **video** — not only flashcard decks of random JLPT lists.",
+      },
+      { type: "h2", text: "Free apps / extensions that fit anime" },
+      {
+        type: "ol",
+        items: [
+          "**AnimeVocab** — romaji cards on CR/Netflix/YouTube ([hub](/free-japanese-anime-extension))",
+          "**Language Reactor** — free Netflix/YouTube dual subs",
+          "**asbplayer** — free Anki mining ([vs](/vs-asbplayer))",
+          "**Anki** — free SRS once you are ready ([beginners](/blog/anki-anime-beginners-2026))",
+          "**Manga Studio** — free output practice ([/studio](/studio))",
+        ],
+      },
+      { type: "h2", text: "Paid apps to delay" },
+      {
+        type: "p",
+        text: "Migaku, Wordy Pro, Lexirise Pro — fine later. Build the free habit first ([free stack](/blog/free-ways-learn-japanese-anime-2026)). Full ranking: [best apps 2026](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "does-watching-anime-help-learn-japanese-2026",
     title: "Does Watching Anime Help You Learn Japanese? (2026 Honest Answer)",
     description:

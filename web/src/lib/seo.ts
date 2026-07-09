@@ -58,6 +58,8 @@ export const SEO_KEYWORDS = [
   "sazae-san learn japanese",
   "does watching anime help learn japanese",
   "learn japanese while watching crunchyroll",
+  "passive anime watching japanese",
+  "best free japanese learning apps",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
