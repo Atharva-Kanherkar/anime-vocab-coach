@@ -2,6 +2,101 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "does-watching-anime-help-learn-japanese-2026",
+    title: "Does Watching Anime Help You Learn Japanese? (2026 Honest Answer)",
+    description:
+      "Does watching anime help you learn Japanese? Yes — with active vocabulary capture and review. Why passive English-sub bingeing fails, and the free habit that works.",
+    publishedAt: "2026-07-09T21:00:00.000Z",
+    updatedAt: "2026-07-09T21:00:00.000Z",
+    keywords: [
+      "does watching anime help learn japanese",
+      "can you learn japanese from anime",
+      "watching anime learn japanese",
+      "is anime good for learning japanese",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/09-faq.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Does watching anime help you learn Japanese?** Yes — if you treat it as **input plus retrieval**, not background noise. Passive English-sub bingeing teaches plot, not vocabulary. Active capture of spoken words with review teaches Japanese.",
+      },
+      { type: "h2", text: "What anime is good for" },
+      {
+        type: "ul",
+        items: [
+          "High-frequency spoken verbs and adjectives",
+          "Listening rhythm and emotional intonation",
+          "Motivation to show up every night",
+        ],
+      },
+      { type: "h2", text: "What anime is bad for (alone)" },
+      {
+        type: "ul",
+        items: [
+          "Polite workplace Japanese",
+          "Kanji literacy without a reading path",
+          "Anything you never review ([English subs trap](/blog/english-subtitles-not-learning-japanese))",
+        ],
+      },
+      { type: "h2", text: "The habit that makes anime count" },
+      {
+        type: "ol",
+        items: [
+          "Pick a slow show ([best anime](/best-anime-to-learn-japanese)).",
+          "Save one word with [AnimeVocab](/free-japanese-anime-extension).",
+          "Review five minutes tomorrow ([SRS](/anime-spaced-repetition)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full method: [how to learn Japanese watching anime](/blog/how-to-learn-japanese-watching-anime-2026). Beginner immersion: [guide](/blog/anime-immersion-beginners-guide-2026).",
+      },
+    ],
+  },
+  {
+    slug: "learn-japanese-while-watching-crunchyroll-2026",
+    title: "Learn Japanese While Watching Crunchyroll (2026 Workflow)",
+    description:
+      "Exact workflow to learn Japanese while watching Crunchyroll — Listening Mode, romaji cards, show picks, and free extensions that work without Japanese subtitles.",
+    publishedAt: "2026-07-09T21:30:00.000Z",
+    updatedAt: "2026-07-09T21:30:00.000Z",
+    keywords: [
+      "learn japanese while watching crunchyroll",
+      "study japanese on crunchyroll",
+      "crunchyroll study japanese",
+      "watch crunchyroll learn japanese",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/05-torii-night.jpg",
+    canonicalPath: "/learn-japanese-crunchyroll",
+    blocks: [
+      {
+        type: "p",
+        text: "**Learn Japanese while watching Crunchyroll** is the dream search — and the hard one, because JP subs are often missing. This workflow assumes English subs for plot and **audio-first vocabulary** for study.",
+      },
+      { type: "h2", text: "Tonight's workflow (20 minutes)" },
+      {
+        type: "ol",
+        items: [
+          "Install [AnimeVocab](/free-japanese-anime-extension).",
+          "Open a Tier-1 show ([Shirokuma](/blog/shirokuma-cafe-learn-japanese-2026) / [Doraemon](/blog/doraemon-learn-japanese-2026)).",
+          "Keep English subs. Save one romaji word when Listening Mode or the line parser offers it.",
+          "Stop after one episode. Review due cards tomorrow morning.",
+        ],
+      },
+      { type: "h2", text: "If you can already read Japanese" },
+      {
+        type: "p",
+        text: "Overlay fan subs with [Substital](/blog/substital-crunchyroll-japanese-subtitles-2026) or use [Lexirise](/vs-lexirise) / [ManabiDojo](/vs-manabidojo). Extension ranking: [Crunchyroll extensions 2026](/blog/crunchyroll-japanese-learning-extension-2026).",
+      },
+      {
+        type: "p",
+        text: "Hub: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Migaku users: [CR alternatives](/blog/migaku-crunchyroll-alternative-2026).",
+      },
+    ],
+  },
+  {
     slug: "sazae-san-learn-japanese-2026",
     title: "Sazae-san for Learning Japanese (2026): Everyday Family Speech",
     description:

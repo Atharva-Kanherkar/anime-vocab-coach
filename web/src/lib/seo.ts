@@ -56,6 +56,8 @@ export const SEO_KEYWORDS = [
   "free ways learn japanese anime",
   "anki anime beginners",
   "sazae-san learn japanese",
+  "does watching anime help learn japanese",
+  "learn japanese while watching crunchyroll",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
@@ -171,6 +173,11 @@ export function blogJsonLd(posts: { title: string; url: string; publishedAt: str
 }
 
 export const HOME_FAQ = [
+  {
+    question: "Does watching anime help you learn Japanese?",
+    answer:
+      "Yes — if you capture spoken words and review them. Passive English-sub bingeing teaches plot, not vocabulary. AnimeVocab turns each episode into one romaji card with spaced repetition.",
+  },
   {
     question: "Can I learn Japanese just by watching anime?",
     answer:
