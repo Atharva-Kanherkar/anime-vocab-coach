@@ -122,6 +122,18 @@ export default function BestAnimePage() {
                 <Link href="/blog/spy-x-family-learn-japanese-2026">Spy x Family guide →</Link>
               </li>
               <li>
+                <strong>Laid-Back Camp / Yuru Camp</strong> — calm pacing for anxious beginners.{" "}
+                <Link href="/blog/laid-back-camp-learn-japanese-2026">Yuru Camp guide →</Link>
+              </li>
+              <li>
+                <strong>Bocchi the Rock!</strong> — mine school/friend talk, not every band term.{" "}
+                <Link href="/blog/bocchi-the-rock-learn-japanese-2026">Bocchi guide →</Link>
+              </li>
+              <li>
+                <strong>Barakamon</strong> — warm comedy; watch dialect carefully.{" "}
+                <Link href="/blog/barakamon-learn-japanese-2026">Barakamon guide →</Link>
+              </li>
+              <li>
                 <strong>Studio Ghibli films</strong> — short runtime, emotional lines worth replaying in
                 clip-based study.{" "}
                 <Link href="/blog/ghibli-movies-learn-japanese-2026">Ghibli study guide →</Link>

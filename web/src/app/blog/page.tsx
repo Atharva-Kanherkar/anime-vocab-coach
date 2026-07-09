@@ -84,6 +84,18 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/bocchi-the-rock-learn-japanese-2026">Bocchi the Rock for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/laid-back-camp-learn-japanese-2026">Yuru Camp for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/barakamon-learn-japanese-2026">Barakamon for Japanese</Link>
+                </li>
+                <li>
+                  <Link href="/blog/marumori-vs-anime-immersion-2026">MaruMori vs anime</Link>
+                </li>
+                <li>
                   <Link href="/blog/satori-reader-vs-anime-2026">Satori Reader vs anime</Link>
                 </li>
                 <li>

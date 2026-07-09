@@ -2,6 +2,155 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "bocchi-the-rock-learn-japanese-2026",
+    title: "Bocchi the Rock! for Learning Japanese (2026)",
+    description:
+      "Is Bocchi the Rock good for Japanese learners? School/band dialogue, anxiety vocab, and a beginner capture plan that skips dense music jargon.",
+    publishedAt: "2026-07-11T06:00:00.000Z",
+    updatedAt: "2026-07-11T06:00:00.000Z",
+    keywords: [
+      "bocchi the rock learn japanese",
+      "bocchi japanese study",
+      "best anime learn japanese school",
+      "kessoku band japanese immersion",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Bocchi the Rock!** is comedy-fast, but a lot of the gold is everyday school and friendship talk — not only band slang. Beginners should mine social phrases, not every guitar term.",
+      },
+      { type: "h2", text: "What to capture" },
+      {
+        type: "ul",
+        items: [
+          "Anxiety / courage lines you will reuse in real life",
+          "Club and after-school small talk",
+          "Skip dense music-theory jokes on first pass",
+        ],
+      },
+      {
+        type: "p",
+        text: "Method: [one word per episode](/blog/one-word-per-episode-method). Similar vibe: [K-On!](/blog/k-on-learn-japanese-2026). Tool: [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "laid-back-camp-learn-japanese-2026",
+    title: "Laid-Back Camp (Yuru Camp) for Learning Japanese (2026)",
+    description:
+      "Yuru Camp / Laid-Back Camp for Japanese study — calm pacing, outdoor vocabulary, and why it works better than action anime for beginners.",
+    publishedAt: "2026-07-11T06:30:00.000Z",
+    updatedAt: "2026-07-11T06:30:00.000Z",
+    keywords: [
+      "yuru camp learn japanese",
+      "laid back camp japanese study",
+      "laid-back camp immersion",
+      "calm anime learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Laid-Back Camp** is slow on purpose — clear delivery, nature scenes, and friendship talk. Perfect for learners who panic during shonen shouting matches.",
+      },
+      { type: "h2", text: "Why beginners finish it" },
+      {
+        type: "ul",
+        items: [
+          "Lower speech density than battle anime",
+          "Visual context for camping/food words",
+          "Rewatchable comfort episodes",
+        ],
+      },
+      {
+        type: "p",
+        text: "Pair with [slice-of-life list](/blog/slice-of-life-anime-learn-japanese-2026) and [Non Non Biyori](/blog/non-non-biyori-learn-japanese-2026). Capture with [AnimeVocab](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "barakamon-learn-japanese-2026",
+    title: "Barakamon for Learning Japanese (2026)",
+    description:
+      "Barakamon for Japanese learners — island life dialogue, dialect warnings, and which episodes are best for beginner immersion.",
+    publishedAt: "2026-07-11T07:00:00.000Z",
+    updatedAt: "2026-07-11T07:00:00.000Z",
+    keywords: [
+      "barakamon learn japanese",
+      "barakamon japanese study",
+      "barakamon dialect immersion",
+      "best comedy anime learn japanese",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Barakamon** has warm, funny rural Japanese — and some dialect. Use it after a few weeks of standard speech, or mine only the clear Tokyo-ish lines at first.",
+      },
+      { type: "h2", text: "Study tips" },
+      {
+        type: "ul",
+        items: [
+          "Focus on calligraphy teacher / kid interactions for everyday verbs",
+          "Do not stress every dialect joke on episode one",
+          "Shadow short emotional lines, not rapid banter",
+        ],
+      },
+      {
+        type: "p",
+        text: "Hub: [best anime to learn Japanese](/best-anime-to-learn-japanese). Tool: [free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "marumori-vs-anime-immersion-2026",
+    title: "MaruMori vs Anime Immersion (2026)",
+    description:
+      "MaruMori (sentence mining / SRS web app) vs learning Japanese from anime streams — who each is for and a hybrid plan for beginners.",
+    publishedAt: "2026-07-11T07:30:00.000Z",
+    updatedAt: "2026-07-11T07:30:00.000Z",
+    keywords: [
+      "marumori japanese",
+      "marumori vs anime",
+      "marumori immersion",
+      "marumori alternative beginners",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**MaruMori** (and similar web SRS/mining apps) optimize for sentence review in a browser. Anime fans optimize for **not closing the episode**. Different jobs.",
+      },
+      { type: "h2", text: "MaruMori-style tools win when" },
+      {
+        type: "ul",
+        items: [
+          "You already have sentences to review",
+          "You like a dedicated study site separate from Netflix/CR",
+          "You are past romaji-only month zero",
+        ],
+      },
+      { type: "h2", text: "AnimeVocab wins when" },
+      {
+        type: "ul",
+        items: [
+          "Capture must happen inside tonight's stream",
+          "You need Listening Mode without JP subs",
+          "You want [romaji-first cards](/romaji-japanese-learning)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Start with [AnimeVocab](/free-japanese-anime-extension); add a mining SRS later if you outgrow one-word capture. Related: [jpdb](/blog/jpdb-vs-anime-vocabulary-2026), [Anki beginners](/blog/anki-anime-beginners-2026).",
+      },
+    ],
+  },
+  {
     slug: "satori-reader-vs-anime-2026",
     title: "Satori Reader vs Anime Immersion (2026)",
     description:
