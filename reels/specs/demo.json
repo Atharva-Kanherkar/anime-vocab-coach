@@ -1,0 +1,17 @@
+{
+  "spec": {
+    "title": "She reads manga she can't read yet",
+    "series": "MANGA STORYTIME",
+    "credit": "panels: AnimeVocab Manga Studio",
+    "handle": "animevocab.com/studio",
+    "accent": "#e4572e",
+    "scenes": [
+      { "image": "demo/p1.webp", "text": "This whole chapter was drawn by someone who can't draw.", "zoom": "in", "focus": "top" },
+      { "image": "demo/p2.webp", "text": "They typed one premise. The AI storyboarded every panel.", "zoom": "out" },
+      { "image": "demo/p3.webp", "text": "Then they redrew the hero's face until it felt like theirs.", "zoom": "in" },
+      { "image": "demo/p4.webp", "text": "Every line of dialogue is editable. Speech, thought, even the SFX.", "zoom": "out", "focus": "bottom" },
+      { "image": "demo/p5.webp", "text": "It's free to try. No account. Your first chapter takes ten minutes.", "zoom": "in" }
+    ]
+  },
+  "sceneFrames": []
+}
