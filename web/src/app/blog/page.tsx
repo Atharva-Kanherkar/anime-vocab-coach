@@ -84,6 +84,22 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/does-crunchyroll-have-japanese-subtitles-2026">
+                    Does Crunchyroll have JP subs?
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/best-free-language-reactor-alternative-2026">
+                    Best free Language Reactor alternative
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog/chainsaw-man-learn-japanese-2026">Chainsaw Man for Japanese?</Link>
+                </li>
+                <li>
+                  <Link href="/blog/solo-leveling-learn-japanese-2026">Solo Leveling for Japanese?</Link>
+                </li>
+                <li>
                   <Link href="/blog/one-piece-learn-japanese-beginners-2026">
                     One Piece for beginners?
                   </Link>

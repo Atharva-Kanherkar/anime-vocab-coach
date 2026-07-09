@@ -2,6 +2,130 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "does-crunchyroll-have-japanese-subtitles-2026",
+    title: "Does Crunchyroll Have Japanese Subtitles? (2026)",
+    description:
+      "Does Crunchyroll offer Japanese subtitles? When JP tracks appear, why many titles only have English CC, and how to keep learning anyway.",
+    publishedAt: "2026-07-11T22:00:00.000Z",
+    updatedAt: "2026-07-11T22:00:00.000Z",
+    keywords: [
+      "does crunchyroll have japanese subtitles",
+      "crunchyroll japanese subtitles",
+      "crunchyroll jp subs",
+      "crunchyroll japanese closed captions",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Sometimes.** Crunchyroll often ships **English** (and other) subtitle tracks for simulcasts. A true **Japanese** subtitle track is inconsistent by title and region — which breaks dual-sub mining tools.",
+      },
+      { type: "h2", text: "How to check" },
+      {
+        type: "ol",
+        items: [
+          "Open the player subtitle menu",
+          "Look for Japanese / 日本語 — not only English CC",
+          "Confirm Japanese audio is selected",
+        ],
+      },
+      { type: "h2", text: "If there is no JP track" },
+      {
+        type: "p",
+        text: "Use Listening Mode / audio-first workflows: full guide [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Free tool: [AnimeVocab](/free-japanese-anime-extension). Related: [extension without JP subs](/blog/chrome-extension-crunchyroll-no-japanese-subs-2026).",
+      },
+    ],
+  },
+  {
+    slug: "chainsaw-man-learn-japanese-2026",
+    title: "Chainsaw Man for Learning Japanese? (2026)",
+    description:
+      "Is Chainsaw Man good for Japanese learners? Slang, speed, and an honest beginner verdict with safer alternatives.",
+    publishedAt: "2026-07-11T22:30:00.000Z",
+    updatedAt: "2026-07-11T22:30:00.000Z",
+    keywords: [
+      "chainsaw man learn japanese",
+      "chainsaw man japanese study",
+      "chainsaw man immersion",
+      "is chainsaw man good for japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Chainsaw Man** is stylish and slang-heavy. Great taste, bad first textbook. Mine quiet conversations later; start with calmer shows now.",
+      },
+      {
+        type: "p",
+        text: "Same bucket as [JJK](/blog/jujutsu-kaisen-learn-japanese-2026) and [Demon Slayer](/blog/demon-slayer-learn-japanese-beginners-2026). Beginner hub: [best anime](/best-anime-to-learn-japanese).",
+      },
+    ],
+  },
+  {
+    slug: "solo-leveling-learn-japanese-2026",
+    title: "Solo Leveling for Learning Japanese? (2026)",
+    description:
+      "Solo Leveling anime for Japanese study — game/system vocab warnings and whether beginners should use it for immersion.",
+    publishedAt: "2026-07-11T23:00:00.000Z",
+    updatedAt: "2026-07-11T23:00:00.000Z",
+    keywords: [
+      "solo leveling learn japanese",
+      "solo leveling japanese study",
+      "solo leveling immersion",
+      "ore dake level up japanese",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Solo Leveling** is hype — and full of system/UI fantasy nouns. Treat it as entertainment until you can follow slice-of-life dialogue without melting.",
+      },
+      {
+        type: "p",
+        text: "If you watch: one emotional line per episode max. Tooling: [AnimeVocab](/free-japanese-anime-extension). Ladder: [best beginner anime](/best-anime-to-learn-japanese).",
+      },
+    ],
+  },
+  {
+    slug: "best-free-language-reactor-alternative-2026",
+    title: "Best Free Language Reactor Alternative (2026)",
+    description:
+      "Best free Language Reactor alternatives for anime learners in 2026 — Netflix dual subs, Crunchyroll gaps, and romaji-first beginner tools.",
+    publishedAt: "2026-07-11T23:30:00.000Z",
+    updatedAt: "2026-07-11T23:30:00.000Z",
+    keywords: [
+      "best free language reactor alternative",
+      "language reactor free alternative 2026",
+      "free dual subtitles netflix japanese",
+      "language reactor alternative crunchyroll",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Looking for the **best free Language Reactor alternative** depends on platform. LR owns a lot of Netflix/YouTube dual-sub mindshare — Crunchyroll learners need a different answer.",
+      },
+      { type: "h2", text: "By job-to-be-done" },
+      {
+        type: "ul",
+        items: [
+          "**Netflix dual subs** — stay on LR free tier or compare [vs Language Reactor](/vs-language-reactor)",
+          "**Crunchyroll / no JP track** — [AnimeVocab](/free-japanese-anime-extension) Listening Mode",
+          "**Power mining** — asbplayer + Anki (free, hard) ([vs asbplayer](/vs-asbplayer))",
+          "**Beginner romaji** — AnimeVocab before any dual-sub stack",
+        ],
+      },
+      {
+        type: "p",
+        text: "Also: [Language Reactor free alternative](/blog/language-reactor-free-alternative-2026), [LR on Crunchyroll?](/blog/language-reactor-crunchyroll-2026).",
+      },
+    ],
+  },
+  {
     slug: "one-piece-learn-japanese-beginners-2026",
     title: "One Piece for Learning Japanese? Beginners (2026)",
     description:

@@ -179,6 +179,10 @@ export default function LearnJapaneseCrunchyrollPage() {
               <Link href="/blog/chrome-extension-not-working-crunchyroll-2026">
                 Crunchyroll extension troubleshooting
               </Link>
+              . Direct answer:{" "}
+              <Link href="/blog/does-crunchyroll-have-japanese-subtitles-2026">
+                Does Crunchyroll have Japanese subtitles?
+              </Link>
               .
             </p>
 

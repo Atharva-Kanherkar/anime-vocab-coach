@@ -165,7 +165,8 @@ export default function BestAnimePage() {
                 bad first textbooks (slang, shouting, fantasy terms).{" "}
                 <Link href="/blog/attack-on-titan-learn-japanese-beginners-2026">AOT</Link> ·{" "}
                 <Link href="/blog/jujutsu-kaisen-learn-japanese-2026">JJK</Link> ·{" "}
-                <Link href="/blog/demon-slayer-learn-japanese-beginners-2026">Demon Slayer →</Link>
+                <Link href="/blog/demon-slayer-learn-japanese-beginners-2026">Demon Slayer</Link> ·{" "}
+                <Link href="/blog/chainsaw-man-learn-japanese-2026">Chainsaw Man →</Link>
               </li>
               <li>
                 <strong>Heavy dialect comedy</strong> — fun once you hear standard Tokyo pitch reliably.
