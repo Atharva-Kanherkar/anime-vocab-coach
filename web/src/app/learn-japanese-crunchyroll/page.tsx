@@ -4,9 +4,33 @@ import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
-import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
+import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/learn-japanese-crunchyroll";
+
+const faqs = [
+  {
+    question: "Does Crunchyroll have Japanese subtitles?",
+    answer:
+      "Outside Japan, most Crunchyroll titles ship with English subtitles only. Japanese dialogue audio is available, but Japanese subtitle tracks are often missing — which breaks tools that need on-screen Japanese text.",
+  },
+  {
+    question: "How can I learn Japanese on Crunchyroll without Japanese subtitles?",
+    answer:
+      "Work from audio: save spoken words with romaji and review them with spaced repetition. AnimeVocab Listening Mode transcribes tab audio when JP subs are missing. Advanced readers can overlay fan .srt files from Kitsunekko or jimaku.cc.",
+  },
+  {
+    question: "Does Migaku work on Crunchyroll?",
+    answer:
+      "Migaku does not support Crunchyroll as a first-class platform. Learners searching Migaku Crunchyroll usually need Lexirise, ManabiDojo, AnimeVocab, or a fan-subtitle mining stack instead.",
+  },
+  {
+    question: "What is the best free tool for Crunchyroll Japanese beginners?",
+    answer:
+      "If you cannot read kana yet, AnimeVocab's free romaji-first cards and Listening Mode. If you already read Japanese subtitle text, Lexirise or ManabiDojo free cores are stronger for click-to-translate mining.",
+  },
+];
+
 
 export const metadata: Metadata = {
   title: "Learn Japanese on Crunchyroll (2026): No JP Subs, Real Workflows",
@@ -29,6 +53,8 @@ export const metadata: Metadata = {
 };
 
 export default function LearnJapaneseCrunchyrollPage() {
+  const faqLd = faqJsonLd(faqs);
+
   return (
     <>
       <LandingJsonLd
@@ -36,6 +62,7 @@ export default function LearnJapaneseCrunchyrollPage() {
         title="Learn Japanese on Crunchyroll (2026): No JP Subs, Real Workflows"
         description="Learn Japanese on Crunchyroll when Japanese subtitles are missing. Compare AnimeVocab, Lexirise, and ManabiDojo — transcription, romaji, and SRS that work on simulcasts."
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs
@@ -76,8 +103,9 @@ export default function LearnJapaneseCrunchyrollPage() {
               Licensing limits Japanese subtitle tracks in many regions. Community threads (WaniKani, Reddit)
               have documented this for years: you get English translations, not Japanese transcriptions. Migaku
               does not support Crunchyroll; learners searching <strong>Migaku Crunchyroll</strong> hit a dead
-              end. Fan subtitle workflows (Jimaku + asbplayer) work for advanced readers, not month-zero
-              beginners.
+              end — see our{" "}
+              <Link href="/blog/migaku-crunchyroll-alternative-2026">Migaku Crunchyroll alternative guide</Link>.
+              Fan subtitle workflows (Jimaku + asbplayer) work for advanced readers, not month-zero beginners.
             </p>
 
             <h2>Tools that work on Crunchyroll in 2026</h2>
@@ -120,6 +148,17 @@ export default function LearnJapaneseCrunchyrollPage() {
               </table>
             </div>
 
+            <h2>FAQ</h2>
+            <ul>
+              {faqs.map((f) => (
+                <li key={f.question}>
+                  <strong>{f.question}</strong>
+                  <br />
+                  {f.answer}
+                </li>
+              ))}
+            </ul>
+
             <h2>20-minute Crunchyroll study session</h2>
             <ol className="article-ol">
               <li>
@@ -130,6 +169,22 @@ export default function LearnJapaneseCrunchyrollPage() {
               <li>Save it with the line and show title (extension or notebook).</li>
               <li>Review for five minutes before the next episode — SRS beats bingeing.</li>
             </ol>
+
+            <p>
+              Coming from Funimation?{" "}
+              <Link href="/blog/funimation-to-crunchyroll-learn-japanese-2026">
+                Keep your Japanese study habit after the Funimation → Crunchyroll move
+              </Link>
+              . Extension acting up after a player update?{" "}
+              <Link href="/blog/chrome-extension-not-working-crunchyroll-2026">
+                Crunchyroll extension troubleshooting
+              </Link>
+              . Direct answer:{" "}
+              <Link href="/blog/does-crunchyroll-have-japanese-subtitles-2026">
+                Does Crunchyroll have Japanese subtitles?
+              </Link>
+              .
+            </p>
 
             <p>
               Deep dive:{" "}
@@ -158,11 +213,14 @@ export default function LearnJapaneseCrunchyrollPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/blog/learn-japanese-while-watching-crunchyroll-2026", label: "While-watching workflow" },
+          { href: "/blog/crunchyroll-japanese-learning-extension-2026", label: "CR extensions ranked" },
+          { href: "/blog/substital-crunchyroll-japanese-subtitles-2026", label: "Substital guide" },
           { href: "/blog/kitsunekko-subtitles-anime-2026", label: "Kitsunekko guide" },
           { href: "/blog/jimaku-crunchyroll-subtitles-vs-listening-mode", label: "Jimaku vs Listening Mode" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
-          { href: "/blog/asbplayer-alternative-beginners-anime-japanese", label: "asbplayer vs beginners" },
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
           { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },

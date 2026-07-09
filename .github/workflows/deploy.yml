@@ -68,7 +68,7 @@ jobs:
         run: |
           curl -sf -X POST "https://api.indexnow.org/indexnow" \
             -H "Content-Type: application/json" \
-            -d '{"host":"animevocab.com","key":"animevocab-indexnow-key","keyLocation":"https://animevocab.com/animevocab-indexnow-key.txt","urlList":["https://animevocab.com/sitemap.xml"]}'
+            -d '{"host":"animevocab.com","key":"animevocab-indexnow-key","keyLocation":"https://animevocab.com/animevocab-indexnow-key.txt","urlList":["https://animevocab.com/sitemap.xml","https://animevocab.com/","https://animevocab.com/free-japanese-anime-extension","https://animevocab.com/learn-japanese-with-anime","https://animevocab.com/learn-japanese-crunchyroll","https://animevocab.com/blog","https://animevocab.com/blog/best-apps-learn-japanese-anime-2026","https://animevocab.com/blog/migaku-crunchyroll-alternative-2026","https://animevocab.com/vs-migaku","https://animevocab.com/vs-wordy","https://animevocab.com/learn-japanese-disney-plus","https://animevocab.com/learn-japanese-prime-video"]}'
 
   deploy-api:
     name: Deploy Pro API

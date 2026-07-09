@@ -108,6 +108,13 @@ export default function LearnJapaneseNetflixPage() {
             </ul>
 
             <p>
+              Missing Japanese audio on a title?{" "}
+              <Link href="/blog/netflix-japanese-audio-not-available-2026">
+                Netflix Japanese audio not available — fixes
+              </Link>
+              .
+            </p>
+            <p>
               Full post:{" "}
               <Link href="/blog/learn-japanese-netflix-anime-2026">
                 Learn Japanese on Netflix anime in 2026 (blog)
@@ -129,9 +136,11 @@ export default function LearnJapaneseNetflixPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/blog/chrome-extension-learn-japanese-netflix-2026", label: "Netflix extensions" },
           { href: "/blog/hashigo-yomitan-netflix-japanese-anime-2026", label: "HASHIGO guide" },
           { href: "/vs-lingoku", label: "vs Lingoku" },
           { href: "/vs-yumego", label: "vs YumeGo" },
+          { href: "/learn-japanese-disney-plus", label: "Disney+" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/blog", label: "Blog" },

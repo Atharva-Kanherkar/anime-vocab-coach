@@ -10,6 +10,7 @@ const staticRoutes = [
   { path: "", priority: 1, changeFrequency: "weekly" as const },
   { path: "/blog", priority: 0.85, changeFrequency: "weekly" as const },
   { path: "/learn-japanese-with-anime", priority: 0.9, changeFrequency: "monthly" as const },
+  { path: "/free-japanese-anime-extension", priority: 0.9, changeFrequency: "monthly" as const },
   { path: "/studio", priority: 0.92, changeFrequency: "weekly" as const },
   { path: "/ai-manga-maker", priority: 0.91, changeFrequency: "weekly" as const },
   { path: "/learn-japanese-manga", priority: 0.88, changeFrequency: "monthly" as const },
@@ -18,6 +19,10 @@ const staticRoutes = [
   { path: "/best-anime-to-learn-japanese", priority: 0.88, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-netflix-anime", priority: 0.86, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-youtube-anime", priority: 0.84, changeFrequency: "monthly" as const },
+  { path: "/learn-japanese-disney-plus", priority: 0.82, changeFrequency: "monthly" as const },
+  { path: "/learn-japanese-prime-video", priority: 0.8, changeFrequency: "monthly" as const },
+  { path: "/learn-japanese-hidive", priority: 0.8, changeFrequency: "monthly" as const },
+  { path: "/learn-japanese-hulu", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/romaji-japanese-learning", priority: 0.85, changeFrequency: "monthly" as const },
   { path: "/anime-spaced-repetition", priority: 0.84, changeFrequency: "monthly" as const },
   { path: "/vs-trancy", priority: 0.78, changeFrequency: "monthly" as const },
@@ -28,6 +33,7 @@ const staticRoutes = [
   { path: "/vs-lingoku", priority: 0.78, changeFrequency: "monthly" as const },
   { path: "/vs-yumego", priority: 0.76, changeFrequency: "monthly" as const },
   { path: "/vs-asbplayer", priority: 0.77, changeFrequency: "monthly" as const },
+  { path: "/vs-wordy", priority: 0.75, changeFrequency: "monthly" as const },
   { path: "/vs-manabidojo", priority: 0.78, changeFrequency: "monthly" as const },
   { path: "/cloud", priority: 0.7, changeFrequency: "monthly" as const },
   { path: "/without-extension", priority: 0.6, changeFrequency: "monthly" as const },
@@ -36,7 +42,7 @@ const staticRoutes = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const lastModified = new Date("2026-07-08");
+  const lastModified = new Date("2026-07-09");
   const blogEntries = blogPosts.map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt),

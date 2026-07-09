@@ -4,9 +4,27 @@ import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
-import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
+import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/romaji-japanese-learning";
+
+const faqs = [
+  {
+    question: "Is learning Japanese with romaji cheating?",
+    answer:
+      "No. Romaji is a temporary on-ramp so you can notice spoken vocabulary before you can read kana. Switch to hiragana once roughly 50 words stick by sound.",
+  },
+  {
+    question: "What is the best romaji Japanese learning tool for anime?",
+    answer:
+      "AnimeVocab shows romaji-first cards from Crunchyroll, Netflix, and YouTube with built-in spaced repetition. Animelon offered romaji subtitle modes but is unreliable as a primary catalog.",
+  },
+  {
+    question: "When should I stop using romaji?",
+    answer:
+      "After you can recognize hiragana comfortably and look up words with a popup dictionary. Then dual-subtitle tools and Yomitan become useful instead of a wall.",
+  },
+];
 
 export const metadata: Metadata = {
   title: "Romaji Japanese Learning with Anime (2026): When It Helps",
@@ -28,6 +46,8 @@ export const metadata: Metadata = {
 };
 
 export default function RomajiJapaneseLearningPage() {
+  const faqLd = faqJsonLd(faqs);
+
   return (
     <>
       <LandingJsonLd
@@ -35,6 +55,7 @@ export default function RomajiJapaneseLearningPage() {
         title="Romaji Japanese Learning with Anime (2026): When It Helps"
         description="Romaji-first Japanese learning for anime fans who cannot read kana yet. When romaji helps, when to switch to hiragana, and tools that support both."
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs
@@ -84,10 +105,21 @@ export default function RomajiJapaneseLearningPage() {
               workflows become usable. The underlying vocabulary transfers — only the display layer changes.
             </p>
 
+            <h2>FAQ</h2>
+            <ul>
+              {faqs.map((f) => (
+                <li key={f.question}>
+                  <strong>{f.question}</strong>
+                  <br />
+                  {f.answer}
+                </li>
+              ))}
+            </ul>
+
             <p>
               Read more:{" "}
               <Link href="/blog/romaji-first-japanese-anime">Romaji-first Japanese learning (blog)</Link>,{" "}
-              hub: <Link href="/romaji-japanese-learning">romaji landing guide</Link>,{" "}
+              <Link href="/free-japanese-anime-extension">free extension hub</Link>,{" "}
               <Link href="/learn-japanese-crunchyroll">Crunchyroll guide</Link>,{" "}
               <Link href="/vs-language-reactor">vs Language Reactor</Link> (reader-focused).
             </p>
@@ -105,8 +137,12 @@ export default function RomajiJapaneseLearningPage() {
       </main>
       <SiteFooter
         links={[
-          { href: "/blog", label: "Blog" },
+          { href: "/blog/hiragana-before-anime-or-after-2026", label: "Hiragana before anime?" },
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
+          { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
+          { href: "/blog/best-apps-learn-japanese-anime-2026", label: "Best apps 2026" },
+          { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },
         ]}
       />

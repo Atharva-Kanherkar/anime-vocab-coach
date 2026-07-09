@@ -32,6 +32,44 @@ export const SEO_KEYWORDS = [
   "Kitsunekko subtitles",
   "kitsunekko anime japanese subs",
   "asbplayer vs animevocab",
+  "best apps learn japanese anime",
+  "yomitan anime alternative",
+  "free chrome extension learn japanese",
+  "free japanese anime extension",
+  "Wordy alternative",
+  "animevocab vs wordy",
+  "learn japanese disney plus",
+  "substital crunchyroll",
+  "migaku crunchyroll alternative",
+  "learn japanese prime video",
+  "shirokuma cafe learn japanese",
+  "polar bear cafe japanese",
+  "non non biyori learn japanese",
+  "is migaku worth it",
+  "how to learn japanese watching anime",
+  "language reactor free alternative",
+  "anime immersion beginners",
+  "doraemon learn japanese",
+  "k-on learn japanese",
+  "chrome extension learn japanese netflix",
+  "crunchyroll japanese learning extension",
+  "free ways learn japanese anime",
+  "anki anime beginners",
+  "sazae-san learn japanese",
+  "does watching anime help learn japanese",
+  "learn japanese while watching crunchyroll",
+  "passive anime watching japanese",
+  "best free japanese learning apps",
+  "hiragana before anime",
+  "japanese listening practice anime",
+  "jlpt n5 anime",
+  "comprehensible input anime",
+  "ghibli learn japanese",
+  "netflix vs crunchyroll learn japanese",
+  "how long learn japanese anime",
+  "stop using english subtitles japanese",
+  "is anime enough to learn japanese",
+  "crunchyroll no japanese subtitles extension",
   "Japanese immersion",
   "Chrome extension Japanese",
   "Listening Mode Japanese",
@@ -148,6 +186,11 @@ export function blogJsonLd(posts: { title: string; url: string; publishedAt: str
 
 export const HOME_FAQ = [
   {
+    question: "Does watching anime help you learn Japanese?",
+    answer:
+      "Yes — if you capture spoken words and review them. Passive English-sub bingeing teaches plot, not vocabulary. AnimeVocab turns each episode into one romaji card with spaced repetition.",
+  },
+  {
     question: "Can I learn Japanese just by watching anime?",
     answer:
       "Only if you actively notice and remember words. AnimeVocab handles that: one word at a time, in context, with scheduled reviews.",
@@ -161,6 +204,16 @@ export const HOME_FAQ = [
     question: "How is this different from subtitle dictionary tools?",
     answer:
       "Most tools assume you can read Japanese subtitles and hover words yourself. AnimeVocab pushes one curated word to you in romaji and tracks SRS for you.",
+  },
+  {
+    question: "Is AnimeVocab free?",
+    answer:
+      "Yes. The core learning loop is free with no account required. Pro is optional for hosted Listening Mode transcription without bringing your own API key.",
+  },
+  {
+    question: "Does it work on Crunchyroll without Japanese subtitles?",
+    answer:
+      "Yes. Listening Mode can work from spoken audio when Japanese subtitle text is missing — the common case on Crunchyroll outside Japan.",
   },
   {
     question: "Where is my data stored?",

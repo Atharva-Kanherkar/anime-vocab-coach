@@ -3,7 +3,30 @@ import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL } from "@/lib/site";
-import { articleJsonLd, defaultOpenGraph, defaultTwitter } from "@/lib/seo";
+import { articleJsonLd, defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
+
+const FAQ = [
+  {
+    question: "Is writing manga better than reading manga for Japanese?",
+    answer:
+      "They train different skills. Reading builds recognition; writing forces retrieval. Use graded readers for input and short self-written chapters for output.",
+  },
+  {
+    question: "Can beginners write manga before they know kanji?",
+    answer:
+      "Yes. Start with English drafts, romaji, or simple kana dialogue. Edit AI lines until they match words you are studying from anime.",
+  },
+  {
+    question: "What is Word Manga vs Manga Studio?",
+    answer:
+      "Word Manga builds a 4-panel story around vocabulary you already saved. Manga Studio drafts longer chapters from a premise with editable dialogue and panel art.",
+  },
+  {
+    question: "How do I combine anime watching with manga writing?",
+    answer:
+      "Capture one word per episode while watching, then spend a weekend putting those words into a short manga chapter and reviewing with spaced repetition.",
+  },
+];
 
 const path = "/learn-japanese-manga";
 
@@ -43,12 +66,14 @@ export default function LearnJapaneseMangaPage() {
     description,
     url: `${SITE_URL}${path}`,
     publishedAt: "2026-07-07T00:00:00.000Z",
-    updatedAt: "2026-07-07T00:00:00.000Z",
+    updatedAt: "2026-07-10T00:00:00.000Z",
   });
+  const faqLd = faqJsonLd(FAQ);
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs
@@ -146,9 +171,18 @@ export default function LearnJapaneseMangaPage() {
               </li>
             </ul>
 
+            <h2>FAQ</h2>
+            {FAQ.map((item) => (
+              <div key={item.question}>
+                <h3>{item.question}</h3>
+                <p>{item.answer}</p>
+              </div>
+            ))}
+
             <p>
               Deep dive:{" "}
               <Link href="/blog/learn-japanese-by-writing-manga">Learn Japanese by writing manga</Link>,{" "}
+              <Link href="/blog/graded-readers-vs-writing-manga-2026">graded readers vs writing manga</Link>,{" "}
               <Link href="/ai-manga-maker">AI manga maker guide</Link>,{" "}
               <Link href="/blog/one-word-per-episode-method">one word per episode method</Link>.
             </p>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
@@ -64,7 +65,9 @@ export default function VsMigakuPage() {
               <strong>AnimeVocab is the one most people will actually keep open.</strong> Migaku goes
               deeper if you want to build and drill a custom Anki deck and will spend an afternoon wiring
               it up. If you just want to learn from tonight&apos;s episode (no setup, no subscription, no kana
-              course first), that&apos;s AnimeVocab, and it&apos;s free to find out.
+              course first), that&apos;s AnimeVocab, and it&apos;s free to find out. Searching for a{" "}
+              <Link href="/blog/migaku-free-alternative-2026">Migaku free alternative</Link>? Start there
+              before you subscribe.
             </>
           }
         />
@@ -233,6 +236,8 @@ export default function VsMigakuPage() {
             <p style={{ marginTop: 20 }}>
               Plenty of people never need more than this. If you do eventually want a full sentence-mining
               rig, Migaku will be there, but &quot;eventually&quot; is carrying a lot of weight in that sentence.
+              Watching Crunchyroll? Migaku does not support it — see{" "}
+              <Link href="/blog/migaku-crunchyroll-alternative-2026">Migaku Crunchyroll alternatives</Link>.
             </p>
           </div>
         </section>
@@ -248,10 +253,13 @@ export default function VsMigakuPage() {
       </main>
       <SiteFooter
         links={[
-          { href: "/", label: "Home" },
+          { href: "/blog/is-migaku-worth-it-2026", label: "Is Migaku worth it?" },
+          { href: "/blog/migaku-crunchyroll-alternative-2026", label: "Migaku Crunchyroll alt" },
+          { href: "/free-japanese-anime-extension", label: "Free extension" },
+          { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/learn-japanese-with-anime", label: "Compare" },
+          { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },
-          { href: "/privacy", label: "Privacy" },
         ]}
       />
     </>
