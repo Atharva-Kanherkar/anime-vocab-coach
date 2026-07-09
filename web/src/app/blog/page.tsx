@@ -84,6 +84,14 @@ export default function BlogIndexPage() {
                   <Link href="/free-japanese-anime-extension">Free Japanese anime extension</Link>
                 </li>
                 <li>
+                  <Link href="/blog/jlpt-n5-anime-vocabulary-2026">JLPT N5 vocabulary from anime</Link>
+                </li>
+                <li>
+                  <Link href="/blog/comprehensible-input-anime-2026">
+                    Comprehensible input with anime
+                  </Link>
+                </li>
+                <li>
                   <Link href="/blog/japanese-listening-practice-anime-2026">
                     Japanese listening practice with anime
                   </Link>

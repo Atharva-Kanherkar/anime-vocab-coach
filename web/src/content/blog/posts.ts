@@ -2,6 +2,90 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "jlpt-n5-anime-vocabulary-2026",
+    title: "JLPT N5 Vocabulary from Anime (2026): What Actually Appears",
+    description:
+      "Which JLPT N5 words show up in beginner anime — and how to learn them from shows instead of only textbooks, with a free capture workflow.",
+    publishedAt: "2026-07-10T00:00:00.000Z",
+    updatedAt: "2026-07-10T00:00:00.000Z",
+    keywords: [
+      "jlpt n5 anime",
+      "n5 vocabulary anime",
+      "learn jlpt n5 from anime",
+      "anime jlpt n5 words",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/11-cards.webp",
+    blocks: [
+      {
+        type: "p",
+        text: "**JLPT N5 vocabulary from anime** is real — 食べる, 行く, 好き, 大丈夫 show up constantly in slice-of-life. Fantasy attack names do not. Use beginner shows to hear N5 in context, then review on a schedule.",
+      },
+      { type: "h2", text: "Best shows for N5-ish speech" },
+      {
+        type: "ul",
+        items: [
+          "[Shirokuma Cafe](/blog/shirokuma-cafe-learn-japanese-2026)",
+          "[Doraemon](/blog/doraemon-learn-japanese-2026) / [Sazae-san](/blog/sazae-san-learn-japanese-2026)",
+          "[Non Non Biyori](/blog/non-non-biyori-learn-japanese-2026)",
+        ],
+      },
+      { type: "h2", text: "Capture workflow" },
+      {
+        type: "ol",
+        items: [
+          "Watch with [AnimeVocab](/free-japanese-anime-extension) — romaji OK at N5 stage.",
+          "Prefer words that appear twice in the episode.",
+          "Review daily ([SRS](/anime-spaced-repetition)) — N5 lists without audio die fast.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Anime ≠ JLPT prep alone — add a light textbook for polite forms. Method: [how to learn watching anime](/blog/how-to-learn-japanese-watching-anime-2026).",
+      },
+    ],
+  },
+  {
+    slug: "comprehensible-input-anime-2026",
+    title: "Comprehensible Input with Anime (2026): Make Shows Actually Teach",
+    description:
+      "How to use anime as comprehensible input — i+1 show picks, English-sub rules, and free tools so immersion builds Japanese instead of just vibes.",
+    publishedAt: "2026-07-10T00:30:00.000Z",
+    updatedAt: "2026-07-10T00:30:00.000Z",
+    keywords: [
+      "comprehensible input anime",
+      "anime comprehensible input japanese",
+      "i+1 anime japanese",
+      "krashen anime immersion",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Comprehensible input** means you understand most of what you hear. Anime only counts when the show is slow enough and you notice forms — not when you lean 100% on English subs for every line.",
+      },
+      { type: "h2", text: "Make anime i+1" },
+      {
+        type: "ul",
+        items: [
+          "Pick Tier-1 shows ([best anime](/best-anime-to-learn-japanese))",
+          "Allow English subs for plot, but capture Japanese audio words",
+          "One new item per episode beats twenty ignored ones",
+        ],
+      },
+      { type: "h2", text: "Tools that support CI" },
+      {
+        type: "p",
+        text: "[AnimeVocab](/free-japanese-anime-extension) for romaji-first noticing; Language Reactor when you can read JP subs; avoid shonen-as-only-input. Passive vs active: [guide](/blog/passive-anime-watching-vs-active-study-2026).",
+      },
+      {
+        type: "p",
+        text: "Beginner immersion: [full guide](/blog/anime-immersion-beginners-guide-2026).",
+      },
+    ],
+  },
+  {
     slug: "hiragana-before-anime-or-after-2026",
     title: "Learn Hiragana Before Anime — or After? (2026)",
     description:
