@@ -44,6 +44,8 @@ import {
 } from "@/lib/studio-draft";
 import { SketchCanvas, type SketchHandle } from "@/components/app/sketch-canvas";
 import { StudioReaderView } from "@/components/app/studio-reader";
+import { DesktopChromeBanner } from "@/components/desktop-chrome-banner";
+import { trackMetaCustom } from "@/lib/meta-pixel";
 
 type Auth = "unknown" | "in" | "out";
 
@@ -109,6 +111,9 @@ export function StudioEditor({ signedIn }: { signedIn?: boolean }) {
       void refreshList();
       const restored = loadDraft();
       if (restored) setDraft(restored);
+      if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("from") === "ending") {
+        trackMetaCustom("StudioOpen", { source: "ending_redirect" });
+      }
     }, 0);
     return () => clearTimeout(t);
   }, [refreshList]);
@@ -170,6 +175,7 @@ export function StudioEditor({ signedIn }: { signedIn?: boolean }) {
           setSaved(m);
           void refreshList();
         }}
+        showChromeNudge
       />
     );
   }
@@ -190,7 +196,10 @@ export function StudioEditor({ signedIn }: { signedIn?: boolean }) {
         </p>
         {auth === "out" && (
           <p className="mt-3 rounded-lg border-2 border-line bg-panel px-4 py-2.5 text-[13px] font-bold text-ink2">
-            Try it free — no account needed. Sign in (also free) to save, publish, and make more.
+            Try it free — no account needed. Sign in (also free) to save, publish, and make more.{" "}
+            <a className="text-accent underline" href="/end/lantern-of-words">
+              Or choose an ending for a finished manga →
+            </a>
           </p>
         )}
       </header>
@@ -481,12 +490,14 @@ function EditDraft({
   onMutate,
   onDiscard,
   onSaved,
+  showChromeNudge = false,
 }: {
   draft: StudioDraft;
   auth: Auth;
   onMutate: (updater: (d: StudioDraft) => StudioDraft) => void;
   onDiscard: () => void;
   onSaved: (meta: StudioCreationMeta) => void;
+  showChromeNudge?: boolean;
 }) {
   const [selected, setSelected] = useState(0);
   const [tab, setTab] = useState<"result" | "canvas">("canvas");
@@ -651,7 +662,7 @@ function EditDraft({
   };
 
   return (
-    <section aria-label="Manga workspace" className="pb-10">
+    <section aria-label="Manga workspace" className="pb-28">
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-3 border-b-2 border-ink pb-3">
         <button
@@ -675,6 +686,15 @@ function EditDraft({
           {saving ? "Saving…" : auth === "in" ? "Save & publish" : "Log in to save"}
         </button>
       </div>
+      {auth === "out" && (
+        <p className="mt-3 rounded-xl border-2 border-accent/35 bg-panel px-4 py-3 text-[13.5px] font-bold text-ink2">
+          Your epilogue is drafted. Draw panels, then{" "}
+          <a className="text-accent underline" href={signInHref()}>
+            sign in free to save &amp; share
+          </a>
+          .
+        </p>
+      )}
       {error && (
         <div className="mt-2">
           <span className="text-[13px] font-bold text-danger">{errorMessage(error)}</span>
@@ -961,6 +981,7 @@ function EditDraft({
           )}
         </aside>
       </div>
+      {showChromeNudge && <DesktopChromeBanner />}
     </section>
   );
 }

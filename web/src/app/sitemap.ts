@@ -23,6 +23,8 @@ const staticRoutes = [
   { path: "/learn-japanese-prime-video", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-hidive", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/learn-japanese-hulu", priority: 0.8, changeFrequency: "monthly" as const },
+  { path: "/from-reel", priority: 0.5, changeFrequency: "weekly" as const },
+  { path: "/end/lantern-of-words", priority: 0.85, changeFrequency: "weekly" as const },
   { path: "/romaji-japanese-learning", priority: 0.85, changeFrequency: "monthly" as const },
   { path: "/anime-spaced-repetition", priority: 0.84, changeFrequency: "monthly" as const },
   { path: "/vs-trancy", priority: 0.78, changeFrequency: "monthly" as const },
