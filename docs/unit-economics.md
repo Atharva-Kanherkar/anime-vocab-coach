@@ -155,6 +155,24 @@ Levers, in order: quality `medium → low` cuts image cost ~4x; lower
 (`/m/<id>`) and the gallery cost nothing extra and are the viral loop: every
 shared manga is a product demo with a "make your own" CTA.
 
+### Ending Funnel (Instagram ads → /from-reel → /end)
+
+The paid-traffic funnel has its OWN backend (`/api/ending/*`) and its own
+gate, separate from the Studio budgets above. One ending = 1 script call +
+exactly **5** panel images with dialogue lettered in ≈ **$0.20**.
+
+- `ENDING_FREE_PER_IP` (default **1**) — the free taste, per IP (60-day key),
+  so an ad click costs at most ~$0.20 in art.
+- `ENDING_SIGNED_PER_MONTH` (default **3**) — what a free account unlocks;
+  the paywall's first conversion step (email capture) before Pro checkout.
+- `ENDING_GLOBAL_PER_DAY` (default **400**) — global daily creation cap:
+  worst-case ad-spike spend ceiling ≈ **$80/day** even under IP rotation.
+
+Funnel analytics are server-side KV counters (`endstats:*`), read via the
+owner-only `GET /api/ending/stats` (land → pick → generate → complete →
+paywall → signup/checkout clicks, per day and all-time). Share pages
+(`/e/<id>`) cost nothing and are the viral loop.
+
 ## MRR Targets
 
 At launch pricing:

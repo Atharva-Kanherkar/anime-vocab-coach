@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { EndingCatalog } from "@/components/app/ending-catalog";
-import { DesktopChromeBanner } from "@/components/desktop-chrome-banner";
+import { FunnelCatalog } from "@/components/funnel/funnel-catalog";
+import { FunnelTracker } from "@/components/funnel/funnel-track";
 import { SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const title = "Choose your ending — fan art epilogues";
 const description =
-  "How would YOU end One Piece, Demon Slayer, Jujutsu Kaisen, and more? Pick a fan ending, get a free fan-art manga chapter on your phone.";
+  "How would YOU end One Piece, Demon Slayer, Jujutsu Kaisen, and more? Pick a fan ending and watch an AI mangaka draw your own 5-panel manga — free.";
 
 export const metadata: Metadata = {
   title,
@@ -19,10 +19,8 @@ export const metadata: Metadata = {
 export default function EndCatalogPage() {
   return (
     <>
-      <main id="main" className="mx-auto mt-6 w-full max-w-[720px] px-4 pb-28 md:mt-10 md:px-6">
-        <EndingCatalog />
-      </main>
-      <DesktopChromeBanner />
+      <FunnelTracker event="land_end" />
+      <FunnelCatalog />
     </>
   );
 }
