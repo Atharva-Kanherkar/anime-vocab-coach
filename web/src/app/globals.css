@@ -2199,8 +2199,8 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 
 .fnl {
   --fnl-accent: #e8a54b;
-  --fnl-bg: #0b0910;
-  --fnl-bg-2: #141020;
+  --fnl-bg: #08070d;
+  --fnl-bg-2: #12101b;
   --fnl-ink: rgba(244, 240, 252, 0.96);
   --fnl-ink-2: rgba(230, 224, 246, 0.68);
   --fnl-ink-3: rgba(216, 208, 240, 0.42);
@@ -2214,23 +2214,39 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   background: var(--fnl-bg);
   font-family: var(--sans);
 }
+/* Backdrop: a dark stage under one warm spotlight from above (the "reading
+   under a desk lamp at night" key light), a faint cool floor bounce, and a
+   vignette pinning the edges — plus manga speedlines radiating from the top
+   (::before) and a halftone dust fading in from the top (::after). No blobby
+   corner glows. */
 .fnl__bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(1200px 600px at 85% -10%, rgba(232, 165, 75, 0.14), transparent 60%),
-    radial-gradient(900px 700px at -10% 30%, rgba(120, 80, 220, 0.12), transparent 55%),
-    radial-gradient(700px 500px at 60% 110%, rgba(217, 79, 79, 0.1), transparent 60%),
-    var(--fnl-bg);
+    radial-gradient(130% 90% at 50% 42%, transparent 52%, rgba(2, 2, 5, 0.82) 100%),
+    radial-gradient(95% 60% at 50% -14%, rgba(255, 178, 92, 0.17) 0%, rgba(232, 120, 70, 0.055) 46%, transparent 72%),
+    radial-gradient(85% 45% at 50% 112%, rgba(88, 110, 235, 0.09), transparent 62%),
+    linear-gradient(180deg, #0e0b15 0%, #08070d 55%, #050409 100%);
+}
+.fnl__bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(
+    from 118deg at 50% -22%,
+    rgba(255, 236, 210, 0.045) 0deg 0.55deg,
+    transparent 0.55deg 5.2deg
+  );
+  mask-image: radial-gradient(110% 78% at 50% -10%, rgba(0, 0, 0, 0.9), transparent 72%);
 }
 .fnl__bg::after {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 70%);
+  background-image: radial-gradient(rgba(255, 244, 230, 0.05) 1px, transparent 1.4px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(90% 60% at 50% 0%, rgba(0, 0, 0, 0.85), transparent 75%);
 }
 
 .fnl__top {
@@ -2742,43 +2758,101 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 .fnl-panel--art {
   object-fit: cover;
   background: var(--fnl-bg-2);
-  animation: fnl-reveal 0.5s ease;
+  animation: fnl-reveal 0.8s cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.4);
 }
 @keyframes fnl-reveal {
-  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
+/* The one active drawing slot: manga-page texture (faint sketch grid + soft
+   diagonal light sweep), page number, an inking bar, and the dialogue teaser. */
 .fnl-panel--skeleton {
   position: relative;
   display: grid;
   place-items: center;
+  overflow: hidden;
   background:
-    linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.05) 50%, transparent 70%),
-    var(--fnl-bg-2);
-  background-size: 220% 100%;
+    linear-gradient(112deg, transparent 32%, rgba(255, 232, 200, 0.06) 50%, transparent 68%),
+    repeating-linear-gradient(0deg, transparent 0 27px, rgba(255, 255, 255, 0.025) 27px 28px),
+    repeating-linear-gradient(90deg, transparent 0 27px, rgba(255, 255, 255, 0.025) 27px 28px),
+    radial-gradient(120% 90% at 50% 0%, var(--fnl-bg-2), #0c0a13 80%);
+  background-size: 240% 100%, auto, auto, auto;
 }
 .fnl-panel--skeleton.is-drawing {
-  animation: fnl-shimmer 1.6s linear infinite;
+  animation: fnl-shimmer 2.2s ease-in-out infinite;
   border-color: color-mix(in srgb, var(--fnl-accent) 40%, var(--fnl-line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fnl-accent) 22%, transparent), 0 14px 44px rgba(0, 0, 0, 0.35);
 }
 @keyframes fnl-shimmer {
-  from { background-position: 120% 0; }
-  to { background-position: -100% 0; }
+  from { background-position: 130% 0, 0 0, 0 0, 0 0; }
+  to { background-position: -110% 0, 0 0, 0 0, 0 0; }
 }
-.fnl-panel__num {
+.fnl-panel__page {
   position: absolute;
-  top: 12px;
-  left: 14px;
-  font-family: var(--serif);
-  font-size: 15px;
+  top: 14px;
+  left: 16px;
+  font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.16em;
   color: var(--fnl-ink-3);
 }
+.fnl-panel__page em {
+  font-style: normal;
+  color: color-mix(in srgb, var(--fnl-ink-3) 55%, transparent);
+}
+.fnl-panel__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px;
+  text-align: center;
+}
+.fnl-panel__ink {
+  width: min(180px, 50%);
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+.fnl-panel__ink i {
+  display: block;
+  height: 100%;
+  width: 45%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--fnl-accent), transparent);
+  animation: fnl-ink 1.4s ease-in-out infinite;
+}
+@keyframes fnl-ink {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
 .fnl-panel__status {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--fnl-ink-2);
+}
+.fnl-panel__teaser {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 34ch;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fnl-ink-3);
+}
+.fnl-panel__teaser em {
+  font-style: italic;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--fnl-ink) 78%, transparent);
 }
 .fnl-panel__retry {
   border: 1px solid var(--fnl-line);
@@ -2789,6 +2863,14 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   font-weight: 700;
   padding: 10px 16px;
   cursor: pointer;
+}
+.fnl-queue-hint {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--fnl-ink-3);
 }
 .fnl-panel__caption {
   margin: 0;

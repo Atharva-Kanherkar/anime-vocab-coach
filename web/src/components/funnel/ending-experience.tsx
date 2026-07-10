@@ -67,6 +67,14 @@ const DRAWING_LINES = [
   "Adding color and light…",
 ];
 
+const WRITING_LINES = [
+  "Casting the characters…",
+  "Plotting five pages…",
+  "Writing the dialogue…",
+  "Arguing about the final line…",
+  "Choosing where the silence goes…",
+];
+
 const LAST_ENDING_KEY = "avc-ending-last";
 
 export function rememberEnding(entry: { id: string; title: string; seriesTitle: string }) {
@@ -202,24 +210,51 @@ function ProgressBar({ done, active }: { done: number; active: boolean }) {
   );
 }
 
-function PanelSkeleton({ index, drawing, onRetry }: { index: number; drawing: boolean; onRetry?: () => void }) {
+/** The single active slot while a panel is being drawn: page number, rotating
+ * craft lines, an "inking" bar, and a teaser of the dialogue about to appear —
+ * anticipation instead of a wall of five gray boxes. */
+function PanelSkeleton({
+  index,
+  drawing,
+  panel,
+  onRetry,
+}: {
+  index: number;
+  drawing: boolean;
+  panel: StudioPanelScript;
+  onRetry?: () => void;
+}) {
   const [tick, setTick] = useState(index % DRAWING_LINES.length);
   useEffect(() => {
     if (!drawing) return;
-    const t = setInterval(() => setTick((n) => n + 1), 3200);
+    const t = setInterval(() => setTick((n) => n + 1), 2600);
     return () => clearInterval(t);
   }, [drawing]);
+  const teaser = panel.lines.find((l) => l.kind === "speech" || l.kind === "thought");
   return (
     <div className={"fnl-panel fnl-panel--skeleton" + (drawing ? " is-drawing" : "")}>
-      <span className="fnl-panel__num">{index + 1}</span>
+      <span className="fnl-panel__page">
+        PAGE {index + 1} <em>/ {ENDING_PANEL_COUNT}</em>
+      </span>
       {onRetry ? (
         <button type="button" className="fnl-panel__retry" onClick={onRetry}>
           Panel {index + 1} hiccuped — redraw
         </button>
       ) : (
-        <span className="fnl-panel__status">
-          {drawing ? DRAWING_LINES[tick % DRAWING_LINES.length] : "In the queue…"}
-        </span>
+        <div className="fnl-panel__center">
+          <span className="fnl-panel__ink" aria-hidden>
+            <i />
+          </span>
+          <span className="fnl-panel__status" aria-live="polite">
+            {drawing ? DRAWING_LINES[tick % DRAWING_LINES.length] : "Waiting for the ink to dry…"}
+          </span>
+          {teaser && (
+            <span className="fnl-panel__teaser">
+              {teaser.speaker ? `${teaser.speaker} is about to say…` : "Coming up…"}
+              <em>“{teaser.text}”</em>
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -270,6 +305,23 @@ function ShareButton({ script }: { script: ScriptData }) {
   );
 }
 
+function MakingIntro() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 2400);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="fnl-making-intro">
+      <div className="fnl-making-intro__spin" aria-hidden />
+      <p className="fnl-making-intro__line">Your mangaka is writing the chapter…</p>
+      <p className="fnl-making-intro__sub" aria-live="polite">
+        {WRITING_LINES[tick % WRITING_LINES.length]}
+      </p>
+    </div>
+  );
+}
+
 // ── The reader (making + done) ─────────────────────────────────────────────
 
 function Reader({
@@ -280,15 +332,7 @@ function Reader({
   accent: string;
 }) {
   const { script, panels, doneCount, phase, drawPanel } = maker;
-  if (!script) {
-    return (
-      <div className="fnl-making-intro">
-        <div className="fnl-making-intro__spin" aria-hidden />
-        <p className="fnl-making-intro__line">Your mangaka is writing the chapter…</p>
-        <p className="fnl-making-intro__sub">Casting the characters, plotting five panels.</p>
-      </div>
-    );
-  }
+  if (!script) return <MakingIntro />;
 
   return (
     <div className="fnl-reader" style={{ ["--fnl-accent" as string]: accent }}>
@@ -301,32 +345,55 @@ function Reader({
 
       {phase === "making" && <ProgressBar done={doneCount} active />}
 
-      <ol className="fnl-reader__panels">
-        {script.panels.slice(0, ENDING_PANEL_COUNT).map((panel, i) => {
-          const state = panels[i] ?? { status: "waiting" };
-          return (
-            <li key={i} className="fnl-reader__panelwrap">
-              {state.status === "done" ? (
-                <>
-                  <img
-                    className="fnl-panel fnl-panel--art"
-                    src={state.src}
-                    alt={`Panel ${i + 1}: ${panel.scene.slice(0, 140)}`}
-                    loading="lazy"
-                  />
-                  <PanelCaption panel={panel} />
-                </>
-              ) : (
-                <PanelSkeleton
-                  index={i}
-                  drawing={state.status === "drawing"}
-                  onRetry={state.status === "error" ? () => void drawPanel(script.id, i) : undefined}
-                />
-              )}
-            </li>
-          );
-        })}
-      </ol>
+      {(() => {
+        // Reveal strictly in reading order: every finished panel, then ONE
+        // active slot for the next page — never a wall of five gray boxes.
+        // Panels that finish out of order stay hidden until it's their turn.
+        const states = script.panels
+          .slice(0, ENDING_PANEL_COUNT)
+          .map((_, i) => panels[i] ?? { status: "waiting" as const });
+        const firstPending = states.findIndex((s) => s.status !== "done");
+        const visible = firstPending === -1 ? states.length : firstPending + 1;
+        const queued = states.length - visible;
+        return (
+          <>
+            <ol className="fnl-reader__panels">
+              {script.panels.slice(0, visible).map((panel, i) => {
+                const state = states[i];
+                return (
+                  <li key={i} className="fnl-reader__panelwrap">
+                    {state.status === "done" ? (
+                      <>
+                        <img
+                          className="fnl-panel fnl-panel--art"
+                          src={state.src}
+                          alt={`Panel ${i + 1}: ${panel.scene.slice(0, 140)}`}
+                          loading="lazy"
+                        />
+                        <PanelCaption panel={panel} />
+                      </>
+                    ) : (
+                      <PanelSkeleton
+                        index={i}
+                        drawing={state.status === "drawing"}
+                        panel={panel}
+                        onRetry={
+                          state.status === "error" ? () => void drawPanel(script.id, i) : undefined
+                        }
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+            {phase === "making" && queued > 0 && (
+              <p className="fnl-queue-hint">
+                {queued} more {queued === 1 ? "page is" : "pages are"} being inked behind this one
+              </p>
+            )}
+          </>
+        );
+      })()}
 
       {phase === "done" && <EndCard script={script} />}
       <p className="fnl-legal">Unofficial fan art / fan ending — made by a fan, for fans. Not affiliated with the original publishers.</p>
