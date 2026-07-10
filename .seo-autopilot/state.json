@@ -128,9 +128,7 @@
       ]
     },
     {
-      "date": "2026-07-11",
-      "file": "runs/2026-07-11-audit.md",
-      "pr": "",
+      "pr": "https://github.com/Atharva-Kanherkar/anime-vocab-coach/pull/53",
       "shipped": [
         "/ai-manga-ending-generator money page",
         "Refreshed /fan-ending-manga for funnel (5-panel draw)",
