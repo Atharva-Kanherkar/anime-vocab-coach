@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EndingCatalog } from "@/components/app/ending-catalog";
-import { DesktopChromeBanner } from "@/components/desktop-chrome-banner";
+import { FunnelCatalog } from "@/components/funnel/funnel-catalog";
+import { FunnelTracker } from "@/components/funnel/funnel-track";
 import { listEndingCatalog } from "@/lib/ending-hooks";
 import { SITE_URL } from "@/lib/site";
 import {
@@ -13,7 +13,7 @@ import {
 
 const title = "Choose your ending — fan art epilogues";
 const description =
-  "How would YOU end One Piece, Demon Slayer, Jujutsu Kaisen, and more? Pick a fan ending, get a free fan-art manga chapter on your phone.";
+  "How would YOU end One Piece, Demon Slayer, Jujutsu Kaisen, and more? Pick a fan ending and watch an AI mangaka draw your own 5-panel manga — free.";
 
 const faqs = [
   {
@@ -29,7 +29,7 @@ const faqs = [
   {
     question: "Is it free?",
     answer:
-      "Yes for your first daily tries. Sign in free to save, publish, and keep creating.",
+      "Yes — your first fan ending is free. Watch a 5-panel fan-art manga draw itself on the page.",
   },
 ];
 
@@ -66,34 +66,27 @@ export default function EndCatalogPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionLd) }}
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
-      <main id="main" className="mx-auto mt-6 w-full max-w-[720px] px-4 pb-28 md:mt-10 md:px-6">
-        <EndingCatalog />
-        <section className="end-min" style={{ marginTop: "2.5rem" }} aria-label="About fan endings">
-          <h2 className="end-min__h1" style={{ fontSize: "1.25rem" }}>
-            About these fan endings
-          </h2>
-          <p className="end-min__sub">
-            Unofficial fan art epilogues. Full guide:{" "}
-            <Link href="/fan-ending-manga" className="end-min__ghost" style={{ marginTop: 0 }}>
-              fan ending manga hub
-            </Link>
-            . Or{" "}
-            <Link href="/end/custom" className="end-min__ghost" style={{ marginTop: 0 }}>
-              type any title
-            </Link>
-            .
-          </p>
-          {faqs.map((f) => (
-            <div key={f.question} style={{ marginTop: "1.25rem" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0 }}>{f.question}</h3>
-              <p className="end-min__sub" style={{ marginTop: "0.35rem" }}>
-                {f.answer}
-              </p>
-            </div>
-          ))}
-        </section>
-      </main>
-      <DesktopChromeBanner />
+      <FunnelTracker event="land_end" />
+      <FunnelCatalog />
+      <section className="fnl-seo-faq" aria-label="About fan endings">
+        <h2 className="fnl-h1" style={{ fontSize: "1.15rem", marginTop: 28 }}>
+          About these fan endings
+        </h2>
+        <p className="fnl-lede" style={{ marginTop: 8 }}>
+          Unofficial fan art epilogues. Full guide:{" "}
+          <Link href="/fan-ending-manga">fan ending manga hub</Link>
+          {" · "}
+          <Link href="/end/custom">type any title</Link>.
+        </p>
+        {faqs.map((f) => (
+          <div key={f.question} style={{ marginTop: 16 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{f.question}</h3>
+            <p className="fnl-lede" style={{ marginTop: 4, fontSize: 13.5 }}>
+              {f.answer}
+            </p>
+          </div>
+        ))}
+      </section>
     </>
   );
 }

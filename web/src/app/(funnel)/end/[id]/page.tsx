@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { EndingPageClient } from "@/components/app/ending-page-client";
-import { DesktopChromeBanner } from "@/components/desktop-chrome-banner";
+import { EndingExperience } from "@/components/funnel/ending-experience";
+import { FunnelTracker } from "@/components/funnel/funnel-track";
 import { ENDING_CATALOG, getFeaturedEnding } from "@/lib/ending-hooks";
 import { SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
@@ -18,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const manga = getFeaturedEnding(id);
   if (!manga) return { title: "Ending not found" };
   const title = `${manga.title} fan ending — choose your epilogue`;
-  const description = `${manga.cliffhanger} Unofficial fan art epilogue for ${manga.title}. Pick your finale free.`;
+  const description = `${manga.cliffhanger} Unofficial fan art for ${manga.title}. Pick a finale and watch a 5-panel manga draw itself — free.`;
   return {
     title,
     description,
@@ -52,7 +51,7 @@ export default async function EndMangaPage({ params }: Props) {
     {
       question: `How do I make a ${manga.title} fan ending manga?`,
       answer:
-        "Pick one of the three fan finales below, optionally add a twist, and generate a short chapter. Then edit dialogue in Manga Studio.",
+        "Pick one of the three fan finales, optionally add a twist, and watch a 5-panel fan-art manga draw itself on the page.",
     },
     {
       question: "Can I try a different series?",
@@ -64,27 +63,8 @@ export default async function EndMangaPage({ params }: Props) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
-      <main id="main" className="mx-auto mt-6 w-full max-w-[720px] px-4 pb-28 md:mt-10 md:px-6">
-        <EndingPageClient manga={manga} />
-        <p className="mt-10 text-center text-[13px] text-ink3">
-          <Link href="/end" className="font-extrabold text-accent underline">
-            All series
-          </Link>
-          {" · "}
-          <Link href="/fan-ending-manga" className="font-extrabold text-accent underline">
-            Fan ending guide
-          </Link>
-          {" · "}
-          <Link href="/end/custom" className="font-extrabold text-accent underline">
-            Any title
-          </Link>
-          {" · "}
-          <Link href="/studio" className="font-extrabold text-accent underline">
-            Studio
-          </Link>
-        </p>
-      </main>
-      <DesktopChromeBanner />
+      <FunnelTracker event="land_series" />
+      <EndingExperience manga={manga} />
     </>
   );
 }
