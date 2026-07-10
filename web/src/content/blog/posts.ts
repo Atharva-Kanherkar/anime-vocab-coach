@@ -2503,19 +2503,20 @@ export const blogPosts: BlogPost[] = [
     description:
       "Looking for a Migaku free alternative? Compare free beginner anime tools vs Migaku's paid mining suite — and when paying actually makes sense.",
     publishedAt: "2026-07-11T08:00:00.000Z",
-    updatedAt: "2026-07-11T08:00:00.000Z",
+    updatedAt: "2026-07-11T18:00:00.000Z",
     keywords: [
       "migaku free alternative",
       "migaku alternative free",
       "free migaku alternative anime",
       "migaku without subscription",
     ],
-    readingMinutes: 7,
+    readingMinutes: 8,
     ogImage: "/slides/06-manifesto.jpg",
+    canonicalPath: "/migaku-free-alternative",
     blocks: [
       {
         type: "p",
-        text: "Search **Migaku free alternative** usually means: \"I like the idea of mining anime, but I am not ready for another subscription.\" Fair. Migaku is a power-user suite — not a month-zero on-ramp.",
+        text: "Search **Migaku free alternative** usually means: \"I like the idea of mining anime, but I am not ready for another subscription.\" Fair. Migaku is a power-user suite — not a month-zero on-ramp. **Canonical guide:** [Migaku free alternative](/migaku-free-alternative).",
       },
       { type: "h2", text: "Free paths that still teach" },
       {
@@ -2533,7 +2534,43 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Crunchyroll users: Migaku is not a CR magic wand — [CR alternatives](/blog/migaku-crunchyroll-alternative-2026).",
+        text: "Crunchyroll users: Migaku is not a CR magic wand — [CR alternatives](/blog/migaku-crunchyroll-alternative-2026). Fan-sub lane: [ManabiDojo alternative](/manabidojo-alternative).",
+      },
+    ],
+  },
+  {
+    slug: "manabidojo-alternative-2026",
+    title: "ManabiDojo Alternative (2026): When Fan Subs Aren't Enough",
+    description:
+      "Looking for a ManabiDojo alternative? Compare fan-sub overlays vs romaji-first Listening Mode — free options for Crunchyroll beginners and readers.",
+    publishedAt: "2026-07-11T18:30:00.000Z",
+    updatedAt: "2026-07-11T18:30:00.000Z",
+    keywords: [
+      "manabidojo alternative",
+      "manabidojo free alternative",
+      "manabi dojo alternative",
+      "manabidojo vs animevocab",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/08-final.jpg",
+    canonicalPath: "/manabidojo-alternative",
+    blocks: [
+      {
+        type: "p",
+        text: "**ManabiDojo** shines when you can read Japanese and want fan-sub overlays + quizzes on Crunchyroll. Searching **ManabiDojo alternative** usually means you can't read those subs yet — or the overlay is missing tonight. Full hub: [ManabiDojo alternative](/manabidojo-alternative).",
+      },
+      { type: "h2", text: "Pick by job" },
+      {
+        type: "ul",
+        items: [
+          "**Need romaji / audio** → [AnimeVocab](/free-japanese-anime-extension)",
+          "**Need fan JP overlays** → stay on ManabiDojo or try [Lexirise](/vs-lexirise)",
+          "**Need Anki mining with .srt** → [asbplayer](/vs-asbplayer)",
+        ],
+      },
+      {
+        type: "p",
+        text: "Side-by-side: [vs ManabiDojo](/vs-manabidojo). Related: [Jimaku vs Listening Mode](/blog/jimaku-crunchyroll-subtitles-vs-listening-mode), [Migaku free alternative](/migaku-free-alternative).",
       },
     ],
   },
@@ -2577,7 +2614,7 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Comparisons: [Migaku free alternative](/blog/migaku-free-alternative-2026), [vs Migaku](/vs-migaku).",
+        text: "Comparisons: [Migaku free alternative](/migaku-free-alternative), [vs Migaku](/vs-migaku).",
       },
     ],
   },

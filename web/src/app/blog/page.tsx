@@ -381,7 +381,10 @@ export default function BlogIndexPage() {
                   <Link href="/learn-japanese-hulu">Learn Japanese on Hulu</Link>
                 </li>
                 <li>
-                  <Link href="/blog/migaku-free-alternative-2026">Migaku free alternative</Link>
+                  <Link href="/migaku-free-alternative">Migaku free alternative</Link>
+                </li>
+                <li>
+                  <Link href="/manabidojo-alternative">ManabiDojo alternative</Link>
                 </li>
                 <li>
                   <Link href="/blog/cancel-migaku-keep-learning-anime-2026">
@@ -868,10 +871,16 @@ export default function BlogIndexPage() {
                   <Link href="/vs-manabidojo">AnimeVocab vs ManabiDojo</Link>
                 </li>
                 <li>
+                  <Link href="/manabidojo-alternative">ManabiDojo alternative hub</Link>
+                </li>
+                <li>
                   <Link href="/vs-language-reactor">AnimeVocab vs Language Reactor</Link>
                 </li>
                 <li>
                   <Link href="/vs-migaku">AnimeVocab vs Migaku</Link>
+                </li>
+                <li>
+                  <Link href="/migaku-free-alternative">Migaku free alternative hub</Link>
                 </li>
                 <li>
                   <Link href="/vs-trancy">AnimeVocab vs Trancy</Link>

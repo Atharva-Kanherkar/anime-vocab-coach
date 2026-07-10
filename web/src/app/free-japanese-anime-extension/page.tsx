@@ -119,7 +119,12 @@ export default function FreeJapaneseAnimeExtensionPage() {
               </li>
               <li>
                 <strong>Lexirise / ManabiDojo</strong> — free cores for readers on Crunchyroll; not romaji-first
-                (<Link href="/vs-lexirise">vs Lexirise</Link>, <Link href="/vs-manabidojo">vs ManabiDojo</Link>).
+                (<Link href="/vs-lexirise">vs Lexirise</Link>,{" "}
+                <Link href="/manabidojo-alternative">ManabiDojo alternative</Link>).
+              </li>
+              <li>
+                <strong>Migaku</strong> — paid mining suite; if you want free first, see{" "}
+                <Link href="/migaku-free-alternative">Migaku free alternative</Link>.
               </li>
             </ul>
 
@@ -172,6 +177,8 @@ export default function FreeJapaneseAnimeExtensionPage() {
           { href: "/blog/crunchyroll-japanese-learning-extension-2026", label: "Crunchyroll extensions" },
           { href: "/learn-japanese-with-anime", label: "Full tool ranking" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
+          { href: "/migaku-free-alternative", label: "Migaku free alt" },
+          { href: "/manabidojo-alternative", label: "ManabiDojo alt" },
           { href: "/vs-migaku", label: "vs Migaku" },
           { href: "/blog", label: "Blog" },
           { href: GITHUB_URL, label: "GitHub" },

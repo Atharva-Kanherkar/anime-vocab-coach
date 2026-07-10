@@ -330,8 +330,9 @@ export default function LearnJapaneseWithAnimePage() {
               <li>
                 <strong>Migaku</strong>: the deepest browser mining suite, built around sentence-mining into a
                 built-in SRS. Real depth if you&apos;re committed to that workflow and to the setup and
-                subscription ($9/mo, or $399 lifetime) it asks for.{" "}
-                <Link href="/vs-migaku">See how it compares to AnimeVocab →</Link>
+                subscription ($9/mo, or $399 lifetime) it asks for. Looking for free first?{" "}
+                <Link href="/migaku-free-alternative">Migaku free alternative</Link> ·{" "}
+                <Link href="/vs-migaku">vs Migaku</Link>.
               </li>
               <li>
                 <strong>SubMiner</strong>: desktop mpv overlay with bundled Yomitan and one-click Anki sentence
@@ -441,8 +442,10 @@ export default function LearnJapaneseWithAnimePage() {
           { href: "/vs-asbplayer", label: "vs asbplayer" },
           { href: "/vs-wordy", label: "vs Wordy" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
+          { href: "/manabidojo-alternative", label: "ManabiDojo alt" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/vs-migaku", label: "vs Migaku" },
+          { href: "/migaku-free-alternative", label: "Migaku free alt" },
           { href: GITHUB_URL, label: "GitHub" },
         ]}
       />
