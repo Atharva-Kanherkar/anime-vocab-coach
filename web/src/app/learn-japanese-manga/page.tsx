@@ -184,6 +184,7 @@ export default function LearnJapaneseMangaPage() {
               <Link href="/blog/learn-japanese-by-writing-manga">Learn Japanese by writing manga</Link>,{" "}
               <Link href="/blog/graded-readers-vs-writing-manga-2026">graded readers vs writing manga</Link>,{" "}
               <Link href="/ai-manga-maker">AI manga maker guide</Link>,{" "}
+              <Link href="/fan-ending-manga">fan ending manga</Link>,{" "}
               <Link href="/blog/one-word-per-episode-method">one word per episode method</Link>.
             </p>
           </div>

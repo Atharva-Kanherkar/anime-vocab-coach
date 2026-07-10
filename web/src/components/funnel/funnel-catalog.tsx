@@ -67,7 +67,8 @@ export function FunnelCatalog() {
 
       <p className="fnl-legal">
         Unofficial fan art / fan endings — fandom creative play, like doujinshi. Not affiliated
-        with the original publishers.
+        with the original publishers.{" "}
+        <Link href="/fan-ending-manga">What is this?</Link>
       </p>
     </div>
   );
