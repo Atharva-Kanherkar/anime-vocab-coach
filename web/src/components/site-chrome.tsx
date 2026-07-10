@@ -16,6 +16,7 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         {compact ? (
           <nav aria-label="Primary" className="top-nav-compact">
             <Link href="/blog">Blog</Link>
+            <Link href="/end">Endings</Link>
             <Link href="/studio">Studio</Link>
             <Link href="/gallery">Gallery</Link>
             <Link href="/learn-japanese-with-anime">Guides</Link>

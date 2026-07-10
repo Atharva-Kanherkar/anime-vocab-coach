@@ -16,11 +16,12 @@ const path = "/fan-ending-manga";
 export const metadata: Metadata = {
   title: "Fan Ending Manga — Choose Your Ending with AI (2026)",
   description:
-    "Write unofficial fan endings for One Piece, Demon Slayer, Jujutsu Kaisen, and more. Pick a finale, get a free fan-art manga chapter — no drawing skills.",
+    "Write unofficial fan endings for One Piece, Demon Slayer, Jujutsu Kaisen, and more. Pick a finale and watch a free 5-panel fan-art manga draw itself — on your phone.",
   keywords: [
     "fan ending manga",
     "choose your ending manga",
     "ai fan manga",
+    "ai manga ending",
     "ai doujinshi generator",
     "fan art manga generator",
     "one piece fan ending",
@@ -33,14 +34,14 @@ export const metadata: Metadata = {
     type: "article",
     title: "Fan Ending Manga — Choose Your Ending with AI",
     description:
-      "Unofficial fan endings for famous manga. Pick a series, choose a finale, generate a free fan-art chapter.",
+      "Unofficial fan endings for famous manga. Pick a series, choose a finale, watch a 5-panel fan-art chapter draw itself.",
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
     title: "Fan Ending Manga — AnimeVocab",
     description:
-      "How would YOU end it? Free fan-art epilogues for famous manga — on your phone.",
+      "How would YOU end it? Free 5-panel fan-art epilogues for famous manga — on your phone.",
   },
 };
 
@@ -48,7 +49,7 @@ const faqs = [
   {
     question: "What is a fan ending manga?",
     answer:
-      "A fan ending is an unofficial epilogue or alternate finale created by fans — the same energy as doujinshi and fandom finales. AnimeVocab lets you pick a series, choose a creative ending path, and generate a short fan-art manga chapter in your browser.",
+      "A fan ending is an unofficial epilogue or alternate finale created by fans — the same energy as doujinshi and fandom finales. AnimeVocab lets you pick a series, choose a creative ending path, and watch a 5-panel fan-art manga draw itself in your browser.",
   },
   {
     question: "Is this official or affiliated with the publishers?",
@@ -63,17 +64,17 @@ const faqs = [
   {
     question: "Is the fan ending generator free?",
     answer:
-      "Yes. You can invent endings and draft a chapter without an account. Anonymous users get limited daily generations; signing in (free) saves drafts and unlocks publishing to the gallery.",
+      "Yes — your first fan ending is free. Pick a finale and watch five panels draw on the page. No drawing tablet required.",
   },
   {
     question: "How is this different from an AI fanfic generator?",
     answer:
-      "Text fanfic tools return prose. AnimeVocab returns a paneled manga chapter with cast, dialogue bubbles, and art you can edit in Manga Studio — then share a link friends can open on any phone.",
+      "Text fanfic tools return prose. AnimeVocab returns a paneled fan-art manga with dialogue lettered into the art — then a shareable link friends can open on any phone.",
   },
   {
-    question: "Can I use this to learn Japanese?",
+    question: "How is this different from a blank AI manga maker?",
     answer:
-      "Yes as output practice. After you draft a fan ending, edit dialogue in Studio and optionally weave target vocabulary. Pair it with the free Chrome extension for input from anime you already watch.",
+      "Blank AI manga makers start from an original premise. Fan endings start from a series you already love — choose-your-ending hooks, then a 5-panel epilogue. For blank stories use Manga Studio.",
   },
 ];
 
@@ -86,14 +87,13 @@ export default function FanEndingMangaPage() {
       description: m.cliffhanger,
     }))
   );
-  // Point ItemList URLs at the marketing hub's related product routes via /end
   const faqLd = faqJsonLd(faqs);
   const howToLd = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to create a fan ending manga chapter",
+    name: "How to create a fan ending manga with AI",
     description:
-      "Pick a famous manga, choose a fan ending, and generate a free fan-art epilogue chapter.",
+      "Pick a famous manga, choose a fan ending, and watch a free 5-panel fan-art epilogue draw itself.",
     totalTime: "PT2M",
     step: [
       {
@@ -109,9 +109,9 @@ export default function FanEndingMangaPage() {
       },
       {
         "@type": "HowToStep",
-        name: "Generate and edit",
-        text: "Get a draft chapter, edit dialogue in Manga Studio, then share or publish to the gallery.",
-        url: `${SITE_URL}/studio`,
+        name: "Watch it draw",
+        text: "AI writes the script and draws five fan-art panels with dialogue on the page. Share the link when it finishes.",
+        url: `${SITE_URL}/end`,
       },
     ],
   };
@@ -129,7 +129,7 @@ export default function FanEndingMangaPage() {
         <Breadcrumbs
           items={[
             { href: "/", label: "Home" },
-            { href: "/studio", label: "Manga Studio" },
+            { href: "/end", label: "Endings" },
             { label: "Fan ending manga" },
           ]}
           currentPath={path}
@@ -140,16 +140,17 @@ export default function FanEndingMangaPage() {
           lede={
             <>
               Famous series end. Fans keep going. <strong>AnimeVocab fan endings</strong> let you pick One
-              Piece, Demon Slayer, Jujutsu Kaisen, and more — choose a creative finale — and get a free{" "}
-              <strong>fan-art manga chapter</strong> in seconds. Unofficial. On your phone. No drawing tablet.
+              Piece, Demon Slayer, Jujutsu Kaisen, and more — choose a creative finale — and{" "}
+              <strong>watch a 5-panel fan-art manga draw itself</strong>. Unofficial. On your phone. No drawing
+              tablet.
             </>
           }
           verdictTag="Fandom creative play"
           verdict={
             <>
               Same energy as doujinshi and fandom finales — not an official release. Match the characters, pick
-              your ending, share the chapter. Then open{" "}
-              <Link href="/studio">Manga Studio</Link> to edit panels, or type{" "}
+              your ending, share the chapter. Generator deep dive:{" "}
+              <Link href="/ai-manga-ending-generator">AI manga ending generator</Link>. Or type{" "}
               <Link href="/end/custom">any manga title</Link>.
             </>
           }
@@ -168,8 +169,8 @@ export default function FanEndingMangaPage() {
                 Add an optional one-sentence twist.
               </li>
               <li>
-                <strong>Generate the chapter</strong> — AI drafts cast, panels, and dialogue as a fan-art
-                epilogue. Edit in Studio; publish to the <Link href="/gallery">gallery</Link> if you want.
+                <strong>Watch it draw</strong> — AI scripts five panels and draws fan-art pages with dialogue
+                lettered in. Share the link when it finishes.
               </li>
             </ol>
 
@@ -179,9 +180,7 @@ export default function FanEndingMangaPage() {
                 .filter((m) => m.id !== "lantern-of-words")
                 .map((m) => (
                   <li key={m.id}>
-                    <Link href={`/end/${m.id}`}>
-                      {m.title}
-                    </Link>
+                    <Link href={`/end/${m.id}`}>{m.title}</Link>
                     {" — "}
                     {m.cliffhanger}
                   </li>
@@ -228,15 +227,13 @@ export default function FanEndingMangaPage() {
             <h2>Why anime fans use this</h2>
             <ul>
               <li>
-                <strong>First win under a minute</strong> — pick ending → chapter draft, no signup required for
-                the first try.
+                <strong>First win under a minute</strong> — pick ending → watch panels draw, free first try.
               </li>
               <li>
-                <strong>Shareable identity</strong> — publish a link friends open on any phone.
+                <strong>Shareable identity</strong> — a link friends open on any phone.
               </li>
               <li>
-                <strong>Editable manga, not locked pixels</strong> — dialogue lives in bubbles you can rewrite
-                in Studio (same stack as the free AI manga maker).
+                <strong>Real manga panels</strong> — not just prose fanfic; dialogue is lettered into the art.
               </li>
             </ul>
 
@@ -250,8 +247,9 @@ export default function FanEndingMangaPage() {
 
             <p>
               Also read:{" "}
-              <Link href="/blog/fan-ending-manga-ai-generator-2026">fan ending AI deep dive</Link>,{" "}
+              <Link href="/ai-manga-ending-generator">AI manga ending generator</Link>,{" "}
               <Link href="/blog/one-piece-fan-ending-ai-manga-2026">One Piece fan ending</Link>,{" "}
+              <Link href="/blog/jujutsu-kaisen-fan-ending-manga-2026">Jujutsu Kaisen fan ending</Link>,{" "}
               <Link href="/blog/ai-doujinshi-generator-free-2026">AI doujinshi generator</Link>,{" "}
               <Link href="/ai-manga-maker">AI manga maker hub</Link>.
             </p>
@@ -273,10 +271,10 @@ export default function FanEndingMangaPage() {
       <SiteFooter
         links={[
           { href: "/end", label: "Endings" },
+          { href: "/ai-manga-ending-generator", label: "AI ending generator" },
           { href: "/end/custom", label: "Any title" },
           { href: "/studio", label: "Studio" },
           { href: "/ai-manga-maker", label: "AI manga maker" },
-          { href: "/gallery", label: "Gallery" },
           { href: "/blog", label: "Blog" },
         ]}
       />

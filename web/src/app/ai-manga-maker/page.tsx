@@ -200,8 +200,9 @@ export default function AiMangaMakerPage() {
               </li>
               <li>
                 <strong>Fandom creators</strong> — write an unofficial{" "}
-                <Link href="/fan-ending-manga">fan ending</Link> for a series you love, then edit the chapter in
-                Studio. Catalog: <Link href="/end">choose your ending</Link>.
+                <Link href="/fan-ending-manga">fan ending</Link> for a series you love and watch a 5-panel
+                fan-art manga draw itself. Catalog: <Link href="/end">choose your ending</Link>. Generator:{" "}
+                <Link href="/ai-manga-ending-generator">AI manga ending generator</Link>.
               </li>
               <li>
                 <strong>OC creators</strong> — build a cast with consistent looks across every panel, publish to
