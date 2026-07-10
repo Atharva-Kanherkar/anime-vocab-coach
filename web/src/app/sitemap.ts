@@ -16,6 +16,7 @@ const staticRoutes = [
   { path: "/studio", priority: 0.92, changeFrequency: "weekly" as const },
   { path: "/ai-manga-maker", priority: 0.91, changeFrequency: "weekly" as const },
   { path: "/fan-ending-manga", priority: 0.9, changeFrequency: "weekly" as const },
+  { path: "/ai-manga-ending-generator", priority: 0.91, changeFrequency: "weekly" as const },
   { path: "/learn-japanese-manga", priority: 0.88, changeFrequency: "monthly" as const },
   { path: "/gallery", priority: 0.85, changeFrequency: "daily" as const },
   { path: "/learn-japanese-crunchyroll", priority: 0.88, changeFrequency: "monthly" as const },

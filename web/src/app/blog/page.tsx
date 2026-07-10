@@ -822,6 +822,9 @@ export default function BlogIndexPage() {
                   <Link href="/fan-ending-manga">Fan ending manga — choose your ending</Link>
                 </li>
                 <li>
+                  <Link href="/ai-manga-ending-generator">AI manga ending generator</Link>
+                </li>
+                <li>
                   <Link href="/end">Endings catalog (fan art)</Link>
                 </li>
                 <li>

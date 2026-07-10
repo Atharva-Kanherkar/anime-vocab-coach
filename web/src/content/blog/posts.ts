@@ -2,6 +2,131 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "jujutsu-kaisen-fan-ending-manga-2026",
+    title: "Jujutsu Kaisen Fan Ending Manga with AI (2026)",
+    description:
+      "Unofficial Jujutsu Kaisen fan endings — survivors, teachers, a normal day. Free AI 5-panel fan-art epilogue generator.",
+    publishedAt: "2026-07-11T19:00:00.000Z",
+    updatedAt: "2026-07-11T19:00:00.000Z",
+    keywords: [
+      "jujutsu kaisen fan ending",
+      "jjk fan ending",
+      "jujutsu kaisen fan manga",
+      "jjk epilogue fan art",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Jujutsu Kaisen fan ending** searches are usually about what survivors do with the silence. AnimeVocab turns that into a **5-panel fan-art manga** you watch draw on your phone.",
+      },
+      {
+        type: "p",
+        text: "Try it: [Jujutsu Kaisen endings](/end/jujutsu-kaisen). Generator: [AI manga ending generator](/ai-manga-ending-generator). Hub: [fan ending manga](/fan-ending-manga).",
+      },
+      { type: "h2", text: "Fan paths in the catalog" },
+      {
+        type: "ul",
+        items: [
+          "A quiet photo after the fight",
+          "Teachers holding the next class",
+          "Trying to be normal for one day",
+        ],
+      },
+      {
+        type: "p",
+        text: "Unofficial only. More: [One Piece](/end/one-piece), [Demon Slayer](/end/demon-slayer), [full catalog](/end).",
+      },
+    ],
+  },
+  {
+    slug: "attack-on-titan-fan-ending-manga-2026",
+    title: "Attack on Titan Fan Ending Manga with AI (2026)",
+    description:
+      "Unofficial Attack on Titan fan endings — the sea, rebuild, a letter. Free AI fan-art epilogue chapter.",
+    publishedAt: "2026-07-11T19:15:00.000Z",
+    updatedAt: "2026-07-11T19:15:00.000Z",
+    keywords: [
+      "attack on titan fan ending",
+      "aot fan ending",
+      "shingeki no kyojin fan ending",
+      "attack on titan fan manga",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Freedom arrived. **Attack on Titan fan ending** threads ask what comes after. Generate a short **fan-art epilogue** — unofficial, choose-your-ending.",
+      },
+      {
+        type: "p",
+        text: "Start: [Attack on Titan endings](/end/attack-on-titan). Guide: [AI manga ending generator](/ai-manga-ending-generator).",
+      },
+      {
+        type: "ul",
+        items: [
+          "Standing at the sea",
+          "Rebuilding what was broken",
+          "A letter that finally gets sent",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "frieren-fan-ending-manga-2026",
+    title: "Frieren Fan Ending Manga with AI (2026)",
+    description:
+      "Unofficial Frieren fan endings — another decade, graves, cake. Free AI 5-panel fan-art epilogue.",
+    publishedAt: "2026-07-11T19:30:00.000Z",
+    updatedAt: "2026-07-11T19:30:00.000Z",
+    keywords: [
+      "frieren fan ending",
+      "frieren beyond journey's end fan ending",
+      "frieren fan manga",
+      "frieren epilogue fan art",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Frieren** already feels like an epilogue machine — fans still want *one more* quiet beat. Use the [Frieren ending picker](/end/frieren) for an unofficial fan-art chapter.",
+      },
+      {
+        type: "p",
+        text: "Hubs: [fan ending manga](/fan-ending-manga), [AI manga ending generator](/ai-manga-ending-generator).",
+      },
+    ],
+  },
+  {
+    slug: "naruto-fan-ending-manga-2026",
+    title: "Naruto Fan Ending Manga with AI (2026)",
+    description:
+      "Unofficial Naruto fan endings — Hokage mornings, Team 7, a letter. Free AI fan-art epilogue generator.",
+    publishedAt: "2026-07-11T19:45:00.000Z",
+    updatedAt: "2026-07-11T19:45:00.000Z",
+    keywords: [
+      "naruto fan ending",
+      "naruto fan manga",
+      "naruto epilogue fan art",
+      "how would you end naruto",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Peace holds. **Naruto fan ending** ideas still flood fandom. Generate yours: [Naruto choose your ending](/end/naruto).",
+      },
+      {
+        type: "p",
+        text: "Also: [One Piece](/blog/one-piece-fan-ending-ai-manga-2026), [AI manga ending generator](/ai-manga-ending-generator), [catalog](/end).",
+      },
+    ],
+  },
+  {
     slug: "fan-ending-manga-ai-generator-2026",
     title: "Fan Ending Manga with AI: Choose Your Ending (2026)",
     description:
@@ -24,7 +149,7 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "p",
-        text: "AnimeVocab’s flow: open [choose your ending](/end) → pick a series → choose one of three fan paths → get a chapter in [Manga Studio](/studio). Full hub: [fan ending manga](/fan-ending-manga).",
+        text: "AnimeVocab’s flow: open [choose your ending](/end) → pick a series → choose one of three fan paths → watch a **5-panel fan-art manga** draw itself. Full hub: [fan ending manga](/fan-ending-manga). Generator: [AI manga ending generator](/ai-manga-ending-generator).",
       },
       { type: "h2", text: "What “fan ending” means here" },
       {

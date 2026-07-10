@@ -1,13 +1,15 @@
 {
   "site": {
     "domain": "animevocab.com",
-    "product_summary": "Free Chrome extension to learn Japanese from anime (romaji-first cards, SRS, Listening Mode) plus Manga Studio and fan-ending fan-art epilogues.",
+    "product_summary": "Free Chrome extension to learn Japanese from anime (romaji-first cards, SRS, Listening Mode) plus Manga Studio and AI fan-ending manga (5-panel choose-your-ending).",
     "stack": "Next.js 16 App Router on Cloudflare Workers (OpenNext); blog in posts.ts; IndexNow"
   },
   "strategy": {
-    "working": [],
+    "working": [
+      "Dedicated exact-match money pages (Migaku/ManabiDojo pattern) — PR #52 merged, pages live 200"
+    ],
     "not_working": [],
-    "current_focus": "Index and rank the new fan-ending product cluster (hub + series pages + doujinshi long-tail) without touching homepage UX"
+    "current_focus": "Index manga-ending cluster: accurate funnel copy + AI manga ending generator URL + series long-tail blogs"
   },
   "keywords": [
     {
@@ -17,28 +19,52 @@
       "page": "/fan-ending-manga"
     },
     {
+      "term": "ai manga ending generator",
+      "intent": "transactional",
+      "status": "targeted",
+      "page": "/ai-manga-ending-generator"
+    },
+    {
       "term": "choose your ending manga",
       "intent": "transactional",
       "status": "targeted",
       "page": "/end"
     },
     {
-      "term": "one piece fan ending",
+      "term": "jujutsu kaisen fan ending",
       "intent": "informational",
       "status": "targeted",
-      "page": "/end/one-piece"
+      "page": "/end/jujutsu-kaisen"
     },
     {
-      "term": "demon slayer fan ending",
+      "term": "attack on titan fan ending",
       "intent": "informational",
       "status": "targeted",
-      "page": "/end/demon-slayer"
+      "page": "/end/attack-on-titan"
     },
     {
-      "term": "ai doujinshi generator free",
+      "term": "frieren fan ending",
+      "intent": "informational",
+      "status": "targeted",
+      "page": "/end/frieren"
+    },
+    {
+      "term": "naruto fan ending",
+      "intent": "informational",
+      "status": "targeted",
+      "page": "/end/naruto"
+    },
+    {
+      "term": "migaku free alternative",
       "intent": "transactional",
       "status": "targeted",
-      "page": "/blog/ai-doujinshi-generator-free-2026"
+      "page": "/migaku-free-alternative"
+    },
+    {
+      "term": "manabidojo alternative",
+      "intent": "transactional",
+      "status": "targeted",
+      "page": "/manabidojo-alternative"
     }
   ],
   "hypotheses": [
@@ -49,7 +75,7 @@
       "measure_via": "web-search spot check | live-url fetch | search-console if available",
       "earliest_check": "2026-07-24",
       "status": "open",
-      "outcome_notes": ""
+      "outcome_notes": "2026-07-11: live HTTP 200; site:animevocab.com fan ending → no hits yet. Too early — keep open."
     },
     {
       "id": "2026-07-10-2",
@@ -58,7 +84,7 @@
       "measure_via": "web-search site: queries | live-url fetch",
       "earliest_check": "2026-07-24",
       "status": "open",
-      "outcome_notes": ""
+      "outcome_notes": "2026-07-11: not in site: yet. Doubling series blogs this run."
     },
     {
       "id": "2026-07-10-3",
@@ -66,6 +92,24 @@
       "expectation": "/end/one-piece and /end/demon-slayer indexed; long-tail impressions for '<series> fan ending'",
       "measure_via": "web-search spot check | search-console",
       "earliest_check": "2026-07-31",
+      "status": "open",
+      "outcome_notes": "2026-07-11: /end/one-piece live 200; not indexed in site: yet."
+    },
+    {
+      "id": "2026-07-11-1",
+      "change": "New /ai-manga-ending-generator money page + FAQ/HowTo; refreshed /fan-ending-manga for 5-panel funnel product",
+      "expectation": "Page indexed within 14 days; appears for 'ai manga ending generator' or 'ai manga ending' in top 50",
+      "measure_via": "web-search spot check | live-url fetch",
+      "earliest_check": "2026-07-25",
+      "status": "open",
+      "outcome_notes": ""
+    },
+    {
+      "id": "2026-07-11-2",
+      "change": "Series blogs JJK/AoT/Frieren/Naruto + compact nav Endings link + ai-manga-maker copy fix",
+      "expectation": "site:animevocab.com shows ≥3 /end/* or fan-ending URLs by 2026-07-25; nav increases crawl of /end",
+      "measure_via": "web-search site: queries",
+      "earliest_check": "2026-07-25",
       "status": "open",
       "outcome_notes": ""
     }
@@ -81,6 +125,16 @@
         "4 blog posts (fan ending cluster)",
         "Internal links + sitemap + llms.txt",
         ".seo-autopilot state initialized"
+      ]
+    },
+    {
+      "pr": "https://github.com/Atharva-Kanherkar/anime-vocab-coach/pull/53",
+      "shipped": [
+        "/ai-manga-ending-generator money page",
+        "Refreshed /fan-ending-manga for funnel (5-panel draw)",
+        "Series blogs: JJK, AoT, Frieren, Naruto",
+        "Compact nav Endings link; ai-manga-maker copy fix",
+        "Graded prior hypotheses as not-yet-measurable (pages live, not indexed)"
       ]
     }
   ]
