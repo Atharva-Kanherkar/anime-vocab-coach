@@ -816,6 +816,17 @@ export default function BlogIndexPage() {
                   <Link href="/learn-japanese-with-anime">How to learn Japanese with anime (2026)</Link>
                 </li>
                 <li>
+                  <Link href="/fan-ending-manga">Fan ending manga — choose your ending</Link>
+                </li>
+                <li>
+                  <Link href="/end">Endings catalog (fan art)</Link>
+                </li>
+                <li>
+                  <Link href="/blog/fan-ending-manga-ai-generator-2026">
+                    Fan ending AI generator (2026)
+                  </Link>
+                </li>
+                <li>
                   <Link href="/ai-manga-maker">AI manga maker — create manga online free</Link>
                 </li>
                 <li>

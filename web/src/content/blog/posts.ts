@@ -2,6 +2,199 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "fan-ending-manga-ai-generator-2026",
+    title: "Fan Ending Manga with AI: Choose Your Ending (2026)",
+    description:
+      "How to write unofficial fan endings for famous manga with AI — pick a series, choose a finale, get a free fan-art chapter. Not affiliated with publishers.",
+    publishedAt: "2026-07-10T12:00:00.000Z",
+    updatedAt: "2026-07-10T12:00:00.000Z",
+    keywords: [
+      "fan ending manga",
+      "choose your ending manga",
+      "ai fan manga",
+      "fan art manga generator",
+      "create fan ending online",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Fandoms already write endings. Doujinshi, Reddit finales, “what if” threads — **fan ending manga** is normal creative play. In 2026 you can also **generate a short fan-art chapter** from a chosen finale, then edit dialogue like a real manga draft.",
+      },
+      {
+        type: "p",
+        text: "AnimeVocab’s flow: open [choose your ending](/end) → pick a series → choose one of three fan paths → get a chapter in [Manga Studio](/studio). Full hub: [fan ending manga](/fan-ending-manga).",
+      },
+      { type: "h2", text: "What “fan ending” means here" },
+      {
+        type: "ul",
+        items: [
+          "**Unofficial** — fan art / fan ending framing, not a publisher release.",
+          "**Post-finale energy** — after the story “ends,” you invent the morning after.",
+          "**Paneled manga** — not just prose fanfic; editable bubbles in Studio.",
+        ],
+      },
+      { type: "h2", text: "How to make one in under two minutes" },
+      {
+        type: "ol",
+        items: [
+          "Browse the [endings catalog](/end) or [type any title](/end/custom).",
+          "Pick a tone (heartfelt, comedic, bittersweet…).",
+          "Optional: add one sentence of your own twist.",
+          "Generate → edit panels → share or publish to the [gallery](/gallery).",
+        ],
+      },
+      { type: "h2", text: "Fan ending vs blank AI manga maker" },
+      {
+        type: "p",
+        text: "Blank [AI manga maker](/ai-manga-maker) is best when you have an original premise. **Fan endings** win when the hook is a series you already love — One Piece, Demon Slayer, JJK — and you want an instant creative identity to share.",
+      },
+      {
+        type: "p",
+        text: "Series deep dives: [One Piece fan ending](/blog/one-piece-fan-ending-ai-manga-2026), [Demon Slayer fan ending](/blog/demon-slayer-fan-ending-manga-2026). Doujinshi angle: [AI doujinshi generator](/blog/ai-doujinshi-generator-free-2026).",
+      },
+    ],
+  },
+  {
+    slug: "one-piece-fan-ending-ai-manga-2026",
+    title: "One Piece Fan Ending: Make a Fan-Art Epilogue with AI (2026)",
+    description:
+      "How would YOU end One Piece? Unofficial fan ending paths and a free AI fan-art manga chapter — creative play, not affiliated with Toei or Shueisha.",
+    publishedAt: "2026-07-10T12:15:00.000Z",
+    updatedAt: "2026-07-10T12:15:00.000Z",
+    keywords: [
+      "one piece fan ending",
+      "one piece ending fan fiction",
+      "one piece fan manga",
+      "how would you end one piece",
+      "straw hat epilogue fan art",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "Search **One Piece fan ending** and you’ll find essays, comics, and endless “after Laugh Tale” headcanons. That’s fandom. AnimeVocab turns that impulse into a **short fan-art manga chapter** you can edit and share.",
+      },
+      {
+        type: "p",
+        text: "Start here: [One Piece choose your ending](/end/one-piece). Hub: [fan ending manga](/fan-ending-manga).",
+      },
+      { type: "h2", text: "Example fan ending vibes (unofficial)" },
+      {
+        type: "ul",
+        items: [
+          "**Family morning** — the crew’s first ordinary day after the treasure.",
+          "**Scatter** — everyone sails their own dream, then reunites.",
+          "**Next voyage** — a quiet dock, a new map, Luffy still grinning.",
+        ],
+      },
+      {
+        type: "p",
+        text: "These are creative prompts for **fan art**, not spoilers of an official finale. Match character looks, keep it wholesome or chaotic — your call.",
+      },
+      { type: "h2", text: "Steps" },
+      {
+        type: "ol",
+        items: [
+          "Open [/end/one-piece](/end/one-piece).",
+          "Pick a path + optional twist.",
+          "Generate → tweak dialogue in [Studio](/studio).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Want another series? [Full catalog](/end). Learning Japanese from anime too? [Free extension](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "demon-slayer-fan-ending-manga-2026",
+    title: "Demon Slayer Fan Ending Manga with AI (2026)",
+    description:
+      "Unofficial Demon Slayer fan endings — dawn after the final battle, graves, teaching the next generation. Free fan-art chapter generator.",
+    publishedAt: "2026-07-10T12:30:00.000Z",
+    updatedAt: "2026-07-10T12:30:00.000Z",
+    keywords: [
+      "demon slayer fan ending",
+      "kimetsu no yaiba fan ending",
+      "demon slayer fan manga",
+      "demon slayer epilogue fan art",
+    ],
+    readingMinutes: 5,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Demon Slayer fan ending** searches are usually people wanting closure vibes — dawn, quiet graves, or teaching the next Corps. That’s perfect for a short **fan-art epilogue chapter**.",
+      },
+      {
+        type: "p",
+        text: "Try it: [Demon Slayer endings](/end/demon-slayer). Guide: [fan ending manga](/fan-ending-manga).",
+      },
+      { type: "h2", text: "Fan paths in the catalog" },
+      {
+        type: "ul",
+        items: [
+          "Dawn after the last battle",
+          "Visiting graves with soft resolve",
+          "Teaching the next generation",
+        ],
+      },
+      {
+        type: "p",
+        text: "Unofficial only — not affiliated with the anime/manga rights holders. More series: [Jujutsu Kaisen](/end/jujutsu-kaisen), [Frieren](/end/frieren), [full list](/end).",
+      },
+    ],
+  },
+  {
+    slug: "ai-doujinshi-generator-free-2026",
+    title: "AI Doujinshi Generator Free: Fan Comics vs Fan Endings (2026)",
+    description:
+      "Looking for a free AI doujinshi generator? Compare fan-comic tools with AnimeVocab’s choose-your-ending fan-art manga — unofficial creative play.",
+    publishedAt: "2026-07-10T12:45:00.000Z",
+    updatedAt: "2026-07-10T12:45:00.000Z",
+    keywords: [
+      "ai doujinshi generator",
+      "ai doujinshi generator free",
+      "ai fan comic generator",
+      "fan manga ai free",
+      "doujinshi maker online",
+    ],
+    readingMinutes: 7,
+    ogImage: "/slides/08-final.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**AI doujinshi generator** usually means: turn a fan premise into panels. Competitors sell open-ended fan comics; AnimeVocab’s sharpest hook is **choose-your-ending** — pick a famous series finale path, get a chapter fast.",
+      },
+      { type: "h2", text: "What to look for in 2026" },
+      {
+        type: "ul",
+        items: [
+          "**Editable dialogue** — text not baked into pixels.",
+          "**Per-panel redraw** — fix one panel without regenerating everything.",
+          "**Clear fan-art framing** — unofficial creative play.",
+          "**Mobile-friendly first win** — especially if you came from a reel.",
+        ],
+      },
+      { type: "h2", text: "AnimeVocab’s free path" },
+      {
+        type: "ol",
+        items: [
+          "[Fan endings catalog](/end) for famous series.",
+          "[Any title](/end/custom) when your fandom isn’t listed.",
+          "Blank original stories via [AI manga maker](/ai-manga-maker) / [Studio](/studio).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Deep dive: [fan ending manga hub](/fan-ending-manga). Example: [One Piece fan ending](/blog/one-piece-fan-ending-ai-manga-2026).",
+      },
+    ],
+  },
+  {
     slug: "re-zero-learn-japanese-2026",
     title: "Re:Zero for Learning Japanese? (2026)",
     description:

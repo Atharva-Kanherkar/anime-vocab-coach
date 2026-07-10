@@ -1,0 +1,87 @@
+{
+  "site": {
+    "domain": "animevocab.com",
+    "product_summary": "Free Chrome extension to learn Japanese from anime (romaji-first cards, SRS, Listening Mode) plus Manga Studio and fan-ending fan-art epilogues.",
+    "stack": "Next.js 16 App Router on Cloudflare Workers (OpenNext); blog in posts.ts; IndexNow"
+  },
+  "strategy": {
+    "working": [],
+    "not_working": [],
+    "current_focus": "Index and rank the new fan-ending product cluster (hub + series pages + doujinshi long-tail) without touching homepage UX"
+  },
+  "keywords": [
+    {
+      "term": "fan ending manga",
+      "intent": "transactional",
+      "status": "targeted",
+      "page": "/fan-ending-manga"
+    },
+    {
+      "term": "choose your ending manga",
+      "intent": "transactional",
+      "status": "targeted",
+      "page": "/end"
+    },
+    {
+      "term": "one piece fan ending",
+      "intent": "informational",
+      "status": "targeted",
+      "page": "/end/one-piece"
+    },
+    {
+      "term": "demon slayer fan ending",
+      "intent": "informational",
+      "status": "targeted",
+      "page": "/end/demon-slayer"
+    },
+    {
+      "term": "ai doujinshi generator free",
+      "intent": "transactional",
+      "status": "targeted",
+      "page": "/blog/ai-doujinshi-generator-free-2026"
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "2026-07-10-1",
+      "change": "New hub /fan-ending-manga with FAQ + HowTo JSON-LD; CollectionPage on /end",
+      "expectation": "Hub indexed within 14 days; appears for 'fan ending manga' or 'choose your ending manga AI' in top 50 or AI overview citations",
+      "measure_via": "web-search spot check | live-url fetch | search-console if available",
+      "earliest_check": "2026-07-24",
+      "status": "open",
+      "outcome_notes": ""
+    },
+    {
+      "id": "2026-07-10-2",
+      "change": "Blog posts: fan-ending hub, One Piece, Demon Slayer, AI doujinshi; internal links from blog hub + ai-manga-maker + learn-japanese-manga",
+      "expectation": "At least 2 of 4 posts indexed; /end crawl depth improves (GSC coverage or site:animevocab.com/end)",
+      "measure_via": "web-search site: queries | live-url fetch",
+      "earliest_check": "2026-07-24",
+      "status": "open",
+      "outcome_notes": ""
+    },
+    {
+      "id": "2026-07-10-3",
+      "change": "Per-series FAQ JSON-LD + stronger titles on /end/[id]",
+      "expectation": "/end/one-piece and /end/demon-slayer indexed; long-tail impressions for '<series> fan ending'",
+      "measure_via": "web-search spot check | search-console",
+      "earliest_check": "2026-07-31",
+      "status": "open",
+      "outcome_notes": ""
+    }
+  ],
+  "runs": [
+    {
+      "date": "2026-07-10",
+      "file": "runs/2026-07-10-audit.md",
+      "pr": "",
+      "shipped": [
+        "/fan-ending-manga hub",
+        "FAQ/CollectionPage JSON-LD on /end and /end/[id]",
+        "4 blog posts (fan ending cluster)",
+        "Internal links + sitemap + llms.txt",
+        ".seo-autopilot state initialized"
+      ]
+    }
+  ]
+}

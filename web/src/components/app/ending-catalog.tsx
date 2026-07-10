@@ -18,6 +18,10 @@ export function EndingCatalog() {
         <Link href="/end/custom" className="end-min__ghost">
           Or type any manga →
         </Link>
+        {" · "}
+        <Link href="/fan-ending-manga" className="end-min__ghost">
+          What is this?
+        </Link>
       </header>
 
       <ul className="end-min__grid">

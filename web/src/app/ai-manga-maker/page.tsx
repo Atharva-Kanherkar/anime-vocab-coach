@@ -199,6 +199,11 @@ export default function AiMangaMakerPage() {
                 <Link href="/learn-japanese-manga">learn Japanese with manga guide</Link>.
               </li>
               <li>
+                <strong>Fandom creators</strong> — write an unofficial{" "}
+                <Link href="/fan-ending-manga">fan ending</Link> for a series you love, then edit the chapter in
+                Studio. Catalog: <Link href="/end">choose your ending</Link>.
+              </li>
+              <li>
                 <strong>OC creators</strong> — build a cast with consistent looks across every panel, publish to
                 the gallery, share at <code>/m/your-id</code>.
               </li>

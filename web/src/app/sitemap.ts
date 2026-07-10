@@ -13,6 +13,7 @@ const staticRoutes = [
   { path: "/free-japanese-anime-extension", priority: 0.9, changeFrequency: "monthly" as const },
   { path: "/studio", priority: 0.92, changeFrequency: "weekly" as const },
   { path: "/ai-manga-maker", priority: 0.91, changeFrequency: "weekly" as const },
+  { path: "/fan-ending-manga", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/learn-japanese-manga", priority: 0.88, changeFrequency: "monthly" as const },
   { path: "/gallery", priority: 0.85, changeFrequency: "daily" as const },
   { path: "/learn-japanese-crunchyroll", priority: 0.88, changeFrequency: "monthly" as const },
@@ -62,7 +63,7 @@ const staticRoutes = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const lastModified = new Date("2026-07-09");
+  const lastModified = new Date("2026-07-10");
   const blogEntries = blogPosts.map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt),

@@ -87,6 +87,12 @@ export const SEO_KEYWORDS = [
   "learn Japanese with manga",
   "manga studio",
   "write your own manga",
+  "fan ending manga",
+  "choose your ending manga",
+  "ai doujinshi generator",
+  "fan art manga generator",
+  "one piece fan ending",
+  "demon slayer fan ending",
   "Japanese vocabulary from anime",
   "anime subtitle extension",
   "asbplayer alternative",
@@ -316,6 +322,37 @@ export function galleryCollectionJsonLd(
         position: index + 1,
         name: entry.title,
         url: `${SITE_URL}/m/${entry.id}`,
+      })),
+    },
+  };
+}
+
+/** Fan-ending catalog at /end — CollectionPage + ItemList for series pickers. */
+export function endingCatalogJsonLd(
+  entries: { id: string; title: string; description: string }[]
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Choose your ending — fan art manga epilogues",
+    description:
+      "Unofficial fan endings for famous manga and anime. Pick a series, choose a finale, get a free fan-art chapter.",
+    url: `${SITE_URL}/end`,
+    isAccessibleForFree: true,
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: entries.length,
+      itemListElement: entries.map((entry, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: entry.title,
+        description: entry.description,
+        url: `${SITE_URL}/end/${entry.id}`,
       })),
     },
   };
