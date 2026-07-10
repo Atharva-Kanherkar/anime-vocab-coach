@@ -26,11 +26,11 @@ function ClerkAuthButtons() {
 }
 
 const LINKS = [
+  { href: "/end", label: "Endings" },
   { href: "/studio", label: "Studio" },
   { href: "/gallery", label: "Gallery" },
   { href: "/ai-manga-maker", label: "AI manga maker" },
   { href: "/blog", label: "Blog" },
-  { href: "/learn-japanese-with-anime", label: "Guides" },
 ];
 
 export function StudioChrome() {
@@ -44,7 +44,7 @@ export function StudioChrome() {
 
       <nav aria-label="Studio" className="order-3 -mx-1 flex w-full gap-1 md:order-none md:mx-0 md:ml-auto md:w-auto">
         {LINKS.map(({ href, label }) => {
-          const active = pathname === href;
+          const active = pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
           return (
             <Link
               key={href}

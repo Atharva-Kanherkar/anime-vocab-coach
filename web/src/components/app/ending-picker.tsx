@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { FeaturedEndingManga, EndingChoiceId } from "@/lib/ending-hooks";
+import type { FeaturedEndingManga } from "@/lib/ending-hooks";
 import { newDraftFromScript, saveDraft } from "@/lib/studio-draft";
 import type { StyleKey } from "@/lib/cards";
 import type { StudioCastMember, StudioPanelScript } from "@/lib/studio";
@@ -33,7 +34,7 @@ const ERRORS: Record<string, string> = {
 
 export function EndingPicker({ manga }: { manga: FeaturedEndingManga }) {
   const router = useRouter();
-  const [selected, setSelected] = useState<EndingChoiceId | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const [customNote, setCustomNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,9 +61,6 @@ export function EndingPicker({ manga }: { manga: FeaturedEndingManga }) {
       const data = (await res.json().catch(() => ({}))) as ScriptResponse;
       if (!res.ok) {
         setError(ERRORS[data.error ?? ""] ?? data.error ?? "Could not draft your ending. Try again.");
-        if (data.needsLogin) {
-          // Keep them on-page with a clear next step.
-        }
         return;
       }
 
@@ -85,18 +83,20 @@ export function EndingPicker({ manga }: { manga: FeaturedEndingManga }) {
   }
 
   return (
-    <div className="mx-auto max-w-[640px]">
-      <p className="av-eyebrow">Choose your ending · 結末</p>
-      <h1 className="mt-2 font-jpround text-[clamp(26px,5vw,40px)] font-black leading-tight">
-        {manga.title}
-      </h1>
-      <p className="mt-2 text-[14px] font-bold text-ink3">{manga.subtitle}</p>
-      <p className="mt-4 text-[15px] leading-relaxed text-ink2">{manga.synopsis}</p>
-      <p className="mt-3 rounded-xl border-2 border-accent/40 bg-panel px-4 py-3 text-[14.5px] font-bold text-ink">
-        {manga.cliffhanger}
-      </p>
+    <div className="end-min end-min--picker">
+      <Link href="/end" className="end-min__back">
+        ← All series
+      </Link>
 
-      <ul className="mt-8 grid list-none gap-3 pl-0">
+      <header className="end-min__header end-min__header--tight">
+        <p className="end-min__kicker">Fan ending · {manga.tag}</p>
+        <h1 className="end-min__h1">{manga.title}</h1>
+        <p className="end-min__jp">{manga.subtitle}</p>
+        <p className="end-min__sub">{manga.synopsis}</p>
+        <p className="end-min__cliff">{manga.cliffhanger}</p>
+      </header>
+
+      <ul className="end-min__choices">
         {manga.endings.map((e) => {
           const on = selected === e.id;
           return (
@@ -107,41 +107,33 @@ export function EndingPicker({ manga }: { manga: FeaturedEndingManga }) {
                   setSelected(e.id);
                   setError(null);
                 }}
-                className={
-                  "w-full rounded-2xl border-2 px-4 py-4 text-left transition " +
-                  (on
-                    ? "border-accent bg-accent/10 shadow-[0_0_0_1px_var(--accent)]"
-                    : "border-line bg-panel hover:border-ink3")
-                }
+                className={"end-min__choice" + (on ? " is-on" : "")}
+                aria-pressed={on}
               >
-                <span className="block font-jpround text-[17px] font-black">{e.title}</span>
-                <span className="mt-1 block text-[13.5px] leading-snug text-ink2">{e.blurb}</span>
+                <span className="end-min__choice-title">{e.title}</span>
+                <span className="end-min__choice-blurb">{e.blurb}</span>
+                <span className="end-min__choice-tone">{e.tone}</span>
               </button>
             </li>
           );
         })}
       </ul>
 
-      <label className="mt-6 block">
-        <span className="text-[12px] font-bold uppercase tracking-wide text-ink3">
-          Optional — add your twist (one sentence)
-        </span>
+      <label className="end-min__note">
+        <span>Optional twist</span>
         <textarea
           value={customNote}
           onChange={(ev) => setCustomNote(ev.target.value.slice(0, 280))}
           rows={2}
-          placeholder="e.g. Mu learns to cook soup for the keepers"
-          className="mt-1.5 w-full rounded-xl border-2 border-line bg-panel px-3 py-2.5 text-[14px] text-ink outline-none focus:border-accent"
+          placeholder="One sentence — your personal beat"
         />
       </label>
 
       {error && (
-        <p className="mt-4 rounded-lg border-2 border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[13.5px] font-bold text-ink">
+        <p className="end-min__err">
           {error}{" "}
           {error.includes("Sign in") && (
-            <a className="underline text-accent" href="/sign-in?redirect_url=/end/lantern-of-words">
-              Sign in →
-            </a>
+            <a href={`/sign-in?redirect_url=/end/${manga.id}`}>Sign in →</a>
           )}
         </p>
       )}
@@ -150,12 +142,13 @@ export function EndingPicker({ manga }: { manga: FeaturedEndingManga }) {
         type="button"
         disabled={busy || !selected}
         onClick={() => void generate()}
-        className="av-btn av-btn-primary mt-6 w-full justify-center py-3.5 text-[16px] disabled:opacity-50"
+        className="end-min__cta"
       >
-        {busy ? "Writing your epilogue…" : "Generate my ending →"}
+        {busy ? "Writing your fan ending…" : "Generate fan ending →"}
       </button>
-      <p className="mt-3 text-center text-[12.5px] text-ink3">
-        Free · no account needed for your first try. Then edit panels in Studio and share.
+
+      <p className="end-min__legal">
+        Unofficial fan art / fan ending. Not affiliated with the original publishers.
       </p>
     </div>
   );

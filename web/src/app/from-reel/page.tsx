@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { FromReelClient } from "@/components/from-reel-client";
 import { DesktopChromeBanner } from "@/components/desktop-chrome-banner";
-import { FEATURED_ENDING } from "@/lib/ending-hooks";
 import { SITE_URL } from "@/lib/site";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/from-reel";
-const title = "How would YOU end this manga? | AnimeVocab";
-const description = `${FEATURED_ENDING.cliffhanger} Free Choose-Your-Ending — no signup, works on your phone.`;
+const title = "How would YOU end it? | AnimeVocab";
+const description =
+  "Fan endings for One Piece, Demon Slayer, Jujutsu Kaisen, and more. Pick a finale, get a free fan-art manga chapter on your phone.";
 
 export const metadata: Metadata = {
   title,
@@ -16,13 +16,13 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
-    title: "How would YOU end this manga?",
+    title: "How would YOU end it?",
     description,
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
-    title: "How would YOU end this manga?",
+    title: "How would YOU end it?",
     description,
   },
 };
