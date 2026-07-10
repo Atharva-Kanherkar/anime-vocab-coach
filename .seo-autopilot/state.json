@@ -74,7 +74,7 @@
     {
       "date": "2026-07-10",
       "file": "runs/2026-07-10-audit.md",
-      "pr": "",
+      "pr": "https://github.com/Atharva-Kanherkar/anime-vocab-coach/pull/51",
       "shipped": [
         "/fan-ending-manga hub",
         "FAQ/CollectionPage JSON-LD on /end and /end/[id]",
