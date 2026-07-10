@@ -46,7 +46,14 @@
     "STUDIO_ANON_DRAFTS_PER_DAY": "5",
     "STUDIO_SCRIPT_MODEL": "gpt-4.1-mini",
     "STUDIO_IMAGE_MODEL": "gpt-image-2",
-    "STUDIO_IMAGE_QUALITY": "medium"
+    "STUDIO_IMAGE_QUALITY": "medium",
+    // Ending Funnel (/from-reel → /end; see web/src/lib/ending-funnel.ts).
+    // One free 5-panel ending per IP; a free account unlocks a monthly
+    // allowance; a global daily cap bounds worst-case ad-spike spend
+    // (400 endings/day × 5 panels × ~$0.04 ≈ $80/day ceiling).
+    "ENDING_FREE_PER_IP": "1",
+    "ENDING_SIGNED_PER_MONTH": "3",
+    "ENDING_GLOBAL_PER_DAY": "400"
   },
   "observability": {
     "enabled": true
