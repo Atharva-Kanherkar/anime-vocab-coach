@@ -2248,6 +2248,19 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   background-size: 26px 26px;
   mask-image: radial-gradient(90% 60% at 50% 0%, rgba(0, 0, 0, 0.85), transparent 75%);
 }
+/* The poster wall (the ad-landing hero backdrop, /public/funnel/wall.webp):
+   a page opts in by rendering <div className="fnl__wall" aria-hidden /> —
+   it paints over .fnl__bg, with a scrim that lets the posters glow through
+   at the top and fades to near-black where the content gets dense. */
+.fnl__wall {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(8, 7, 13, 0.6) 0%, rgba(8, 7, 13, 0.86) 46%, rgba(5, 4, 9, 0.96) 100%),
+    url("/funnel/wall.webp") center top / cover no-repeat,
+    var(--fnl-bg);
+}
 
 .fnl__top {
   display: flex;

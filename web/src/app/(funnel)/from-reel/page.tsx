@@ -28,6 +28,7 @@ export default function FromReelPage() {
 
   return (
     <div className="fnl-catalog">
+      <div className="fnl__wall" aria-hidden />
       <FunnelTracker event="land_reel" />
 
       <header className="fnl-catalog__head">
