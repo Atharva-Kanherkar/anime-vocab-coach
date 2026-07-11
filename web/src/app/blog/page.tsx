@@ -381,7 +381,13 @@ export default function BlogIndexPage() {
                   <Link href="/learn-japanese-hulu">Learn Japanese on Hulu</Link>
                 </li>
                 <li>
-                  <Link href="/migaku-free-alternative">Migaku free alternative</Link>
+                  <Link href="/migaku-free-alternative">What is the free alternative to Migaku?</Link>
+                </li>
+                <li>
+                  <Link href="/migaku-vs-language-reactor">Is Migaku better than Language Reactor?</Link>
+                </li>
+                <li>
+                  <Link href="/anki-vs-migaku">Anki vs Migaku</Link>
                 </li>
                 <li>
                   <Link href="/manabidojo-alternative">ManabiDojo alternative</Link>

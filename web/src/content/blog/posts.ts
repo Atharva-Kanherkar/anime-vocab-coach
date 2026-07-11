@@ -2,6 +2,48 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "migaku-free-alternative-reddit-2026",
+    title: "Migaku Free Alternative Reddit Consensus (2026)",
+    description:
+      "What r/LearnJapanese actually recommends instead of Migaku: Yomitan + asbplayer + Anki — plus when AnimeVocab is the better free path for anime beginners.",
+    publishedAt: "2026-07-11T21:00:00.000Z",
+    updatedAt: "2026-07-11T21:00:00.000Z",
+    keywords: [
+      "migaku free alternative reddit",
+      "migaku alternative reddit",
+      "free migaku alternative reddit",
+      "r/learnjapanese migaku alternative",
+      "yomitan asbplayer anki migaku",
+    ],
+    readingMinutes: 6,
+    ogImage: "/slides/06-manifesto.jpg",
+    canonicalPath: "/migaku-free-alternative",
+    blocks: [
+      {
+        type: "p",
+        text: "Search **Migaku free alternative Reddit** and you land on the same r/LearnJapanese pattern: people quit Migaku’s subscription and rebuild mining with free tools. Canonical guide: [What is the free alternative to Migaku?](/migaku-free-alternative).",
+      },
+      { type: "h2", text: "The Reddit default stack" },
+      {
+        type: "ol",
+        items: [
+          "**Yomitan** (ex-Yomichan) — hover dictionary",
+          "**asbplayer** — mine audio + screenshots to Anki",
+          "**Anki** — free SRS",
+        ],
+      },
+      {
+        type: "p",
+        text: "That stack is free and closest to Migaku’s power-user flow. It is also setup-heavy. Comparisons: [Anki vs Migaku](/anki-vs-migaku), [vs asbplayer](/vs-asbplayer), [Yomitan for anime](/blog/yomitan-anime-alternative-video-immersion-2026).",
+      },
+      { type: "h2", text: "When Reddit’s answer is incomplete" },
+      {
+        type: "p",
+        text: "If you cannot read kana yet, or you watch **Crunchyroll without Japanese subs**, the DIY stack stalls. [AnimeVocab](/free-japanese-anime-extension) is the free path for romaji-first cards + Listening Mode — no AnkiConnect night. Also: [Migaku vs Language Reactor](/migaku-vs-language-reactor).",
+      },
+    ],
+  },
+  {
     slug: "jujutsu-kaisen-fan-ending-manga-2026",
     title: "Jujutsu Kaisen Fan Ending Manga with AI (2026)",
     description:
