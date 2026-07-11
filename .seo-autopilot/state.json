@@ -163,6 +163,17 @@
         "Compact nav Endings link; ai-manga-maker copy fix",
         "Graded prior hypotheses as not-yet-measurable (pages live, not indexed)"
       ]
+    },
+    {
+      "date": "2026-07-11",
+      "file": "runs/2026-07-11-learn-anime-free.md",
+      "pr": "https://github.com/Atharva-Kanherkar/anime-vocab-coach/pull/55",
+      "shipped": [
+        "/learn-japanese-with-anime-free money page (AI Overview mirror)",
+        "Upgraded learn-japanese-with-anime + free-extension",
+        "Blog canonical learn-japanese-with-anime-free-2026",
+        "Sitemap + llms + blog hub; IndexNow"
+      ]
     }
   ]
 }
