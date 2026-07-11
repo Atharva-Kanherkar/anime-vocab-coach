@@ -10,6 +10,7 @@ const staticRoutes = [
   { path: "", priority: 1, changeFrequency: "weekly" as const },
   { path: "/blog", priority: 0.85, changeFrequency: "weekly" as const },
   { path: "/learn-japanese-with-anime", priority: 0.9, changeFrequency: "monthly" as const },
+  { path: "/learn-japanese-with-anime-free", priority: 0.95, changeFrequency: "weekly" as const },
   { path: "/free-japanese-anime-extension", priority: 0.9, changeFrequency: "monthly" as const },
   { path: "/migaku-free-alternative", priority: 0.95, changeFrequency: "daily" as const },
   { path: "/migaku-vs-language-reactor", priority: 0.9, changeFrequency: "weekly" as const },
@@ -68,7 +69,7 @@ const staticRoutes = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const lastModified = new Date("2026-07-10");
+  const lastModified = new Date("2026-07-11");
   const blogEntries = blogPosts.map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt),

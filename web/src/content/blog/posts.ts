@@ -44,6 +44,59 @@ export const blogPosts: BlogPost[] = [
     ],
   },
   {
+    slug: "learn-japanese-with-anime-free-2026",
+    title: "Learn Japanese with Anime Free (2026): Reddit + AI Overview Stack",
+    description:
+      "Learn Japanese with anime free — Language Reactor, asbplayer + Yomitan, Lexirise, Animelon, Anki — plus AnimeVocab for romaji and Crunchyroll beginners.",
+    publishedAt: "2026-07-11T20:00:00.000Z",
+    updatedAt: "2026-07-11T20:00:00.000Z",
+    keywords: [
+      "learn japanese with anime free",
+      "learn japanese with anime free online",
+      "learn japanese with anime free reddit",
+      "learn japanese with anime free app",
+      "free japanese learning anime",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/07-pricing.jpg",
+    canonicalPath: "/learn-japanese-with-anime-free",
+    blocks: [
+      {
+        type: "p",
+        text: "Searching **learn Japanese with anime free** usually surfaces Language Reactor, asbplayer + Yomitan, Lexirise, Animelon, and Anki. That stack is real — and incomplete for month-zero learners on Crunchyroll. **Canonical guide:** [learn Japanese with anime free](/learn-japanese-with-anime-free).",
+      },
+      { type: "h2", text: "Free tools the SERP already ranks" },
+      {
+        type: "ul",
+        items: [
+          "**Language Reactor** — dual subs on Netflix/YouTube ([vs](/vs-language-reactor))",
+          "**asbplayer + Yomitan** — free mining to Anki ([vs asbplayer](/vs-asbplayer))",
+          "**Lexirise** — free-tier lookups on Crunchyroll for readers ([vs](/vs-lexirise))",
+          "**Animelon** — free interactive JP subs on a limited catalog ([vs](/vs-animelon))",
+          "**Anki** — free SRS once you have cards ([beginners](/blog/anki-anime-beginners-2026))",
+        ],
+      },
+      { type: "h2", text: "The beginner gap" },
+      {
+        type: "p",
+        text: "If you cannot read kana yet, or Crunchyroll has no Japanese subtitle track, dual-sub tools leave you stuck. **AnimeVocab** fills that gap with romaji-first cards + built-in SRS + Listening Mode — free for the core loop ([extension hub](/free-japanese-anime-extension)).",
+      },
+      { type: "h2", text: "Beginner shows (same as the AI Overview)" },
+      {
+        type: "ul",
+        items: [
+          "Shirokuma Cafe / Polar Bear Cafe",
+          "Studio Ghibli (Totoro, Arrietty)",
+          "Yuru Camp / Laid-Back Camp",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full list: [best anime to learn Japanese](/best-anime-to-learn-japanese). Tool ranking: [learn Japanese with anime](/learn-japanese-with-anime). Free stack notes: [free ways](/blog/free-ways-learn-japanese-anime-2026).",
+      },
+    ],
+  },
+  {
     slug: "jujutsu-kaisen-fan-ending-manga-2026",
     title: "Jujutsu Kaisen Fan Ending Manga with AI (2026)",
     description:
@@ -5716,7 +5769,7 @@ export const blogPosts: BlogPost[] = [
     blocks: [
       {
         type: "p",
-        text: "You can build a real **free Japanese-from-anime** habit in 2026 without Migaku or a $400 lifetime deal. The stack: free capture tool + slow shows + tiny SRS + optional free dual-sub reader later.",
+        text: "You can build a real **free Japanese-from-anime** habit in 2026 without Migaku or a $400 lifetime deal. The stack: free capture tool + slow shows + tiny SRS + optional free dual-sub reader later. Full SERP hub: [learn Japanese with anime free](/learn-japanese-with-anime-free).",
       },
       { type: "h2", text: "The free stack" },
       {

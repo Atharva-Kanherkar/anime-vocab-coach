@@ -9,7 +9,7 @@
       "Dedicated exact-match money pages (Migaku/ManabiDojo pattern) — PR #52 merged, pages live 200"
     ],
     "not_working": [],
-    "current_focus": "Index manga-ending cluster: accurate funnel copy + AI manga ending generator URL + series long-tail blogs"
+    "current_focus": "Rank for 'learn japanese with anime free' — exact-match hub mirroring AI Overview + beginner/Crunchyroll gap"
   },
   "keywords": [
     {
@@ -65,6 +65,24 @@
       "intent": "transactional",
       "status": "targeted",
       "page": "/manabidojo-alternative"
+    },
+    {
+      "term": "learn japanese with anime free",
+      "intent": "transactional",
+      "status": "targeted",
+      "page": "/learn-japanese-with-anime-free"
+    },
+    {
+      "term": "learn japanese with anime free online",
+      "intent": "informational",
+      "status": "targeted",
+      "page": "/learn-japanese-with-anime-free"
+    },
+    {
+      "term": "learn japanese with anime free app",
+      "intent": "transactional",
+      "status": "targeted",
+      "page": "/free-japanese-anime-extension"
     }
   ],
   "hypotheses": [
@@ -112,6 +130,15 @@
       "earliest_check": "2026-07-25",
       "status": "open",
       "outcome_notes": ""
+    },
+    {
+      "id": "2026-07-11-3",
+      "change": "New /learn-japanese-with-anime-free money page mirroring AI Overview free stack + AnimeVocab beginner gap; FAQ/HowTo JSON-LD; blog canonical",
+      "expectation": "Indexed within 14 days; appears for 'learn japanese with anime free' in top 50 or AI Overview citations; site:animevocab.com \"learn japanese with anime free\" returns hub",
+      "measure_via": "web-search spot check | live-url fetch",
+      "earliest_check": "2026-07-25",
+      "status": "open",
+      "outcome_notes": ""
     }
   ],
   "runs": [
@@ -135,6 +162,17 @@
         "Series blogs: JJK, AoT, Frieren, Naruto",
         "Compact nav Endings link; ai-manga-maker copy fix",
         "Graded prior hypotheses as not-yet-measurable (pages live, not indexed)"
+      ]
+    },
+    {
+      "date": "2026-07-11",
+      "file": "runs/2026-07-11-learn-anime-free.md",
+      "pr": "https://github.com/Atharva-Kanherkar/anime-vocab-coach/pull/55",
+      "shipped": [
+        "/learn-japanese-with-anime-free money page (AI Overview mirror)",
+        "Upgraded learn-japanese-with-anime + free-extension",
+        "Blog canonical learn-japanese-with-anime-free-2026",
+        "Sitemap + llms + blog hub; IndexNow"
       ]
     }
   ]
