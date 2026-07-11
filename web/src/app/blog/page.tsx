@@ -816,6 +816,11 @@ export default function BlogIndexPage() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/learn-japanese-with-anime-free">
+                    Learn Japanese with anime free (2026)
+                  </Link>
+                </li>
+                <li>
                   <Link href="/learn-japanese-with-anime">How to learn Japanese with anime (2026)</Link>
                 </li>
                 <li>

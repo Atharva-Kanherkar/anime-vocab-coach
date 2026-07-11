@@ -4,39 +4,66 @@ import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, TIERS, installUrl } from "@/lib/site";
-import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
+import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/learn-japanese-with-anime";
 
 export const metadata: Metadata = {
-  title: "How to Learn Japanese with Anime (2026): Every Tool, Ranked",
+  title: "Learn Japanese with Anime (2026) — Free Tools Ranked + Beginner Plan",
   description:
-    "Learn Japanese from anime in 2026. Compare AnimeVocab, Language Reactor, Migaku, and more on price, romaji support, and no-subtitle watching.",
+    "Learn Japanese with anime free and paid: AnimeVocab, Language Reactor, asbplayer, Lexirise, Migaku. Ranked for beginners, Crunchyroll, and romaji — plus beginner show picks.",
+  keywords: [
+    "learn japanese with anime",
+    "learn japanese with anime free",
+    "how to learn japanese with anime",
+    "learn japanese from anime",
+    "best way to learn japanese with anime",
+  ],
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
     type: "article",
-    title: "How to Learn Japanese with Anime (2026): Every Tool, Ranked",
+    title: "Learn Japanese with Anime (2026)",
     description:
-      "Compare 7 anime learning tools for beginners and power users. Price, romaji support, and no-subtitle content.",
+      "Free and paid tools ranked — plus how to turn tonight’s episode into vocabulary.",
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
-    title: "How to Learn Japanese with Anime (2026)",
-    description:
-      "Compare AnimeVocab, Language Reactor, Migaku, and more for learning Japanese from anime.",
+    title: "Learn Japanese with Anime (2026)",
+    description: "Tools ranked for beginners and power users. Free path included.",
   },
 };
 
+const faqs = [
+  {
+    question: "Can you learn Japanese with anime?",
+    answer:
+      "Yes if you actively notice words, understand them in context, and review them — not if you only watch with English subs. Free tools make that loop possible on shows you already watch.",
+  },
+  {
+    question: "What is the best free way to learn Japanese with anime?",
+    answer:
+      "Beginners: AnimeVocab (romaji + built-in SRS + Crunchyroll Listening Mode). Readers on Netflix/YouTube: Language Reactor. Miners: asbplayer + Yomitan + Anki. Full free guide: learn Japanese with anime free.",
+  },
+  {
+    question: "Which anime is best for learning Japanese?",
+    answer:
+      "Shirokuma Cafe, Ghibli films, and slice-of-life shows like Yuru Camp. See best anime to learn Japanese for the ranked list.",
+  },
+];
+
 export default function LearnJapaneseWithAnimePage() {
+  const faqLd = faqJsonLd(faqs);
+
   return (
     <>
       <LandingJsonLd
         path={path}
-        title="How to Learn Japanese with Anime (2026): Every Tool, Ranked"
-        description="Learn Japanese from anime in 2026. Compare AnimeVocab, Language Reactor, Migaku, and more on price, romaji support, and no-subtitle watching."
+        title="Learn Japanese with Anime (2026) — Free Tools Ranked + Beginner Plan"
+        description="Learn Japanese with anime free and paid: AnimeVocab, Language Reactor, asbplayer, Lexirise, Migaku — ranked for beginners and Crunchyroll."
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <SiteHeader compact />
       <main id="main">
         <Breadcrumbs
@@ -48,13 +75,14 @@ export default function LearnJapaneseWithAnimePage() {
         />
 
         <CompareHero
-          title="How to learn Japanese with anime (2026)"
+          title="Learn Japanese with anime (2026)"
           lede={
             <>
-              Anime is the reason a huge number of people start learning Japanese, and one of the best
-              sources of natural, spoken vocabulary you&apos;ll actually remember. But watching with English
-              subtitles teaches you almost nothing on its own. Here&apos;s what actually works, and an honest
-              ranking of every tool that helps, from beginner on-ramps to power-user mining rigs.
+              Anime is why a huge number of people start Japanese — and a great source of spoken vocabulary
+              you&apos;ll actually remember. Watching with English subs alone teaches almost nothing. Here is
+              what works, every major tool ranked, and a{" "}
+              <Link href="/learn-japanese-with-anime-free">learn Japanese with anime free</Link> path if you
+              refuse another subscription.
             </>
           }
           verdictTag="The one thing that matters"
@@ -64,8 +92,8 @@ export default function LearnJapaneseWithAnimePage() {
               <strong>
                 notice a word, understand it in context, and see it again before you forget
               </strong>
-              . Every tool below is just a different way to force that loop. Pick by your level and how much
-              setup you&apos;ll tolerate.
+              . Every tool below is a different way to force that loop. Free starter:{" "}
+              <Link href="/free-japanese-anime-extension">AnimeVocab Chrome extension</Link>.
             </>
           }
         />
@@ -404,7 +432,8 @@ export default function LearnJapaneseWithAnimePage() {
                 <h3>New to Japanese?</h3>
                 <p>
                   Install AnimeVocab, keep your English subs on, and learn one word per line starting tonight.
-                  No kana required.
+                  No kana required. Full free path:{" "}
+                  <Link href="/learn-japanese-with-anime-free">learn Japanese with anime free</Link>.
                 </p>
               </div>
               <div className="card">
@@ -415,6 +444,14 @@ export default function LearnJapaneseWithAnimePage() {
                 </p>
               </div>
             </div>
+
+            <h2>FAQ</h2>
+            {faqs.map((f) => (
+              <div key={f.question}>
+                <h3>{f.question}</h3>
+                <p>{f.answer}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -429,6 +466,7 @@ export default function LearnJapaneseWithAnimePage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/learn-japanese-with-anime-free", label: "Free guide" },
           { href: "/free-japanese-anime-extension", label: "Free extension" },
           { href: "/blog/how-to-learn-japanese-watching-anime-2026", label: "How-to method" },
           { href: "/blog/best-apps-learn-japanese-anime-2026", label: "Best apps 2026" },
