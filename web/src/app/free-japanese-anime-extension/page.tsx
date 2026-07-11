@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   keywords: [
     "free chrome extension learn japanese",
     "free japanese anime extension",
+    "learn japanese with anime free",
+    "learn japanese with anime free app",
     "learn japanese anime free",
     "free language reactor alternative",
     "free migaku alternative",
@@ -55,6 +57,11 @@ const faqs = [
     question: "Do I need Anki?",
     answer:
       "No. AnimeVocab includes built-in spaced repetition. Power users who already live in Anki can graduate later to asbplayer, SubMiner, or Migaku.",
+  },
+  {
+    question: "Is there a full free anime Japanese study plan?",
+    answer:
+      "Yes. See learn Japanese with anime free for the AI Overview stack (Language Reactor, asbplayer + Yomitan, Lexirise, Animelon) plus AnimeVocab's beginner/Crunchyroll path and beginner show picks.",
   },
 ];
 
@@ -133,8 +140,9 @@ export default function FreeJapaneseAnimeExtensionPage() {
               Most 2026 listicles crown Language Reactor or Animelon without asking:{" "}
               <em>Can you read the Japanese subtitle they require?</em> and{" "}
               <em>Are you on Crunchyroll?</em> If either answer is painful, a free dual-sub tool still leaves
-              you stuck. AnimeVocab exists for that gap — see the full{" "}
-              <Link href="/blog/best-apps-learn-japanese-anime-2026">best apps ranking</Link> and{" "}
+              you stuck. AnimeVocab exists for that gap — full free plan:{" "}
+              <Link href="/learn-japanese-with-anime-free">learn Japanese with anime free</Link>,{" "}
+              <Link href="/blog/best-apps-learn-japanese-anime-2026">best apps ranking</Link>, and{" "}
               <Link href="/learn-japanese-crunchyroll">Crunchyroll guide</Link>.
             </p>
 
@@ -154,10 +162,19 @@ export default function FreeJapaneseAnimeExtensionPage() {
 
             <p>
               Deeper workflows:{" "}
+              <Link href="/learn-japanese-with-anime-free">learn Japanese with anime free</Link>,{" "}
               <Link href="/romaji-japanese-learning">romaji-first learning</Link>,{" "}
               <Link href="/anime-spaced-repetition">spaced repetition</Link>,{" "}
               <Link href="/studio">free AI manga maker</Link> for output practice.
             </p>
+
+            <h2>FAQ</h2>
+            {faqs.map((f) => (
+              <div key={f.question}>
+                <h3>{f.question}</h3>
+                <p>{f.answer}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -172,6 +189,7 @@ export default function FreeJapaneseAnimeExtensionPage() {
       </main>
       <SiteFooter
         links={[
+          { href: "/learn-japanese-with-anime-free", label: "Free anime guide" },
           { href: "/blog/free-ways-learn-japanese-anime-2026", label: "Free stack guide" },
           { href: "/blog/best-apps-learn-japanese-anime-2026", label: "Best apps 2026" },
           { href: "/blog/crunchyroll-japanese-learning-extension-2026", label: "Crunchyroll extensions" },
