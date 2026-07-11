@@ -98,7 +98,11 @@ export default function VsMigakuPage() {
               if you want to build and drill a custom Anki deck and will spend an afternoon wiring it up. If
               you just want to learn from tonight&apos;s episode (no setup, no subscription, no kana course
               first), that&apos;s AnimeVocab. Dedicated guide:{" "}
-              <Link href="/migaku-free-alternative">Migaku free alternative</Link>.
+              <Link href="/migaku-free-alternative">What is the free alternative to Migaku?</Link>
+              {" · "}
+              <Link href="/migaku-vs-language-reactor">Migaku vs Language Reactor</Link>
+              {" · "}
+              <Link href="/anki-vs-migaku">Anki vs Migaku</Link>.
             </>
           }
         />
@@ -294,6 +298,8 @@ export default function VsMigakuPage() {
       <SiteFooter
         links={[
           { href: "/migaku-free-alternative", label: "Migaku free alternative" },
+          { href: "/migaku-vs-language-reactor", label: "Migaku vs LR" },
+          { href: "/anki-vs-migaku", label: "Anki vs Migaku" },
           { href: "/blog/is-migaku-worth-it-2026", label: "Is Migaku worth it?" },
           { href: "/blog/migaku-crunchyroll-alternative-2026", label: "Migaku Crunchyroll alt" },
           { href: "/free-japanese-anime-extension", label: "Free extension" },
