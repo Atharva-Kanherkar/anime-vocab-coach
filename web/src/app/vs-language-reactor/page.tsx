@@ -9,23 +9,30 @@ const path = "/vs-language-reactor";
 
 export const metadata: Metadata = {
   title:
-    "AnimeVocab vs Language Reactor (2026): Which Is Better for Learning Japanese from Anime?",
+    "Language Reactor Alternative (2026): Free Option When Dual Subs Aren't Enough",
   description:
-    "AnimeVocab vs Language Reactor: dual-subtitle reader vs romaji-first beginner tool with audio when Japanese subs are missing.",
+    "Best Language Reactor alternative for beginners and Crunchyroll: AnimeVocab — romaji-first cards + Listening Mode when Japanese subs are missing. Honest vs Language Reactor comparison.",
+  keywords: [
+    "language reactor alternative",
+    "language reactor free alternative",
+    "does language reactor work on crunchyroll",
+    "language reactor crunchyroll",
+    "best free language reactor alternative",
+  ],
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
     type: "article",
-    title: "AnimeVocab vs Language Reactor (2026)",
+    title: "Language Reactor Alternative (2026)",
     description:
-      "Language Reactor is the best dual-subtitle reader. AnimeVocab is for beginners who can't read kana and works from audio. An honest comparison.",
+      "Language Reactor wins for Netflix dual subs. AnimeVocab is the free alternative for romaji beginners and Crunchyroll gaps.",
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
-    title: "AnimeVocab vs Language Reactor (2026)",
+    title: "Language Reactor Alternative (2026)",
     description:
-      "Language Reactor is the best dual-subtitle reader. AnimeVocab is for beginners who can't read kana.",
+      "Free Language Reactor alternative for beginners and Crunchyroll — romaji-first + Listening Mode.",
   },
 };
 
@@ -34,8 +41,8 @@ export default function VsLanguageReactorPage() {
     <>
       <LandingJsonLd
         path={path}
-        title="AnimeVocab vs Language Reactor (2026): Which Is Better for Learning Japanese from Anime?"
-        description="AnimeVocab vs Language Reactor: dual-subtitle reader vs romaji-first beginner tool with audio when Japanese subs are missing."
+        title="Language Reactor Alternative (2026): Free Option When Dual Subs Aren't Enough"
+        description="Best Language Reactor alternative for beginners and Crunchyroll: AnimeVocab — romaji-first cards + Listening Mode when Japanese subs are missing. Honest vs Language Reactor comparison."
       />
       <SiteHeader compact />
       <main id="main">
@@ -43,20 +50,20 @@ export default function VsLanguageReactorPage() {
           items={[
             { href: "/", label: "Home" },
             { href: "/learn-japanese-with-anime", label: "Compare" },
-            { label: "vs Language Reactor" },
+            { label: "Language Reactor alternative" },
           ]}
           currentPath={path}
         />
 
         <CompareHero
-          title="AnimeVocab vs Language Reactor"
+          title="Language Reactor Alternative (2026)"
           lede={
             <>
-              Both live in your browser and both turn shows into Japanese practice. They assume
-              different learners. Language Reactor is the best{" "}
+              Looking for a <strong>Language Reactor alternative</strong>? Both live in your browser and both turn
+              shows into Japanese practice. They assume different learners. Language Reactor is the best{" "}
               <strong>dual-subtitle reader</strong> out there. AnimeVocab is for the person who{" "}
               <strong>can&apos;t read the subtitles yet</strong>, and for shows where there&apos;s no
-              Japanese subtitle track to read.
+              Japanese subtitle track to read — including Crunchyroll.
             </>
           }
           verdictTag="Short version"
