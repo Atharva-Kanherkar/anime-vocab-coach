@@ -1860,6 +1860,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 7,
     ogImage: "/slides/06-manifesto.jpg",
+    canonicalPath: "/language-reactor-alternative",
     blocks: [
       {
         type: "p",
@@ -1877,7 +1878,7 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "p",
-        text: "Also: [Language Reactor free alternative](/blog/language-reactor-free-alternative-2026), [LR on Crunchyroll?](/blog/language-reactor-crunchyroll-2026).",
+        text: "Also: [Language Reactor alternative hub](/language-reactor-alternative), [Language Reactor free alternative](/blog/language-reactor-free-alternative-2026), [LR on Crunchyroll?](/blog/language-reactor-crunchyroll-2026).",
       },
     ],
   },
@@ -6088,7 +6089,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 7,
     ogImage: "/slides/05-private.jpg",
-    canonicalPath: "/vs-language-reactor",
+    canonicalPath: "/language-reactor-alternative",
     blocks: [
       {
         type: "p",
@@ -6878,7 +6879,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 8,
     ogImage: "/slides/11-cards.webp",
-    canonicalPath: "/vs-asbplayer",
+    canonicalPath: "/asbplayer-alternative",
     blocks: [
       {
         type: "p",
@@ -7644,7 +7645,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 8,
     ogImage: "/slides/06-manifesto.jpg",
-    canonicalPath: "/vs-animelon",
+    canonicalPath: "/animelon-alternative",
     blocks: [
       {
         type: "p",
