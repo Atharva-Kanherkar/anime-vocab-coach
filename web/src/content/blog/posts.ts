@@ -1851,7 +1851,7 @@ export const blogPosts: BlogPost[] = [
     description:
       "Best free Language Reactor alternatives for anime learners in 2026 — Netflix dual subs, Crunchyroll gaps, and romaji-first beginner tools.",
     publishedAt: "2026-07-11T23:30:00.000Z",
-    updatedAt: "2026-07-11T23:30:00.000Z",
+    updatedAt: "2026-07-12T08:00:00.000Z",
     keywords: [
       "best free language reactor alternative",
       "language reactor free alternative 2026",
@@ -1860,6 +1860,7 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 7,
     ogImage: "/slides/06-manifesto.jpg",
+    canonicalPath: "/vs-language-reactor",
     blocks: [
       {
         type: "p",
@@ -2480,12 +2481,13 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "language-reactor-crunchyroll-2026",
-    title: "Does Language Reactor Work on Crunchyroll? (2026)",
+    title: "Does Language Reactor Work on Crunchyroll? (2026 Honest Answer)",
     description:
-      "Language Reactor is Netflix/YouTube-first. What Crunchyroll learners should use instead in 2026 — honest answer and free beginner alternatives.",
+      "Does Language Reactor work on Crunchyroll? Short answer: no — LR is Netflix/YouTube-first. What Crunchyroll learners should use instead in 2026.",
     publishedAt: "2026-07-11T13:00:00.000Z",
-    updatedAt: "2026-07-11T13:00:00.000Z",
+    updatedAt: "2026-07-12T08:00:00.000Z",
     keywords: [
+      "does language reactor work on crunchyroll",
       "language reactor crunchyroll",
       "language reactor on crunchyroll",
       "language reactor crunchyroll alternative",
@@ -7631,13 +7633,14 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "animelon-alternative-anime-japanese-2026",
-    title: "Animelon Alternative (2026): Romaji Anime with Legal Workflows",
+    title: "Animelon Alternative (2026): Best Free Replacements for Romaji Anime",
     description:
-      "Animelon offered romaji-friendly anime subtitles but is unreliable. Modern alternatives for learning Japanese from anime — Netflix, YouTube, Crunchyroll, and Listening Mode.",
+      "Best Animelon alternatives in 2026 for romaji anime learning — legal Netflix, YouTube, and Crunchyroll workflows with Listening Mode when JP subs are missing.",
     publishedAt: "2026-07-07T10:00:00.000Z",
-    updatedAt: "2026-07-07T10:00:00.000Z",
+    updatedAt: "2026-07-12T08:00:00.000Z",
     keywords: [
       "animelon alternative",
+      "animelon alternatives",
       "animelon replacement",
       "romaji anime subtitles",
       "learn japanese anime streaming",

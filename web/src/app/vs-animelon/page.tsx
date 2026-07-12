@@ -9,22 +9,29 @@ import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 const path = "/vs-animelon";
 
 export const metadata: Metadata = {
-  title: "AnimeVocab vs Animelon (2026): Romaji Anime Without the Gray Catalog",
+  title: "Animelon Alternative (2026): Free Romaji Anime Without the Gray Catalog",
   description:
-    "Animelon offered romaji-friendly anime streams but is unreliable. AnimeVocab works on Netflix, Crunchyroll, and YouTube you already pay for — romaji-first cards and SRS.",
+    "Best Animelon alternative for 2026: AnimeVocab — romaji-first cards on Netflix, Crunchyroll, and YouTube you already pay for. No unreliable hosted catalog.",
+  keywords: [
+    "animelon alternative",
+    "animelon alternatives",
+    "best animelon alternative",
+    "animelon replacement",
+    "animelon free alternative",
+  ],
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
     type: "article",
-    title: "AnimeVocab vs Animelon (2026)",
+    title: "Animelon Alternative (2026)",
     description:
       "Animelon was romaji-first but legally gray and unstable. AnimeVocab learns from the anime you already watch legally.",
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
-    title: "AnimeVocab vs Animelon (2026)",
-    description: "Honest romaji-first comparison for anime Japanese learners.",
+    title: "Animelon Alternative (2026)",
+    description: "Free Animelon alternative — romaji vocabulary on legal streams.",
   },
 };
 
@@ -33,8 +40,8 @@ export default function VsAnimelonPage() {
     <>
       <LandingJsonLd
         path={path}
-        title="AnimeVocab vs Animelon (2026): Romaji Anime Without the Gray Catalog"
-        description="Animelon offered romaji-friendly anime streams but is unreliable. AnimeVocab works on Netflix, Crunchyroll, and YouTube you already pay for — romaji-first cards and SRS."
+        title="Animelon Alternative (2026): Free Romaji Anime Without the Gray Catalog"
+        description="Best Animelon alternative for 2026: AnimeVocab — romaji-first cards on Netflix, Crunchyroll, and YouTube you already pay for. No unreliable hosted catalog."
       />
       <SiteHeader compact />
       <main id="main">
@@ -42,15 +49,16 @@ export default function VsAnimelonPage() {
           items={[
             { href: "/", label: "Home" },
             { href: "/learn-japanese-with-anime", label: "Compare" },
-            { label: "vs Animelon" },
+            { label: "Animelon alternative" },
           ]}
           currentPath={path}
         />
 
         <CompareHero
-          title="AnimeVocab vs Animelon"
+          title="Animelon Alternative (2026)"
           lede={
             <>
+              Searching for an <strong>Animelon alternative</strong>?{" "}
               <strong>Animelon</strong> was beloved for switchable romaji/hiragana/kanji subtitle modes on a
               free anime catalog. It also lived in a <strong>legally gray</strong> hosting model and breaks
               often — titles vanish, players fail. <strong>AnimeVocab</strong> keeps the{" "}
