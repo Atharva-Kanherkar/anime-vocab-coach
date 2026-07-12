@@ -38,20 +38,29 @@ export default function HomePage() {
 
   return (
     <>
-      {heroSlides.slice(0, 2).flatMap((s) => {
-        if (!s.image) return [];
-        const mobile = heroMobileImage(s.image)!;
-        return [
-          <link key={`${s.id}-d`} rel="preload" as="image" href={s.image} />,
-          <link
-            key={`${s.id}-m`}
-            rel="preload"
-            as="image"
-            href={mobile}
-            media="(max-width: 768px)"
-          />,
-        ];
-      })}
+      {(() => {
+        const first = heroSlides[0];
+        if (!first?.image) return null;
+        const mobile = heroMobileImage(first.image)!;
+        return (
+          <>
+            <link
+              key={`${first.id}-d`}
+              rel="preload"
+              as="image"
+              href={first.image}
+              media="(min-width: 769px)"
+            />
+            <link
+              key={`${first.id}-m`}
+              rel="preload"
+              as="image"
+              href={mobile}
+              media="(max-width: 768px)"
+            />
+          </>
+        );
+      })()}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

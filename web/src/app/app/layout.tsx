@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Zen_Maru_Gothic } from "next/font/google";
 import "./app.css";
+
+// Rounded JP display face for the cloud app only — marketing never uses --jp-round.
+const zenMaru = Zen_Maru_Gothic({
+  subsets: ["latin"],
+  weight: ["500", "700", "900"],
+  variable: "--jp-round",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -15,7 +24,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: themeInit }} />
-      <div className="av font-sans">{children}</div>
+      <div className={`av font-sans ${zenMaru.variable}`}>{children}</div>
     </>
   );
 }
