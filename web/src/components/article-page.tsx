@@ -84,7 +84,7 @@ export function ArticlePageShell({
         </section>
         <section style={{ paddingTop: 0 }}>
           <div className="wrap">
-            <ArticleBody blocks={post.blocks} />
+            <ArticleBody blocks={post.blocks} midArticleCta={post.midArticleCta} />
             {children}
           </div>
         </section>
