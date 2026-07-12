@@ -1851,7 +1851,7 @@ export const blogPosts: BlogPost[] = [
     description:
       "Best free Language Reactor alternatives for anime learners in 2026 — Netflix dual subs, Crunchyroll gaps, and romaji-first beginner tools.",
     publishedAt: "2026-07-11T23:30:00.000Z",
-    updatedAt: "2026-07-11T23:30:00.000Z",
+    updatedAt: "2026-07-12T08:00:00.000Z",
     keywords: [
       "best free language reactor alternative",
       "language reactor free alternative 2026",
@@ -2481,12 +2481,13 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "language-reactor-crunchyroll-2026",
-    title: "Does Language Reactor Work on Crunchyroll? (2026)",
+    title: "Does Language Reactor Work on Crunchyroll? (2026 Honest Answer)",
     description:
-      "Language Reactor is Netflix/YouTube-first. What Crunchyroll learners should use instead in 2026 — honest answer and free beginner alternatives.",
+      "Does Language Reactor work on Crunchyroll? Short answer: no — LR is Netflix/YouTube-first. What Crunchyroll learners should use instead in 2026.",
     publishedAt: "2026-07-11T13:00:00.000Z",
-    updatedAt: "2026-07-11T13:00:00.000Z",
+    updatedAt: "2026-07-12T08:00:00.000Z",
     keywords: [
+      "does language reactor work on crunchyroll",
       "language reactor crunchyroll",
       "language reactor on crunchyroll",
       "language reactor crunchyroll alternative",
@@ -3353,6 +3354,10 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 7,
     ogImage: "/slides/06-manifesto.jpg",
+    midArticleCta: {
+      headline: "Ready to install a beginner-friendly extension?",
+      body: "AnimeVocab adds romaji-first cards and Listening Mode on Crunchyroll, Netflix, and YouTube — free core, no Anki required.",
+    },
     blocks: [
       {
         type: "p",
@@ -3366,6 +3371,7 @@ export const blogPosts: BlogPost[] = [
           "**Can you start without kana?** — romaji-first matters ([guide](/romaji-japanese-learning))",
           "**Do cards review themselves?** — [SRS](/anime-spaced-repetition) beats a graveyard notebook",
           "**Permissions** — prefer local-first tools that explain Listening Mode clearly",
+          "**Install AnimeVocab** — open the [Chrome Web Store listing](/free-japanese-anime-extension) and add it in one click",
         ],
       },
       { type: "h2", text: "Shortlist categories" },
@@ -6268,6 +6274,10 @@ export const blogPosts: BlogPost[] = [
     readingMinutes: 7,
     ogImage: "/slides/05-torii-night.jpg",
     canonicalPath: "/learn-japanese-crunchyroll",
+    midArticleCta: {
+      headline: "Need a Migaku Crunchyroll alternative tonight?",
+      body: "AnimeVocab works on Crunchyroll with romaji-first cards and Listening Mode when Japanese subs are missing.",
+    },
     blocks: [
       {
         type: "p",
@@ -6931,6 +6941,10 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 10,
     ogImage: "/slides/11-cards.webp",
+    midArticleCta: {
+      headline: "Start with the #1 beginner pick",
+      body: "Install AnimeVocab free — romaji-first cards + Listening Mode on Crunchyroll, Netflix, and YouTube.",
+    },
     blocks: [
       {
         type: "p",
@@ -6940,7 +6954,7 @@ export const blogPosts: BlogPost[] = [
       {
         type: "ul",
         items: [
-          "**Cannot read kana yet, watch Crunchyroll** → [AnimeVocab](/) (romaji + Listening Mode)",
+          "**Cannot read kana yet, watch Crunchyroll** → [AnimeVocab](/free-japanese-anime-extension) (romaji + Listening Mode)",
           "**Read Japanese subs, mine Crunchyroll** → [Lexirise](/vs-lexirise) or [ManabiDojo](/vs-manabidojo)",
           "**Netflix + YouTube dual subtitles** → Language Reactor (free tier) or **Lingoku** (AI + BYOK)",
           "**Power-user Anki mining** → Migaku (subscription)",
@@ -6952,7 +6966,7 @@ export const blogPosts: BlogPost[] = [
       { type: "h2", text: "1. AnimeVocab — romaji-first, audio when subs are missing" },
       {
         type: "p",
-        text: "**Platforms:** Crunchyroll, Netflix, YouTube. **Price:** free core; Pro for transcription quota. **Best for:** month-zero learners who need **romaji-first** cards and **built-in SRS** without wiring Anki. **Standout:** Listening Mode transcribes tab audio when Crunchyroll has no Japanese subtitle track — the case Jimaku overlays solve with fan `.srt` files. Open source. Hub: [learn Japanese with anime (2026)](/learn-japanese-with-anime), [Crunchyroll guide](/learn-japanese-crunchyroll).",
+        text: "**Platforms:** Crunchyroll, Netflix, YouTube. **Price:** free core; Pro for transcription quota. **Best for:** month-zero learners who need **romaji-first** cards and **built-in SRS** without wiring Anki. **Standout:** Listening Mode transcribes tab audio when Crunchyroll has no Japanese subtitle track — the case Jimaku overlays solve with fan `.srt` files. Open source. Install: [free Japanese anime extension](/free-japanese-anime-extension). Hub: [learn Japanese with anime (2026)](/learn-japanese-with-anime), [Crunchyroll guide](/learn-japanese-crunchyroll).",
       },
       { type: "h2", text: "2. Lexirise — Crunchyroll-native dual subs" },
       {
@@ -7632,13 +7646,14 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "animelon-alternative-anime-japanese-2026",
-    title: "Animelon Alternative (2026): Romaji Anime with Legal Workflows",
+    title: "Animelon Alternative (2026): Best Free Replacements for Romaji Anime",
     description:
-      "Animelon offered romaji-friendly anime subtitles but is unreliable. Modern alternatives for learning Japanese from anime — Netflix, YouTube, Crunchyroll, and Listening Mode.",
+      "Best Animelon alternatives in 2026 for romaji anime learning — legal Netflix, YouTube, and Crunchyroll workflows with Listening Mode when JP subs are missing.",
     publishedAt: "2026-07-07T10:00:00.000Z",
-    updatedAt: "2026-07-07T10:00:00.000Z",
+    updatedAt: "2026-07-12T08:00:00.000Z",
     keywords: [
       "animelon alternative",
+      "animelon alternatives",
       "animelon replacement",
       "romaji anime subtitles",
       "learn japanese anime streaming",
@@ -7796,6 +7811,10 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 8,
     ogImage: "/slides/11-cards.webp",
+    midArticleCta: {
+      headline: "Capture anime vocab without a flashcard graveyard",
+      body: "AnimeVocab pushes one romaji-first word per line with built-in SRS — install free and start tonight.",
+    },
     blocks: [
       {
         type: "p",
@@ -7813,13 +7832,13 @@ export const blogPosts: BlogPost[] = [
       { type: "h2", text: "Romaji → kana → kanji path" },
       {
         type: "p",
-        text: "Month zero learners should see **romaji + meaning + audio** first. Once kana clicks, the same deck displays hiragana. AnimeVocab, Animelon-style sites, and Netflix JP subs meet you at different stages — see [romaji-first guide](/blog/romaji-first-japanese-anime).",
+        text: "Month zero learners should see **romaji + meaning + audio** first. Once kana clicks, the same deck displays hiragana. [AnimeVocab](/free-japanese-anime-extension) is built for that on-ramp; Animelon-style sites and Netflix JP subs meet you at later stages — see [romaji-first guide](/blog/romaji-first-japanese-anime).",
       },
       { type: "h2", text: "Daily habit stack" },
       {
         type: "ol",
         items: [
-          "5 min SRS review before watching.",
+          "5 min SRS review before watching ([AnimeVocab](/free-japanese-anime-extension) or your deck).",
           "One episode with **one deliberate word** ([method](/blog/one-word-per-episode-method)).",
           "Optional: write a 4-panel manga using today's word in [Manga Studio](/studio).",
         ],

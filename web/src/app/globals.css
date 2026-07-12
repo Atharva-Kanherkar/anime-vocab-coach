@@ -353,6 +353,25 @@ section { padding: clamp(64px, 9vw, 100px) 0; }
   font-family: var(--serif); font-size: clamp(26px, 4vw, 34px);
   font-weight: 500; margin-bottom: 24px;
 }
+.article-mid-cta {
+  margin: 28px 0;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel, rgba(224, 232, 255, 0.04));
+}
+.article-mid-cta__headline {
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-size: 22px;
+  color: var(--ink);
+}
+.article-mid-cta__body {
+  margin: 0 0 16px;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.55;
+}
 
 .foot { border-top: 1px solid var(--line); background: var(--bg-2); }
 .foot-inner {

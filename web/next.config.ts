@@ -16,6 +16,16 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       { source: "/vs-migaku.html", destination: "/vs-migaku", permanent: true },
+      {
+        source: "/animelon-alternative",
+        destination: "/vs-animelon",
+        permanent: true,
+      },
+      {
+        source: "/language-reactor-alternative",
+        destination: "/vs-language-reactor",
+        permanent: true,
+      },
     ];
   },
 };

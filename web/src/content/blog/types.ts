@@ -17,5 +17,11 @@ export type BlogPost = {
   ogImage?: string;
   /** When a landing page is the preferred URL, point canonical here (e.g. /vs-lingoku). */
   canonicalPath?: string;
+  /** Optional mid-article install CTA shown after the first H2. */
+  midArticleCta?: {
+    headline: string;
+    body: string;
+    buttonLabel?: string;
+  };
   blocks: ArticleBlock[];
 };
