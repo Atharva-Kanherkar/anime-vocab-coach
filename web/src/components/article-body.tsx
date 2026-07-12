@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { ArticleBlock } from "@/content/blog/types";
+import type { ArticleBlock, BlogPost } from "@/content/blog/types";
+import { installUrl } from "@/lib/site";
 
 function inline(text: string): ReactNode[] {
   const parts: ReactNode[] = [];
@@ -40,36 +41,69 @@ function inline(text: string): ReactNode[] {
   return parts;
 }
 
-export function ArticleBody({ blocks }: { blocks: ArticleBlock[] }) {
+function MidArticleCta({ cta }: { cta: NonNullable<BlogPost["midArticleCta"]> }) {
+  return (
+    <aside className="article-mid-cta" aria-label="Install AnimeVocab">
+      <p className="article-mid-cta__headline">{cta.headline}</p>
+      <p className="article-mid-cta__body">{cta.body}</p>
+      <a className="btn btn-accent" href={installUrl()} rel="noopener noreferrer">
+        {cta.buttonLabel ?? "Add to Chrome (free)"}
+      </a>
+    </aside>
+  );
+}
+
+export function ArticleBody({
+  blocks,
+  midArticleCta,
+}: {
+  blocks: ArticleBlock[];
+  midArticleCta?: BlogPost["midArticleCta"];
+}) {
+  let insertedCta = false;
+
   return (
     <div className="prose">
-      {blocks.map((block, i) => {
+      {blocks.flatMap((block, i) => {
+        const nodes: ReactNode[] = [];
         switch (block.type) {
           case "h2":
-            return <h2 key={i}>{block.text}</h2>;
+            nodes.push(<h2 key={i}>{block.text}</h2>);
+            break;
           case "h3":
-            return <h3 key={i}>{block.text}</h3>;
+            nodes.push(<h3 key={i}>{block.text}</h3>);
+            break;
           case "p":
-            return <p key={i}>{inline(block.text)}</p>;
+            nodes.push(<p key={i}>{inline(block.text)}</p>);
+            break;
           case "ul":
-            return (
+            nodes.push(
               <ul key={i}>
                 {block.items.map((item) => (
                   <li key={item}>{inline(item)}</li>
                 ))}
               </ul>
             );
+            break;
           case "ol":
-            return (
+            nodes.push(
               <ol key={i} className="article-ol">
                 {block.items.map((item) => (
                   <li key={item}>{inline(item)}</li>
                 ))}
               </ol>
             );
+            break;
           default:
-            return null;
+            return [];
         }
+
+        if (midArticleCta && !insertedCta && block.type === "h2") {
+          insertedCta = true;
+          nodes.push(<MidArticleCta key={`${i}-cta`} cta={midArticleCta} />);
+        }
+
+        return nodes;
       })}
     </div>
   );
