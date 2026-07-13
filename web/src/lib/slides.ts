@@ -38,7 +38,7 @@ export const heroSlides: HeroSlide[] = [
     tag: "Watch & learn",
     kicker: "01 · immersion",
     title: "Learn Japanese from the anime you already watch.",
-    body: "One useful word per line, in romaji, with the meaning and the exact moment it was spoken.",
+    body: "AnimeVocab is a Chrome extension that teaches one useful word per line — in romaji — with the meaning and the exact moment it was spoken.",
     ctaLabel: "Add to Chrome",
     ctaHref: installUrl(),
     secondaryLabel: "How it works",
