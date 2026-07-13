@@ -1,25 +1,22 @@
 import type { Env } from "./index";
 
-/** Count only server-side transcribe outcomes (not client lookup polls). */
-export async function recordTranscribeHit(env: Env): Promise<void> {
-  await increment(env, "txmetrics:transcribe_hits");
+/**
+ * Cache hit/miss counters used to live in Workers KV via read-modify-write puts.
+ * That burned the free-tier 1k writes/day under Listening Mode (lookup polls every
+ * ~800ms + per-chunk transcribe hits). Counters are intentionally no-ops now so
+ * product paths stay read-only on warm cache. `getMetrics` still reads any legacy
+ * keys for the stats endpoint shape.
+ */
+export async function recordTranscribeHit(_env: Env): Promise<void> {
+  /* no-op — see file comment */
 }
 
-export async function recordTranscribeMiss(env: Env): Promise<void> {
-  await increment(env, "txmetrics:transcribe_misses");
+export async function recordTranscribeMiss(_env: Env): Promise<void> {
+  /* no-op — see file comment */
 }
 
-export async function recordLookupHit(env: Env): Promise<void> {
-  await increment(env, "txmetrics:lookup_hits");
-}
-
-async function increment(env: Env, key: string): Promise<void> {
-  try {
-    const v = await env.AVC_KV.get(key);
-    await env.AVC_KV.put(key, String((Number(v) || 0) + 1));
-  } catch {
-    /* metrics must not break the request path */
-  }
+export async function recordLookupHit(_env: Env): Promise<void> {
+  /* no-op — see file comment */
 }
 
 async function getCounter(env: Env, key: string): Promise<number> {

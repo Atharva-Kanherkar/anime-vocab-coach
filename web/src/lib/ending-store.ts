@@ -6,7 +6,6 @@
 //   - ending:signed:<user>:<m>  — signed-in monthly counter (sign-up carrot)
 //   - ending:global:<day>       — global daily creations (ad-spike safety)
 //   - endstats:<day>:<event>    — funnel analytics, per UTC day
-//   - endstats:total:<event>    — funnel analytics, all-time
 // Local Next dev with no Cloudflare binding falls back to an in-process Map
 // (same pattern as studio-store.ts).
 
@@ -168,15 +167,12 @@ export function currentStatsDay(now = new Date()): string {
 }
 
 const statsDayKey = (day: string, event: EndingEvent) => `endstats:${day}:${event}`;
-const statsTotalKey = (event: EndingEvent) => `endstats:total:${event}`;
 
-/** Fire-and-forget funnel counter. Never throws (analytics must not break UX). */
+/** Fire-and-forget funnel counter. Never throws (analytics must not break UX).
+ *  One KV put per event (daily bucket only) — all-time totals are derived from days. */
 export async function trackEndingEvent(event: EndingEvent, day = currentStatsDay()): Promise<void> {
   try {
-    await Promise.all([
-      bumpCounter(statsDayKey(day, event), STATS_DAY_TTL_SECONDS),
-      bumpCounter(statsTotalKey(event), 0), // no TTL → all-time
-    ]);
+    await bumpCounter(statsDayKey(day, event), STATS_DAY_TTL_SECONDS);
   } catch {
     // swallow — a lost count is better than a broken funnel
   }
@@ -188,13 +184,7 @@ export interface EndingStats {
 }
 
 export async function getEndingStats(daysBack = 14): Promise<EndingStats> {
-  const totals: Record<string, number> = {};
-  await Promise.all(
-    ENDING_EVENTS.map(async (e) => {
-      totals[e] = await readCounter(statsTotalKey(e));
-    })
-  );
-
+  const totals: Record<string, number> = Object.fromEntries(ENDING_EVENTS.map((e) => [e, 0]));
   const days: EndingStats["days"] = [];
   const now = Date.now();
   for (let d = 0; d < daysBack; d++) {
@@ -203,7 +193,10 @@ export async function getEndingStats(daysBack = 14): Promise<EndingStats> {
     await Promise.all(
       ENDING_EVENTS.map(async (e) => {
         const n = await readCounter(statsDayKey(day, e));
-        if (n > 0) events[e] = n;
+        if (n > 0) {
+          events[e] = n;
+          totals[e] = (totals[e] || 0) + n;
+        }
       })
     );
     days.push({ day, events });

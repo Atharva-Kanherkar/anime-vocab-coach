@@ -164,9 +164,7 @@ export async function transcribeWithFallback(
 
 async function recordProviderError(env: Env, provider: string): Promise<void> {
   try {
-    const key = `txprovider:${provider}:errors`;
-    const v = await env.AVC_KV.get(key);
-    await env.AVC_KV.put(key, String((Number(v) || 0) + 1));
+    await bumpProviderField(env, provider, "errors", 1);
   } catch { /* noop */ }
 }
 
@@ -177,16 +175,57 @@ export async function recordProviderSuccess(
   costUsd: number
 ): Promise<void> {
   try {
-    const okKey = `txprovider:${provider}:ok`;
-    const minKey = `txprovider:${provider}:minutes`;
-    const costKey = `txprovider:${provider}:cost_usd`;
-    const ok = Number(await env.AVC_KV.get(okKey)) || 0;
-    const mins = parseFloat((await env.AVC_KV.get(minKey)) || "0") || 0;
-    const cost = parseFloat((await env.AVC_KV.get(costKey)) || "0") || 0;
-    await env.AVC_KV.put(okKey, String(ok + 1));
-    await env.AVC_KV.put(minKey, String(mins + durationMinutes));
-    await env.AVC_KV.put(costKey, String(cost + costUsd));
+    const key = providerMetricsKey(provider);
+    const cur = await readProviderBlob(env, provider);
+    cur.ok += 1;
+    cur.minutes += durationMinutes;
+    cur.costUsd += costUsd;
+    await env.AVC_KV.put(key, JSON.stringify(cur));
   } catch { /* noop */ }
+}
+
+function providerMetricsKey(provider: string): string {
+  return `txprovider:${provider}:v2`;
+}
+
+interface ProviderBlob {
+  ok: number;
+  errors: number;
+  minutes: number;
+  costUsd: number;
+}
+
+async function readProviderBlob(env: Env, provider: string): Promise<ProviderBlob> {
+  const raw = await env.AVC_KV.get(providerMetricsKey(provider));
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as Partial<ProviderBlob>;
+      return {
+        ok: Number(parsed.ok) || 0,
+        errors: Number(parsed.errors) || 0,
+        minutes: parseFloat(String(parsed.minutes)) || 0,
+        costUsd: parseFloat(String(parsed.costUsd)) || 0
+      };
+    } catch { /* fall through to legacy */ }
+  }
+  // Legacy v1 keys (one counter per field) — migrate on read, no extra puts until next write.
+  const ok = Number(await env.AVC_KV.get(`txprovider:${provider}:ok`)) || 0;
+  const errors = Number(await env.AVC_KV.get(`txprovider:${provider}:errors`)) || 0;
+  const minutes = parseFloat((await env.AVC_KV.get(`txprovider:${provider}:minutes`)) || "0") || 0;
+  const costUsd = parseFloat((await env.AVC_KV.get(`txprovider:${provider}:cost_usd`)) || "0") || 0;
+  return { ok, errors, minutes, costUsd };
+}
+
+async function bumpProviderField(
+  env: Env,
+  provider: string,
+  field: "errors",
+  by: number
+): Promise<void> {
+  const key = providerMetricsKey(provider);
+  const cur = await readProviderBlob(env, provider);
+  cur[field] += by;
+  await env.AVC_KV.put(key, JSON.stringify(cur));
 }
 
 export async function getProviderMetrics(env: Env): Promise<
@@ -195,10 +234,7 @@ export async function getProviderMetrics(env: Env): Promise<
   const names = ["groq", "deepinfra", "openai"];
   const out: Record<string, { ok: number; errors: number; minutes: number; costUsd: number; errorRate: number }> = {};
   for (const name of names) {
-    const ok = Number(await env.AVC_KV.get(`txprovider:${name}:ok`)) || 0;
-    const errors = Number(await env.AVC_KV.get(`txprovider:${name}:errors`)) || 0;
-    const minutes = parseFloat((await env.AVC_KV.get(`txprovider:${name}:minutes`)) || "0") || 0;
-    const costUsd = parseFloat((await env.AVC_KV.get(`txprovider:${name}:cost_usd`)) || "0") || 0;
+    const { ok, errors, minutes, costUsd } = await readProviderBlob(env, name);
     const total = ok + errors;
     out[name] = { ok, errors, minutes, costUsd, errorRate: total ? errors / total : 0 };
   }
