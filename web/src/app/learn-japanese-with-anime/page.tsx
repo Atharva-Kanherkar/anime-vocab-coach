@@ -335,14 +335,26 @@ export default function LearnJapaneseWithAnimePage() {
                 romaji-first, and works on YouTube, Netflix, and Crunchyroll. On shows with no Japanese
                 subtitle track it transcribes the audio, so Crunchyroll and new releases aren&apos;t off-limits.
                 Core is free; Pro ({TIERS.pro.priceLabel}) only pays for hands-off transcription.{" "}
-                <Link href="/vs-language-reactor">See how it compares to Language Reactor →</Link>
+                <Link href="/language-reactor-alternative">Language Reactor alternative →</Link>
+                {" · "}
+                <Link href="/vs-language-reactor">vs Language Reactor</Link>
               </li>
               <li>
                 <strong>Animelon</strong>: a free website that streams anime with switchable romaji, hiragana,
                 kanji, and English subtitle tracks plus a hover dictionary and quizzes. Genuinely
                 beginner-friendly. The catch: it hosts content on a legally gray basis and is unreliable (titles
                 vanish and playback breaks).{" "}
-                <Link href="/vs-animelon">Animelon alternative →</Link>
+                <Link href="/animelon-alternative">Animelon alternative →</Link>
+                {" · "}
+                <Link href="/vs-animelon">vs Animelon</Link>
+              </li>
+              <li>
+                <strong>Leaving Lingopie or a retired hover dictionary?</strong>{" "}
+                <Link href="/lingopie-alternative">Lingopie alternative</Link>
+                {" · "}
+                <Link href="/rikaikun-alternative">Rikaikun alternative</Link>
+                {" · "}
+                <Link href="/japanese-subtitles-anime">Japanese subtitles for anime</Link>
               </li>
             </ul>
 
@@ -353,6 +365,7 @@ export default function LearnJapaneseWithAnimePage() {
                 <strong>Language Reactor</strong>: a solid free dual-subtitle reader for Netflix and YouTube,
                 with a deep dictionary. Pro (~$5/mo) adds machine translation and Anki export. Needs an
                 existing subtitle track and is pitched at intermediate learners.{" "}
+                <Link href="/language-reactor-alternative">Language Reactor alternative</Link> ·{" "}
                 <Link href="/vs-language-reactor">See how it compares to AnimeVocab →</Link>
               </li>
               <li>
@@ -372,6 +385,8 @@ export default function LearnJapaneseWithAnimePage() {
                 audio + screenshot + sentence cards into Anki. No dictionary or romaji of its own; you bolt on
                 Yomitan. Powerful, not beginner-usable.{" "}
                 <Link href="/vs-asbplayer">AnimeVocab vs asbplayer →</Link>
+                {" · "}
+                <Link href="/asbplayer-alternative">asbplayer alternative</Link>
               </li>
               <li>
                 <strong>Memento</strong>: a free, actively maintained desktop player (mpv-based) with a
@@ -474,16 +489,22 @@ export default function LearnJapaneseWithAnimePage() {
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/best-anime-to-learn-japanese", label: "Best anime" },
           { href: "/vs-animelon", label: "vs Animelon" },
+          { href: "/animelon-alternative", label: "Animelon alt" },
           { href: "/vs-lingoku", label: "vs Lingoku" },
           { href: "/vs-yumego", label: "vs YumeGo" },
           { href: "/vs-lexirise", label: "vs Lexirise" },
           { href: "/vs-asbplayer", label: "vs asbplayer" },
+          { href: "/asbplayer-alternative", label: "asbplayer alt" },
           { href: "/vs-wordy", label: "vs Wordy" },
           { href: "/vs-manabidojo", label: "vs ManabiDojo" },
           { href: "/manabidojo-alternative", label: "ManabiDojo alt" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
+          { href: "/language-reactor-alternative", label: "LR alt" },
           { href: "/vs-migaku", label: "vs Migaku" },
           { href: "/migaku-free-alternative", label: "Migaku free alt" },
+          { href: "/lingopie-alternative", label: "Lingopie alt" },
+          { href: "/rikaikun-alternative", label: "Rikaikun alt" },
+          { href: "/japanese-subtitles-anime", label: "JP subs hub" },
           { href: GITHUB_URL, label: "GitHub" },
         ]}
       />

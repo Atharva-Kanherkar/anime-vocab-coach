@@ -2,6 +2,451 @@ import type { BlogPost } from "./types";
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "is-lingopie-good-for-japanese-2026",
+    title: "Is Lingopie Good for Learning Japanese? (2026 Honest Review)",
+    description:
+      "Is Lingopie worth it for Japanese anime? Honest 2026 review — pricing, catalog limits, vs Language Reactor and AnimeVocab on streams you already pay for.",
+    publishedAt: "2026-07-14T12:00:00.000Z",
+    updatedAt: "2026-07-14T12:00:00.000Z",
+    keywords: [
+      "lingopie japanese",
+      "is lingopie worth it",
+      "lingopie review japanese",
+      "lingopie anime japanese",
+      "lingopie alternative",
+    ],
+    readingMinutes: 9,
+    ogImage: "/slides/04-sakura-night.jpg",
+    midArticleCta: {
+      headline: "Already pay for Crunchyroll or Netflix?",
+      body: "AnimeVocab teaches romaji-first vocabulary from tonight's episode — no second streaming subscription.",
+    },
+    blocks: [
+      {
+        type: "p",
+        text: "Searching **is Lingopie good for Japanese** or **is Lingopie worth it**? Lingopie is a ~$12/mo language-learning streamer with click-to-translate and flashcards. It markets anime heavily. This is an honest 2026 review for Japanese specifically — not a takedown, not a hype piece.",
+      },
+      { type: "h2", text: "What Lingopie actually offers for Japanese" },
+      {
+        type: "p",
+        text: "Lingopie bundles a **curated catalog** with interactive subtitles: click a word, see a gloss, save to flashcards. Progress tracking and multi-language support (Spanish, Korean, etc.) are genuine strengths. For Japanese, you get a slice of anime and drama — not the full Crunchyroll simulcast universe.",
+      },
+      { type: "h2", text: "Where Lingopie wins" },
+      {
+        type: "ul",
+        items: [
+          "**All-in-one** — content + lessons in one app, no extension stack",
+          "**Multi-language** — useful if you study more than Japanese",
+          "**Curated beginner paths** — less decision fatigue than the open web",
+          "**Click-to-translate UX** — polished for readers who can engage with on-screen text",
+        ],
+      },
+      { type: "h2", text: "Where Lingopie falls short for anime fans" },
+      {
+        type: "ul",
+        items: [
+          "**You already pay for Netflix/Crunchyroll** — ~$12/mo on top of existing subs hurts",
+          "**No weekly simulcasts** — tonight's Crunchyroll episode is not in Lingopie's catalog",
+          "**Assumes you can read** — interactive subs are still Japanese text on screen",
+          "**Crunchyroll JP track gap** — Lingopie does not fix Western CR's missing Japanese subtitles",
+        ],
+      },
+      { type: "h2", text: "Lingopie vs Language Reactor vs AnimeVocab" },
+      {
+        type: "ul",
+        items: [
+          "**Lingopie** — curated library + lessons (~$12/mo). Best if you want bundled content.",
+          "**Language Reactor** — free dual subs on Netflix/YouTube. Best if you read kana and own those subs ([vs](/vs-language-reactor)).",
+          "**AnimeVocab** — free romaji cards on Netflix/CR/YT + Listening Mode. Best for month-zero and CR nights ([Lingopie alt](/lingopie-alternative)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full three-way: [Language Reactor vs Lingopie](/blog/language-reactor-vs-lingopie-2026). Compare hub: [learn Japanese with anime](/learn-japanese-with-anime).",
+      },
+      { type: "h2", text: "Is Lingopie worth it? Decision tree" },
+      {
+        type: "ol",
+        items: [
+          "Do you already subscribe to Crunchyroll or Netflix for anime? **Yes** → try [AnimeVocab](/free-japanese-anime-extension) first (free core).",
+          "Can you read hiragana comfortably? **No** → Lingopie's interactive JP subs will frustrate you; romaji path ([guide](/romaji-japanese-learning)).",
+          "Want a curated multi-language app and do not mind the fee? **Yes** → Lingopie is reasonable.",
+          "Mainly watch weekly simulcasts? **Yes** → Lingopie will not replace Crunchyroll.",
+        ],
+      },
+      { type: "h2", text: "Bottom line" },
+      {
+        type: "p",
+        text: "**Lingopie is good** for learners who want a bundled streaming library across languages and can already read subtitle text. **Lingopie is not the best Japanese anime tool** if you already pay for major streams and need romaji on-ramp or Crunchyroll simulcast support. Alternatives: [Lingopie alternative](/lingopie-alternative), [free extension hub](/free-japanese-anime-extension).",
+      },
+    ],
+  },
+  {
+    slug: "yomitan-crunchyroll-2026",
+    title: "Does Yomitan Work on Crunchyroll? (2026): Limits + What to Use Instead",
+    description:
+      "Does Yomitan work on Crunchyroll? Only when Japanese text exists on screen — which is rare. Honest limits and Crunchyroll alternatives for readers and beginners.",
+    publishedAt: "2026-07-14T12:00:00.000Z",
+    updatedAt: "2026-07-14T12:00:00.000Z",
+    keywords: [
+      "yomitan crunchyroll",
+      "yomitan anime",
+      "yomitan crunchyroll extension",
+      "yomitan streaming",
+      "yomitan alternative anime",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/05-torii-night.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Does Yomitan work on Crunchyroll?** Technically yes — when **selectable Japanese text** exists in the player. Practically, on most Western Crunchyroll titles, that text does not exist. You get English burn-in, Japanese audio, and a hover dictionary with nothing to hover.",
+      },
+      { type: "h2", text: "What Yomitan is (and is not)" },
+      {
+        type: "p",
+        text: "Yomitan is the best **popup dictionary** for Japanese in the browser — successor to Yomichan and Rikaikun. It excels on manga sites, news, and any page with real Japanese characters. It is **not** a video player, not a subtitle overlay, and not an SRS app. See [Yomitan for anime](/blog/yomitan-anime-alternative-video-immersion-2026) for the immersion gap.",
+      },
+      { type: "h2", text: "Why Yomitan breaks on most Crunchyroll episodes" },
+      {
+        type: "ul",
+        items: [
+          "**No JP subtitle track** — licensing limits Japanese text outside Japan",
+          "**English-only DOM** — Yomitan parses what is on screen; English translations do not help",
+          "**Fan sub overlays required** — Kitsunekko `.srt` + Substital/Jimaku before Yomitan has text ([hub](/japanese-subtitles-anime))",
+        ],
+      },
+      { type: "h2", text: "When Yomitan does work on Crunchyroll" },
+      {
+        type: "ol",
+        items: [
+          "You overlay a Japanese `.srt` with [Substital](/blog/substital-crunchyroll-japanese-subtitles-2026) or Jimaku Player",
+          "A rare title ships a Japanese subtitle track in your region",
+          "On-screen JP text appears in the DOM (uncommon on CR)",
+        ],
+      },
+      {
+        type: "p",
+        text: "That is the **reader path** — pair Yomitan with [asbplayer](/vs-asbplayer) if you mine sentences to Anki. Not a beginner path.",
+      },
+      { type: "h2", text: "What to use instead (by skill level)" },
+      {
+        type: "ul",
+        items: [
+          "**Cannot read kana** → [AnimeVocab](/free-japanese-anime-extension) romaji + Listening Mode",
+          "**Can read + JP text on screen** → [Lexirise](/vs-lexirise) click-to-translate",
+          "**Want fan JP subs + quizzes** → [ManabiDojo](/vs-manabidojo)",
+          "**Want Anki mining** → Jimaku/Substital + [asbplayer](/asbplayer-alternative)",
+        ],
+      },
+      { type: "h2", text: "Yomitan on Netflix vs Crunchyroll" },
+      {
+        type: "p",
+        text: "Netflix sometimes exposes Japanese subtitle tracks Yomitan can parse — especially with [Language Reactor](/vs-language-reactor) dual subs. Crunchyroll is the harder platform. Many learners run Yomitan on Netflix and a CR-native tool for simulcasts. Stack comparison: [Migaku vs Yomitan](/blog/migaku-vs-yomitan-2026).",
+      },
+      {
+        type: "p",
+        text: "Crunchyroll hub: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Rikaikun migrants: [Rikaikun alternative](/rikaikun-alternative).",
+      },
+    ],
+  },
+  {
+    slug: "what-happened-to-animelon-2026",
+    title: "What Happened to Animelon? Is It Down for Good? (2026)",
+    description:
+      "What happened to Animelon? Site reliability issues, why learners left, and the best Animelon alternatives in 2026 — AnimeVocab, Language Reactor, and the fan-sub stack.",
+    publishedAt: "2026-07-14T12:00:00.000Z",
+    updatedAt: "2026-07-14T12:00:00.000Z",
+    keywords: [
+      "animelon down",
+      "what happened to animelon",
+      "animelon not working",
+      "animelon alternative",
+      "animelon 2026",
+    ],
+    readingMinutes: 8,
+    ogImage: "/slides/06-manifesto.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**What happened to Animelon?** Animelon was the free site for interactive Japanese subtitles on anime — hover words, toggle furigana, study without a subscription. In 2026, learners report **outages, broken players, and a shrinking catalog**. Whether it is down for good depends on the week; planning your study life around Animelon uptime is risky.",
+      },
+      { type: "h2", text: "Why Animelon mattered" },
+      {
+        type: "p",
+        text: "Animelon solved a real problem: **Japanese text on anime** without paying for multiple streaming services. Beginners could click words. Intermediate learners could toggle furigana. The catalog was limited but the UX was beloved — especially for people who could not afford Netflix + Crunchyroll + tools.",
+      },
+      { type: "h2", text: "What went wrong" },
+      {
+        type: "ul",
+        items: [
+          "**Hosting and licensing pressure** — free anime sites live on borrowed time",
+          "**Intermittent downtime** — Reddit threads spike whenever the player breaks",
+          "**Stale catalog** — new simulcasts never appeared; the library aged",
+          "**No mobile app / no CR integration** — learners moved to extensions on paid streams",
+        ],
+      },
+      { type: "h2", text: "Is Animelon down right now?" },
+      {
+        type: "p",
+        text: "Check the site directly — status flips. If you landed here because **Animelon is down**, do not wait for a fix to keep studying tonight. Migrate to a workflow on streams you already pay for. Canonical alt hub: [Animelon alternative](/animelon-alternative).",
+      },
+      { type: "h2", text: "Best Animelon alternatives (2026)" },
+      {
+        type: "ul",
+        items: [
+          "**AnimeVocab** — romaji-first cards on Netflix/CR/YT + Listening Mode ([vs Animelon](/vs-animelon))",
+          "**Language Reactor** — dual subs on Netflix/YouTube for readers ([LR alt](/language-reactor-alternative))",
+          "**Kitsunekko + Substital** — fan JP subs on Crunchyroll ([subtitle hub](/japanese-subtitles-anime))",
+          "**Lingopie** — curated library (~$12/mo) if you want bundled content ([review](/blog/is-lingopie-good-for-japanese-2026))",
+        ],
+      },
+      { type: "h2", text: "Pick by reading level" },
+      {
+        type: "ol",
+        items: [
+          "**Month-zero** → [AnimeVocab free extension](/free-japanese-anime-extension)",
+          "**Read kana + Netflix** → Language Reactor",
+          "**Read kana + Crunchyroll** → Lexirise or ManabiDojo",
+          "**Anki miner** → asbplayer + Yomitan",
+        ],
+      },
+      {
+        type: "p",
+        text: "Full comparison: [Animelon alternative](/animelon-alternative). Method: [learn Japanese with anime](/learn-japanese-with-anime).",
+      },
+    ],
+  },
+  {
+    slug: "asbplayer-crunchyroll-2026",
+    title: "Does asbplayer Work on Crunchyroll? Setup + Where It Breaks (2026)",
+    description:
+      "Does asbplayer work on Crunchyroll? Yes with fan Japanese subs — setup steps, timing pain points, and beginner alternatives when mining is overkill.",
+    publishedAt: "2026-07-14T12:00:00.000Z",
+    updatedAt: "2026-07-14T12:00:00.000Z",
+    keywords: [
+      "asbplayer crunchyroll",
+      "asbplayer netflix",
+      "asbplayer setup crunchyroll",
+      "asbplayer anime mining",
+      "asbplayer alternative",
+    ],
+    readingMinutes: 9,
+    ogImage: "/slides/04-sakura-night.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Does asbplayer work on Crunchyroll?** Yes — but not out of the box. asbplayer mines sentences from **Japanese subtitle text**. Crunchyroll rarely ships JP tracks in Western regions, so you need **fan .srt overlays** (Kitsunekko + Substital/Jimaku) before mining works. Netflix is sometimes easier when a JP track exists.",
+      },
+      { type: "h2", text: "What asbplayer needs to function" },
+      {
+        type: "ul",
+        items: [
+          "**Japanese subtitle text** synced to video — official or fan",
+          "**Readable Japanese** — you parse the line to pick mining targets",
+          "**Anki** — the destination deck for audio + screenshot cards",
+          "**Yomitan** (optional) — dictionary layer on hovered words",
+        ],
+      },
+      { type: "h2", text: "asbplayer on Crunchyroll: setup outline" },
+      {
+        type: "ol",
+        items: [
+          "Install [asbplayer](https://github.com/killergerbah/asbplayer) and connect Anki.",
+          "Find a matching Japanese `.srt` ([Kitsunekko guide](/blog/kitsunekko-subtitles-anime-2026)).",
+          "Overlay with [Substital](/blog/substital-crunchyroll-japanese-subtitles-2026) or Jimaku Player — align offset.",
+          "Open asbplayer, bind mining hotkeys, mine a line with audio + image.",
+          "Review in Anki tomorrow — not during the episode.",
+        ],
+      },
+      { type: "h2", text: "Where asbplayer breaks on Crunchyroll" },
+      {
+        type: "ul",
+        items: [
+          "**No fan sub file** for tonight's episode — mining stalls entirely",
+          "**Offset drift** — wrong timing ruins card audio",
+          "**Player updates** — streaming sites break extension hooks periodically",
+          "**Beginner overload** — Anki note types on night one kills momentum",
+        ],
+      },
+      { type: "h2", text: "asbplayer on Netflix" },
+      {
+        type: "p",
+        text: "Netflix sometimes exposes Japanese subtitle tracks asbplayer can read directly — especially paired with [Language Reactor](/vs-language-reactor). Still assumes literacy. Compare: [asbplayer vs SubMiner](/blog/subminer-vs-asbplayer-anime-mining-2026).",
+      },
+      { type: "h2", text: "When to use an asbplayer alternative instead" },
+      {
+        type: "p",
+        text: "If you **cannot read kana**, or you refuse to hunt `.srt` files every simulcast week, asbplayer is the wrong starting point. [AnimeVocab](/free-japanese-anime-extension) pushes one romaji-first word per line with built-in SRS — an on-ramp, not a miner replacement. Full alt guide: [asbplayer alternative](/asbplayer-alternative).",
+      },
+      {
+        type: "p",
+        text: "Hub: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Subtitle paths: [Japanese subtitles for anime](/japanese-subtitles-anime).",
+      },
+    ],
+  },
+  {
+    slug: "migaku-vs-yomitan-2026",
+    title: "Migaku vs Yomitan (2026): Paid Suite or Free Dictionary Stack?",
+    description:
+      "Migaku vs Yomitan — honest 2026 comparison. Yomitan is the free dictionary layer; Migaku is a paid mining suite. When to use each with anime on Netflix and Crunchyroll.",
+    publishedAt: "2026-07-14T12:00:00.000Z",
+    updatedAt: "2026-07-14T12:00:00.000Z",
+    keywords: [
+      "migaku vs yomitan",
+      "yomitan vs migaku",
+      "migaku yomitan alternative",
+      "yomitan migaku anki",
+      "free migaku alternative yomitan",
+    ],
+    readingMinutes: 9,
+    ogImage: "/slides/05-torii-night.jpg",
+    blocks: [
+      {
+        type: "p",
+        text: "**Migaku vs Yomitan** is not a fair head-to-head — they are different layers. **Yomitan** is a free hover dictionary. **Migaku** is a paid immersion suite (mining, tracking, video integration). Reddit's default **free Migaku alternative** is literally Yomitan + asbplayer + Anki. This post explains when each wins in 2026.",
+      },
+      { type: "h2", text: "Yomitan in one sentence" },
+      {
+        type: "p",
+        text: "Best-in-class **popup dictionary** for Japanese text in the browser. Parse words, readings, pitch accent, frequency. Export to Anki. Zero subscription. Does not play video, does not mine sentences by itself, does nothing when no Japanese text exists on screen.",
+      },
+      { type: "h2", text: "Migaku in one sentence" },
+      {
+        type: "p",
+        text: "Paid **mining and tracking suite** for Netflix, YouTube, Disney+, and more — one-click cards, frequency tracking, OCR features. Powerful for readers who already live in Anki. Does **not** support Crunchyroll as a first-class platform ([CR guide](/blog/migaku-crunchyroll-alternative-2026)).",
+      },
+      { type: "h2", text: "Feature comparison" },
+      {
+        type: "ul",
+        items: [
+          "**Price** — Yomitan: free. Migaku: subscription.",
+          "**Dictionary** — Yomitan wins depth and community dicts.",
+          "**Video mining UX** — Migaku wins one-click flow on supported sites.",
+          "**Crunchyroll** — both stall without JP text; neither is a CR magic wand.",
+          "**Beginner romaji** — neither; see [AnimeVocab](/free-japanese-anime-extension).",
+        ],
+      },
+      { type: "h2", text: "The free stack Reddit recommends" },
+      {
+        type: "ol",
+        items: [
+          "**Yomitan** — dictionary",
+          "**asbplayer** — mine audio + screenshots to Anki",
+          "**Anki** — SRS",
+        ],
+      },
+      {
+        type: "p",
+        text: "That replaces most of Migaku's power-user flow at $0 — with more setup. Canonical: [Migaku free alternative](/migaku-free-alternative). vs page: [AnimeVocab vs Migaku](/vs-migaku).",
+      },
+      { type: "h2", text: "When to pay for Migaku anyway" },
+      {
+        type: "ul",
+        items: [
+          "You mine heavily on **Netflix/YouTube** and want polished one-click cards",
+          "You value **tracking and OCR** beyond what Yomitan exports",
+          "Setup time costs more than the subscription to you",
+        ],
+      },
+      { type: "h2", text: "When to skip both and use AnimeVocab" },
+      {
+        type: "p",
+        text: "Month-zero learners on **Crunchyroll without JP subs** should not start with Migaku or Yomitan. Start romaji-first: [free extension](/free-japanese-anime-extension). Graduate to Yomitan when kana clicks, then asbplayer when Anki feels natural ([Anki for beginners](/blog/anki-anime-beginners-2026)).",
+      },
+      {
+        type: "p",
+        text: "Rikaikun migrants: [Rikaikun alternative](/rikaikun-alternative). Anime stack: [learn Japanese with anime](/learn-japanese-with-anime).",
+      },
+    ],
+  },
+  {
+    slug: "language-reactor-vs-lingopie-2026",
+    title: "Language Reactor vs Lingopie (2026): Which Is Better for Anime?",
+    description:
+      "Language Reactor vs Lingopie for anime Japanese — free dual subs on your Netflix vs ~$12/mo curated library. Honest 2026 pick by reading level and where you watch.",
+    publishedAt: "2026-07-14T12:00:00.000Z",
+    updatedAt: "2026-07-14T12:00:00.000Z",
+    keywords: [
+      "language reactor vs lingopie",
+      "lingopie vs language reactor",
+      "language reactor lingopie anime",
+      "best anime japanese learning app",
+      "lingopie alternative",
+    ],
+    readingMinutes: 10,
+    ogImage: "/slides/06-manifesto.jpg",
+    midArticleCta: {
+      headline: "Watch Crunchyroll without JP subs?",
+      body: "Neither LR nor Lingopie fixes that. AnimeVocab Listening Mode works from audio with romaji cards.",
+    },
+    blocks: [
+      {
+        type: "p",
+        text: "**Language Reactor vs Lingopie** is the comparison people make when choosing an anime Japanese tool — but they solve different problems. Language Reactor is a **free dual-subtitle reader** on Netflix and YouTube you already pay for. Lingopie is a **~$12/mo curated streaming library** with lessons across languages. Neither is perfect for Crunchyroll simulcasts.",
+      },
+      { type: "h2", text: "Language Reactor strengths" },
+      {
+        type: "ul",
+        items: [
+          "**Free tier** is excellent for intermediate readers",
+          "**Netflix + YouTube** — works on subscriptions you already own",
+          "**Dual JP/EN subs** — dictionary popups, playback controls",
+          "**Community maturity** — years of workflow docs and pairing with Yomitan",
+        ],
+      },
+      { type: "h2", text: "Lingopie strengths" },
+      {
+        type: "ul",
+        items: [
+          "**Curated catalog** — less hunting than the open web",
+          "**Multi-language** — not locked to Japanese only",
+          "**Built-in flashcards** — no Anki required",
+          "**Polished click-to-translate** for bundled content",
+        ],
+      },
+      { type: "h2", text: "Where both fall short" },
+      {
+        type: "ul",
+        items: [
+          "**Crunchyroll** — LR does not work; Lingopie does not replace weekly simulcasts",
+          "**Month-zero beginners** — dual/interactive subs assume you can read Japanese text",
+          "**No JP track nights** — readers fail; you need audio-first tools",
+        ],
+      },
+      { type: "h2", text: "Side-by-side table" },
+      {
+        type: "ul",
+        items: [
+          "**Price** — LR: free core. Lingopie: ~$12/mo.",
+          "**Platforms** — LR: Netflix/YT. Lingopie: own catalog.",
+          "**Reading required** — both: yes, for core value.",
+          "**Anime simulcasts** — both: weak vs Crunchyroll native.",
+          "**Best for** — LR: readers with Netflix. Lingopie: bundled multi-language learners.",
+        ],
+      },
+      { type: "h2", text: "The third option neither replaces" },
+      {
+        type: "p",
+        text: "If you watch **Crunchyroll**, or you **cannot read kana yet**, compare LR and Lingopie then install [AnimeVocab](/free-japanese-anime-extension) anyway. Romaji-first cards + Listening Mode cover the gap both leave open. [LR alternative](/language-reactor-alternative) · [Lingopie alternative](/lingopie-alternative) · [vs LR](/vs-language-reactor).",
+      },
+      { type: "h2", text: "Quick pick guide" },
+      {
+        type: "ol",
+        items: [
+          "Netflix + read kana → **Language Reactor**",
+          "Want curated multi-language app → **Lingopie** ([Japanese review](/blog/is-lingopie-good-for-japanese-2026))",
+          "Crunchyroll + month-zero → **AnimeVocab**",
+          "Read kana + CR + fan subs → Kitsunekko + Substital ([hub](/japanese-subtitles-anime))",
+        ],
+      },
+      {
+        type: "p",
+        text: "Master hub: [learn Japanese with anime](/learn-japanese-with-anime). Migaku angle: [Migaku vs Language Reactor](/migaku-vs-language-reactor).",
+      },
+    ],
+  },
+  {
     slug: "migaku-free-alternative-reddit-2026",
     title: "Migaku Free Alternative Reddit Consensus (2026)",
     description:
@@ -3341,15 +3786,15 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "chrome-web-store-japanese-anime-extension-2026",
-    title: "Best Chrome Extensions to Learn Japanese from Anime (Store Guide 2026)",
+    title: "Chrome Web Store Japanese Anime Extensions (2026): What to Look For",
     description:
-      "What to look for in a Chrome Web Store Japanese anime learning extension — free tiers, Crunchyroll support, romaji, SRS, and privacy basics.",
+      "Buying checklist for Chrome Web Store Japanese anime learning extensions — free tiers, Crunchyroll support, romaji, SRS, and privacy basics. Not a ranked roundup.",
     publishedAt: "2026-07-11T03:30:00.000Z",
-    updatedAt: "2026-07-11T03:30:00.000Z",
+    updatedAt: "2026-07-14T00:00:00.000Z",
     keywords: [
       "chrome web store japanese anime extension",
-      "chrome extension learn japanese anime",
-      "best chrome extension japanese subtitles",
+      "chrome extension learn japanese checklist",
+      "chrome store japanese subtitles extension",
       "free chrome extension anime japanese",
     ],
     readingMinutes: 7,
@@ -6259,21 +6704,20 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "migaku-crunchyroll-alternative-2026",
-    title: "Migaku Crunchyroll Alternative (2026): What Actually Works",
+    title: "Does Migaku Work on Crunchyroll? No — Here's What Does (2026)",
     description:
-      "Migaku does not support Crunchyroll. Here are the real 2026 alternatives for learning Japanese on Crunchyroll — AnimeVocab, Lexirise, ManabiDojo, and fan-sub miners.",
+      "Does Migaku work on Crunchyroll? No. Here is what actually works in 2026 — AnimeVocab, Lexirise, ManabiDojo, and fan-sub miners for Japanese on CR.",
     publishedAt: "2026-07-09T13:00:00.000Z",
-    updatedAt: "2026-07-09T13:00:00.000Z",
+    updatedAt: "2026-07-14T00:00:00.000Z",
     keywords: [
       "migaku crunchyroll",
+      "does migaku work on crunchyroll",
       "migaku crunchyroll alternative",
       "migaku alternative crunchyroll",
       "learn japanese crunchyroll extension",
-      "does migaku work on crunchyroll",
     ],
     readingMinutes: 7,
     ogImage: "/slides/05-torii-night.jpg",
-    canonicalPath: "/learn-japanese-crunchyroll",
     midArticleCta: {
       headline: "Need a Migaku Crunchyroll alternative tonight?",
       body: "AnimeVocab works on Crunchyroll with romaji-first cards and Listening Mode when Japanese subs are missing.",
@@ -6281,14 +6725,14 @@ export const blogPosts: BlogPost[] = [
     blocks: [
       {
         type: "p",
-        text: "If you searched **Migaku Crunchyroll**, the short answer is: **Migaku does not run on Crunchyroll**. Their supported platforms center on Netflix, YouTube, Disney+, Viki, and similar — not the anime simulcast hub most fans use. This post maps **Migaku Crunchyroll alternatives** by skill level so you stop bouncing between dead ends.",
+        text: "If you searched **does Migaku work on Crunchyroll** or **Migaku Crunchyroll**, the short answer is: **no**. Migaku does not run on Crunchyroll. Their supported platforms center on Netflix, YouTube, Disney+, Viki, and similar — not the anime simulcast hub most fans use. This post maps **what does work on Crunchyroll in 2026** by skill level so you stop bouncing between dead ends.",
       },
       { type: "h2", text: "Why Migaku skips Crunchyroll" },
       {
         type: "p",
         text: "Crunchyroll's player and licensing make Japanese subtitle text scarce outside Japan. Mining suites that need selectable JP subs hit a wall. Migaku invested elsewhere. That leaves a gap AnimeVocab, Lexirise, and ManabiDojo fill differently.",
       },
-      { type: "h2", text: "Pick your Migaku replacement" },
+      { type: "h2", text: "What works on Crunchyroll instead" },
       {
         type: "ul",
         items: [
@@ -6302,6 +6746,53 @@ export const blogPosts: BlogPost[] = [
       {
         type: "p",
         text: "Many power users run **Migaku on Netflix** and a **Crunchyroll-native tool** for simulcasts. That is rational. Do not force one suite to cover every platform. Hub: [learn Japanese on Crunchyroll](/learn-japanese-crunchyroll). Ranking: [best apps 2026](/blog/best-apps-learn-japanese-anime-2026).",
+      },
+      { type: "h2", text: "The pricing reality" },
+      {
+        type: "p",
+        text: "Migaku is a **subscription** on top of Crunchyroll/Netflix fees you already pay — and it still does not run on Crunchyroll. Paying for Migaku expecting CR coverage is the most common refund trigger in learner forums. The free stack (Yomitan + asbplayer + Anki) has the same CR limitation without the invoice. AnimeVocab's core loop is **free forever** on CR; Pro unlocks Listening Mode transcription when JP subs are missing.",
+      },
+      {
+        type: "ul",
+        items: [
+          "**Migaku** — subscription · Netflix/YouTube-first · assumes literacy",
+          "**Free DIY stack** — $0 · same CR gap · more setup",
+          "**AnimeVocab** — free core · CR-native · romaji + Listening Mode",
+        ],
+      },
+      { type: "h2", text: "Beginner path tonight (no Migaku, no fan subs)" },
+      {
+        type: "ol",
+        items: [
+          "Open tonight's Crunchyroll episode — Japanese audio, English subs OK for plot.",
+          "Install [AnimeVocab](/free-japanese-anime-extension) and enable Listening Mode if JP text is missing.",
+          "Save **one** spoken word per line in romaji — not ten.",
+          "Review five minutes tomorrow before the next episode ([SRS guide](/anime-spaced-repetition)).",
+        ],
+      },
+      {
+        type: "p",
+        text: "Pick a slow show from [best anime to learn Japanese](/best-anime-to-learn-japanese). Graduate to Lexirise or ManabiDojo when kana clicks; graduate to asbplayer when Anki feels natural.",
+      },
+      { type: "h2", text: "Short FAQ" },
+      { type: "h3", text: "Can I force Migaku onto Crunchyroll?" },
+      {
+        type: "p",
+        text: "No supported path exists. Workarounds that require ripping or injecting subs are fragile and not worth planning around.",
+      },
+      { type: "h3", text: "Is Migaku worth it if I only watch Crunchyroll?" },
+      {
+        type: "p",
+        text: "No — pick a CR-native tool. AnimeVocab for romaji beginners; Lexirise or ManabiDojo for readers.",
+      },
+      { type: "h3", text: "What if I already pay for Migaku and watch both Netflix and CR?" },
+      {
+        type: "p",
+        text: "Keep Migaku for Netflix. Add AnimeVocab or a reader tool for Crunchyroll nights. Splitting platforms is normal in 2026.",
+      },
+      {
+        type: "p",
+        text: "Compare suites: [vs Migaku](/vs-migaku) · [Migaku vs Yomitan](/blog/migaku-vs-yomitan-2026) · [Migaku free alternative](/migaku-free-alternative).",
       },
     ],
   },

@@ -9,29 +9,28 @@ import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 const path = "/vs-manabidojo";
 
 export const metadata: Metadata = {
-  title: "AnimeVocab vs ManabiDojo (2026) — Best ManabiDojo Alternative?",
+  title: "AnimeVocab vs ManabiDojo (2026): Feature-by-Feature",
   description:
-    "AnimeVocab vs ManabiDojo for Crunchyroll Japanese: fan-sub overlays vs romaji-first Listening Mode. Free alternative when you can't read JP subs yet.",
+    "AnimeVocab vs ManabiDojo feature comparison for Crunchyroll: fan-sub overlays + quizzes vs romaji-first Listening Mode. Who each tool is for in 2026.",
   keywords: [
     "animevocab vs manabidojo",
     "manabidojo vs animevocab",
-    "manabidojo alternative",
-    "manabidojo free alternative",
+    "manabidojo comparison",
     "manabi dojo crunchyroll",
   ],
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
     type: "article",
-    title: "AnimeVocab vs ManabiDojo (2026)",
+    title: "AnimeVocab vs ManabiDojo (2026): Feature-by-Feature",
     description:
-      "ManabiDojo overlays fan Japanese subs with quizzes. AnimeVocab is the free alternative for beginners and audio-only Crunchyroll.",
+      "Side-by-side: ManabiDojo fan-sub overlays vs AnimeVocab romaji-first Listening Mode.",
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
-    title: "AnimeVocab vs ManabiDojo (2026)",
-    description: "Compare ManabiDojo and AnimeVocab — reader overlay vs romaji-first Listening Mode.",
+    title: "AnimeVocab vs ManabiDojo (2026): Feature-by-Feature",
+    description: "Feature comparison — reader overlay vs romaji-first Listening Mode.",
   },
 };
 
@@ -65,7 +64,7 @@ export default function VsManabiDojoPage() {
     <>
       <LandingJsonLd
         path={path}
-        title="AnimeVocab vs ManabiDojo (2026) — Best ManabiDojo Alternative?"
+        title="AnimeVocab vs ManabiDojo (2026): Feature-by-Feature"
         description="AnimeVocab vs ManabiDojo for Crunchyroll Japanese: fan-sub overlays vs romaji-first Listening Mode."
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
@@ -81,7 +80,7 @@ export default function VsManabiDojoPage() {
         />
 
         <CompareHero
-          title="AnimeVocab vs ManabiDojo"
+          title="AnimeVocab vs ManabiDojo (2026)"
           lede={
             <>
               <strong>ManabiDojo</strong> is a Chrome extension that layers fan Japanese subtitles onto

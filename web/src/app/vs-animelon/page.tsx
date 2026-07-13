@@ -9,29 +9,28 @@ import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 const path = "/vs-animelon";
 
 export const metadata: Metadata = {
-  title: "Animelon Alternative (2026): Free Romaji Anime Without the Gray Catalog",
+  title: "AnimeVocab vs Animelon (2026): Feature-by-Feature",
   description:
-    "Best Animelon alternative for 2026: AnimeVocab — romaji-first cards on Netflix, Crunchyroll, and YouTube you already pay for. No unreliable hosted catalog.",
+    "AnimeVocab vs Animelon side-by-side: legal streams vs hosted catalog, built-in SRS, Listening Mode, and who each tool is for in 2026.",
   keywords: [
-    "animelon alternative",
-    "animelon alternatives",
-    "best animelon alternative",
-    "animelon replacement",
-    "animelon free alternative",
+    "animevocab vs animelon",
+    "animelon vs animevocab",
+    "animelon comparison",
+    "animelon vs",
   ],
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
     type: "article",
-    title: "Animelon Alternative (2026)",
+    title: "AnimeVocab vs Animelon (2026): Feature-by-Feature",
     description:
-      "Animelon was romaji-first but legally gray and unstable. AnimeVocab learns from the anime you already watch legally.",
+      "Feature comparison: Animelon's hosted gray catalog vs AnimeVocab on the streams you already pay for.",
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
-    title: "Animelon Alternative (2026)",
-    description: "Free Animelon alternative — romaji vocabulary on legal streams.",
+    title: "AnimeVocab vs Animelon (2026): Feature-by-Feature",
+    description: "Side-by-side: legal-stream romaji cards vs Animelon's hosted catalog.",
   },
 };
 
@@ -40,8 +39,8 @@ export default function VsAnimelonPage() {
     <>
       <LandingJsonLd
         path={path}
-        title="Animelon Alternative (2026): Free Romaji Anime Without the Gray Catalog"
-        description="Best Animelon alternative for 2026: AnimeVocab — romaji-first cards on Netflix, Crunchyroll, and YouTube you already pay for. No unreliable hosted catalog."
+        title="AnimeVocab vs Animelon (2026): Feature-by-Feature"
+        description="AnimeVocab vs Animelon side-by-side: legal streams vs hosted catalog, built-in SRS, Listening Mode, and who each tool is for in 2026."
       />
       <SiteHeader compact />
       <main id="main">
@@ -49,16 +48,17 @@ export default function VsAnimelonPage() {
           items={[
             { href: "/", label: "Home" },
             { href: "/learn-japanese-with-anime", label: "Compare" },
-            { label: "Animelon alternative" },
+            { label: "vs Animelon" },
           ]}
           currentPath={path}
         />
 
         <CompareHero
-          title="Animelon Alternative (2026)"
+          title="AnimeVocab vs Animelon (2026)"
           lede={
             <>
-              Searching for an <strong>Animelon alternative</strong>?{" "}
+              <strong>AnimeVocab vs Animelon</strong> is a feature comparison — not an{" "}
+              <Link href="/animelon-alternative">Animelon alternative</Link> shopping list.{" "}
               <strong>Animelon</strong> was beloved for switchable romaji/hiragana/kanji subtitle modes on a
               free anime catalog. It also lived in a <strong>legally gray</strong> hosting model and breaks
               often — titles vanish, players fail. <strong>AnimeVocab</strong> keeps the{" "}

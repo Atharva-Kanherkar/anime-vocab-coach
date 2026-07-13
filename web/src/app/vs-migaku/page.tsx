@@ -9,30 +9,29 @@ import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 const path = "/vs-migaku";
 
 export const metadata: Metadata = {
-  title: "AnimeVocab vs Migaku (2026) — Free Alternative or Paid Mining Suite?",
+  title: "AnimeVocab vs Migaku (2026): Feature-by-Feature",
   description:
-    "AnimeVocab vs Migaku: free romaji-first beginner tool vs paid Anki mining suite. Pricing, Crunchyroll gap, and who each is for. Best free Migaku alternative for anime.",
+    "AnimeVocab vs Migaku feature comparison: free romaji-first beginner cards vs paid Anki mining suite. Pricing, Crunchyroll gap, and who each is for.",
   keywords: [
     "animevocab vs migaku",
     "migaku vs animevocab",
-    "migaku alternative",
-    "migaku free alternative",
+    "migaku comparison",
     "is migaku worth it",
   ],
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
     type: "article",
-    title: "AnimeVocab vs Migaku (2026)",
+    title: "AnimeVocab vs Migaku (2026): Feature-by-Feature",
     description:
       "Migaku is the power-user mining suite. AnimeVocab is the free, zero-setup, romaji-first beginner on-ramp.",
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
-    title: "AnimeVocab vs Migaku (2026)",
+    title: "AnimeVocab vs Migaku (2026): Feature-by-Feature",
     description:
-      "Migaku is the power-user mining suite. AnimeVocab is the free, zero-setup, romaji-first beginner on-ramp.",
+      "Feature comparison — paid mining suite vs free romaji beginner cards.",
   },
 };
 
@@ -66,7 +65,7 @@ export default function VsMigakuPage() {
     <>
       <LandingJsonLd
         path={path}
-        title="AnimeVocab vs Migaku (2026) — Free Alternative or Paid Mining Suite?"
+        title="AnimeVocab vs Migaku (2026): Feature-by-Feature"
         description="AnimeVocab vs Migaku: free romaji-first beginner tool vs paid Anki mining suite. Pricing, Crunchyroll gap, and who each is for."
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
@@ -82,7 +81,7 @@ export default function VsMigakuPage() {
         />
 
         <CompareHero
-          title="AnimeVocab vs Migaku"
+          title="AnimeVocab vs Migaku (2026)"
           lede={
             <>
               These aren&apos;t really the same category of tool. Migaku is a{" "}

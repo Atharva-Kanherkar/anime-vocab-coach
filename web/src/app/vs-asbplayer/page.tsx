@@ -9,22 +9,22 @@ import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 const path = "/vs-asbplayer";
 
 export const metadata: Metadata = {
-  title: "AnimeVocab vs asbplayer (2026): Romaji Cards vs Anki Sentence Mining",
+  title: "AnimeVocab vs asbplayer (2026): Feature-by-Feature",
   description:
-    "asbplayer mines anime sentences into Anki from Japanese subtitles. AnimeVocab offers romaji-first one-word cards and Listening Mode when you cannot read subs yet.",
+    "AnimeVocab vs asbplayer feature comparison: romaji-first one-word cards + Listening Mode vs Anki sentence mining from Japanese subtitles.",
   alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
     type: "article",
-    title: "AnimeVocab vs asbplayer (2026)",
+    title: "AnimeVocab vs asbplayer (2026): Feature-by-Feature",
     description:
       "asbplayer is the browser sentence miner. AnimeVocab is the month-zero romaji on-ramp with built-in SRS.",
     url: `${SITE_URL}${path}`,
   },
   twitter: {
     ...defaultTwitter,
-    title: "AnimeVocab vs asbplayer (2026)",
-    description: "Honest comparison for anime Japanese learners choosing a mining stack.",
+    title: "AnimeVocab vs asbplayer (2026): Feature-by-Feature",
+    description: "Feature comparison for anime Japanese learners choosing a mining stack.",
   },
 };
 
@@ -33,8 +33,8 @@ export default function VsAsbplayerPage() {
     <>
       <LandingJsonLd
         path={path}
-        title="AnimeVocab vs asbplayer (2026): Romaji Cards vs Anki Sentence Mining"
-        description="asbplayer mines anime sentences into Anki from Japanese subtitles. AnimeVocab offers romaji-first one-word cards and Listening Mode when you cannot read subs yet."
+        title="AnimeVocab vs asbplayer (2026): Feature-by-Feature"
+        description="AnimeVocab vs asbplayer feature comparison: romaji-first one-word cards + Listening Mode vs Anki sentence mining from Japanese subtitles."
       />
       <SiteHeader compact />
       <main id="main">
@@ -48,7 +48,7 @@ export default function VsAsbplayerPage() {
         />
 
         <CompareHero
-          title="AnimeVocab vs asbplayer"
+          title="AnimeVocab vs asbplayer (2026)"
           lede={
             <>
               <strong>asbplayer</strong> is the immersion community&apos;s browser miner: sync fan subtitle
