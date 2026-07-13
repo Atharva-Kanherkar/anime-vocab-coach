@@ -877,8 +877,15 @@ async function submitChat(): Promise<void> {
     }
   } catch (err) {
     if (raf) cancelAnimationFrame(raf);
-    const msg = err instanceof Error ? err.message : "network";
-    finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: msg }) || "Network error.");
+    // If tokens already arrived, keep them — a late metering/network error
+    // must not replace a good reply with "AI unavailable."
+    if (full.trim()) {
+      finishStreamBubble(streamBubble, full);
+      chatHistory.push({ role: "assistant", content: full });
+    } else {
+      const msg = err instanceof Error ? err.message : "network";
+      finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: msg }) || "Network error.");
+    }
   } finally {
     shell.chatSend.disabled = false;
     shell.chatInput.disabled = false;
