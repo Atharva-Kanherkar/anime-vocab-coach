@@ -78,6 +78,7 @@ export async function streamChat(
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let received = false;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -89,8 +90,16 @@ export async function streamChat(
         if (!line.startsWith("data: ")) continue;
         try {
           const json = JSON.parse(line.slice(6)) as { delta?: string; error?: string; done?: boolean };
-          if (json.error) return { ok: false, error: json.error };
-          if (typeof json.delta === "string") onChunk(json.delta);
+          if (typeof json.delta === "string") {
+            received = true;
+            onChunk(json.delta);
+          }
+          // If we already streamed content, ignore a trailing meter/error frame
+          // so the UI keeps the answer (KV put failures used to wipe it).
+          if (json.error) {
+            if (received) return { ok: true };
+            return { ok: false, error: json.error };
+          }
         } catch {
           /* skip */
         }

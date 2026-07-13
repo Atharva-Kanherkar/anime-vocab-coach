@@ -86,18 +86,22 @@ export async function bumpTranscribeHit(_env: Env, _cacheKey: string): Promise<v
 
 /** Count a cache-miss attempt (including empty transcripts and provider failures). */
 export async function bumpTranscribeMiss(env: Env, cacheKey: string): Promise<void> {
-  const meta = await getMeta(env, cacheKey);
-  const next: TranscriptMeta = meta || {
-    cacheKey,
-    modelVersion: "",
-    source: "whisper",
-    createdAt: new Date().toISOString(),
-    hitCount: 0,
-    missCount: 0,
-    segmentCount: 0
-  };
-  next.missCount += 1;
-  await env.AVC_KV.put(metaKey(cacheKey), JSON.stringify(next));
+  try {
+    const meta = await getMeta(env, cacheKey);
+    const next: TranscriptMeta = meta || {
+      cacheKey,
+      modelVersion: "",
+      source: "whisper",
+      createdAt: new Date().toISOString(),
+      hitCount: 0,
+      missCount: 0,
+      segmentCount: 0
+    };
+    next.missCount += 1;
+    await env.AVC_KV.put(metaKey(cacheKey), JSON.stringify(next));
+  } catch (err) {
+    console.warn("[cache] bumpTranscribeMiss put failed", err);
+  }
 }
 
 /** Segments overlapping [t, t+windowSec). */

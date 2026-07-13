@@ -94,7 +94,12 @@ export async function transcribeAndStore(
     await recordProviderSuccess(env, tx.provider, tx.durationMinutes, tx.estimatedCostUsd);
 
     if (tx.segments.length) {
-      await storeSegments(env, cacheKey, tx.segments, "whisper", env.TRANSCRIPT_MODEL_VERSION);
+      try {
+        await storeSegments(env, cacheKey, tx.segments, "whisper", env.TRANSCRIPT_MODEL_VERSION);
+      } catch (err) {
+        // Still return live segments if cache persistence is blocked (KV put limit).
+        console.warn("[transcript] storeSegments failed; returning uncached segments", err);
+      }
     }
     return {
       hit: false,

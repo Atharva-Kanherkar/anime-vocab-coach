@@ -86,9 +86,18 @@ export async function POST(req: Request) {
 
   if (coachReq.mode !== "chat") {
     const cacheKey = await coachCacheKey(coachReq);
-    await putCachedResult(cacheKey, result);
+    try {
+      await putCachedResult(cacheKey, result);
+    } catch (cacheErr) {
+      console.warn("[ai/coach] cache write failed", cacheErr);
+    }
   }
-  const newUsed = await incrementUsage(user.id, month);
+  let newUsed = used + 1;
+  try {
+    newUsed = await incrementUsage(user.id, month);
+  } catch (meterErr) {
+    console.warn("[ai/coach] usage meter write failed", meterErr);
+  }
 
   return NextResponse.json({
     result,
