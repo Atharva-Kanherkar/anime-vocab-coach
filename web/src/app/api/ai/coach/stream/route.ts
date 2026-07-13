@@ -69,7 +69,14 @@ export async function POST(req: Request) {
           send({ delta });
         }
         if (!full.trim()) throw new Error("openai_empty");
-        await incrementUsage(user.id, month);
+        // Usage metering must not fail the reply. KV put limits (or transient
+        // write errors) used to stream a good answer then emit {error}, and the
+        // extension replaced the bubble with "AI unavailable. Try again."
+        try {
+          await incrementUsage(user.id, month);
+        } catch (meterErr) {
+          console.warn("[ai/coach/stream] usage meter write failed", meterErr);
+        }
         send({ done: true });
       } catch (err) {
         const detail = err instanceof Error ? err.message : "ai_failed";
