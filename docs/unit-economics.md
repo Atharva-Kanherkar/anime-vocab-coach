@@ -86,10 +86,11 @@ Current runtime enforcement:
 - Server-side transcript cache misses reserve minutes before transcription and
   refund on provider failure.
 - Provider cost counters are exposed at `GET /v1/transcript/stats`
-  (one KV write per successful provider call; warm cache paths write none).
+  (independent per-field KV keys on the miss path; warm cache paths write none).
 - Global `txmetrics:*` hit/miss counters are no longer incremented on the
   request path (they exhausted the free-tier KV put budget under Listening Mode).
-  Prefer provider `v2` blobs + per-key `missCount` on transcript meta.
+  Prefer provider counters + per-key `missCount` on transcript meta
+  (`bumpTranscribeMiss` before the provider call, so empty/failed attempts count).
 
 Next enforcement needed before AI features ship:
 

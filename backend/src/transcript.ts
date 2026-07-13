@@ -1,4 +1,5 @@
 import {
+  bumpTranscribeMiss,
   coversTime,
   getRecord,
   hasCoverage,
@@ -76,6 +77,10 @@ export async function transcribeAndStore(
       throw new Error("monthly listening hours used up");
     }
     await addMinutes(env, licenseId, minutes);
+
+    // Count the miss attempt before the provider call so empty responses and
+    // provider failures still increment missCount (same meaning as before).
+    await bumpTranscribeMiss(env, cacheKey);
 
     const language = cacheKey.split(":").pop() || "ja";
     let tx;

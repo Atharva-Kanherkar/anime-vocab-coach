@@ -5,7 +5,8 @@
 //   - ending:ipfree:<ipHash>    — endings created by this IP (the free gate)
 //   - ending:signed:<user>:<m>  — signed-in monthly counter (sign-up carrot)
 //   - ending:global:<day>       — global daily creations (ad-spike safety)
-//   - endstats:<day>:<event>    — funnel analytics, per UTC day
+//   - endstats:<day>:<event>    — funnel analytics, per UTC day (TTL ~120d)
+//   - endstats:total:<event>    — funnel analytics, all-time (no TTL)
 // Local Next dev with no Cloudflare binding falls back to an in-process Map
 // (same pattern as studio-store.ts).
 
@@ -167,12 +168,16 @@ export function currentStatsDay(now = new Date()): string {
 }
 
 const statsDayKey = (day: string, event: EndingEvent) => `endstats:${day}:${event}`;
+const statsTotalKey = (event: EndingEvent) => `endstats:total:${event}`;
 
 /** Fire-and-forget funnel counter. Never throws (analytics must not break UX).
- *  One KV put per event (daily bucket only) — all-time totals are derived from days. */
+ *  Writes daily + durable all-time keys so owner stats keep historical totals. */
 export async function trackEndingEvent(event: EndingEvent, day = currentStatsDay()): Promise<void> {
   try {
-    await bumpCounter(statsDayKey(day, event), STATS_DAY_TTL_SECONDS);
+    await Promise.all([
+      bumpCounter(statsDayKey(day, event), STATS_DAY_TTL_SECONDS),
+      bumpCounter(statsTotalKey(event), 0), // no TTL → all-time
+    ]);
   } catch {
     // swallow — a lost count is better than a broken funnel
   }
@@ -184,7 +189,13 @@ export interface EndingStats {
 }
 
 export async function getEndingStats(daysBack = 14): Promise<EndingStats> {
-  const totals: Record<string, number> = Object.fromEntries(ENDING_EVENTS.map((e) => [e, 0]));
+  const totals: Record<string, number> = {};
+  await Promise.all(
+    ENDING_EVENTS.map(async (e) => {
+      totals[e] = await readCounter(statsTotalKey(e));
+    })
+  );
+
   const days: EndingStats["days"] = [];
   const now = Date.now();
   for (let d = 0; d < daysBack; d++) {
@@ -193,10 +204,7 @@ export async function getEndingStats(daysBack = 14): Promise<EndingStats> {
     await Promise.all(
       ENDING_EVENTS.map(async (e) => {
         const n = await readCounter(statsDayKey(day, e));
-        if (n > 0) {
-          events[e] = n;
-          totals[e] = (totals[e] || 0) + n;
-        }
+        if (n > 0) events[e] = n;
       })
     );
     days.push({ day, events });

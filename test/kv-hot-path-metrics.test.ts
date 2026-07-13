@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { storeSegments, bumpTranscribeHit } from "../backend/src/cache";
+import { storeSegments, bumpTranscribeHit, bumpTranscribeMiss, getMeta } from "../backend/src/cache";
 import { recordLookupHit, recordTranscribeHit } from "../backend/src/metrics";
 import { recordProviderSuccess, getProviderMetrics } from "../backend/src/transcribe/providers";
 import type { Env } from "../backend/src/index";
@@ -36,7 +36,7 @@ function envWith(kv: ReturnType<typeof mockKv>): Env {
 }
 
 describe("KV hot-path metrics budget", () => {
-  it("recordLookupHit / recordTranscribeHit write zero KV puts", async () => {
+  it("recordLookupHit / recordTranscribeHit / bumpTranscribeHit write zero KV puts", async () => {
     const kv = mockKv();
     const env = envWith(kv);
     await recordLookupHit(env);
@@ -45,67 +45,38 @@ describe("KV hot-path metrics budget", () => {
     expect(kv.putCount()).toBe(0);
   });
 
-  it("storeSegments writes exactly body+meta and increments missCount", async () => {
+  it("bumpTranscribeMiss counts attempts even when nothing is stored", async () => {
     const kv = mockKv();
     const env = envWith(kv);
-    const key = "ep:test:ja";
-    await storeSegments(
-      env,
-      key,
-      [{ start: 0, end: 2, text: "こんにちは" }],
-      "whisper",
-      "v1"
-    );
-    expect(kv.putCount()).toBe(2);
-    const meta = JSON.parse((await kv.get("txmeta:" + key))!);
-    expect(meta.missCount).toBe(1);
-    expect(meta.segmentCount).toBe(1);
+    const key = "ep:empty:ja";
+    await bumpTranscribeMiss(env, key);
+    expect(kv.putCount()).toBe(1);
+    expect((await getMeta(env, key))?.missCount).toBe(1);
 
+    // Empty "store" path: storeSegments must preserve missCount, not only bump on body writes.
     kv.resetPuts();
-    await storeSegments(
-      env,
-      key,
-      [{ start: 2, end: 4, text: "世界" }],
-      "whisper",
-      "v1"
-    );
+    await storeSegments(env, key, [{ start: 0, end: 1, text: "はい" }], "whisper", "v1");
     expect(kv.putCount()).toBe(2);
-    const meta2 = JSON.parse((await kv.get("txmeta:" + key))!);
-    expect(meta2.missCount).toBe(2);
-    expect(meta2.segmentCount).toBe(2);
+    expect((await getMeta(env, key))?.missCount).toBe(1);
   });
 
-  it("recordProviderSuccess uses a single v2 blob put", async () => {
+  it("recordProviderSuccess writes independent per-field counters", async () => {
     const kv = mockKv();
     const env = envWith(kv);
     await recordProviderSuccess(env, "openai", 0.1, 0.0006);
-    expect(kv.putCount()).toBe(1);
-    expect(kv.raw.has("txprovider:openai:v2")).toBe(true);
-    expect(kv.raw.has("txprovider:openai:ok")).toBe(false);
+    expect(kv.putCount()).toBe(3);
+    expect(kv.raw.get("txprovider:openai:ok")).toBe("1");
+    expect(kv.raw.get("txprovider:openai:minutes")).toBe("0.1");
+    expect(kv.raw.get("txprovider:openai:cost_usd")).toBe("0.0006");
+    expect(kv.raw.has("txprovider:openai:v2")).toBe(false);
 
+    // Concurrent-style: error counter is a separate key and must not clobber ok/minutes/cost.
+    await kv.put("txprovider:openai:errors", "2");
     const metrics = await getProviderMetrics(env);
     expect(metrics.openai.ok).toBe(1);
+    expect(metrics.openai.errors).toBe(2);
     expect(metrics.openai.minutes).toBeCloseTo(0.1);
     expect(metrics.openai.costUsd).toBeCloseTo(0.0006);
-  });
-
-  it("getProviderMetrics still reads legacy v1 keys", async () => {
-    const kv = mockKv();
-    const env = envWith(kv);
-    await kv.put("txprovider:groq:ok", "3");
-    await kv.put("txprovider:groq:errors", "1");
-    await kv.put("txprovider:groq:minutes", "1.5");
-    await kv.put("txprovider:groq:cost_usd", "0.003");
-    kv.resetPuts();
-
-    const metrics = await getProviderMetrics(env);
-    expect(kv.putCount()).toBe(0);
-    expect(metrics.groq).toEqual({
-      ok: 3,
-      errors: 1,
-      minutes: 1.5,
-      costUsd: 0.003,
-      errorRate: 0.25,
-    });
+    expect(metrics.openai.errorRate).toBeCloseTo(2 / 3);
   });
 });

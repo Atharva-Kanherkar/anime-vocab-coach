@@ -35,11 +35,11 @@ interface; responses are normalized before storage.
 3. Set `TRANSCRIBE_PROVIDERS = "groq,deepinfra,openai"` — OpenAI stays as automatic fallback
 
 Provider usage (success count, errors, estimated cost) is exposed on
-`GET /v1/transcript/stats` under the `providers` field. Provider counters use a
-single KV blob per provider (`txprovider:<name>:v2`) so a successful transcribe
-costs one metrics put, not three. Warm cache lookups and warm transcribe hits
-do **not** write KV (metrics were removed from those hot paths to stay under the
-Workers KV free-tier put limit).
+`GET /v1/transcript/stats` under the `providers` field. Each provider field uses
+its own KV counter key so concurrent success/error updates cannot clobber each
+other. Warm cache lookups and warm transcribe hits do **not** write KV (lookup /
+hit metrics were removed from those hot paths to stay under the Workers KV
+free-tier put limit).
 
 The same endpoint also
 returns an `economics` field with configured plan limits, payment assumptions,

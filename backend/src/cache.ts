@@ -71,8 +71,8 @@ export async function storeSegments(
     source: record.source,
     createdAt: record.createdAt,
     hitCount: prevMeta?.hitCount || 0,
-    // Count a miss on the same meta write as segment storage — no extra KV put.
-    missCount: (prevMeta?.missCount || 0) + 1,
+    // missCount is owned by bumpTranscribeMiss (covers empty/failed attempts too).
+    missCount: prevMeta?.missCount || 0,
     segmentCount: merged.length
   };
   await env.AVC_KV.put(metaKey(cacheKey), JSON.stringify(meta));
@@ -81,12 +81,23 @@ export async function storeSegments(
 
 /** @deprecated Per-hit meta bumps burned KV put quota; hitCount is no longer updated live. */
 export async function bumpTranscribeHit(_env: Env, _cacheKey: string): Promise<void> {
-  /* no-op */
+  /* no-op — warm hits must stay KV-write-free */
 }
 
-/** @deprecated Prefer storeSegments, which increments missCount on the meta write. */
-export async function bumpTranscribeMiss(_env: Env, _cacheKey: string): Promise<void> {
-  /* no-op */
+/** Count a cache-miss attempt (including empty transcripts and provider failures). */
+export async function bumpTranscribeMiss(env: Env, cacheKey: string): Promise<void> {
+  const meta = await getMeta(env, cacheKey);
+  const next: TranscriptMeta = meta || {
+    cacheKey,
+    modelVersion: "",
+    source: "whisper",
+    createdAt: new Date().toISOString(),
+    hitCount: 0,
+    missCount: 0,
+    segmentCount: 0
+  };
+  next.missCount += 1;
+  await env.AVC_KV.put(metaKey(cacheKey), JSON.stringify(next));
 }
 
 /** Segments overlapping [t, t+windowSec). */
