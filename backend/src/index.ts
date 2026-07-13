@@ -99,7 +99,12 @@ export default {
         const body = (await req.json().catch(() => ({}))) as { minutes?: number };
         const minutes = Math.max(0, Math.min(10, Math.round(Number(body.minutes) || 0)));
         const cap = Number(env.CAP_MINUTES);
-        const used = await addMinutes(env, auth.userId, minutes);
+        let used: number;
+        try {
+          used = await addMinutes(env, auth.userId, minutes);
+        } catch {
+          used = await getUsage(env, auth.userId);
+        }
         return json(req, {
           usedMinutes: Math.floor(used),
           capMinutes: cap,

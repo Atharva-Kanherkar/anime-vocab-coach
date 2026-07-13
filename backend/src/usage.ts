@@ -17,10 +17,17 @@ export async function getUsage(env: Env, id: string): Promise<number> {
 }
 
 export async function addMinutes(env: Env, id: string, minutes: number): Promise<number> {
-  if (!Number.isFinite(minutes) || minutes <= 0) return getUsage(env, id);
+  // Allow refunds (negative) and no-ops.
+  if (!Number.isFinite(minutes) || minutes === 0) return getUsage(env, id);
   const key = usageKey(id);
   const current = parseFloat((await env.AVC_KV.get(key)) || "0") || 0;
   const next = Math.max(0, current + minutes);
-  await env.AVC_KV.put(key, String(next), { expirationTtl: 40 * 24 * 3600 });
+  try {
+    await env.AVC_KV.put(key, String(next), { expirationTtl: 40 * 24 * 3600 });
+  } catch (err) {
+    // KV free-tier put limits must not take Listening Mode offline.
+    console.warn("[usage] addMinutes put failed", err);
+    return current;
+  }
   return next;
 }

@@ -17,7 +17,13 @@ export async function acquireTranscribeLock(
   const key = lockKey(cacheKey, startSec);
   const existing = await env.AVC_KV.get(key);
   if (existing && existing !== owner) return false;
-  await env.AVC_KV.put(key, owner, { expirationTtl: LOCK_TTL_SEC });
+  try {
+    await env.AVC_KV.put(key, owner, { expirationTtl: LOCK_TTL_SEC });
+  } catch (err) {
+    // If KV writes are blocked, proceed without a durable lock rather than
+    // failing every cache miss (duplicate Whisper spend is better than offline).
+    console.warn("[lock] acquire put failed; proceeding unlocked", err);
+  }
   return true;
 }
 
