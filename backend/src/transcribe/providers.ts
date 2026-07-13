@@ -170,6 +170,11 @@ async function recordProviderError(env: Env, provider: string): Promise<void> {
   } catch { /* noop */ }
 }
 
+/**
+ * Per-field counters (not one shared JSON blob) so a concurrent success and
+ * failure cannot overwrite each other's fields via read-modify-write races.
+ * Miss-path only — warm hits never call this.
+ */
 export async function recordProviderSuccess(
   env: Env,
   provider: string,

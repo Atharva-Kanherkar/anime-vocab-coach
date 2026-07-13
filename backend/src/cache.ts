@@ -64,26 +64,27 @@ export async function storeSegments(
 
   await env.AVC_KV.put(bodyKey(cacheKey), JSON.stringify(record));
 
+  const prevMeta = await getMeta(env, cacheKey);
   const meta: TranscriptMeta = {
     cacheKey,
     modelVersion: record.modelVersion,
     source: record.source,
     createdAt: record.createdAt,
-    hitCount: (await getMeta(env, cacheKey))?.hitCount || 0,
-    missCount: (await getMeta(env, cacheKey))?.missCount || 0,
+    hitCount: prevMeta?.hitCount || 0,
+    // missCount is owned by bumpTranscribeMiss (covers empty/failed attempts too).
+    missCount: prevMeta?.missCount || 0,
     segmentCount: merged.length
   };
   await env.AVC_KV.put(metaKey(cacheKey), JSON.stringify(meta));
   return record;
 }
 
-export async function bumpTranscribeHit(env: Env, cacheKey: string): Promise<void> {
-  const meta = await getMeta(env, cacheKey);
-  if (!meta) return;
-  meta.hitCount += 1;
-  await env.AVC_KV.put(metaKey(cacheKey), JSON.stringify(meta));
+/** @deprecated Per-hit meta bumps burned KV put quota; hitCount is no longer updated live. */
+export async function bumpTranscribeHit(_env: Env, _cacheKey: string): Promise<void> {
+  /* no-op — warm hits must stay KV-write-free */
 }
 
+/** Count a cache-miss attempt (including empty transcripts and provider failures). */
 export async function bumpTranscribeMiss(env: Env, cacheKey: string): Promise<void> {
   const meta = await getMeta(env, cacheKey);
   const next: TranscriptMeta = meta || {

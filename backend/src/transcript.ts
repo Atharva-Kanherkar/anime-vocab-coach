@@ -1,5 +1,4 @@
 import {
-  bumpTranscribeHit,
   bumpTranscribeMiss,
   coversTime,
   getRecord,
@@ -10,7 +9,6 @@ import {
 } from "./cache";
 import type { Env } from "./index";
 import { acquireTranscribeLock, releaseTranscribeLock, waitForPeerLock } from "./lock";
-import { recordLookupHit, recordTranscribeHit, recordTranscribeMiss } from "./metrics";
 import type { TranscriptSegment } from "./transcript-types";
 import { transcribeWithFallback, recordProviderSuccess } from "./transcribe/providers";
 import { chunkBucket, decodePcmBase64, pcmDurationMinutes } from "./validate";
@@ -36,7 +34,7 @@ export async function lookupTranscript(
   if (!hasCoverage(record, t, windowSec)) {
     return { hit: false, segments: [] };
   }
-  await recordLookupHit(env);
+  // Warm lookup is KV-read-only — never write metrics here (free-tier put budget).
   return {
     hit: true,
     segments: segmentsAt(record, t, windowSec),
@@ -56,8 +54,7 @@ export async function transcribeAndStore(
 
   const existing = await getRecord(env, cacheKey);
   if (existing && isRecordCurrent(existing, env.TRANSCRIPT_MODEL_VERSION) && coversTime(existing, startSec)) {
-    await recordTranscribeHit(env);
-    await bumpTranscribeHit(env, cacheKey);
+    // Warm transcribe hit: return cached segments with no KV writes.
     return { hit: true, segments: segmentsAt(existing, startSec), source: "whisper" };
   }
 
@@ -67,7 +64,6 @@ export async function transcribeAndStore(
     await waitForPeerLock(env, cacheKey, startSec);
     const afterPeer = await getRecord(env, cacheKey);
     if (afterPeer && isRecordCurrent(afterPeer, env.TRANSCRIPT_MODEL_VERSION) && coversTime(afterPeer, startSec)) {
-      await recordTranscribeHit(env);
       return { hit: true, segments: segmentsAt(afterPeer, startSec), source: "whisper" };
     }
     return { hit: false, segments: [] };
@@ -82,7 +78,8 @@ export async function transcribeAndStore(
     }
     await addMinutes(env, licenseId, minutes);
 
-    await recordTranscribeMiss(env);
+    // Count the miss attempt before the provider call so empty responses and
+    // provider failures still increment missCount (same meaning as before).
     await bumpTranscribeMiss(env, cacheKey);
 
     const language = cacheKey.split(":").pop() || "ja";

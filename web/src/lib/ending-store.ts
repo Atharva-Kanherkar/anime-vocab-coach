@@ -5,8 +5,8 @@
 //   - ending:ipfree:<ipHash>    — endings created by this IP (the free gate)
 //   - ending:signed:<user>:<m>  — signed-in monthly counter (sign-up carrot)
 //   - ending:global:<day>       — global daily creations (ad-spike safety)
-//   - endstats:<day>:<event>    — funnel analytics, per UTC day
-//   - endstats:total:<event>    — funnel analytics, all-time
+//   - endstats:<day>:<event>    — funnel analytics, per UTC day (TTL ~120d)
+//   - endstats:total:<event>    — funnel analytics, all-time (no TTL)
 // Local Next dev with no Cloudflare binding falls back to an in-process Map
 // (same pattern as studio-store.ts).
 
@@ -170,7 +170,8 @@ export function currentStatsDay(now = new Date()): string {
 const statsDayKey = (day: string, event: EndingEvent) => `endstats:${day}:${event}`;
 const statsTotalKey = (event: EndingEvent) => `endstats:total:${event}`;
 
-/** Fire-and-forget funnel counter. Never throws (analytics must not break UX). */
+/** Fire-and-forget funnel counter. Never throws (analytics must not break UX).
+ *  Writes daily + durable all-time keys so owner stats keep historical totals. */
 export async function trackEndingEvent(event: EndingEvent, day = currentStatsDay()): Promise<void> {
   try {
     await Promise.all([
