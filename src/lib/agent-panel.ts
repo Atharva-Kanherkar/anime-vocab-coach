@@ -132,10 +132,10 @@ const STYLES = `
     min-width: ${PANEL_MIN_W}px;
     max-width: min(${PANEL_MAX_W}px, 42vw);
     display: flex; flex-direction: column;
-    /* Idle, the bar is ~95% transparent — keep it click-through so it doesn't
-       shield a 340px strip of the page (the video player's fullscreen button
-       etc., P0 #9). It becomes interactive only when a card is up, during
-       resize, or while focused (see the .avc-interactive rule below). */
+    /* The bar spans a 340px full-height strip but is mostly transparent, so it
+       must not eat page clicks (the video player's fullscreen button etc.,
+       P0 #9). The container is click-through; only the real controls opt back
+       in (rule below), so the empty middle always passes clicks to the page. */
     pointer-events: none;
     background: rgba(8, 7, 10, 0.05);
     backdrop-filter: blur(3px);
@@ -152,14 +152,18 @@ const STYLES = `
       box-shadow 320ms ease,
       color 320ms ease;
   }
-  /* Re-arm clicks only when the bar is actually in use: a card is showing
-     (.avc-interactive, toggled in JS), the user is resizing (.avc-sidebar-active),
-     or something inside has focus (survives a card's auto-dismiss mid-chat).
-     :focus-within is a focus state, not a pointer state, so it still applies
-     under pointer-events:none. */
-  .avc-agent-sidebar.avc-interactive,
-  .avc-agent-sidebar.avc-sidebar-active,
-  .avc-agent-sidebar:focus-within {
+  /* Only the real controls take clicks; pointer-events inherits, so the
+     transparent container and the empty scroll middle stay click-through and
+     pass straight to the page. The resize grip, head (mode + Close), foot
+     (know/ignore) and composer (chat) are always live regardless of whether a
+     card is up — so chat/mode/Close/resize work in the idle state too. Inside
+     the scroll, each content block is live except the idle hint (plain text),
+     which stays click-through to maximize the pass-through area. */
+  .avc-agent-resize,
+  .avc-agent-head,
+  .avc-agent-foot,
+  .avc-agent-composer,
+  .avc-agent-scroll > *:not(.avc-agent-idle) {
     pointer-events: auto;
   }
   .avc-agent-sidebar:hover,
@@ -813,9 +817,6 @@ function finishWord(judgment: Judgment | "dismiss"): void {
     shell.wordActive.classList.remove("avc-active");
     shell.wordIdle.style.display = "";
     shell.foot.classList.remove("avc-active");
-    // Back to idle — stop shielding the page (unless focus is still inside,
-    // which :focus-within keeps interactive on its own).
-    shell.sidebar.classList.remove("avc-interactive");
     shell.buttons.textContent = "";
   }
   currentJudgments = [];
@@ -983,8 +984,6 @@ function populateWordSection(ctx: WordContext): void {
 
   shell.wordIdle.style.display = "none";
   shell.wordActive.classList.add("avc-active");
-  // A card is up — the bar is now interactive (see the pointer-events rule).
-  shell.sidebar.classList.add("avc-interactive");
   shell.wordActive.textContent = "";
   shell.aiOut.classList.remove("avc-visible");
   shell.aiOut.textContent = "";
