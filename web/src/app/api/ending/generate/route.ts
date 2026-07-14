@@ -189,13 +189,27 @@ export async function POST(req: Request) {
     language: scriptReq.language,
     done: 0,
   };
-  await putEndingCreation(creation);
+  // The creation record is what the client draws panels from, so it isn't
+  // optional — but a KV put-limit rejection should surface as a clean, retryable
+  // 503 rather than an opaque 500 stacked on an already-paid script call.
+  try {
+    await putEndingCreation(creation);
+  } catch (err) {
+    console.error("[ending/generate] creation write failed", err);
+    return NextResponse.json({ error: "ending_store_unavailable", retryable: true }, { status: 503 });
+  }
 
   // Count only after the script succeeded — a failed call never spends the slot.
+  // Soft-fail the counters: the creation is already stored, so a meter-write
+  // hiccup must not 500 the request (worst case: a slightly generous count).
   if (!owner) {
-    if (profile) await incrementSignedEndingCount(profile.id, currentMonth());
-    else await incrementIpEndingCount(ipHash);
-    await incrementGlobalEndingCount(currentDay());
+    try {
+      if (profile) await incrementSignedEndingCount(profile.id, currentMonth());
+      else await incrementIpEndingCount(ipHash);
+      await incrementGlobalEndingCount(currentDay());
+    } catch (err) {
+      console.warn("[ending/generate] ending count write failed", err);
+    }
   }
   void trackEndingEvent("script_ok");
 

@@ -41,7 +41,13 @@ export async function synthesizeSpeech(apiKey: string, text: string): Promise<Ar
   if (!res.ok) throw new Error(`openai_tts_${res.status}`);
   const buf = await res.arrayBuffer();
   const b64 = arrayBufferToBase64(buf);
-  await putCachedResult(cacheKey, { b64 }, CACHE_TTL_SECONDS);
+  // Soft-fail the cache write: the paid OpenAI call already succeeded, so a KV
+  // put-limit rejection must not turn a delivered audio buffer into an error.
+  try {
+    await putCachedResult(cacheKey, { b64 }, CACHE_TTL_SECONDS);
+  } catch (err) {
+    console.warn("[tts] cache write failed", err);
+  }
   return buf;
 }
 

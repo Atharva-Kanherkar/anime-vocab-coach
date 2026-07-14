@@ -36,14 +36,23 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "quota_exceeded", usage: { used, limit } }, { status: 429 });
   }
 
+  let summary;
   try {
-    const summary = await runNotebookSummary(apiKey, model, notebook);
-    const nowUsed = await incrementUsage(profile.id, month);
-    return NextResponse.json({ summary, usage: { used: nowUsed, limit } });
+    summary = await runNotebookSummary(apiKey, model, notebook);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "summary_failed" },
       { status: 502 }
     );
   }
+
+  // Meter write is its own soft-fail: the paid summary already succeeded, so a
+  // KV put-limit rejection must not turn it into a 502. Fall back to used + 1.
+  let nowUsed = used + 1;
+  try {
+    nowUsed = await incrementUsage(profile.id, month);
+  } catch (err) {
+    console.warn("[notebooks/summary] usage meter write failed", err);
+  }
+  return NextResponse.json({ summary, usage: { used: nowUsed, limit } });
 }

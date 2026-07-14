@@ -172,8 +172,19 @@ export async function pickWordCached(
   _userId: string
 ): Promise<{ result: WordPickResult }> {
   const result = await runWordPick(apiKey, model, req);
-  const cacheKey = await wordPickCacheKey(req);
-  await putCachedResult(cacheKey, result);
-  await incrementUsage(_userId, currentMonth());
+  // Soft-fail both writes: the OpenAI pick already succeeded, so a KV put-limit
+  // rejection must not turn it into a 502 (worst case: no cache + a slight
+  // under-count of usage, both self-correcting on the next call).
+  try {
+    const cacheKey = await wordPickCacheKey(req);
+    await putCachedResult(cacheKey, result);
+  } catch (err) {
+    console.warn("[word-picker] cache write failed", err);
+  }
+  try {
+    await incrementUsage(_userId, currentMonth());
+  } catch (err) {
+    console.warn("[word-picker] usage meter write failed", err);
+  }
   return { result };
 }

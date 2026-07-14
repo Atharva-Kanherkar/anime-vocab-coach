@@ -73,7 +73,13 @@ export async function generateAnimeContext(title: string): Promise<AnimeContextR
   if (!context) throw new Error("openai_empty");
 
   const result = { title: clean, context };
-  const key = await animeContextCacheKey(clean);
-  await putCachedResult(key, result, CACHE_TTL_SECONDS);
+  // Soft-fail the cache write: the paid completion already succeeded, so a KV
+  // put-limit rejection must not turn a valid result into a 502.
+  try {
+    const key = await animeContextCacheKey(clean);
+    await putCachedResult(key, result, CACHE_TTL_SECONDS);
+  } catch (err) {
+    console.warn("[anime-context] cache write failed", err);
+  }
   return result;
 }
