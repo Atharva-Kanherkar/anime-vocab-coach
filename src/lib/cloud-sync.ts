@@ -119,13 +119,18 @@ export async function pushSnapshot(): Promise<void> {
   syncing = true;
   try {
     const exportData = await exportAll();
+    // Never upload the user's BYO OpenAI key. The web side strips it too, but
+    // stripping here means the plaintext key never leaves the device.
+    const settingsNoKey: Record<string, unknown> = { ...exportData.settings };
+    delete settingsNoKey.openaiKey;
+    const safeExport = { ...exportData, settings: settingsNoKey };
     let expectedRevision = await currentRevision(token);
 
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await fetch(SNAPSHOT_URL, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify({ export: exportData, expectedRevision })
+        body: JSON.stringify({ export: safeExport, expectedRevision })
       });
 
       if (res.status === 409) {

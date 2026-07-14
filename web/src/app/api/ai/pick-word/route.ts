@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const profile = await resolveProfile(req);
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const owner = isOwnerEmail(profile.email);
-  const user = { id: profile.id, plan: resolvePlan() };
+  const user = { id: profile.id, plan: resolvePlan(profile) };
 
   let body: unknown;
   try {
@@ -31,9 +31,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
   }
 
-  const { model, freeLimit, proLimit } = await getCoachConfig();
+  const { model, freeLimit, proLimit, maxLimit } = await getCoachConfig();
   const tier: Tier = user.plan;
-  const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit);
+  const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
 
   const cacheKey = await wordPickCacheKey(pickReq);

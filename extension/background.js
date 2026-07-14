@@ -33,6 +33,13 @@
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
   }
+  function getSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["settings"], (r) => {
+        resolve({ ...DEFAULTS, ...r.settings || {} });
+      });
+    });
+  }
   function exportAll() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
@@ -133,12 +140,15 @@
     syncing = true;
     try {
       const exportData = await exportAll();
+      const settingsNoKey = { ...exportData.settings };
+      delete settingsNoKey.openaiKey;
+      const safeExport = { ...exportData, settings: settingsNoKey };
       let expectedRevision = await currentRevision(token);
       for (let attempt = 0; attempt < 2; attempt++) {
         const res = await fetch(SNAPSHOT_URL, {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-          body: JSON.stringify({ export: exportData, expectedRevision })
+          body: JSON.stringify({ export: safeExport, expectedRevision })
         });
         if (res.status === 409) {
           const data = await res.json().catch(() => ({}));
@@ -264,6 +274,71 @@
     }
   }
 
+  // src/lib/anime-context-client.ts
+  var sessionCache2 = /* @__PURE__ */ new Map();
+  async function fetchAnimeContext(title) {
+    const clean = (title || "").trim();
+    if (!clean) return null;
+    const cached = sessionCache2.get(clean.toLowerCase());
+    if (cached) return cached;
+    const token = await getSyncToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(
+        WEB_URL + "/api/anime/context?title=" + encodeURIComponent(clean),
+        { headers: { Authorization: "Bearer " + token } }
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      const ctx = (data.context || "").trim();
+      if (ctx) sessionCache2.set(clean.toLowerCase(), ctx);
+      return ctx || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // src/lib/tts-client.ts
+  async function fetchCloudTts(text, token) {
+    const res = await fetch(WEB_URL + "/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) return null;
+    return res.blob();
+  }
+  async function fetchByoTts(text, key) {
+    const res = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+      body: JSON.stringify({ model: "tts-1", voice: "nova", input: text, response_format: "mp3" })
+    });
+    if (!res.ok) return null;
+    return res.blob();
+  }
+  async function blobToBase64(blob) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  async function fetchTtsAudio(text) {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return null;
+    const settings = await getSettings();
+    if (settings.openaiKey?.trim()) {
+      const blob = await fetchByoTts(trimmed, settings.openaiKey.trim());
+      if (blob) return { b64: await blobToBase64(blob), mime: blob.type || "audio/mpeg" };
+    }
+    const token = await getSyncToken();
+    if (token) {
+      const blob = await fetchCloudTts(trimmed, token);
+      if (blob) return { b64: await blobToBase64(blob), mime: blob.type || "audio/mpeg" };
+    }
+    return null;
+  }
+
   // src/entries/background.ts
   function listenErrorText(code) {
     switch (code) {
@@ -279,13 +354,26 @@
         return "Couldn't start Listening Mode on this tab.";
     }
   }
-  chrome.runtime.onInstalled.addListener(() => {
+  var STREAMING_TAB_PATTERNS = [
+    "*://*.youtube.com/*",
+    "*://*.netflix.com/*",
+    "*://*.crunchyroll.com/*"
+  ];
+  chrome.runtime.onInstalled.addListener((details) => {
     chrome.storage.local.get(["settings"], (result) => {
       const raw = result.settings || {};
       delete raw.licenseKey;
       if (raw.pauseMode === "notify") raw.pauseMode = "copilot";
       chrome.storage.local.set({ settings: { ...DEFAULTS, ...raw } });
     });
+    if (details.reason === "update") {
+      chrome.tabs.query({ url: STREAMING_TAB_PATTERNS }, (tabs) => {
+        for (const tab of tabs) {
+          if (tab.id != null) chrome.tabs.reload(tab.id).catch(() => {
+          });
+        }
+      });
+    }
   });
   var SYNC_ALARM = "avc-cloud-sync";
   var syncDebounce = null;
@@ -503,6 +591,16 @@
       fetchWordPick(msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
     }
+    if (msg.type === "avc-anime-context") {
+      fetchAnimeContext(msg.title || null).then((context) => sendResponse({ ok: true, context: context || "" })).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
+    if (msg.type === "avc-tts") {
+      fetchTtsAudio(msg.text || "").then(
+        (audio) => audio ? sendResponse({ ok: true, b64: audio.b64, mime: audio.mime }) : sendResponse({ ok: false, error: "not_linked" })
+      ).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
     if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status") {
       const tabId = msg.tabId;
       const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;
@@ -524,6 +622,16 @@
     if (msg.type === "avc-transcript") {
       console.log("[AVC] relaying transcript to tab", msg.tabId, "\u2192", msg.text);
       void deliverTranscript(msg.tabId, msg.text);
+      return;
+    }
+    if (msg.type === "avc-update-cache-key" && sender.tab?.id != null) {
+      const tabId = sender.tab.id;
+      getListening().then((tabs) => {
+        if (tabs[tabId]) {
+          chrome.runtime.sendMessage({ type: "avc-offscreen-update-key", tabId, cacheKey: msg.key || "" }).catch(() => {
+          });
+        }
+      });
       return;
     }
     if (msg.type === "avc-playback-time" && sender.tab?.id != null) {

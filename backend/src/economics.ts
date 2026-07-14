@@ -1,19 +1,15 @@
 import type { Env } from "./index";
+import { aiCallsForPlan, capMinutesForPlan, numberVar } from "./plan";
 import { PROVIDER_COST_USD_PER_MIN } from "./transcribe/types";
 
-const PRICE_REGULAR_MONTHLY = 10;
-const PRICE_REGULAR_YEARLY = 84;
-const PRICE_PROMO_MONTHLY = 7;
-const PRICE_PROMO_YEARLY = 59;
+// Live pricing (USD). Free is $0; Pro/Max are the paid tiers.
+const PRICE_PRO_MONTHLY = 8;
+const PRICE_PRO_YEARLY = 59;
+const PRICE_MAX_MONTHLY = 16;
+const PRICE_MAX_YEARLY = 119;
 
 const LISTENING_SCENARIOS_HOURS = [5, 15, 45] as const;
 const AI_SCENARIOS_CALLS = [20, 100, 300] as const;
-
-function numberVar(value: string | undefined, fallback: number): number {
-  const trimmed = value?.trim();
-  const n = trimmed ? Number(trimmed) : NaN;
-  return Number.isFinite(n) ? n : fallback;
-}
 
 function money(n: number): number {
   return Math.round(n * 100) / 100;
@@ -34,12 +30,21 @@ function marginPercent(netRevenue: number, cost: number): number {
 }
 
 export function planLimitsSnapshot(env: Env) {
-  const capMinutes = numberVar(env.CAP_MINUTES, 2700);
+  const freeMinutes = capMinutesForPlan(env, "free");
+  const proMinutes = capMinutesForPlan(env, "pro");
+  const maxMinutes = capMinutesForPlan(env, "max");
   return {
-    proListeningMinutesPerMonth: capMinutes,
-    proListeningHoursPerMonth: Math.round(capMinutes / 60),
-    freeAiCallsPerMonth: numberVar(env.FREE_AI_CALLS_PER_MONTH, 5),
-    proAiCallsPerMonth: numberVar(env.PRO_AI_CALLS_PER_MONTH, 300)
+    // Free-tier cap kept under the historical key so existing consumers that
+    // read `capMinutes`/`proListening*` don't break; per-tier fields are added.
+    freeListeningMinutesPerMonth: freeMinutes,
+    freeListeningHoursPerMonth: Math.round(freeMinutes / 60),
+    proListeningMinutesPerMonth: proMinutes,
+    proListeningHoursPerMonth: Math.round(proMinutes / 60),
+    maxListeningMinutesPerMonth: maxMinutes,
+    maxListeningHoursPerMonth: Math.round(maxMinutes / 60),
+    freeAiCallsPerMonth: aiCallsForPlan(env, "free"),
+    proAiCallsPerMonth: aiCallsForPlan(env, "pro"),
+    maxAiCallsPerMonth: aiCallsForPlan(env, "max")
   };
 }
 
@@ -49,10 +54,10 @@ export function economicsSnapshot(env: Env) {
   const planLimits = planLimitsSnapshot(env);
 
   const pricePoints = [
-    { name: "regular-monthly", grossMrr: PRICE_REGULAR_MONTHLY },
-    { name: "regular-yearly-normalized", grossMrr: PRICE_REGULAR_YEARLY / 12 },
-    { name: "promo-monthly", grossMrr: PRICE_PROMO_MONTHLY },
-    { name: "promo-yearly-normalized", grossMrr: PRICE_PROMO_YEARLY / 12 }
+    { name: "pro-monthly", grossMrr: PRICE_PRO_MONTHLY },
+    { name: "pro-yearly-normalized", grossMrr: PRICE_PRO_YEARLY / 12 },
+    { name: "max-monthly", grossMrr: PRICE_MAX_MONTHLY },
+    { name: "max-yearly-normalized", grossMrr: PRICE_MAX_YEARLY / 12 }
   ].map((price) => ({
     ...price,
     netMrr: money(paymentNet(env, price.grossMrr))

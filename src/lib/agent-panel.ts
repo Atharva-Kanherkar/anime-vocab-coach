@@ -1373,7 +1373,16 @@ export function presentWord(
 
   keyHandler = (e: KeyboardEvent) => {
     if (!wordPending) return;
-    if (e.target instanceof HTMLTextAreaElement) return;
+    // Never hijack 1/2/3 (or any judge key) while the user is typing into a page
+    // field — a YouTube search box is an <input>, and contenteditable/select
+    // count too. Check both the event target and the focused element.
+    const isEditable = (el: EventTarget | null): boolean => {
+      const node = el as HTMLElement | null;
+      if (!node) return false;
+      const tag = node.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable === true;
+    };
+    if (isEditable(e.target) || isEditable(document.activeElement)) return;
     const match = currentJudgments.find((j) => j.key === e.key);
     if (match) {
       e.preventDefault();

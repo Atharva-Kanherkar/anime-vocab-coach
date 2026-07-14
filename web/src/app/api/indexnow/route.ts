@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
 import { SITE_URL } from "@/lib/site";
+import { resolveProfile } from "@/lib/auth";
+import { isOwnerEmail } from "@/lib/entitlements";
 
 const INDEXNOW_KEY = "animevocab-indexnow-key";
 
-/** Notify Bing/Yandex of new or updated URLs (IndexNow protocol). */
+/** Notify Bing/Yandex of new or updated URLs (IndexNow protocol).
+ * Gated: only the owner (signed-in or via sync token) or a caller presenting
+ * the INDEXNOW_SECRET header may relay — otherwise anyone could drive
+ * submissions on our key. */
 export async function POST(request: Request) {
+  const secret = process.env.INDEXNOW_SECRET;
+  const authedBySecret = !!secret && request.headers.get("x-indexnow-secret") === secret;
+  if (!authedBySecret) {
+    const profile = await resolveProfile(request);
+    if (!isOwnerEmail(profile?.email)) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+  }
+
   let urls: string[];
   try {
     const body = (await request.json()) as { urls?: string[] };

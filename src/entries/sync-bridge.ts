@@ -52,6 +52,18 @@ window.addEventListener("message", (event) => {
 
   if (data.type === "avc-sync-now") {
     chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
+    return;
+  }
+
+  if (data.type === "avc-sign-out") {
+    // The user signed out on the site — immediately invalidate the extension's
+    // stored credential instead of waiting for the token's TTL or the next 401.
+    chrome.storage.local.set({
+      syncToken: "",
+      syncProfile: null,
+      relinkNeeded: false,
+      syncAuthFailures: 0,
+    });
   }
 });
 

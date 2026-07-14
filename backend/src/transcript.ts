@@ -47,7 +47,8 @@ export async function transcribeAndStore(
   licenseId: string,
   cacheKey: string,
   pcmBase64: string,
-  startSec: number
+  startSec: number,
+  capMinutes: number
 ): Promise<LookupResult> {
   const { pcm, error: pcmErr } = decodePcmBase64(pcmBase64);
   if (pcmErr) throw new Error(pcmErr);
@@ -70,10 +71,9 @@ export async function transcribeAndStore(
   }
 
   try {
-    const cap = Number(env.CAP_MINUTES);
     const minutes = pcmDurationMinutes(pcm.length);
     const usedBefore = await getUsage(env, licenseId);
-    if (usedBefore + minutes > cap) {
+    if (usedBefore + minutes > capMinutes) {
       throw new Error("monthly listening hours used up");
     }
 

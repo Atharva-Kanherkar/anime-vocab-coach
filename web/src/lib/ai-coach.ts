@@ -14,8 +14,14 @@
 import { TIERS } from "@/lib/site";
 
 export type CoachMode = "explain" | "hooks" | "chat";
-export type Plan = "free" | "pro";
-export type Tier = "free" | "pro" | "launch";
+export type Plan = "free" | "pro" | "max";
+export type Tier = "free" | "pro" | "max" | "launch";
+
+/** Coerce arbitrary input (e.g. Clerk publicMetadata.plan) to a known plan.
+ * Anything unrecognized is treated as the free tier. */
+export function normalizePlan(value: unknown): Plan {
+  return value === "pro" || value === "max" ? value : "free";
+}
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -65,6 +71,7 @@ export const DEFAULT_COACH_MODEL = "gpt-4.1-nano";
 // Overridable via FREE_AI_CALLS_PER_MONTH / PRO_AI_CALLS_PER_MONTH env.
 export const DEFAULT_FREE_LIMIT = TIERS.free.aiCallsPerMonth;
 export const DEFAULT_PRO_LIMIT = TIERS.pro.aiCallsPerMonth;
+export const DEFAULT_MAX_LIMIT = TIERS.max.aiCallsPerMonth;
 // Free launch: while the window is open every signed-in account gets this cap for
 // all AI features. Capped so a launch cannot blow the budget (30 * ~$0.00014 =
 // ~$0.004/user/mo). Overridable via LAUNCH_AI_CALLS_PER_MONTH / AI_FREE_LAUNCH_UNTIL.
@@ -86,8 +93,10 @@ export const MAX_CHAT_MESSAGE_LEN = 500;
 export const MAX_CHAT_HISTORY = 12;
 export const MAX_ANIME_CONTEXT_LEN = 600;
 
-export function aiLimitForPlan(plan: Plan, free: number, pro: number): number {
-  return plan === "pro" ? pro : free;
+export function aiLimitForPlan(plan: Plan, free: number, pro: number, max: number): number {
+  if (plan === "max") return max;
+  if (plan === "pro") return pro;
+  return free;
 }
 
 function clamp(value: string, max: number): string {

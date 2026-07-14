@@ -53,9 +53,10 @@ describe("normalizeCoachRequest", () => {
 });
 
 describe("aiLimitForPlan", () => {
-  it("gives pro the higher cap", () => {
-    expect(aiLimitForPlan("free", 5, 300)).toBe(5);
-    expect(aiLimitForPlan("pro", 5, 300)).toBe(300);
+  it("maps each tier to its cap", () => {
+    expect(aiLimitForPlan("free", 5, 300, 600)).toBe(5);
+    expect(aiLimitForPlan("pro", 5, 300, 600)).toBe(300);
+    expect(aiLimitForPlan("max", 5, 300, 600)).toBe(600);
   });
 });
 

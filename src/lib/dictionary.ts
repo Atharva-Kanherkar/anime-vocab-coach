@@ -21,7 +21,10 @@ export function load(): Promise<Record<string, RawEntry>> {
       })
       .catch((err) => {
         warn("dictionary load failed:", err);
-        data = {};
+        // Don't memoize the failure: a transient fetch error used to leave the
+        // dictionary permanently empty for the tab (no card ever shows again).
+        // Clearing loadPromise lets the next load() retry.
+        loadPromise = null;
         return {};
       });
   }

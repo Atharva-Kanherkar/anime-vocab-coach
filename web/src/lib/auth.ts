@@ -2,7 +2,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { getSyncTokenProfile } from "./sync-store";
 import { DEV_NO_CLERK, DEV_PROFILE } from "./dev-auth";
 import type { CloudUserProfile } from "./sync";
-import type { Plan } from "./ai-coach";
+import { normalizePlan, type Plan } from "./ai-coach";
 
 // Resolve the caller to a cloud profile. Three paths, in priority order:
 //  1. A sync-token bearer (the extension's background credential) — validated
@@ -18,25 +18,40 @@ export async function resolveProfile(req: Request): Promise<CloudUserProfile | n
   // resolver — including AI-metered ones (notebook summaries). That's the same
   // user and the same monthly quota bucket, so no cross-user or extra-spend
   // risk; it just means the extension's credential can also reach those paths.
-  if (match) return getSyncTokenProfile(match[1]);
+  if (match) {
+    // A KV read hiccup here must not 500 every extension-authenticated request —
+    // treat a lookup failure as "no valid session" so the caller gets a clean 401.
+    try {
+      return await getSyncTokenProfile(match[1]);
+    } catch (err) {
+      console.warn("[auth] sync-token lookup failed", err);
+      return null;
+    }
+  }
 
   if (DEV_NO_CLERK) return { ...DEV_PROFILE };
 
-  const user = await currentUser();
+  let user: Awaited<ReturnType<typeof currentUser>>;
+  try {
+    user = await currentUser();
+  } catch (err) {
+    console.warn("[auth] currentUser failed", err);
+    return null;
+  }
   if (!user) return null;
 
   return {
     id: user.id,
     email: user.primaryEmailAddress?.emailAddress ?? null,
     name: user.firstName || user.username || null,
+    plan: normalizePlan((user.publicMetadata as { plan?: unknown } | undefined)?.plan),
   };
 }
 
-// Plan for AI metering. Until billing (Dodo) is wired, everyone is on the FREE
-// tier — a generous freemium the owner funds from OpenAI credits (8h listening +
-// 40 AI calls/mo; see wrangler vars). Owners get an effectively-unlimited AI cap
-// per-route via isOwnerEmail(profile.email). When billing lands, resolvePlan
-// reads the buyer's tier from Clerk metadata (free | pro | max) here.
-export function resolvePlan(): Plan {
-  return "free";
+// Plan for AI + listening metering, read from the buyer's tier. The Dodo billing
+// webhook writes `plan` (free | pro | max) to Clerk publicMetadata, which rides
+// on the resolved profile (and on the extension sync-token profile). Owners still
+// get an effectively-unlimited AI cap per-route via isOwnerEmail(profile.email).
+export function resolvePlan(profile?: CloudUserProfile | null): Plan {
+  return normalizePlan(profile?.plan);
 }

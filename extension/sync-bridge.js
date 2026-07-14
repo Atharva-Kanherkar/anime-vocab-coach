@@ -37,6 +37,15 @@
     if (data.type === "avc-sync-now") {
       chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {
       });
+      return;
+    }
+    if (data.type === "avc-sign-out") {
+      chrome.storage.local.set({
+        syncToken: "",
+        syncProfile: null,
+        relinkNeeded: false,
+        syncAuthFailures: 0
+      });
     }
   });
   announceExtension();

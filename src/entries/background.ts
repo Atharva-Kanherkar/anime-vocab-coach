@@ -3,6 +3,8 @@ import { BACKEND_URL } from "../config";
 import { syncWithCloud } from "../lib/cloud-sync";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
+import { fetchAnimeContext } from "../lib/anime-context-client";
+import { fetchTtsAudio } from "../lib/tts-client";
 import { getSyncToken } from "../lib/storage";
 import { toastTab } from "../lib/notify";
 import type { Settings } from "../types";
@@ -24,13 +26,33 @@ function listenErrorText(code: string): string {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+// Streaming tabs the extension operates on — used to recover open tabs after an
+// auto-update orphans their old content scripts.
+const STREAMING_TAB_PATTERNS = [
+  "*://*.youtube.com/*",
+  "*://*.netflix.com/*",
+  "*://*.crunchyroll.com/*"
+];
+
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.storage.local.get(["settings"], (result) => {
     const raw = (result.settings || {}) as Record<string, unknown>;
     delete raw.licenseKey;
     if (raw.pauseMode === "notify") raw.pauseMode = "copilot";
     chrome.storage.local.set({ settings: { ...DEFAULTS, ...raw } });
   });
+
+  // On auto-update, content scripts already running in open streaming tabs are
+  // orphaned against the new service worker and throw on every subtitle line
+  // until a manual reload. Reload those tabs so they pick up the new build
+  // cleanly (the probe flag means a plain re-inject would be skipped).
+  if (details.reason === "update") {
+    chrome.tabs.query({ url: STREAMING_TAB_PATTERNS }, (tabs) => {
+      for (const tab of tabs) {
+        if (tab.id != null) chrome.tabs.reload(tab.id).catch(() => {});
+      }
+    });
+  }
 });
 
 // --- Background cloud sync -------------------------------------------------
@@ -250,6 +272,8 @@ interface RuntimeMsg {
   tabId?: number;
   line?: string;
   text?: string;
+  title?: string;
+  key?: string;
   code?: string;
   detail?: string;
   time?: number;
@@ -318,6 +342,26 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     return true;
   }
 
+  // Anime context + cloud TTS also can't be called cross-origin from a content
+  // script (no CORS on the web API), so the content side routes them here.
+  if (msg.type === "avc-anime-context") {
+    fetchAnimeContext(msg.title || null)
+      .then((context) => sendResponse({ ok: true, context: context || "" }))
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
+  if (msg.type === "avc-tts") {
+    fetchTtsAudio(msg.text || "")
+      .then((audio) =>
+        audio
+          ? sendResponse({ ok: true, b64: audio.b64, mime: audio.mime })
+          : sendResponse({ ok: false, error: "not_linked" })
+      )
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
   if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status") {
     const tabId = msg.tabId!;
     const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;
@@ -342,6 +386,20 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   if (msg.type === "avc-transcript") {
     console.log("[AVC] relaying transcript to tab", msg.tabId, "→", msg.text);
     void deliverTranscript(msg.tabId!, msg.text!);
+    return;
+  }
+
+  // Episode changed in the tab — forward the new cache key to the offscreen
+  // session so it stops uploading under the previous episode's key.
+  if (msg.type === "avc-update-cache-key" && sender.tab?.id != null) {
+    const tabId = sender.tab.id;
+    getListening().then((tabs) => {
+      if (tabs[tabId]) {
+        chrome.runtime
+          .sendMessage({ type: "avc-offscreen-update-key", tabId, cacheKey: msg.key || "" })
+          .catch(() => {});
+      }
+    });
     return;
   }
 
