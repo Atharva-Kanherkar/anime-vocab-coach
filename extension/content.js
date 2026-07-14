@@ -977,7 +977,11 @@
     min-width: ${PANEL_MIN_W}px;
     max-width: min(${PANEL_MAX_W}px, 42vw);
     display: flex; flex-direction: column;
-    pointer-events: auto;
+    /* Idle, the bar is ~95% transparent \u2014 keep it click-through so it doesn't
+       shield a 340px strip of the page (the video player's fullscreen button
+       etc., P0 #9). It becomes interactive only when a card is up, during
+       resize, or while focused (see the .avc-interactive rule below). */
+    pointer-events: none;
     background: rgba(8, 7, 10, 0.05);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
@@ -992,6 +996,16 @@
       border-color 320ms ease,
       box-shadow 320ms ease,
       color 320ms ease;
+  }
+  /* Re-arm clicks only when the bar is actually in use: a card is showing
+     (.avc-interactive, toggled in JS), the user is resizing (.avc-sidebar-active),
+     or something inside has focus (survives a card's auto-dismiss mid-chat).
+     :focus-within is a focus state, not a pointer state, so it still applies
+     under pointer-events:none. */
+  .avc-agent-sidebar.avc-interactive,
+  .avc-agent-sidebar.avc-sidebar-active,
+  .avc-agent-sidebar:focus-within {
+    pointer-events: auto;
   }
   .avc-agent-sidebar:hover,
   .avc-agent-sidebar:focus-within,
@@ -1627,6 +1641,7 @@
       shell.wordActive.classList.remove("avc-active");
       shell.wordIdle.style.display = "";
       shell.foot.classList.remove("avc-active");
+      shell.sidebar.classList.remove("avc-interactive");
       shell.buttons.textContent = "";
     }
     currentJudgments = [];
@@ -1682,7 +1697,8 @@
           }
         });
         port.onDisconnect.addListener(() => {
-          if (chrome.runtime.lastError && !full) reject(new Error("disconnected"));
+          if (full) resolve();
+          else reject(new Error(chrome.runtime.lastError?.message || "disconnected"));
         });
         port.postMessage({
           message: text,
@@ -1699,8 +1715,13 @@
       }
     } catch (err) {
       if (raf) cancelAnimationFrame(raf);
-      const msg = err instanceof Error ? err.message : "network";
-      finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: msg }) || "Network error.");
+      if (full.trim()) {
+        finishStreamBubble(streamBubble, full);
+        chatHistory.push({ role: "assistant", content: full });
+      } else {
+        const msg = err instanceof Error ? err.message : "network";
+        finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: msg }) || "Network error.");
+      }
     } finally {
       shell.chatSend.disabled = false;
       shell.chatInput.disabled = false;
@@ -1766,6 +1787,7 @@
     const displayScript = opts.displayScript || "romaji";
     shell.wordIdle.style.display = "none";
     shell.wordActive.classList.add("avc-active");
+    shell.sidebar.classList.add("avc-interactive");
     shell.wordActive.textContent = "";
     shell.aiOut.classList.remove("avc-visible");
     shell.aiOut.textContent = "";

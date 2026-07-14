@@ -132,7 +132,11 @@ const STYLES = `
     min-width: ${PANEL_MIN_W}px;
     max-width: min(${PANEL_MAX_W}px, 42vw);
     display: flex; flex-direction: column;
-    pointer-events: auto;
+    /* Idle, the bar is ~95% transparent — keep it click-through so it doesn't
+       shield a 340px strip of the page (the video player's fullscreen button
+       etc., P0 #9). It becomes interactive only when a card is up, during
+       resize, or while focused (see the .avc-interactive rule below). */
+    pointer-events: none;
     background: rgba(8, 7, 10, 0.05);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
@@ -147,6 +151,16 @@ const STYLES = `
       border-color 320ms ease,
       box-shadow 320ms ease,
       color 320ms ease;
+  }
+  /* Re-arm clicks only when the bar is actually in use: a card is showing
+     (.avc-interactive, toggled in JS), the user is resizing (.avc-sidebar-active),
+     or something inside has focus (survives a card's auto-dismiss mid-chat).
+     :focus-within is a focus state, not a pointer state, so it still applies
+     under pointer-events:none. */
+  .avc-agent-sidebar.avc-interactive,
+  .avc-agent-sidebar.avc-sidebar-active,
+  .avc-agent-sidebar:focus-within {
+    pointer-events: auto;
   }
   .avc-agent-sidebar:hover,
   .avc-agent-sidebar:focus-within,
@@ -799,6 +813,9 @@ function finishWord(judgment: Judgment | "dismiss"): void {
     shell.wordActive.classList.remove("avc-active");
     shell.wordIdle.style.display = "";
     shell.foot.classList.remove("avc-active");
+    // Back to idle — stop shielding the page (unless focus is still inside,
+    // which :focus-within keeps interactive on its own).
+    shell.sidebar.classList.remove("avc-interactive");
     shell.buttons.textContent = "";
   }
   currentJudgments = [];
@@ -860,7 +877,15 @@ async function submitChat(): Promise<void> {
         }
       });
       port.onDisconnect.addListener(() => {
-        if (chrome.runtime.lastError && !full) reject(new Error("disconnected"));
+        // A disconnect is terminal — no further messages will arrive, so ALWAYS
+        // settle (P0 #8). The old guard only rejected on (lastError && !full),
+        // so a clean close — or a disconnect after some tokens but before the
+        // `done` message (e.g. the service worker recycling) — left this promise
+        // pending forever, and the `finally` never re-enabled the composer, so
+        // copilot chat locked until a full page reload. resolve/reject after a
+        // prior `done`/`error` is a harmless no-op (a promise settles once).
+        if (full) resolve();
+        else reject(new Error(chrome.runtime.lastError?.message || "disconnected"));
       });
       port.postMessage({
         message: text,
@@ -958,6 +983,8 @@ function populateWordSection(ctx: WordContext): void {
 
   shell.wordIdle.style.display = "none";
   shell.wordActive.classList.add("avc-active");
+  // A card is up — the bar is now interactive (see the pointer-events rule).
+  shell.sidebar.classList.add("avc-interactive");
   shell.wordActive.textContent = "";
   shell.aiOut.classList.remove("avc-visible");
   shell.aiOut.textContent = "";

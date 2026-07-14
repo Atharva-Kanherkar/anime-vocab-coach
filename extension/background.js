@@ -33,14 +33,6 @@
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
   }
-  function setSettings(partial) {
-    return enqueue(async () => {
-      const r = await chrome.storage.local.get(["settings"]);
-      const settings = { ...DEFAULTS, ...r.settings || {}, ...partial };
-      await chrome.storage.local.set({ settings });
-      return settings;
-    });
-  }
   function exportAll() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
@@ -81,29 +73,7 @@
       return null;
     }
   }
-  async function pullSettingsFromCloud() {
-    const token = await getSyncToken();
-    if (!token) return;
-    try {
-      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
-      if (res.status === 401) {
-        await setSyncToken("");
-        return;
-      }
-      if (!res.ok) return;
-      const data = await res.json();
-      const raw = data.envelope?.snapshot?.settings;
-      if (!raw || typeof raw !== "object") return;
-      const partial = { ...raw };
-      if (partial.pauseMode === "notify") partial.pauseMode = "copilot";
-      await setSettings(partial);
-      log("cloud settings pulled");
-    } catch (err) {
-      warn("cloud settings pull error:", err);
-    }
-  }
   async function syncWithCloud() {
-    await pullSettingsFromCloud();
     await pushSnapshot();
   }
   async function pushSnapshot() {
@@ -185,6 +155,7 @@
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let received = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -196,8 +167,14 @@
           if (!line.startsWith("data: ")) continue;
           try {
             const json = JSON.parse(line.slice(6));
-            if (json.error) return { ok: false, error: json.error };
-            if (typeof json.delta === "string") onChunk(json.delta);
+            if (typeof json.delta === "string") {
+              received = true;
+              onChunk(json.delta);
+            }
+            if (json.error) {
+              if (received) return { ok: true };
+              return { ok: false, error: json.error };
+            }
           } catch {
           }
         }
