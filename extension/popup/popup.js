@@ -58,6 +58,11 @@
       chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
     });
   }
+  function getRelinkNeeded() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["relinkNeeded"], (r) => resolve(!!r.relinkNeeded));
+    });
+  }
   function getSyncProfile() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["syncProfile"], (r) => {
@@ -145,7 +150,12 @@
     const el = byId("account");
     const token = await getSyncToken();
     if (!token) {
-      el.innerHTML = `<div class="av-account-row"><span class="av-dot av-dot-off"></span><div><b>Not signed in</b><span class="av-account-sub">Progress stays on this device only</span></div></div><button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">Sign in to sync \u2014 animevocab.com</button>`;
+      const relink = await getRelinkNeeded();
+      const title = relink ? "Sign-in expired" : "Not signed in";
+      const sub = relink ? "Re-link to resume cloud sync" : "Progress stays on this device only";
+      const cta = relink ? "Re-link \u2014 animevocab.com" : "Sign in to sync \u2014 animevocab.com";
+      const dot = relink ? "av-dot av-dot-warn" : "av-dot av-dot-off";
+      el.innerHTML = `<div class="av-account-row"><span class="${dot}"></span><div><b>${title}</b><span class="av-account-sub">${sub}</span></div></div><button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">${cta}</button>`;
       byId("signin-btn").addEventListener("click", () => {
         chrome.tabs.create({ url: `${WEB_URL}/app` });
       });
@@ -228,7 +238,7 @@
     void initListening();
     void initCopilotToggle();
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === "local" && (changes.syncToken || changes.syncProfile)) void renderAccount();
+      if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded)) void renderAccount();
     });
     byId("cloud-link").addEventListener("click", (e) => {
       e.preventDefault();

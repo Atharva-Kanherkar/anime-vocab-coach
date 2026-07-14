@@ -299,12 +299,48 @@ export function getSyncToken(): Promise<string> {
 export function setSyncToken(token: string): Promise<void> {
   return enqueue(async () => {
     if (token) {
-      await chrome.storage.local.set({ syncToken: token });
+      // A fresh token (the web app re-linked us) clears any prior "re-link
+      // needed" state and resets the consecutive-401 tolerance counter.
+      await chrome.storage.local.set({
+        syncToken: token,
+        relinkNeeded: false,
+        syncAuthFailures: 0,
+      });
     } else {
       // Unlinking (sign-out / expired token): drop the profile too so the
       // popup doesn't keep claiming "Synced as <email>".
       await chrome.storage.local.set({ syncToken: "", syncProfile: null });
     }
+  });
+}
+
+// Consecutive sync 401s. A single 401 (a brief auth blip or a token race) must
+// not unlink the extension, so cloud-sync only clears the token after several
+// in a row (see cloud-sync.ts). Persisted so the count survives SW recycles.
+export function getSyncAuthFailures(): Promise<number> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["syncAuthFailures"], (r) => resolve(Number(r.syncAuthFailures) || 0));
+  });
+}
+
+export function setSyncAuthFailures(n: number): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ syncAuthFailures: Math.max(0, n) }, () => resolve());
+  });
+}
+
+// Set when repeated 401s force an unlink — the popup surfaces a distinct
+// "re-link needed" state instead of the generic "not signed in". Cleared by
+// setSyncToken() the moment the web app hands over a fresh token.
+export function getRelinkNeeded(): Promise<boolean> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["relinkNeeded"], (r) => resolve(!!r.relinkNeeded));
+  });
+}
+
+export function setRelinkNeeded(needed: boolean): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ relinkNeeded: needed }, () => resolve());
   });
 }
 

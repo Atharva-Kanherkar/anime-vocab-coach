@@ -135,6 +135,10 @@ body.av {
   border: 2px dashed var(--av-line-2);
 }
 
+.av-dot-warn {
+  background: #f0a637;
+}
+
 .av-actions {
   margin-top: 12px;
   display: grid;

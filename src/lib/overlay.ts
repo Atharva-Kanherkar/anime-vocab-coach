@@ -5,6 +5,7 @@ export {
   isAgentMounted,
   presentWord,
   showAgentPanel,
+  showToast,
   dismissAgent,
   isAgentActive,
   isOpen,

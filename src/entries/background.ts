@@ -4,7 +4,25 @@ import { syncWithCloud } from "../lib/cloud-sync";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
 import { getSyncToken } from "../lib/storage";
+import { toastTab } from "../lib/notify";
 import type { Settings } from "../types";
+
+// Friendly, page-visible copy for a listening-mode failure code. The offscreen
+// document reports terse codes; users shouldn't have to decode them.
+function listenErrorText(code: string): string {
+  switch (code) {
+    case "quota-exceeded":
+      return "Listening stopped — you've reached this month's listening limit.";
+    case "not-signed-in":
+      return "Listening needs sign-in — open animevocab.com to link this browser.";
+    case "invalid-key":
+      return "Listening stopped — your OpenAI key was rejected. Check it in settings.";
+    case "connection-lost":
+      return "Listening stopped — lost connection to transcription. Press play to resume.";
+    default:
+      return "Couldn't start Listening Mode on this tab.";
+  }
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(["settings"], (result) => {
@@ -339,12 +357,15 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
 
   if (msg.type === "avc-listen-error") {
     getListening().then(async (tabs) => {
-      if (msg.code === "invalid-key" || msg.code === "capture-failed" ||
-          msg.code === "quota-exceeded" || msg.code === "not-signed-in") {
+      const stopCodes = ["invalid-key", "capture-failed", "quota-exceeded", "not-signed-in", "connection-lost"];
+      if (stopCodes.includes(msg.code || "")) {
         delete tabs[msg.tabId!];
         await setListening(tabs);
         chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });
         chrome.action.setBadgeBackgroundColor({ tabId: msg.tabId, color: "#f87171" });
+        // Surface it on the page too — the toolbar badge is invisible while the
+        // user is watching (often fullscreen), so failures felt like silent deaths.
+        if (msg.tabId != null) toastTab(msg.tabId, listenErrorText(msg.code || ""), "error");
       }
       console.warn("[AVC] listening error:", msg.code, msg.detail || "");
     });

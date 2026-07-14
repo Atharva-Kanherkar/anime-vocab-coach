@@ -29,7 +29,7 @@
     if (session.auth.kind !== "cloud") return;
     const { backendUrl, syncToken } = session.auth;
     session.heartbeat = setInterval(async () => {
-      if (!session.active) return;
+      if (!session.active || session.playbackPaused) return;
       try {
         const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
           method: "POST",
@@ -308,7 +308,8 @@
     ws.onclose = (ev) => {
       olog("realtime WS closed:", ev.code, ev.reason || "");
       session.ready = false;
-      if (session.active && session.reconnects < 3 && ev.code !== 4001) {
+      if (!session.active) return;
+      if (ev.code !== 4001 && session.reconnects < 3) {
         session.reconnects += 1;
         setTimeout(() => {
           if (session.active) {
@@ -319,7 +320,10 @@
             });
           }
         }, 1500);
+        return;
       }
+      report(session.tabId, "connection-lost", "lost connection to the transcription service");
+      stop(session.tabId);
     };
   }
   function stop(tabId) {

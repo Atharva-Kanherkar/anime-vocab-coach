@@ -69,7 +69,10 @@ function startHeartbeat(session: Session): void {
   if (session.auth.kind !== "cloud") return;
   const { backendUrl, syncToken } = session.auth;
   session.heartbeat = setInterval(async () => {
-    if (!session.active) return;
+    // Don't bill a paused session. The heartbeat charges a flat 5 min/tick, so
+    // firing it while the video is paused burned the user's quota for time they
+    // never watched (P1). content.ts relays pause state every 500ms.
+    if (!session.active || session.playbackPaused) return;
     try {
       const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
         method: "POST",
@@ -376,7 +379,10 @@ async function connectWS(session: Session): Promise<void> {
   ws.onclose = (ev) => {
     olog("realtime WS closed:", ev.code, ev.reason || "");
     session.ready = false;
-    if (session.active && session.reconnects < 3 && ev.code !== 4001) {
+    // Expected close — we tore the socket down in stop(). Nothing to do.
+    if (!session.active) return;
+
+    if (ev.code !== 4001 && session.reconnects < 3) {
       session.reconnects += 1;
       setTimeout(() => {
         if (session.active) {
@@ -387,7 +393,15 @@ async function connectWS(session: Session): Promise<void> {
           });
         }
       }, 1500);
+      return;
     }
+
+    // Out of reconnects (or a terminal close). The old code silently gave up
+    // here: the session stayed "active" so the heartbeat kept billing and the
+    // REC badge stayed lit while nothing was being transcribed (P1). Stop the
+    // session — which clears the heartbeat + badge — and tell the user.
+    report(session.tabId, "connection-lost", "lost connection to the transcription service");
+    stop(session.tabId);
   };
 }
 

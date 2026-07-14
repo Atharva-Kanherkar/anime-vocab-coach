@@ -309,7 +309,11 @@ declare global {
   // Listening mode: the offscreen document transcribes this tab's audio and the
   // background forwards Japanese text here. Only the frame that owns the video
   // handles it (matters on sites whose player lives in an iframe).
-  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; active?: boolean }, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; active?: boolean; kind?: string }, _sender, sendResponse) => {
+    if (msg.type === "avc-toast") {
+      overlay.showToast(msg.text || "", msg.kind === "error" ? "error" : "info");
+      return;
+    }
     if (msg.type === "avc-get-cache-key") {
       refreshCacheKey();
       sendResponse({ key: cacheKey || null });
