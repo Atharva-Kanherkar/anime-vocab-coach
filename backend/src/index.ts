@@ -10,6 +10,7 @@ import { publicConfig } from "./promo";
 import { lookupTranscript, transcribeAndStore } from "./transcript";
 import { getProviderMetrics, TranscriptionError } from "./transcribe/index";
 import { requireAuth } from "./sync-auth";
+import { capMinutesForPlan, normalizePlan } from "./plan";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
@@ -19,6 +20,8 @@ export interface Env {
   GROQ_API_KEY?: string;
   DEEPINFRA_API_KEY?: string;
   CAP_MINUTES: string;
+  PRO_CAP_MINUTES?: string;
+  MAX_CAP_MINUTES?: string;
   TRANSCRIBE_MODEL: string;
   OPENAI_WHISPER_MODEL: string;
   GROQ_WHISPER_MODEL: string;
@@ -30,6 +33,7 @@ export interface Env {
   AI_COST_USD_PER_CALL?: string;
   FREE_AI_CALLS_PER_MONTH?: string;
   PRO_AI_CALLS_PER_MONTH?: string;
+  MAX_AI_CALLS_PER_MONTH?: string;
 }
 
 function corsHeaders(req: Request): Record<string, string> {
@@ -58,8 +62,7 @@ function json(
   });
 }
 
-async function checkUsageCap(env: Env, req: Request, userId: string): Promise<Response | null> {
-  const cap = Number(env.CAP_MINUTES);
+async function checkUsageCap(env: Env, req: Request, userId: string, cap: number): Promise<Response | null> {
   const used = await getUsage(env, userId);
   if (used >= cap) {
     return json(req, { error: "monthly listening hours used up", usedMinutes: Math.floor(used), capMinutes: cap }, 429);
@@ -85,7 +88,8 @@ export default {
         const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
 
-        const capErr = await checkUsageCap(env, req, auth.userId);
+        const cap = capMinutesForPlan(env, normalizePlan(auth.profile.plan));
+        const capErr = await checkUsageCap(env, req, auth.userId, cap);
         if (capErr) return capErr;
 
         const token = await mintTranscriptionToken(env);
@@ -93,7 +97,7 @@ export default {
           token,
           model: env.TRANSCRIBE_MODEL,
           usedMinutes: Math.floor(await getUsage(env, auth.userId)),
-          capMinutes: Number(env.CAP_MINUTES)
+          capMinutes: cap
         });
       }
 
@@ -103,7 +107,7 @@ export default {
 
         const body = (await req.json().catch(() => ({}))) as { minutes?: number };
         const minutes = Math.max(0, Math.min(10, Math.round(Number(body.minutes) || 0)));
-        const cap = Number(env.CAP_MINUTES);
+        const cap = capMinutesForPlan(env, normalizePlan(auth.profile.plan));
         let used: number;
         try {
           used = await addMinutes(env, auth.userId, minutes);
@@ -155,7 +159,8 @@ export default {
         const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
 
-        const capErr = await checkUsageCap(env, req, auth.userId);
+        const cap = capMinutesForPlan(env, normalizePlan(auth.profile.plan));
+        const capErr = await checkUsageCap(env, req, auth.userId, cap);
         if (capErr) return capErr;
 
         const body = (await req.json().catch(() => ({}))) as {
@@ -174,7 +179,7 @@ export default {
         const audio = body.audio || "";
         if (!audio) return json(req, { error: "missing audio" }, 400);
 
-        const result = await transcribeAndStore(env, auth.userId, cacheKey, audio, startSec);
+        const result = await transcribeAndStore(env, auth.userId, cacheKey, audio, startSec, cap);
         return json(req, result);
       }
 

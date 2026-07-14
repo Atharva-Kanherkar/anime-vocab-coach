@@ -2,6 +2,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getOrCreateSyncToken } from "@/lib/sync-store";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
+import { normalizePlan } from "@/lib/ai-coach";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,9 @@ export async function POST() {
         id: user.id,
         email: user.primaryEmailAddress?.emailAddress ?? null,
         name: user.firstName || user.username || null,
+        // Stamp the tier onto the token profile so the extension + backend can
+        // enforce per-tier caps without re-reading Clerk on every request.
+        plan: normalizePlan((user.publicMetadata as { plan?: unknown } | undefined)?.plan),
       }
     : { ...DEV_PROFILE };
 

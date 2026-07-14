@@ -14,7 +14,7 @@
         return d;
       }).catch((err) => {
         warn("dictionary load failed:", err);
-        data = {};
+        loadPromise = null;
         return {};
       });
     }
@@ -420,45 +420,22 @@
     };
     await audio.play();
   }
-  async function fetchCloudTts(text, token) {
-    const res = await fetch(WEB_URL + "/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-      body: JSON.stringify({ text })
-    });
-    if (!res.ok) return null;
-    return res.blob();
-  }
-  async function fetchByoTts(text, key) {
-    const res = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
-      body: JSON.stringify({ model: "tts-1", voice: "nova", input: text, response_format: "mp3" })
-    });
-    if (!res.ok) return null;
-    return res.blob();
+  function base64ToBlob(b64, mime) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
   }
   async function speakText(text) {
     const trimmed = (text || "").trim();
     if (!trimmed) return { ok: false, error: "empty" };
     try {
-      const settings = await getSettings();
-      if (settings.openaiKey?.trim()) {
-        const blob = await fetchByoTts(trimmed, settings.openaiKey.trim());
-        if (blob) {
-          await playBlob(blob);
-          return { ok: true };
-        }
+      const res = await chrome.runtime.sendMessage({ type: "avc-tts", text: trimmed });
+      if (res?.ok && res.b64) {
+        await playBlob(base64ToBlob(res.b64, res.mime || "audio/mpeg"));
+        return { ok: true };
       }
-      const token = await getSyncToken();
-      if (token) {
-        const blob = await fetchCloudTts(trimmed, token);
-        if (blob) {
-          await playBlob(blob);
-          return { ok: true };
-        }
-      }
-      return { ok: false, error: "not_linked" };
+      return { ok: false, error: res?.error || "not_linked" };
     } catch {
       return { ok: false, error: "playback_failed" };
     }
@@ -718,15 +695,13 @@
   // src/lib/tokenizer.ts
   var initPromise = null;
   var tokenizerInstance = null;
-  var disabled = false;
   function init() {
-    if (disabled) return Promise.reject(new Error("tokenizer disabled"));
     if (initPromise) return initPromise;
     initPromise = new Promise((resolve, reject) => {
       kuromoji.builder({ dicPath: chrome.runtime.getURL("kuromoji/dict/") }).build((err, tk) => {
         if (err) {
           warn("tokenizer init failed:", err);
-          disabled = true;
+          initPromise = null;
           reject(err);
           return;
         }
@@ -737,7 +712,11 @@
     return initPromise;
   }
   async function tokenize(text) {
-    await init();
+    try {
+      await init();
+    } catch {
+      return [];
+    }
     if (!tokenizerInstance) return [];
     return tokenizerInstance.tokenize(text).map((t) => ({
       surface: t.surface_form,
@@ -779,21 +758,17 @@
 
   // src/lib/anime-context-client.ts
   var sessionCache2 = /* @__PURE__ */ new Map();
-  async function fetchAnimeContext(title) {
+  async function requestAnimeContext(title) {
     const clean = (title || "").trim();
     if (!clean) return null;
     const cached = sessionCache2.get(clean.toLowerCase());
     if (cached) return cached;
-    const token = await getSyncToken();
-    if (!token) return null;
     try {
-      const res = await fetch(
-        WEB_URL + "/api/anime/context?title=" + encodeURIComponent(clean),
-        { headers: { Authorization: "Bearer " + token } }
-      );
-      if (!res.ok) return null;
-      const data2 = await res.json();
-      const ctx = (data2.context || "").trim();
+      const res = await chrome.runtime.sendMessage({
+        type: "avc-anime-context",
+        title: clean
+      });
+      const ctx = (res?.context || "").trim();
       if (ctx) sessionCache2.set(clean.toLowerCase(), ctx);
       return ctx || null;
     } catch {
@@ -2125,7 +2100,13 @@
     applyInteractionMode(options.interaction);
     keyHandler = (e) => {
       if (!wordPending) return;
-      if (e.target instanceof HTMLTextAreaElement) return;
+      const isEditable = (el) => {
+        const node = el;
+        if (!node) return false;
+        const tag = node.tagName;
+        return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable === true;
+      };
+      if (isEditable(e.target) || isEditable(document.activeElement)) return;
       const match = currentJudgments.find((j) => j.key === e.key);
       if (match) {
         e.preventDefault();
@@ -2530,7 +2511,12 @@
       if (!a) return;
       const video = a.getVideo();
       const result = deriveCacheKey(platformForAdapter(a), video);
-      cacheKey2 = result && result.audioLang === "ja" ? result.key : "";
+      const next = result && result.audioLang === "ja" ? result.key : "";
+      if (next !== cacheKey2) {
+        cacheKey2 = next;
+        chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey2 }).catch(() => {
+        });
+      }
     }
     async function pollCacheHit() {
       if (!listeningActive || !cacheKey2) return;
@@ -2605,7 +2591,7 @@
     function prefetchAnimeContext(title) {
       if (!title || title === lastContextTitle) return;
       lastContextTitle = title;
-      void fetchAnimeContext(title);
+      void requestAnimeContext(title);
     }
     async function refreshState() {
       settings = await getSettings();

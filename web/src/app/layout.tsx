@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
+import { ExtensionSignoutBridge } from "@/components/extension-signout-bridge";
 import { FxAudioPrimer } from "@/components/fx-audio-primer";
 import { MetaPixel } from "@/components/meta-pixel";
 import { ScrollEffects } from "@/components/site-chrome";
@@ -139,7 +140,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     >
       <body>
         <MetaPixel />
-        {DEV_NO_CLERK ? shell : <ClerkProvider appearance={clerkAppearance}>{shell}</ClerkProvider>}
+        {DEV_NO_CLERK ? (
+          shell
+        ) : (
+          <ClerkProvider appearance={clerkAppearance}>
+            {shell}
+            <ExtensionSignoutBridge />
+          </ClerkProvider>
+        )}
       </body>
     </html>
   );

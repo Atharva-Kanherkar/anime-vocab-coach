@@ -31,9 +31,11 @@ enabled = true
 head_sampling_rate = 1
 
 [vars]
-# Free tier: 8h/mo listening (480 min). Everyone is free until billing lands;
-# Pro (20h/1200) and Max (60h/3600) become per-tier caps once tiers are wired.
+# Per-tier monthly listening caps. CAP_MINUTES is the free-tier default (8h);
+# the caller's plan (from the sync-token profile) selects the cap in plan.ts.
 CAP_MINUTES = "480"
+PRO_CAP_MINUTES = "1200"
+MAX_CAP_MINUTES = "3600"
 FREE_AI_CALLS_PER_MONTH = "40"
 PRO_AI_CALLS_PER_MONTH = "150"
 MAX_AI_CALLS_PER_MONTH = "600"

@@ -1,7 +1,10 @@
 import type { Env } from "./index";
 import { chunkBucket } from "./validate";
 
-const LOCK_TTL_SEC = 120;
+// A single chunk transcription takes a few seconds; the TTL only needs to
+// outlast that. Keep it short so a killed request that never reaches the
+// finally-release strands the lock for at most this long (was 120s).
+const LOCK_TTL_SEC = 60;
 
 function lockKey(cacheKey: string, startSec: number): string {
   return `txlock:${cacheKey}:${chunkBucket(startSec)}`;

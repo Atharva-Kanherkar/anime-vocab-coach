@@ -1,14 +1,17 @@
-# AnimeVocab Pro backend
+# AnimeVocab backend
 
-A single Cloudflare Worker that powers the Pro subscription ($10/month or
-$84/year, 45 listening-hours per month). It does three small jobs:
+A single Cloudflare Worker that powers hosted Listening Mode across the Free,
+Pro ($8/mo), and Max ($16/mo) tiers. It does three small jobs:
 
-1. **License checks** — validates the user's license key against Dodo Payments.
-   Keys are attached to the subscription, so Dodo invalidates them
-   automatically when a subscription lapses.
-2. **Metering** — counts listening minutes per license per calendar month in
-   Workers KV and enforces the fair-use cap (`CAP_MINUTES`, default 2700 = 45 h).
-3. **Shared transcript cache** — Pro users share a per-episode transcript cache.
+1. **Auth + tiering** — authenticates callers via Clerk-linked sync tokens
+   (`avc_st_*`). The caller's plan travels on the sync-token profile (the web
+   app writes it from Clerk `publicMetadata.plan` when the token is minted), so
+   the Worker enforces per-tier caps without calling Clerk per request. Billing
+   itself (Dodo → Clerk metadata) is handled in the web app, not here.
+2. **Metering** — counts listening minutes per user per calendar month in
+   Workers KV and enforces the per-tier cap (`CAP_MINUTES` free = 480/8 h,
+   `PRO_CAP_MINUTES` = 1200/20 h, `MAX_CAP_MINUTES` = 3600/60 h; see `plan.ts`).
+3. **Shared transcript cache** — users share a per-episode transcript cache.
    Cache hits return stored segments with no audio upload; cache misses are
    transcribed server-side once via Whisper and stored in Workers KV.
 4. **Token minting** — creates short-lived ephemeral OpenAI Realtime tokens for
@@ -53,14 +56,14 @@ and gross-margin scenarios for light, normal, and heavy usage.
   you'd even consider the $5/mo paid plan.
 - **One OpenAI API key** is all you need — scaling is handled by OpenAI's
   rate-limit tiers, not by adding keys. gpt-4o-mini-transcribe costs about
-  $0.18 per hour of audio, so a worst-case subscriber (45 h) costs ~$8.10
-  against $10 revenue, and a typical one (10–15 h) costs $2–3.
+  $0.18 per hour of audio, and the shared per-episode cache means only the
+  first viewer of an episode pays; everyone after hits the cache for free.
 - AI feature caps are configured separately from listening caps:
-  `FREE_AI_CALLS_PER_MONTH`, `PRO_AI_CALLS_PER_MONTH`, and
-  `AI_COST_USD_PER_CALL`. Do not ship an AI feature without checking the
-  model in [`docs/unit-economics.md`](../docs/unit-economics.md).
-- No servers, no database, no containers. KV stores two kinds of keys:
-  6-hour license-validity caches and per-month minute counters (self-expiring).
+  `FREE_AI_CALLS_PER_MONTH`, `PRO_AI_CALLS_PER_MONTH`,
+  `MAX_AI_CALLS_PER_MONTH`, and `AI_COST_USD_PER_CALL`. Do not ship an AI
+  feature without checking the model in [`docs/unit-economics.md`](../docs/unit-economics.md).
+- No servers, no database, no containers. KV stores sync-token profiles,
+  per-episode transcript caches, and per-month minute counters (self-expiring).
 
 ## Deploy (one time, ~15 minutes)
 
@@ -70,47 +73,42 @@ npm install
 npx wrangler login
 npx wrangler kv namespace create AVC_KV     # paste the printed id into wrangler.toml
 npx wrangler secret put OPENAI_API_KEY      # from platform.openai.com (add billing + a monthly budget cap!)
-npx wrangler secret put DODO_API_KEY        # Dodo dashboard -> Developer -> API Keys
 npx wrangler deploy                          # prints https://avc-api.<subdomain>.workers.dev
 ```
 
 Then put the deployed URL into `src/config.ts` (extension repo root) as
 `BACKEND_URL` and rebuild the extension.
 
-## Dodo Payments setup
+## Billing / tiers
 
-1. Sign up at dodopayments.com (Indian founders supported; KYC with PAN,
-   payouts to your Indian bank as export-of-services remittance).
-2. Create a **subscription product** "AnimeVocab Pro":
-   - $10/month, and optionally a $84/year variant.
-   - Enable **license keys** on the product (auto-generated, emailed on purchase).
-3. Copy the product's checkout link into `src/config.ts` as `CHECKOUT_URL`.
-4. While testing, point `DODO_API_BASE` in `wrangler.toml` at
-   `https://test.dodopayments.com` and use test-mode keys.
-
-> Note: the exact request/response fields of Dodo's `/licenses/activate` and
-> `/licenses/validate` endpoints should be verified against their current API
-> docs before going live — `src/dodo.ts` is written to be easy to adjust.
+Billing lives in the **web app**, not this Worker. The Dodo checkout webhook
+(`web/src/app/api/billing/dodo/webhook`) writes the buyer's plan to Clerk
+`publicMetadata.plan` (`free | pro | max`). When the web app mints an extension
+sync token it copies that plan onto the sync-token profile in KV, and this
+Worker reads it to pick the per-tier cap (`plan.ts`). No Dodo API key or
+license validation runs in the Worker.
 
 ## Endpoints
 
+All authenticated endpoints take `Authorization: Bearer avc_st_…` (the sync
+token minted by the signed-in web app).
+
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| POST | `/v1/license/activate` | body `{licenseKey}` | First-time activation from the options page |
-| GET | `/v1/license/status` | `Bearer <license>` | Plan status + hours used, shown in options |
-| POST | `/v1/session` | `Bearer <license>` | Mint an ephemeral OpenAI token (BYO fallback) |
-| POST | `/v1/usage/heartbeat` | `Bearer <license>` | Extension reports ≤5 listening minutes; 429 once over cap |
-| GET | `/v1/transcript?key=&t=` | `Bearer <license>` | Lookup cached transcript segments at playback time |
-| POST | `/v1/transcript/transcribe` | `Bearer <license>` | Server-side transcribe-on-miss `{ key, startSec, audio }` (metered) |
-| GET | `/v1/transcript/stats` | `Bearer <license>` | Cache + per-provider transcribe metrics |
+| GET | `/v1/public/config` | none | Public plan limits + site URL |
+| POST | `/v1/session` | sync token | Mint an ephemeral OpenAI token (BYO fallback); returns per-tier cap |
+| POST | `/v1/usage/heartbeat` | sync token | Extension reports ≤10 listening minutes; 429 once over cap |
+| GET | `/v1/transcript?key=&t=` | sync token | Lookup cached transcript segments at playback time |
+| POST | `/v1/transcript/transcribe` | sync token | Server-side transcribe-on-miss `{ key, startSec, audio }` (metered) |
+| GET | `/v1/transcript/stats` | sync token | Cache + per-provider transcribe metrics + economics snapshot |
 
 ## Abuse & cost controls
 
 - Ephemeral tokens expire in 120 s if unused and are locked to a
   transcription-only session config — they can't be used for chat completions.
 - Heartbeats are clamped to 10 min per report; a tampered client that skips
-  heartbeats steals at most its own subscription's fair-use headroom, and you
-  can revoke any license from the Dodo dashboard.
+  heartbeats steals at most its own account's per-tier fair-use headroom.
+  Sync tokens are minted by the signed-in web app and carry the user's plan.
 - Set a **hard monthly budget cap on the OpenAI account** as the final
   backstop. If OpenAI rejects a mint, users see a clean error and you get no
   surprise bill.

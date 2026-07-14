@@ -12,6 +12,7 @@ import {
   DEFAULT_FREE_LIMIT,
   DEFAULT_LAUNCH_LIMIT,
   DEFAULT_LAUNCH_UNTIL,
+  DEFAULT_MAX_LIMIT,
   DEFAULT_PRO_LIMIT,
 } from "./ai-coach";
 
@@ -26,6 +27,7 @@ interface CoachEnv {
   AI_COACH_MODEL?: string;
   FREE_AI_CALLS_PER_MONTH?: string;
   PRO_AI_CALLS_PER_MONTH?: string;
+  MAX_AI_CALLS_PER_MONTH?: string;
   LAUNCH_AI_CALLS_PER_MONTH?: string;
   AI_FREE_LAUNCH_UNTIL?: string;
 }
@@ -61,6 +63,7 @@ export async function getCoachConfig(): Promise<{
   model: string;
   freeLimit: number;
   proLimit: number;
+  maxLimit: number;
   launchLimit: number;
   launchUntil: string;
 }> {
@@ -73,6 +76,7 @@ export async function getCoachConfig(): Promise<{
     model: process.env.AI_COACH_MODEL || env.AI_COACH_MODEL || DEFAULT_COACH_MODEL,
     freeLimit: num(process.env.FREE_AI_CALLS_PER_MONTH || env.FREE_AI_CALLS_PER_MONTH, DEFAULT_FREE_LIMIT),
     proLimit: num(process.env.PRO_AI_CALLS_PER_MONTH || env.PRO_AI_CALLS_PER_MONTH, DEFAULT_PRO_LIMIT),
+    maxLimit: num(process.env.MAX_AI_CALLS_PER_MONTH || env.MAX_AI_CALLS_PER_MONTH, DEFAULT_MAX_LIMIT),
     launchLimit: num(process.env.LAUNCH_AI_CALLS_PER_MONTH || env.LAUNCH_AI_CALLS_PER_MONTH, DEFAULT_LAUNCH_LIMIT),
     launchUntil: process.env.AI_FREE_LAUNCH_UNTIL || env.AI_FREE_LAUNCH_UNTIL || DEFAULT_LAUNCH_UNTIL,
   };

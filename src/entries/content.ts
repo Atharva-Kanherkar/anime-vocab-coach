@@ -6,7 +6,7 @@ import * as dict from "../lib/dictionary";
 import * as tokenizer from "../lib/tokenizer";
 import { pickTargetSmart } from "../lib/pick-target";
 import * as overlay from "../lib/overlay";
-import { fetchAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
+import { requestAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
@@ -91,7 +91,14 @@ declare global {
     // Shared cache only covers Japanese audio (the vocab source). For a dub or
     // any non-ja track, leave cacheKey unset so we don't upload audio that would
     // be transcribed and then discarded — the per-user path handles those.
-    cacheKey = result && result.audioLang === "ja" ? result.key : "";
+    const next = result && result.audioLang === "ja" ? result.key : "";
+    if (next !== cacheKey) {
+      cacheKey = next;
+      // Tell the offscreen session (via background) about the new key so an
+      // episode auto-advance stops uploading under the previous episode's key
+      // (which poisoned the shared cache for everyone).
+      chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey }).catch(() => {});
+    }
   }
 
   async function pollCacheHit(): Promise<void> {
@@ -175,7 +182,7 @@ declare global {
   function prefetchAnimeContext(title: string | null): void {
     if (!title || title === lastContextTitle) return;
     lastContextTitle = title;
-    void fetchAnimeContext(title);
+    void requestAnimeContext(title);
   }
 
   async function refreshState(): Promise<void> {

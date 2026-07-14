@@ -86,6 +86,19 @@
       stop(msg.tabId);
       sendResponse({ ok: true });
     }
+    if (msg.type === "avc-offscreen-update-key" && msg.tabId != null) {
+      const session = sessions[msg.tabId];
+      if (session) {
+        const newKey = msg.cacheKey || "";
+        if (newKey !== session.cacheKey) {
+          session.cacheKey = newKey;
+          session.useCache = session.auth.kind === "cloud" && !!newKey;
+          resetAudioBuffer(session);
+          olog("cache key updated for tab", msg.tabId, "\u2192", newKey || "(none)");
+        }
+      }
+      sendResponse({ ok: true });
+    }
     if (msg.type === "avc-playback-time" && msg.tabId != null) {
       const session = sessions[msg.tabId];
       if (session) onPlaybackUpdate(session, Number(msg.time) || 0, !!msg.paused);

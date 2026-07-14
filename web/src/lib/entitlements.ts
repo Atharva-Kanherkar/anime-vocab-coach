@@ -1,9 +1,8 @@
-// Pro is intentionally OPEN TO EVERYONE right now (the plan gate was removed by
-// owner request). resolvePlan returns "pro" for all callers, so every account
-// gets the Pro AI limits. Owners additionally get an effectively-unlimited AI
-// cap. A generous per-account cap still applies to non-owners so a stranger
-// can't run up the OpenAI bill — lift it by widening OWNER_EMAILS or raising
-// the standard limits.
+// AI caps are per subscription tier: resolvePlan() reads the buyer's plan
+// (free | pro | max) from Clerk publicMetadata, and aiLimitForPlan maps it to
+// the tier's monthly cap. Owners (OWNER_EMAILS) additionally get an
+// effectively-unlimited cap so a stranger can never run up the OpenAI bill —
+// widen OWNER_EMAILS or raise the tier limits to adjust.
 export const OWNER_EMAILS = [
   "atharva.kanherkar@rimo.app",
   "atharvakanherkar25@gmail.com",

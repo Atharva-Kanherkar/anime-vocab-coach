@@ -4,17 +4,18 @@ import type { Token } from "../types";
 
 let initPromise: Promise<KuromojiTokenizer> | null = null;
 let tokenizerInstance: KuromojiTokenizer | null = null;
-let disabled = false;
 
 export function init(): Promise<KuromojiTokenizer> {
-  if (disabled) return Promise.reject(new Error("tokenizer disabled"));
   if (initPromise) return initPromise;
 
   initPromise = new Promise((resolve, reject) => {
     kuromoji.builder({ dicPath: chrome.runtime.getURL("kuromoji/dict/") }).build((err, tk) => {
       if (err) {
         warn("tokenizer init failed:", err);
-        disabled = true;
+        // Don't permanently disable: a single transient kuromoji load failure
+        // used to kill tokenization for the whole tab (no card ever shows
+        // again). Clearing initPromise lets a later call retry.
+        initPromise = null;
         reject(err);
         return;
       }
@@ -27,7 +28,13 @@ export function init(): Promise<KuromojiTokenizer> {
 }
 
 export async function tokenize(text: string): Promise<Token[]> {
-  await init();
+  try {
+    await init();
+  } catch {
+    // Transient init failure — return no tokens for this line; the next line
+    // retries init rather than the tab being stuck cardless forever.
+    return [];
+  }
   if (!tokenizerInstance) return [];
   return tokenizerInstance.tokenize(text).map((t) => ({
     surface: t.surface_form,

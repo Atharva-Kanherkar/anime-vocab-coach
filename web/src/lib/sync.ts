@@ -11,6 +11,9 @@ export interface CloudUserProfile {
   id: string;
   email: string | null;
   name: string | null;
+  // Subscription tier (free | pro | max), copied from Clerk publicMetadata when
+  // the profile/token is minted. Absent on profiles minted before tiers → free.
+  plan?: import("./ai-coach").Plan;
 }
 
 /** Where a word was first learned (anime title + the line it appeared in). */
@@ -186,6 +189,17 @@ function asWordSource(value: unknown): WordSource | null {
   return { title, line, en };
 }
 
+// Settings keys that are secrets and must never be persisted to cloud KV or
+// round-tripped back out. The extension keeps a BYO OpenAI key in settings;
+// strip it so a synced snapshot can't leak the user's key in plaintext.
+const SECRET_SETTING_KEYS = ["openaiKey", "apiKey"];
+
+export function stripSecretSettings(settings: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...settings };
+  for (const key of SECRET_SETTING_KEYS) delete out[key];
+  return out;
+}
+
 export function normalizeAnimeVocabExport(
   input: AnimeVocabExport,
   now = new Date()
@@ -199,7 +213,7 @@ export function normalizeAnimeVocabExport(
     source: "animevocab-extension",
     importedAt: now.toISOString(),
     sourceExportedAt: typeof input.exportedAt === "string" ? input.exportedAt : null,
-    settings: asRecord(input.settings),
+    settings: stripSecretSettings(asRecord(input.settings)),
     cardTimestamps: asTimestampArray(stats.cardTimestamps),
     words: Object.entries(vocab)
       .map(([base, raw]) => {
@@ -257,7 +271,7 @@ export function normalizeCloudSyncSnapshot(input: unknown, now = new Date()): Cl
     source: "animevocab-extension",
     importedAt: normalizeIsoString(raw.importedAt) ?? now.toISOString(),
     sourceExportedAt: normalizeIsoString(raw.sourceExportedAt),
-    settings: asRecord(raw.settings),
+    settings: stripSecretSettings(asRecord(raw.settings)),
     cardTimestamps: asTimestampArray(raw.cardTimestamps),
     words: words
       .map((value) => {
@@ -484,7 +498,8 @@ export function mergeCloudSnapshots(
     importedAt: incoming.importedAt,
     sourceExportedAt: incoming.sourceExportedAt ?? server.sourceExportedAt,
     // Per-key union; the pushing device's values win (settings are push-owned).
-    settings: { ...server.settings, ...incoming.settings },
+    // Strip secrets defensively in case a legacy stored snapshot still holds one.
+    settings: stripSecretSettings({ ...server.settings, ...incoming.settings }),
     words: mergeWords(server.words, incoming.words),
     daily: mergeDaily(server.daily, incoming.daily),
     cardTimestamps: mergeCardTimestamps(server.cardTimestamps, incoming.cardTimestamps),

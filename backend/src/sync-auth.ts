@@ -1,10 +1,15 @@
 // Validates extension sync tokens minted by the signed-in web app (Clerk).
 // Tokens live in AVC_KV under synctoken:* — the same namespace as cloud sync.
 
+import type { Plan } from "./plan";
+
 export interface CloudUserProfile {
   id: string;
   email: string | null;
   name: string | null;
+  // Subscription tier, written by the web app from Clerk metadata when the
+  // token is minted. Absent on tokens minted before tiers existed → free.
+  plan?: Plan;
 }
 
 function tokenKey(token: string): string {

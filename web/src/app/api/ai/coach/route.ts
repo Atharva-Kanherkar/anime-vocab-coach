@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   const profile = await resolveProfile(req);
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const owner = isOwnerEmail(profile.email);
-  const user = { id: profile.id, plan: resolvePlan() };
+  const user = { id: profile.id, plan: resolvePlan(profile) };
 
   let body: unknown;
   try {
@@ -46,12 +46,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
   }
 
-  // Pro is open to everyone: non-owners get the Pro monthly cap, owners are
-  // effectively unlimited. (The old free-launch window is gone — it capped
-  // everyone LOWER than Pro, which contradicts "Pro for everyone".)
-  const { model, freeLimit, proLimit } = await getCoachConfig();
-  const tier: Tier = user.plan; // "pro" for everyone
-  const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit);
+  // AI cap is per tier (free/pro/max), read from the buyer's Clerk plan; owners
+  // are effectively unlimited.
+  const { model, freeLimit, proLimit, maxLimit } = await getCoachConfig();
+  const tier: Tier = user.plan;
+  const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
 
   // Cache hit: free to serve, does not consume quota. Chat is never cached.

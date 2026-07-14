@@ -26,10 +26,10 @@ export async function POST(req: Request, { params }: Params) {
   const apiKey = await getOpenAiKey();
   if (!apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
 
-  // Pro is open to everyone: Pro cap for all, unlimited for owners.
-  const { model, freeLimit, proLimit } = await getCoachConfig();
-  const plan = resolvePlan();
-  const limit = isOwnerEmail(profile.email) ? OWNER_AI_LIMIT : aiLimitForPlan(plan, freeLimit, proLimit);
+  // AI cap is per tier (free/pro/max); owners are effectively unlimited.
+  const { model, freeLimit, proLimit, maxLimit } = await getCoachConfig();
+  const plan = resolvePlan(profile);
+  const limit = isOwnerEmail(profile.email) ? OWNER_AI_LIMIT : aiLimitForPlan(plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
   const used = await getUsage(profile.id, month);
   if (used >= limit) {
