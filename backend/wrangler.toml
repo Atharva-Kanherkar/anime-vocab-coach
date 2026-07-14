@@ -23,6 +23,13 @@ kv_namespaces = [
   { binding = "AVC_KV", id = "8e67f3701aa04195975a583cc59d8425" }
 ]
 
+# Ship Worker logs to the dashboard so failures are visible without a live
+# `wrangler tail`. Without this, every console.error (including the 17 silent
+# transcription 400s) went nowhere.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 [vars]
 # Free tier: 8h/mo listening (480 min). Everyone is free until billing lands;
 # Pro (20h/1200) and Max (60h/3600) become per-tier caps once tiers are wired.

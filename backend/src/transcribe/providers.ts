@@ -76,6 +76,15 @@ export function listProviderConfigs(env: Env): ProviderConfig[] {
   }));
 }
 
+/**
+ * Whisper models (whisper-1, whisper-large-v3) return per-segment timestamps via
+ * verbose_json; the gpt-4o transcribe models do NOT and reject those params with
+ * a 400. Anything that isn't a gpt-4o model is assumed to be Whisper-compatible.
+ */
+function supportsSegmentTimestamps(model: string): boolean {
+  return !/gpt-4o/i.test(model);
+}
+
 async function invokeProvider(
   env: Env,
   def: ProviderDef,
@@ -90,8 +99,17 @@ async function invokeProvider(
   form.append("file", wav, "chunk.wav");
   form.append("model", def.model);
   form.append("language", language);
-  form.append("response_format", "verbose_json");
-  form.append("timestamp_granularities[]", "segment");
+  // gpt-4o(-mini)-transcribe accept only response_format=json|text and reject
+  // verbose_json + timestamp_granularities with a 400 — the bug that failed
+  // every cache-miss chunk in production. Whisper models still return
+  // per-segment timestamps; the gpt-4o path falls back to one chunk-spanning
+  // segment (normalizeWhisperResponse handles the segment-less shape).
+  if (supportsSegmentTimestamps(def.model)) {
+    form.append("response_format", "verbose_json");
+    form.append("timestamp_granularities[]", "segment");
+  } else {
+    form.append("response_format", "json");
+  }
 
   const res = await fetch(def.url, {
     method: "POST",
@@ -112,6 +130,23 @@ async function invokeProvider(
 
 interface ProviderError extends Error {
   status?: number;
+}
+
+/**
+ * Thrown when every configured provider failed. Carries a suggested HTTP status
+ * so the API layer can surface a real 503 + Retry-After (transient/upstream) or
+ * 502 (unrecoverable request) instead of collapsing everything to an opaque 500
+ * that the extension silently drops.
+ */
+export class TranscriptionError extends Error {
+  readonly status: number;
+  readonly retryable: boolean;
+  constructor(message: string, opts: { status: number; retryable: boolean }) {
+    super(message);
+    this.name = "TranscriptionError";
+    this.status = opts.status;
+    this.retryable = opts.retryable;
+  }
 }
 
 /** 4xx (except 429) is a request-level failure — retrying other providers won't help. */
@@ -137,6 +172,7 @@ export async function transcribeWithFallback(
   }
 
   let lastError = "all providers failed";
+  let lastStatus: number | undefined;
   for (let i = 0; i < chain.length; i++) {
     const def = chain[i];
     try {
@@ -152,6 +188,7 @@ export async function transcribeWithFallback(
       };
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
+      lastStatus = (err as ProviderError)?.status;
       await recordProviderError(env, def.name);
       // A request-level rejection (bad audio, bad key) will fail identically on
       // every provider — stop rather than burn the whole chain's timeout budget.
@@ -159,7 +196,12 @@ export async function transcribeWithFallback(
     }
   }
 
-  throw new Error(lastError);
+  // A 4xx (bad audio/key) won't fix itself on retry → 502. Anything else
+  // (5xx, 429, timeout, network) is transient → 503 + Retry-After upstream.
+  const retryable = !(
+    typeof lastStatus === "number" && lastStatus >= 400 && lastStatus < 500 && lastStatus !== 429
+  );
+  throw new TranscriptionError(lastError, { status: retryable ? 503 : 502, retryable });
 }
 
 async function recordProviderError(env: Env, provider: string): Promise<void> {

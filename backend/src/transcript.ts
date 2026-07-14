@@ -76,21 +76,22 @@ export async function transcribeAndStore(
     if (usedBefore + minutes > cap) {
       throw new Error("monthly listening hours used up");
     }
-    await addMinutes(env, licenseId, minutes);
 
     // Count the miss attempt before the provider call so empty responses and
     // provider failures still increment missCount (same meaning as before).
     await bumpTranscribeMiss(env, cacheKey);
 
     const language = cacheKey.split(":").pop() || "ja";
-    let tx;
-    try {
-      tx = await transcribeWithFallback(env, pcm, { language, startSec });
-    } catch (err) {
-      // No provider produced a transcript — refund the minutes we reserved.
-      await addMinutes(env, licenseId, -minutes);
-      throw err;
-    }
+    const tx = await transcribeWithFallback(env, pcm, { language, startSec });
+
+    // Charge only AFTER a provider actually returned a transcript. The old path
+    // charged upfront then refunded on failure, but the refund hit the same KV
+    // key <1s later and was rejected by KV's 1-write/sec/key limit — silently
+    // burning the user's monthly minutes on every failed chunk. A thrown
+    // TranscriptionError now exits here having charged nothing. (addMinutes
+    // itself soft-fails its KV put, so a metering write can't turn a successful
+    // transcription into an error.)
+    await addMinutes(env, licenseId, minutes);
     await recordProviderSuccess(env, tx.provider, tx.durationMinutes, tx.estimatedCostUsd);
 
     if (tx.segments.length) {
