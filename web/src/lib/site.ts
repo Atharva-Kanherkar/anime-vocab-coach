@@ -70,7 +70,7 @@ export const TIERS: Record<PlanId, PricingTier> = {
     listeningMinutes: 1200, // 20h
     blurb: "For the nightly binge-learner.",
     perks: ["20 hours of Listening Mode / month", "150 AI messages / month", "Everything in Free"],
-    checkoutUrl: "https://checkout.dodopayments.com/buy/REPLACE_PRO_PRODUCT_ID",
+    checkoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6UgznpQBcuqEgqQvh",
   },
   max: {
     id: "max",
@@ -81,7 +81,7 @@ export const TIERS: Record<PlanId, PricingTier> = {
     listeningMinutes: 3600, // 60h
     blurb: "For the marathoner. Effectively unlimited.",
     perks: ["60 hours of Listening Mode / month", "600 AI messages / month", "Priority on new card styles"],
-    checkoutUrl: "https://checkout.dodopayments.com/buy/REPLACE_MAX_PRODUCT_ID",
+    checkoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6keUai2ij7peo7bOr",
   },
 };
 
@@ -95,8 +95,8 @@ export const promoConfig = {
   endUtc: "2026-08-03T23:59:59.000Z",
   regularLabel: "$8/month or $59/year",
   promoLabel: "$8/month or $59/year",
-  checkoutUrl: "https://checkout.dodopayments.com/buy/REPLACE_PRODUCT_ID",
-  promoCheckoutUrl: "https://checkout.dodopayments.com/buy/REPLACE_PROMO_PRODUCT_ID",
+  checkoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6UgznpQBcuqEgqQvh",
+  promoCheckoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6UgznpQBcuqEgqQvh",
   apiBase: "https://api.animevocab.com",
 } as const;
 

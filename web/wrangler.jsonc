@@ -33,6 +33,11 @@
     "FREE_AI_CALLS_PER_MONTH": "40",
     "PRO_AI_CALLS_PER_MONTH": "150",
     "MAX_AI_CALLS_PER_MONTH": "600",
+    // Dodo product ids per tier (monthly,yearly) — the billing webhook maps a
+    // purchase's product_id to the plan it writes to Clerk. DODO_WEBHOOK_SECRET
+    // is a secret (set in the Cloudflare dashboard), not here.
+    "DODO_PRO_PRODUCT_ID": "pdt_0NjC6UgznpQBcuqEgqQvh,pdt_0NjC7U0M47YSNH1im6hK1",
+    "DODO_MAX_PRODUCT_ID": "pdt_0NjC6keUai2ij7peo7bOr,pdt_0NjC6vrfhe4ejCgC8mOXH",
     "LAUNCH_AI_CALLS_PER_MONTH": "40",
     "AI_FREE_LAUNCH_UNTIL": "2026-09-01T00:00:00.000Z",
     // Manga Studio (see docs/unit-economics.md "Manga Studio"). The editor draws
