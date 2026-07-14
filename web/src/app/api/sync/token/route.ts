@@ -1,6 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { putSyncToken } from "@/lib/sync-store";
+import { getOrCreateSyncToken } from "@/lib/sync-store";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +19,12 @@ export async function POST() {
         name: user.firstName || user.username || null,
       }
     : { ...DEV_PROFILE };
-  const token = "avc_st_" + crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 
+  // Idempotent per user with a TTL — repeated mints from one page load reuse the
+  // same token instead of minting a fresh KV-backed credential each time.
+  let token: string;
   try {
-    await putSyncToken(token, profile);
+    token = await getOrCreateSyncToken(profile.id, profile);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "sync_store_unavailable" },

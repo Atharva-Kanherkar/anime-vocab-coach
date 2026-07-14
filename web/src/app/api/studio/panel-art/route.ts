@@ -67,8 +67,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: detail }, { status: 502 });
   }
 
-  if (profile && !owner) await incrementArtUsage(profile.id, currentMonth());
-  else if (!profile) await incrementAnonArtUsage(clientIp(req), currentDay());
+  // Soft-fail the quota bump: the expensive image was already drawn and paid
+  // for, so a KV put-limit rejection must not 500 the request and drop it.
+  try {
+    if (profile && !owner) await incrementArtUsage(profile.id, currentMonth());
+    else if (!profile) await incrementAnonArtUsage(clientIp(req), currentDay());
+  } catch (err) {
+    console.warn("[studio/panel-art] art usage write failed", err);
+  }
 
   return NextResponse.json({ image: `data:image/png;base64,${imageB64}` });
 }

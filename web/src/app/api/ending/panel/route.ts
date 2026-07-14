@@ -62,9 +62,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: detail }, { status: 502 });
   }
 
-  await putEndingPanel(id, i, imageB64);
+  // Both writes are soft-fail: this panel's image is returned directly below, so
+  // a KV put-limit rejection must not 500 an already-drawn, already-paid panel.
+  // (Worst case: a retry re-draws instead of serving the cached copy.)
   const done = Math.max(creation.done, i + 1);
-  await putEndingCreation({ ...creation, done });
+  try {
+    await putEndingPanel(id, i, imageB64);
+    await putEndingCreation({ ...creation, done });
+  } catch (err) {
+    console.warn("[ending/panel] panel cache write failed", err);
+  }
   void trackEndingEvent("panel_done");
   if (done >= ENDING_PANEL_COUNT) void trackEndingEvent("ending_complete");
 

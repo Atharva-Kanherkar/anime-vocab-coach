@@ -132,8 +132,24 @@ export async function POST(req: Request) {
     isPublic: false,
     createdAt: new Date().toISOString(),
   };
-  await putCreation(meta, imageB64);
-  const newUsed = await incrementStudioUsage(profile.id, month);
+  // The creation (with its image) is what the client renders, so it isn't
+  // optional — surface a KV put-limit rejection as a clean, retryable 503 rather
+  // than an opaque 500 stacked on two already-paid OpenAI calls.
+  try {
+    await putCreation(meta, imageB64);
+  } catch (err) {
+    console.error("[word-manga] creation write failed", err);
+    return NextResponse.json({ error: "studio_store_unavailable", retryable: true }, { status: 503 });
+  }
+
+  // Meter write is soft-fail: the creation is stored, so a hiccup here must not
+  // 500 the request. Fall back to used + 1 for the reported count.
+  let newUsed = used + 1;
+  try {
+    newUsed = await incrementStudioUsage(profile.id, month);
+  } catch (err) {
+    console.warn("[word-manga] studio usage write failed", err);
+  }
 
   return NextResponse.json({
     creation: meta,
