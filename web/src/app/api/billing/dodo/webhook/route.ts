@@ -101,6 +101,15 @@ function extractProductId(data: Record<string, unknown>): string | null {
   return typeof pid === "string" ? pid : null;
 }
 
+// Each tier's env var holds a comma-separated list of that tier's product ids
+// (e.g. monthly + yearly), so both billing cycles map to the same plan.
+function idList(value: string | undefined): string[] {
+  return (value || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // Active subscription → the product's tier; a terminal event → back to free.
 function planForEvent(eventType: string, productId: string | null, env: DodoEnv): Plan | null {
   const t = eventType.toLowerCase();
@@ -108,8 +117,8 @@ function planForEvent(eventType: string, productId: string | null, env: DodoEnv)
   if (isTerminal) return "free";
   const isActive = /(active|renew|succeed|create|complete|update|paid)/.test(t);
   if (!isActive) return null;
-  if (productId && env.DODO_MAX_PRODUCT_ID && productId === env.DODO_MAX_PRODUCT_ID) return "max";
-  if (productId && env.DODO_PRO_PRODUCT_ID && productId === env.DODO_PRO_PRODUCT_ID) return "pro";
+  if (productId && idList(env.DODO_MAX_PRODUCT_ID).includes(productId)) return "max";
+  if (productId && idList(env.DODO_PRO_PRODUCT_ID).includes(productId)) return "pro";
   // Unknown product on an active event: default to the lowest paid tier so a
   // buyer isn't left on free, but never silently grant max.
   return "pro";
