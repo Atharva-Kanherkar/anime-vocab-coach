@@ -977,7 +977,11 @@
     min-width: ${PANEL_MIN_W}px;
     max-width: min(${PANEL_MAX_W}px, 42vw);
     display: flex; flex-direction: column;
-    pointer-events: auto;
+    /* The bar spans a 340px full-height strip but is mostly transparent, so it
+       must not eat page clicks (the video player's fullscreen button etc.,
+       P0 #9). The container is click-through; only the real controls opt back
+       in (rule below), so the empty middle always passes clicks to the page. */
+    pointer-events: none;
     background: rgba(8, 7, 10, 0.05);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
@@ -992,6 +996,20 @@
       border-color 320ms ease,
       box-shadow 320ms ease,
       color 320ms ease;
+  }
+  /* Only the real controls take clicks; pointer-events inherits, so the
+     transparent container and the empty scroll middle stay click-through and
+     pass straight to the page. The resize grip, head (mode + Close), foot
+     (know/ignore) and composer (chat) are always live regardless of whether a
+     card is up \u2014 so chat/mode/Close/resize work in the idle state too. Inside
+     the scroll, each content block is live except the idle hint (plain text),
+     which stays click-through to maximize the pass-through area. */
+  .avc-agent-resize,
+  .avc-agent-head,
+  .avc-agent-foot,
+  .avc-agent-composer,
+  .avc-agent-scroll > *:not(.avc-agent-idle) {
+    pointer-events: auto;
   }
   .avc-agent-sidebar:hover,
   .avc-agent-sidebar:focus-within,
@@ -1682,7 +1700,8 @@
           }
         });
         port.onDisconnect.addListener(() => {
-          if (chrome.runtime.lastError && !full) reject(new Error("disconnected"));
+          if (full) resolve();
+          else reject(new Error(chrome.runtime.lastError?.message || "disconnected"));
         });
         port.postMessage({
           message: text,
@@ -1699,8 +1718,13 @@
       }
     } catch (err) {
       if (raf) cancelAnimationFrame(raf);
-      const msg = err instanceof Error ? err.message : "network";
-      finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: msg }) || "Network error.");
+      if (full.trim()) {
+        finishStreamBubble(streamBubble, full);
+        chatHistory.push({ role: "assistant", content: full });
+      } else {
+        const msg = err instanceof Error ? err.message : "network";
+        finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: msg }) || "Network error.");
+      }
     } finally {
       shell.chatSend.disabled = false;
       shell.chatInput.disabled = false;

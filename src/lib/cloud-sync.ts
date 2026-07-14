@@ -31,7 +31,15 @@ async function currentRevision(token: string): Promise<number | null> {
   }
 }
 
-/** Pull extension settings from the cloud snapshot into local storage. */
+/**
+ * Pull extension settings from the cloud snapshot into local storage.
+ *
+ * NOT part of routine sync (see syncWithCloud). Routine sync runs on every
+ * vocab/stats change (debounced ~8s while watching), on startup, and every
+ * 30 min — pulling settings there deterministically reverted a change the user
+ * had just made in the panel (P0 #7, "it turned itself back on"). Reserved for
+ * an explicit, user-initiated "restore settings from cloud" action.
+ */
 export async function pullSettingsFromCloud(): Promise<void> {
   const token = await getSyncToken();
   if (!token) return;
@@ -57,7 +65,10 @@ export async function pullSettingsFromCloud(): Promise<void> {
 }
 
 export async function syncWithCloud(): Promise<void> {
-  await pullSettingsFromCloud();
+  // Push-only. Pulling settings on this path clobbered the user's in-panel
+  // changes (P0 #7) because it fires on every vocab/stats change, on startup,
+  // and every 30 min. The extension is the source of truth for a signed-in
+  // user's own settings; restoring from cloud is an explicit action only.
   await pushSnapshot();
 }
 
