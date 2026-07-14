@@ -3,11 +3,14 @@ import {
   applyCloudSyncUpdate,
   cloudSnapshotToAnimeVocabExport,
   createCloudSyncEnvelope,
+  mergeCloudSnapshots,
   normalizeCloudSyncSnapshot,
   normalizeAnimeVocabExport,
   pickDueReviews,
   pickRecentWords,
   summarizeSyncSnapshot,
+  type ExtensionDailyStats,
+  type ExtensionVocabRecord,
 } from "./sync";
 
 describe("normalizeAnimeVocabExport", () => {
@@ -259,6 +262,109 @@ describe("applyCloudSyncUpdate", () => {
       expectedRevision: 2,
       currentRevision: 3,
     });
+  });
+});
+
+describe("mergeCloudSnapshots (P0 #6 — union merge, never wipe)", () => {
+  type VocabRec = Partial<ExtensionVocabRecord>;
+
+  function word(overrides: VocabRec = {}): VocabRec {
+    return {
+      state: "learning",
+      reading: "x",
+      gloss: "x",
+      level: 5,
+      freqRank: 100,
+      seenCount: 1,
+      shownCount: 1,
+      firstSeenAt: 1000,
+      lastSeenAt: 1000,
+      srs: null,
+      ...overrides,
+    };
+  }
+
+  function snap(
+    vocab: Record<string, VocabRec>,
+    opts: { settings?: Record<string, unknown>; daily?: Record<string, Partial<ExtensionDailyStats>>; cardTimestamps?: number[] } = {}
+  ) {
+    return normalizeAnimeVocabExport(
+      {
+        settings: opts.settings || {},
+        vocab,
+        stats: { daily: opts.daily || {}, cardTimestamps: opts.cardTimestamps || [] },
+      },
+      new Date("2026-07-04T00:00:00.000Z")
+    );
+  }
+
+  it("never deletes server words on push — a near-empty device can't wipe the cloud", () => {
+    const server = snap({ 食べる: word({ lastSeenAt: 2000 }), 見る: word({ lastSeenAt: 3000 }) });
+    const incoming = snap({}); // second device, freshly installed, no words yet
+    const merged = mergeCloudSnapshots(server, incoming);
+    expect(merged.words.map((w) => w.base).sort()).toEqual(["見る", "食べる"]);
+  });
+
+  it("adds words the cloud has never seen", () => {
+    const merged = mergeCloudSnapshots(snap({ 食べる: word() }), snap({ 新顔: word() }));
+    expect(merged.words.map((w) => w.base).sort()).toEqual(["新顔", "食べる"]);
+  });
+
+  it("on a per-word conflict, newer lastSeenAt wins; counts max; firstSeenAt earliest", () => {
+    const server = snap({
+      食べる: word({ state: "learning", seenCount: 5, shownCount: 4, firstSeenAt: 1000, lastSeenAt: 5000, srs: { stage: 2, dueAt: 9000, lapses: 1 } }),
+    });
+    const incoming = snap({
+      食べる: word({ state: "known", seenCount: 2, shownCount: 1, firstSeenAt: 500, lastSeenAt: 8000, srs: { stage: 3, dueAt: 9999, lapses: 0 } }),
+    });
+    const w = mergeCloudSnapshots(server, incoming).words.find((x) => x.base === "食べる")!;
+    expect(w.state).toBe("known"); // incoming is newer (8000 > 5000)
+    expect(w.review?.stage).toBe(3); // whole record from the newer side
+    expect(w.seenCount).toBe(5); // max(5, 2) — a stale device can't lower it
+    expect(w.shownCount).toBe(4); // max(4, 1)
+    expect(Date.parse(w.firstSeenAt!)).toBe(500); // earliest first-seen
+  });
+
+  it("keeps the server record when it is the newer side", () => {
+    const server = snap({ 食べる: word({ state: "known", lastSeenAt: 9000 }) });
+    const incoming = snap({ 食べる: word({ state: "learning", lastSeenAt: 4000 }) });
+    const w = mergeCloudSnapshots(server, incoming).words.find((x) => x.base === "食べる")!;
+    expect(w.state).toBe("known");
+  });
+
+  it("unions daily stats, taking the max of each counter (no double-count)", () => {
+    const server = snap({}, { daily: { "2026-07-03": { met: 5, judged: 2, reviews: 1, watchMin: 30 } } });
+    const incoming = snap({}, {
+      daily: {
+        "2026-07-03": { met: 3, judged: 4, reviews: 0, watchMin: 20 },
+        "2026-07-04": { met: 1, judged: 1, reviews: 1, watchMin: 10 },
+      },
+    });
+    const merged = mergeCloudSnapshots(server, incoming);
+    expect(merged.daily.find((d) => d.day === "2026-07-03")).toEqual({ day: "2026-07-03", met: 5, judged: 4, reviews: 1, watchMin: 30 });
+    expect(merged.daily.map((d) => d.day)).toEqual(["2026-07-03", "2026-07-04"]);
+  });
+
+  it("unions and dedupes card timestamps", () => {
+    const merged = mergeCloudSnapshots(snap({}, { cardTimestamps: [100, 200] }), snap({}, { cardTimestamps: [200, 300] }));
+    expect(merged.cardTimestamps).toEqual([100, 200, 300]);
+  });
+
+  it("unions settings with the pushing device winning per key", () => {
+    const merged = mergeCloudSnapshots(
+      snap({}, { settings: { targetLevel: 5, theme: "dark" } }),
+      snap({}, { settings: { targetLevel: 3 } })
+    );
+    expect(merged.settings).toEqual({ targetLevel: 3, theme: "dark" });
+  });
+
+  it("applyCloudSyncUpdate merges into the stored snapshot and bumps the revision", () => {
+    const profile = { id: "u", email: null, name: null };
+    const current = createCloudSyncEnvelope(profile, snap({ 食べる: word() }), 4, new Date("2026-07-04T00:00:00.000Z"));
+    const next = applyCloudSyncUpdate(current, profile, snap({ 見る: word() }), 4, new Date("2026-07-04T02:00:00.000Z"));
+    if ("type" in next) throw new Error("expected a merge, got a conflict");
+    expect(next.revision).toBe(5);
+    expect(next.snapshot.words.map((w) => w.base).sort()).toEqual(["見る", "食べる"]);
   });
 });
 
