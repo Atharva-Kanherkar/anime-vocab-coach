@@ -6,7 +6,7 @@ import {
 } from "./providers";
 import type { TranscribeOpts } from "./types";
 
-export { getProviderMetrics, listProviderConfigs, resolveProviderChain } from "./providers";
+export { getProviderMetrics, listProviderConfigs, resolveProviderChain, TranscriptionError } from "./providers";
 export type { TranscribeOpts, TranscribeResult } from "./types";
 
 /** Transcribe PCM via the configured provider chain (cheap → OpenAI fallback). */

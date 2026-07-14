@@ -8,7 +8,7 @@ import { getMetrics } from "./metrics";
 import { mintTranscriptionToken } from "./openai";
 import { publicConfig } from "./promo";
 import { lookupTranscript, transcribeAndStore } from "./transcript";
-import { getProviderMetrics } from "./transcribe/index";
+import { getProviderMetrics, TranscriptionError } from "./transcribe/index";
 import { requireAuth } from "./sync-auth";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
@@ -46,10 +46,15 @@ function corsHeaders(req: Request): Record<string, string> {
   };
 }
 
-function json(req: Request, body: unknown, status = 200): Response {
+function json(
+  req: Request,
+  body: unknown,
+  status = 200,
+  extraHeaders?: Record<string, string>
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders(req) }
+    headers: { "Content-Type": "application/json", ...corsHeaders(req), ...extraHeaders }
   });
 }
 
@@ -178,6 +183,18 @@ export default {
       const detail = err instanceof Error ? err.message : String(err);
       if (/monthly listening hours used up/i.test(detail)) {
         return json(req, { error: detail }, 429);
+      }
+      if (err instanceof TranscriptionError) {
+        // A transient/upstream provider failure — surface a real status (503 or
+        // 502) plus Retry-After so the extension can back off and retry instead
+        // of silently dropping an opaque 500. [observability] surfaces `detail`.
+        console.error("transcription failed:", detail);
+        return json(
+          req,
+          { error: "transcription unavailable", retryable: err.retryable },
+          err.status,
+          err.retryable ? { "Retry-After": "5" } : undefined
+        );
       }
       console.error("request failed:", detail);
       return json(req, { error: "internal error" }, 500);
