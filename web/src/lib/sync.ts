@@ -400,6 +400,97 @@ export function createCloudSyncEnvelope(
   };
 }
 
+// Cap the merged review-timestamp history so it can't grow unbounded across
+// many merges (the route caps a single incoming snapshot; the union can exceed
+// that). We keep the most recent ones.
+const MAX_MERGED_CARD_TIMESTAMPS = 10_000;
+
+function earliestIso(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return isoToTime(a) <= isoToTime(b) ? a : b;
+}
+
+/** Merge one word's two versions. Newer `lastSeenAt` wins the record, but the
+ *  earliest `firstSeenAt` and the larger seen/shown counts are preserved so a
+ *  stale device can't roll monotonic facts backward. */
+function mergeWordRecords(server: CloudWordRecord, incoming: CloudWordRecord): CloudWordRecord {
+  const winner = isoToTime(incoming.lastSeenAt) > isoToTime(server.lastSeenAt) ? incoming : server;
+  return {
+    ...winner,
+    firstSeenAt: earliestIso(server.firstSeenAt, incoming.firstSeenAt),
+    seenCount: Math.max(server.seenCount, incoming.seenCount),
+    shownCount: Math.max(server.shownCount, incoming.shownCount),
+  };
+}
+
+function mergeWords(server: CloudWordRecord[], incoming: CloudWordRecord[]): CloudWordRecord[] {
+  // Seed with every server word so a push can never delete one (the P0 #6
+  // wipe): a near-empty second device only adds/updates, it can't remove.
+  const byBase = new Map<string, CloudWordRecord>();
+  for (const w of server) byBase.set(w.base, w);
+  for (const w of incoming) {
+    const existing = byBase.get(w.base);
+    byBase.set(w.base, existing ? mergeWordRecords(existing, w) : w);
+  }
+  return [...byBase.values()].sort((a, b) => a.base.localeCompare(b.base));
+}
+
+function mergeDaily(server: CloudDailyStats[], incoming: CloudDailyStats[]): CloudDailyStats[] {
+  // Union by day; take the max of each counter. Max (not sum) avoids inflating
+  // streak/leaderboard metrics when the same day syncs from two devices.
+  const byDay = new Map<string, CloudDailyStats>();
+  for (const d of server) byDay.set(d.day, d);
+  for (const d of incoming) {
+    const e = byDay.get(d.day);
+    byDay.set(
+      d.day,
+      e
+        ? {
+            day: d.day,
+            met: Math.max(e.met, d.met),
+            judged: Math.max(e.judged, d.judged),
+            reviews: Math.max(e.reviews, d.reviews),
+            watchMin: Math.max(e.watchMin, d.watchMin),
+          }
+        : d
+    );
+  }
+  return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+}
+
+function mergeCardTimestamps(server: number[], incoming: number[]): number[] {
+  const set = new Set<number>();
+  for (const t of server) set.add(t);
+  for (const t of incoming) set.add(t);
+  const all = [...set].sort((a, b) => a - b);
+  return all.length > MAX_MERGED_CARD_TIMESTAMPS ? all.slice(all.length - MAX_MERGED_CARD_TIMESTAMPS) : all;
+}
+
+/**
+ * Non-destructive union of the stored snapshot with an incoming push. A push
+ * can only ADD or UPDATE — never delete. This is what stops a second device (or
+ * a web import followed by the extension's next push) from wiping cloud progress
+ * (P0 #6). Deletions are intentionally not propagated in v1: resurrecting a word
+ * is far cheaper than losing months of them, and there are no tombstones yet.
+ */
+export function mergeCloudSnapshots(
+  server: CloudSyncSnapshot,
+  incoming: CloudSyncSnapshot
+): CloudSyncSnapshot {
+  return {
+    schemaVersion: 1,
+    source: "animevocab-extension",
+    importedAt: incoming.importedAt,
+    sourceExportedAt: incoming.sourceExportedAt ?? server.sourceExportedAt,
+    // Per-key union; the pushing device's values win (settings are push-owned).
+    settings: { ...server.settings, ...incoming.settings },
+    words: mergeWords(server.words, incoming.words),
+    daily: mergeDaily(server.daily, incoming.daily),
+    cardTimestamps: mergeCardTimestamps(server.cardTimestamps, incoming.cardTimestamps),
+  };
+}
+
 export function applyCloudSyncUpdate(
   current: CloudSyncEnvelope | null,
   profile: CloudUserProfile,
@@ -416,5 +507,8 @@ export function applyCloudSyncUpdate(
     };
   }
 
-  return createCloudSyncEnvelope(profile, snapshot, current ? current.revision + 1 : 1, now);
+  // Merge into what's already stored instead of replacing it (P0 #6). On the
+  // first push there's nothing to merge against.
+  const merged = current ? mergeCloudSnapshots(current.snapshot, snapshot) : snapshot;
+  return createCloudSyncEnvelope(profile, merged, current ? current.revision + 1 : 1, now);
 }
