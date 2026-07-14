@@ -53,15 +53,65 @@
   function setSyncToken(token) {
     return enqueue(async () => {
       if (token) {
-        await chrome.storage.local.set({ syncToken: token });
+        await chrome.storage.local.set({
+          syncToken: token,
+          relinkNeeded: false,
+          syncAuthFailures: 0
+        });
       } else {
         await chrome.storage.local.set({ syncToken: "", syncProfile: null });
       }
     });
   }
+  function getSyncAuthFailures() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncAuthFailures"], (r) => resolve(Number(r.syncAuthFailures) || 0));
+    });
+  }
+  function setSyncAuthFailures(n) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ syncAuthFailures: Math.max(0, n) }, () => resolve());
+    });
+  }
+  function setRelinkNeeded(needed) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ relinkNeeded: needed }, () => resolve());
+    });
+  }
+
+  // src/lib/notify.ts
+  function toastTab(tabId, text, kind = "info") {
+    chrome.tabs.sendMessage(tabId, { type: "avc-toast", text, kind }).catch(() => {
+    });
+  }
+  async function toastActiveTab(text, kind = "info") {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const tabId = tabs[0]?.id;
+      if (tabId != null) toastTab(tabId, text, kind);
+    } catch {
+    }
+  }
 
   // src/lib/cloud-sync.ts
   var SNAPSHOT_URL = WEB_URL + "/api/sync/snapshot";
+  var MAX_SYNC_401 = 3;
+  async function noteAuthFailure() {
+    const failures = await getSyncAuthFailures() + 1;
+    await setSyncAuthFailures(failures);
+    if (failures < MAX_SYNC_401) {
+      warn(`cloud sync: 401 #${failures}/${MAX_SYNC_401} \u2014 tolerating (transient auth blip?)`);
+      return false;
+    }
+    warn("cloud sync: token rejected repeatedly \u2014 unlinking, re-link needed");
+    await setSyncToken("");
+    await setRelinkNeeded(true);
+    await toastActiveTab("AnimeVocab sync signed out \u2014 re-link at animevocab.com to keep your progress in the cloud.", "error");
+    return true;
+  }
+  async function noteSyncSuccess() {
+    if (await getSyncAuthFailures() > 0) await setSyncAuthFailures(0);
+  }
   var syncing = false;
   async function currentRevision(token) {
     try {
@@ -96,14 +146,14 @@
           continue;
         }
         if (res.status === 401) {
-          warn("cloud sync: token rejected (signed out or expired) \u2014 clearing");
-          await setSyncToken("");
+          await noteAuthFailure();
           return;
         }
         if (!res.ok) {
           warn("cloud sync failed: HTTP", res.status);
           return;
         }
+        await noteSyncSuccess();
         log("cloud sync ok");
         return;
       }
@@ -215,6 +265,20 @@
   }
 
   // src/entries/background.ts
+  function listenErrorText(code) {
+    switch (code) {
+      case "quota-exceeded":
+        return "Listening stopped \u2014 you've reached this month's listening limit.";
+      case "not-signed-in":
+        return "Listening needs sign-in \u2014 open animevocab.com to link this browser.";
+      case "invalid-key":
+        return "Listening stopped \u2014 your OpenAI key was rejected. Check it in settings.";
+      case "connection-lost":
+        return "Listening stopped \u2014 lost connection to transcription. Press play to resume.";
+      default:
+        return "Couldn't start Listening Mode on this tab.";
+    }
+  }
   chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(["settings"], (result) => {
       const raw = result.settings || {};
@@ -474,11 +538,13 @@
     }
     if (msg.type === "avc-listen-error") {
       getListening().then(async (tabs) => {
-        if (msg.code === "invalid-key" || msg.code === "capture-failed" || msg.code === "quota-exceeded" || msg.code === "not-signed-in") {
+        const stopCodes = ["invalid-key", "capture-failed", "quota-exceeded", "not-signed-in", "connection-lost"];
+        if (stopCodes.includes(msg.code || "")) {
           delete tabs[msg.tabId];
           await setListening(tabs);
           chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });
           chrome.action.setBadgeBackgroundColor({ tabId: msg.tabId, color: "#f87171" });
+          if (msg.tabId != null) toastTab(msg.tabId, listenErrorText(msg.code || ""), "error");
         }
         console.warn("[AVC] listening error:", msg.code, msg.detail || "");
       });

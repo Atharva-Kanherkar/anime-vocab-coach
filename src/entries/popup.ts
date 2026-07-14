@@ -101,10 +101,17 @@ async function renderAccount(): Promise<void> {
   const token = await storage.getSyncToken();
 
   if (!token) {
+    // Distinguish "never linked" from "was linked but repeated 401s signed us
+    // out" so an expired session reads as recoverable, not a fresh setup.
+    const relink = await storage.getRelinkNeeded();
+    const title = relink ? "Sign-in expired" : "Not signed in";
+    const sub = relink ? "Re-link to resume cloud sync" : "Progress stays on this device only";
+    const cta = relink ? "Re-link — animevocab.com" : "Sign in to sync — animevocab.com";
+    const dot = relink ? "av-dot av-dot-warn" : "av-dot av-dot-off";
     el.innerHTML =
-      `<div class="av-account-row"><span class="av-dot av-dot-off"></span>` +
-      `<div><b>Not signed in</b><span class="av-account-sub">Progress stays on this device only</span></div></div>` +
-      `<button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">Sign in to sync — animevocab.com</button>`;
+      `<div class="av-account-row"><span class="${dot}"></span>` +
+      `<div><b>${title}</b><span class="av-account-sub">${sub}</span></div></div>` +
+      `<button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">${cta}</button>`;
     byId("signin-btn").addEventListener("click", () => {
       chrome.tabs.create({ url: `${WEB_URL}/app` });
     });
@@ -206,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // If the user signs in on animevocab.com while this popup is open, the
   // token lands in storage — flip the account section live.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && (changes.syncToken || changes.syncProfile)) void renderAccount();
+    if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded)) void renderAccount();
   });
 
   byId("cloud-link").addEventListener("click", (e) => {

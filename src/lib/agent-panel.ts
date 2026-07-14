@@ -1235,6 +1235,53 @@ function buildShell(root: ShadowRoot): Shell {
   };
 }
 
+/**
+ * Show a transient toast on the page (click or 6.5s to dismiss). Mounts into the
+ * overlay's shadow host so it survives without the full panel and isn't styled
+ * by the page. Used to surface listening/sync errors that otherwise only showed
+ * as an easy-to-miss toolbar badge.
+ */
+export function showToast(text: string, kind: "error" | "info" = "info"): void {
+  if (!text) return;
+  const root = mountHost();
+  let layer = root.getElementById("avc-toast-layer");
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.id = "avc-toast-layer";
+    layer.style.cssText =
+      "position:fixed; top:16px; left:50%; transform:translateX(-50%);" +
+      "z-index:2147483647; display:flex; flex-direction:column; gap:8px;" +
+      "align-items:center; pointer-events:none;" +
+      "font-family:system-ui,-apple-system,'Segoe UI',sans-serif;";
+    root.appendChild(layer);
+  }
+  const accent = kind === "error" ? "#f87171" : "#e3ba63";
+  const toast = document.createElement("div");
+  toast.style.cssText =
+    "pointer-events:auto; max-width:min(380px, 92vw); padding:11px 14px; border-radius:10px;" +
+    "background:rgba(18,16,22,0.95); color:rgba(240,238,232,0.96); font-size:13px; line-height:1.45;" +
+    `border:1px solid ${accent}44; border-left:3px solid ${accent};` +
+    "box-shadow:0 10px 30px rgba(0,0,0,0.45); cursor:pointer;" +
+    "backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);" +
+    "opacity:0; transform:translateY(-6px); transition:opacity 180ms ease, transform 180ms ease;";
+  toast.textContent = text;
+  layer.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.style.opacity = "1";
+    toast.style.transform = "translateY(0)";
+  });
+  let removed = false;
+  const remove = (): void => {
+    if (removed) return;
+    removed = true;
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(-6px)";
+    setTimeout(() => toast.remove(), 200);
+  };
+  toast.addEventListener("click", remove);
+  setTimeout(remove, 6500);
+}
+
 export function isAgentMounted(): boolean {
   return mounted;
 }
