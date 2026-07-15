@@ -10,9 +10,15 @@ kv_namespaces = [
 ]
 
 [vars]
-CAP_MINUTES = "2700"
-FREE_AI_CALLS_PER_MONTH = "5"
-PRO_AI_CALLS_PER_MONTH = "300"
+# Per-tier monthly caps — MUST match backend/wrangler.toml (this file is what
+# the Cloudflare git-connected build actually deploys; drift here shipped free
+# users 45 listening hours and 5 AI calls while the repo said 8h / 40).
+CAP_MINUTES = "480"
+PRO_CAP_MINUTES = "1200"
+MAX_CAP_MINUTES = "3600"
+FREE_AI_CALLS_PER_MONTH = "40"
+PRO_AI_CALLS_PER_MONTH = "150"
+MAX_AI_CALLS_PER_MONTH = "600"
 AI_COST_USD_PER_CALL = "0.002"
 PAYMENT_FEE_RATE = "0.05"
 PAYMENT_FIXED_FEE_USD = "0.30"
