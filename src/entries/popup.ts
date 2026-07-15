@@ -146,38 +146,11 @@ async function activeTabId(): Promise<number | null> {
   return tab?.id ?? null;
 }
 
-async function initListening(): Promise<void> {
-  const btn = byId<HTMLButtonElement>("listen-btn");
-  const errEl = byId<HTMLParagraphElement>("listen-error");
-  const tabId = await activeTabId();
-  if (tabId == null) return;
-
-  const setUi = (listening: boolean) => {
-    btn.classList.toggle("active", listening);
-    btn.textContent = listening ? "Stop Listening Mode" : "Start Listening Mode";
-  };
-
-  chrome.runtime.sendMessage({ type: "avc-listen-status", tabId }, (res) => {
-    setUi(!!res?.listening);
-  });
-
-  btn.addEventListener("click", () => {
-    errEl.hidden = true;
-    const starting = !btn.classList.contains("active");
-    const type = starting ? "avc-listen-start" : "avc-listen-stop";
-    chrome.runtime.sendMessage({ type, tabId }, (res) => {
-      if (res?.ok) {
-        setUi(starting);
-      } else {
-        errEl.textContent = res?.error || "Failed to toggle listening mode.";
-        errEl.hidden = false;
-      }
-    });
-  });
-}
-
+// One control for both: opening the copilot also starts Listening Mode for the
+// tab (background couples them), so there is no separate Listening button.
 async function initCopilotToggle(): Promise<void> {
   const btn = byId<HTMLButtonElement>("copilot-btn");
+  const errEl = byId<HTMLParagraphElement>("listen-error");
   const tabId = await activeTabId();
   if (tabId == null) {
     btn.disabled = true;
@@ -188,15 +161,22 @@ async function initCopilotToggle(): Promise<void> {
   const refresh = (): void => {
     chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
       const on = !!res?.visible;
-      btn.textContent = on ? "Hide Copilot on this tab" : "Open Copilot on this tab";
+      btn.textContent = on ? "Stop Copilot & Listening" : "Open Copilot on this tab";
       btn.classList.toggle("active", on);
     });
   };
 
   btn.addEventListener("click", () => {
+    errEl.hidden = true;
     chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
       const type = res?.visible ? "avc-agent-hide" : "avc-agent-show";
-      chrome.runtime.sendMessage({ type, tabId }, () => refresh());
+      chrome.runtime.sendMessage({ type, tabId }, (r) => {
+        if (r && r.ok === false && r.error) {
+          errEl.textContent = r.error;
+          errEl.hidden = false;
+        }
+        refresh();
+      });
     });
   });
 
@@ -207,7 +187,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   void render();
   void renderAccount();
-  void initListening();
   void initCopilotToggle();
 
   // If the user signs in on animevocab.com while this popup is open, the

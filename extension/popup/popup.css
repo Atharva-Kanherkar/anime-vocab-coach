@@ -150,6 +150,12 @@ body.av {
   color: var(--av-danger);
 }
 
+.av-hint {
+  font-size: 10.5px;
+  color: var(--av-ink-3);
+  line-height: 1.35;
+}
+
 .av-stamp-rally {
   margin-top: 14px;
   overflow: hidden;
@@ -276,12 +282,6 @@ body.av {
 #copilot-btn.active {
   border-color: var(--av-accent);
   color: var(--av-accent);
-}
-
-#listen-btn.active {
-  background: var(--av-accent);
-  border-color: var(--av-accent);
-  color: #fffdf6;
 }
 
 button:focus-visible,

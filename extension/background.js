@@ -517,6 +517,18 @@
             return;
           }
           sendResponse(res ?? { ok: true });
+          if (outType === "avc-agent-show") {
+            void getListening().then((tabs) => {
+              if (tabs[tabId]) return;
+              return startListening(tabId).then((ack) => {
+                if (ack && ack.ok === false && ack.error) toastTab(tabId, ack.error, "error");
+              });
+            }).catch(() => {
+            });
+          } else if (outType === "avc-agent-hide") {
+            void stopListening(tabId).catch(() => {
+            });
+          }
         });
       }).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
