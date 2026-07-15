@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AnimeVocab: Learn Japanese from Anime — Netflix, Crunchyroll & YouTube",
   "short_name": "AnimeVocab",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Learn Japanese from the anime you watch, even before you can read it — one word per line, in romaji, with spaced repetition.",
   "permissions": ["storage", "tabCapture", "offscreen", "scripting", "alarms", "webNavigation"],
   "host_permissions": [
