@@ -1,8 +1,10 @@
 import * as scoring from "./scoring";
 import { isEssentialWord } from "./priority-words";
+import { ENGLISH_ESSENTIALS } from "./english-essentials";
 import { fetchWordPick } from "./word-picker-client";
 import { peekAnimeContext } from "./anime-context-client";
-import type { Settings, Target, Token, VocabMap } from "../types";
+import { normalizeDirection } from "./direction";
+import type { DictEntry, Settings, Target, Token, VocabMap } from "../types";
 
 function countProgress(vocab: VocabMap): number {
   let n = 0;
@@ -22,9 +24,17 @@ export async function pickTargetSmart(
   settings: Settings,
   targetedSet: Set<string>,
   line: string,
-  title: string | null
+  title: string | null,
+  overlay?: Record<string, DictEntry> | null
 ): Promise<Target | null> {
-  const { dueReview, newWords } = scoring.collectEligible(tokens, wordStates, targetedSet);
+  const direction = normalizeDirection(settings.learningDirection);
+  const { dueReview, newWords } = scoring.collectEligible(
+    tokens,
+    wordStates,
+    targetedSet,
+    direction,
+    overlay
+  );
   if (dueReview) return dueReview;
   if (!newWords.length) return null;
   if (newWords.length === 1) return newWords[0]!;
@@ -34,7 +44,10 @@ export async function pickTargetSmart(
     reading: entry.reading,
     gloss: entry.glosses[0] || "",
     level: entry.level,
-    essential: isEssentialWord(token.base),
+    essential:
+      direction === "ja-en"
+        ? !!ENGLISH_ESSENTIALS[token.base]
+        : isEssentialWord(token.base),
   }));
 
   const ai = await fetchWordPick({
@@ -44,10 +57,11 @@ export async function pickTargetSmart(
     wordsKnown: countProgress(wordStates),
     title,
     animeContext: peekAnimeContext(title),
+    direction,
   });
 
   if (ai.ok && ai.word) {
-    const match = newWords.find((t) => t.token.base === ai.word);
+    const match = newWords.find((t) => t.token.base === ai.word || t.token.surface === ai.word);
     if (match) return match;
   }
 
@@ -59,7 +73,8 @@ export function pickTarget(
   tokens: Token[],
   wordStates: VocabMap,
   settings: Settings,
-  targetedSet: Set<string>
+  targetedSet: Set<string>,
+  overlay?: Record<string, DictEntry> | null
 ): Target | null {
-  return scoring.pickTarget(tokens, wordStates, settings, targetedSet);
+  return scoring.pickTarget(tokens, wordStates, settings, targetedSet, overlay);
 }

@@ -7,6 +7,12 @@ import { commonnessLabel } from "./levels";
 import { isEssentialWord } from "./priority-words";
 import { renderMarkdown } from "./markdown-lite";
 import { getSettings, setSettings, getAgentPanelWidth, setAgentPanelWidth } from "./storage";
+import {
+  chatPlaceholder,
+  contextSubtitleLabel,
+  normalizeDirection,
+  type LearningDirection,
+} from "./direction";
 import type { DictEntry, DisplayScript, Judgment, PauseMode, Target, Token } from "../types";
 
 export type InteractionMode = "ambient" | "focus";
@@ -28,6 +34,7 @@ export interface CardOptions {
   animeContext?: string | null;
   learnerLevel?: number;
   wordsKnown?: number;
+  learningDirection?: LearningDirection;
 }
 
 export interface AgentPanelOptions extends CardOptions {
@@ -106,6 +113,7 @@ interface CoachPayload {
   animeContext?: string | null;
   learnerLevel?: number | null;
   wordsKnown?: number | null;
+  direction?: LearningDirection;
 }
 
 const STYLES = `
@@ -603,7 +611,18 @@ function attachResizeHandle(sidebar: HTMLElement, grip: HTMLElement): void {
   });
 }
 
-function wordDisplays(token: Token, entry: { reading: string }, displayScript: DisplayScript) {
+function wordDisplays(
+  token: Token,
+  entry: { reading: string },
+  displayScript: DisplayScript,
+  direction: LearningDirection
+) {
+  if (normalizeDirection(direction) === "ja-en") {
+    return {
+      big: token.surface || token.base,
+      secondary: entry.reading || token.base,
+    };
+  }
   const roma = romaji.toRomaji(entry.reading);
   if (displayScript === "kana") return { big: entry.reading, secondary: `${roma} · ${token.surface}` };
   if (displayScript === "kanji") return { big: token.surface, secondary: `${entry.reading} · ${roma}` };
@@ -653,7 +672,8 @@ function buildSentence(
   tokens: Token[] | undefined,
   targetIndex: number | undefined,
   surface: string,
-  displayScript: DisplayScript
+  displayScript: DisplayScript,
+  direction: LearningDirection = "en-ja"
 ): HTMLDivElement {
   const el = document.createElement("div");
   el.className = "avc-agent-sentence";
@@ -663,7 +683,7 @@ function buildSentence(
   el.appendChild(label);
 
   if (tokens?.length) {
-    if (displayScript === "romaji") {
+    if (normalizeDirection(direction) === "en-ja" && displayScript === "romaji") {
       const pieces = romaji.sentencePieces(tokens, targetIndex ?? -1);
       const romajiLine = document.createElement("div");
       romajiLine.className = "avc-agent-romaji-line";
@@ -781,6 +801,7 @@ function payloadFromCtx(ctx: WordContext): CoachPayload {
     animeContext: ctx.options.animeContext ?? null,
     learnerLevel: ctx.options.learnerLevel ?? null,
     wordsKnown: ctx.options.wordsKnown ?? null,
+    direction: normalizeDirection(ctx.options.learningDirection),
   };
 }
 
@@ -980,6 +1001,7 @@ function renderJudgmentButtons(ctx: WordContext): void {
 function populateWordSection(ctx: WordContext): void {
   if (!shell) return;
   const { token, entry, sentence, isReview, options: opts } = ctx;
+  const direction = normalizeDirection(opts.learningDirection);
   const displayScript: DisplayScript = opts.displayScript || "romaji";
 
   shell.wordIdle.style.display = "none";
@@ -990,6 +1012,7 @@ function populateWordSection(ctx: WordContext): void {
   chatHistory = [];
   shell.chatLog.textContent = "";
   chatPayload = payloadFromCtx(ctx);
+  shell.chatInput.placeholder = chatPlaceholder(direction);
 
   const chip = document.createElement("div");
   chip.className = isReview ? "avc-agent-chip avc-agent-chip-review" : "avc-agent-chip";
@@ -997,7 +1020,7 @@ function populateWordSection(ctx: WordContext): void {
     ? "Review"
     : `${isEssentialWord(token.base) ? "Essential · " : ""}${commonnessLabel(entry.level)} · #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " · heard" : ""}`;
 
-  const displays = wordDisplays(token, entry, displayScript);
+  const displays = wordDisplays(token, entry, displayScript, direction);
   const wordRow = document.createElement("div");
   wordRow.className = "avc-agent-word-row";
   const wordEl = document.createElement("div");
@@ -1050,13 +1073,15 @@ function populateWordSection(ctx: WordContext): void {
     ctxEl.className = "avc-agent-context";
     const lbl = document.createElement("span");
     lbl.className = "avc-agent-label";
-    lbl.textContent = "English subtitle";
+    lbl.textContent = contextSubtitleLabel(direction);
     ctxEl.appendChild(lbl);
     ctxEl.appendChild(document.createTextNode(opts.contextEn));
     shell.wordActive.appendChild(ctxEl);
   }
 
-  shell.wordActive.appendChild(buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript));
+  shell.wordActive.appendChild(
+    buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript, direction)
+  );
   renderJudgmentButtons(ctx);
 
   if (opts.autoSpeak && opts.interaction === "focus") {

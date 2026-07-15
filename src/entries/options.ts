@@ -1,6 +1,6 @@
 import * as storage from "../lib/storage";
 import { WEB_URL } from "../config";
-import type { DisplayScript, PauseMode, Settings } from "../types";
+import type { DisplayScript, LearningDirection, PauseMode, Settings } from "../types";
 
 type Theme = "dark" | "light";
 
@@ -59,6 +59,7 @@ async function loadSettingsForm(): Promise<void> {
   byId<HTMLInputElement>("site-netflix").checked = s.sites?.netflix !== false;
   byId<HTMLInputElement>("site-generic").checked = s.sites?.generic !== false;
   byId<HTMLSelectElement>("displayScript").value = s.displayScript || "romaji";
+  byId<HTMLSelectElement>("learningDirection").value = s.learningDirection || "en-ja";
   byId<HTMLInputElement>("autoSpeak").checked = s.autoSpeak !== false;
   byId<HTMLInputElement>("openaiKey").value = s.openaiKey || "";
   byId<HTMLSelectElement>("transcribeModel").value = s.transcribeModel || "gpt-4o-mini-transcribe";
@@ -114,6 +115,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   byId("site-generic").addEventListener("change", async (e) => {
     const s = await storage.getSettings();
     savePartial({ sites: { ...s.sites, generic: (e.target as HTMLInputElement).checked } });
+  });
+
+  byId("learningDirection").addEventListener("change", (e) => {
+    savePartial({ learningDirection: (e.target as HTMLSelectElement).value as LearningDirection });
   });
 
   byId("displayScript").addEventListener("change", (e) => {

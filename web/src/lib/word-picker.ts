@@ -1,5 +1,9 @@
-import { DEFAULT_COACH_MODEL } from "./ai-coach";
 import { getOpenAiKey, putCachedResult, incrementUsage, currentMonth } from "./ai-store";
+import {
+  normalizeDirection,
+  targetLangName,
+  type LearningDirection,
+} from "./direction";
 
 export const MAX_PICK_LINE_LEN = 400;
 export const MAX_PICK_CANDIDATES = 12;
@@ -19,6 +23,7 @@ export interface WordPickRequest {
   wordsKnown?: number;
   title?: string;
   animeContext?: string;
+  direction?: LearningDirection;
 }
 
 export interface WordPickResult {
@@ -73,6 +78,7 @@ export function normalizeWordPickRequest(input: unknown): { req: WordPickRequest
       title: typeof body.title === "string" ? clamp(body.title, 120) : undefined,
       animeContext:
         typeof body.animeContext === "string" ? clamp(body.animeContext, 600) : undefined,
+      direction: normalizeDirection(body.direction),
     },
   };
 }
@@ -82,13 +88,22 @@ export async function wordPickCacheKey(req: WordPickRequest): Promise<string> {
     .map((c) => c.word)
     .sort()
     .join("|");
-  const basis = `${req.line}\u0001${req.learnerLevel}\u0001${bases}`;
+  const dir = normalizeDirection(req.direction);
+  const basis = `${dir}\u0001${req.line}\u0001${req.learnerLevel}\u0001${bases}`;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(basis));
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
-  return `ai:pick:v1:${hex}`;
+  return `ai:pick:v2:${hex}`;
 }
 
-function learnerBand(level: number): string {
+function learnerBand(level: number, direction: LearningDirection): string {
+  const dir = normalizeDirection(direction);
+  if (dir === "ja-en") {
+    if (level >= 5) return "beginner English (everyday spoken essentials first)";
+    if (level >= 4) return "elementary English";
+    if (level >= 3) return "intermediate English";
+    if (level >= 2) return "upper-intermediate English";
+    return "advanced English";
+  }
   if (level >= 5) return "beginner (N5 — everyday spoken essentials first: arigato, onegaishimasu, sumimasen)";
   if (level >= 4) return "elementary (N4 — common daily conversation)";
   if (level >= 3) return "intermediate (N3)";
@@ -97,6 +112,8 @@ function learnerBand(level: number): string {
 }
 
 function buildPickPrompt(req: WordPickRequest): { system: string; user: string } {
+  const direction = normalizeDirection(req.direction);
+  const target = targetLangName(direction);
   const candidateLines = req.candidates
     .map(
       (c) =>
@@ -108,7 +125,7 @@ function buildPickPrompt(req: WordPickRequest): { system: string; user: string }
   const user = [
     req.title ? `Anime: ${req.title}` : "",
     req.animeContext ? `Show notes:\n${req.animeContext}` : "",
-    `Learner: ${learnerBand(req.learnerLevel)}`,
+    `Learner: ${learnerBand(req.learnerLevel, direction)}`,
     typeof req.wordsKnown === "number" ? `Words already in their deck: ~${req.wordsKnown}` : "",
     `Subtitle line: ${req.line}`,
     "",
@@ -120,7 +137,7 @@ function buildPickPrompt(req: WordPickRequest): { system: string; user: string }
 
   return {
     system:
-      "You are a Japanese tutor AI that picks ONE vocabulary item from an anime subtitle for a learner. " +
+      `You are a ${target} tutor AI that picks ONE vocabulary item from an anime subtitle for a learner. ` +
       "Pick the single best word or short phrase to teach RIGHT NOW from the candidate list only. " +
       "For beginners, strongly prefer essential spoken phrases when present. " +
       "Prefer words central to the line's meaning; skip names, filler, and grammar-only bits. " +
@@ -172,9 +189,6 @@ export async function pickWordCached(
   _userId: string
 ): Promise<{ result: WordPickResult }> {
   const result = await runWordPick(apiKey, model, req);
-  // Soft-fail both writes: the OpenAI pick already succeeded, so a KV put-limit
-  // rejection must not turn it into a 502 (worst case: no cache + a slight
-  // under-count of usage, both self-correcting on the next call).
   try {
     const cacheKey = await wordPickCacheKey(req);
     await putCachedResult(cacheKey, result);

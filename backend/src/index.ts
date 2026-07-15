@@ -92,10 +92,13 @@ export default {
         const capErr = await checkUsageCap(env, req, auth.userId, cap);
         if (capErr) return capErr;
 
-        const token = await mintTranscriptionToken(env);
+        const body = (await req.json().catch(() => ({}))) as { language?: string };
+        const language = body.language === "en" ? "en" : "ja";
+        const token = await mintTranscriptionToken(env, language);
         return json(req, {
           token,
           model: env.TRANSCRIBE_MODEL,
+          language,
           usedMinutes: Math.floor(await getUsage(env, auth.userId)),
           capMinutes: cap
         });

@@ -1,5 +1,6 @@
 import { WEB_URL } from "../config";
 import { getSyncToken } from "./storage";
+import type { LearningDirection } from "./direction";
 
 export interface WordPickCandidate {
   word: string;
@@ -16,6 +17,7 @@ export interface WordPickRequest {
   wordsKnown?: number;
   title?: string | null;
   animeContext?: string | null;
+  direction?: LearningDirection;
 }
 
 export interface WordPickResponse {
@@ -32,7 +34,7 @@ function sessionKey(req: WordPickRequest): string {
     .map((c) => c.word)
     .sort()
     .join("|");
-  return `${req.learnerLevel}:${req.line}:${bases}`;
+  return `${req.direction || "en-ja"}:${req.learnerLevel}:${req.line}:${bases}`;
 }
 
 export async function fetchWordPick(req: WordPickRequest): Promise<WordPickResponse> {

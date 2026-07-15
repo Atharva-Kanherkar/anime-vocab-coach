@@ -4,15 +4,19 @@ import { log, warn } from "../lib/log";
 import * as storage from "../lib/storage";
 import * as dict from "../lib/dictionary";
 import * as tokenizer from "../lib/tokenizer";
+import { tokenizeEnglish } from "../lib/english-tokenize";
 import { pickTargetSmart } from "../lib/pick-target";
 import * as overlay from "../lib/overlay";
 import { requestAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
+import { setAdapterDirection } from "../lib/adapters/util";
+import { audioLang, normalizeDirection } from "../lib/direction";
+import { fetchExtractWords, overlayFromExtract } from "../lib/extract-words-client";
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
-import type { LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
+import type { DictEntry, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
 
 declare global {
   interface Window {
@@ -63,10 +67,14 @@ declare global {
   async function ensureInit(): Promise<void> {
     if (initialized || pipelineDisabled) return;
     try {
-      await tokenizer.init();
-      const data = await dict.load();
-      log("dictionary loaded:", Object.keys(data).length, "entries");
       settings = await storage.getSettings();
+      setAdapterDirection(normalizeDirection(settings.learningDirection));
+      // Japanese path needs kuromoji + JMdict; English path tokenizes locally.
+      if (normalizeDirection(settings.learningDirection) === "en-ja") {
+        await tokenizer.init();
+        const data = await dict.load();
+        log("dictionary loaded:", Object.keys(data).length, "entries");
+      }
       wordStates = await storage.getVocab();
       initialized = true;
       startWatchInterval();
@@ -83,20 +91,20 @@ declare global {
     return "generic";
   }
 
+  function studyLang(): "ja" | "en" {
+    return audioLang(normalizeDirection(settings?.learningDirection));
+  }
+
   function refreshCacheKey(): void {
     const a = pickAdapter();
     if (!a) return;
     const video = a.getVideo();
-    const result = deriveCacheKey(platformForAdapter(a), video);
-    // Shared cache only covers Japanese audio (the vocab source). For a dub or
-    // any non-ja track, leave cacheKey unset so we don't upload audio that would
-    // be transcribed and then discarded — the per-user path handles those.
-    const next = result && result.audioLang === "ja" ? result.key : "";
+    const preferred = studyLang();
+    const result = deriveCacheKey(platformForAdapter(a), video, preferred);
+    // Shared cache for the language we're studying (JA or EN).
+    const next = result && result.audioLang === preferred ? result.key : "";
     if (next !== cacheKey) {
       cacheKey = next;
-      // Tell the offscreen session (via background) about the new key so an
-      // episode auto-advance stops uploading under the previous episode's key
-      // (which poisoned the shared cache for everyone).
       chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey }).catch(() => {});
     }
   }
@@ -118,7 +126,9 @@ declare global {
         const key = `${seg.start}:${seg.text}`;
         if (key === lastCacheCueKey) continue;
         lastCacheCueKey = key;
-        if (!/[぀-ヿ一-鿿]/.test(seg.text)) continue;
+        const lang = studyLang();
+        if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
+        if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
         const en = a?.getVisibleText() || "";
         await onLine(seg.text, { en, fromAudio: true });
       }
@@ -187,6 +197,7 @@ declare global {
 
   async function refreshState(): Promise<void> {
     settings = await storage.getSettings();
+    setAdapterDirection(normalizeDirection(settings.learningDirection));
     wordStates = await storage.getVocab();
   }
 
@@ -209,6 +220,7 @@ declare global {
     const title = currentTitle();
     prefetchAnimeContext(title);
 
+    const direction = normalizeDirection(settings!.learningDirection);
     const cardOptions: overlay.AgentPanelOptions = {
       interaction: mode === "pause" ? "focus" : "ambient",
       autoResumeSec: settings!.autoResumeSec,
@@ -222,6 +234,7 @@ declare global {
       animeContext: peekAnimeContext(title),
       learnerLevel: settings!.targetLevel,
       wordsKnown: countProgress(wordStates),
+      learningDirection: direction,
     };
 
     const judgment = await overlay.showAgentPanel(target, sentence, video, cardOptions);
@@ -271,8 +284,39 @@ declare global {
     if (normalized === lastLine) return;
     lastLine = normalized;
 
-    const tokens = await tokenizer.tokenize(normalized);
-    await storage.recordSeen(tokens, wordStates, targetedThisSession);
+    const direction = normalizeDirection(settings.learningDirection);
+    setAdapterDirection(direction);
+
+    let tokens: Token[];
+    let dictOverlay: Record<string, DictEntry> | null = null;
+
+    if (direction === "ja-en") {
+      tokens = tokenizeEnglish(normalized);
+      const extracted = await fetchExtractWords({
+        line: normalized,
+        direction,
+        learnerLevel: settings.targetLevel,
+        title: currentTitle(),
+      });
+      if (extracted.ok && extracted.words?.length) {
+        dictOverlay = overlayFromExtract(extracted.words);
+        for (const w of extracted.words) {
+          const base = w.word.trim().toLowerCase();
+          if (!base || tokens.some((t) => t.base === base)) continue;
+          tokens.push({
+            surface: w.word,
+            base,
+            reading: w.reading || "",
+            pos: "CONTENT",
+            pos1: "english",
+          });
+        }
+      }
+    } else {
+      tokens = await tokenizer.tokenize(normalized);
+    }
+
+    await storage.recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
     wordStates = await storage.getVocab();
 
     if (overlay.isOpen()) {
@@ -286,7 +330,8 @@ declare global {
       settings,
       targetedThisSession,
       normalized,
-      currentTitle()
+      currentTitle(),
+      dictOverlay
     );
     if (!target) { log("no target word in:", normalized); return; }
 
@@ -357,8 +402,9 @@ declare global {
     if (!a.getVideo()) { log("transcript ignored (no video in this frame)"); return; }
     log("transcript received:", msg.text);
     const en = a.getVisibleText();
+    const direction = normalizeDirection(settings?.learningDirection);
     const segments = (msg.text || "")
-      .split(/(?<=[。！？])/)
+      .split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/)
       .map((s) => s.trim())
       .filter(Boolean);
     (async () => {
@@ -375,7 +421,7 @@ declare global {
 
   setInterval(() => {
     const a = pickAdapter();
-    const sid = a ? sessionIdentity(platformForAdapter(a)) : location.pathname;
+    const sid = a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
     if (sid !== lastSessionId) {
       lastSessionId = sid;
       targetedThisSession.clear();
@@ -399,7 +445,7 @@ declare global {
 
   refreshCacheKey();
   const initial = pickAdapter();
-  lastSessionId = initial ? sessionIdentity(platformForAdapter(initial)) : location.pathname;
+  lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
 
   // Legacy: stop auto-opening the sidebar on every page after an old popup session pinned it.
   void storage.setAgentPinned(false);

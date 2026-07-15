@@ -1,3 +1,8 @@
+import {
+  normalizeDirection,
+  type LearningDirection,
+} from "./direction";
+
 export type PauseMode = "copilot" | "pause" | "off";
 export type DisplayScript = "romaji" | "kana" | "kanji";
 
@@ -8,6 +13,7 @@ export interface ExtensionSettings {
   targetLevel: number;
   autoResumeSec: number;
   displayScript: DisplayScript;
+  learningDirection: LearningDirection;
   autoSpeak: boolean;
   sites: { youtube: boolean; netflix: boolean; generic: boolean };
 }
@@ -19,6 +25,7 @@ export const EXTENSION_SETTINGS_DEFAULTS: ExtensionSettings = {
   targetLevel: 5,
   autoResumeSec: 15,
   displayScript: "romaji",
+  learningDirection: "en-ja",
   autoSpeak: true,
   sites: { youtube: true, netflix: true, generic: true },
 };
@@ -42,6 +49,7 @@ export function parseExtensionSettings(raw: Record<string, unknown> | undefined)
       raw?.displayScript === "kana" || raw?.displayScript === "kanji" || raw?.displayScript === "romaji"
         ? raw.displayScript
         : d.displayScript,
+    learningDirection: normalizeDirection(raw?.learningDirection),
     autoSpeak: raw?.autoSpeak !== false,
     sites: {
       youtube: sites.youtube !== false,
