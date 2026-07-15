@@ -129,7 +129,19 @@ async function setUserPlan(email: string, plan: Plan): Promise<boolean> {
   const list = await client.users.getUserList({ emailAddress: [email], limit: 1 });
   const user = list.data[0];
   if (!user) return false;
-  await client.users.updateUserMetadata(user.id, { publicMetadata: { plan } });
+  // Merge with existing publicMetadata so a paid sub doesn't wipe unrelated
+  // keys — and clear gift expiry when billing takes over (paid = no gift end).
+  const prev = (user.publicMetadata || {}) as Record<string, unknown>;
+  await client.users.updateUserMetadata(user.id, {
+    publicMetadata: {
+      ...prev,
+      plan,
+      // Paid (or free) billing events clear gift expiry so Max-gift dates don't
+      // override an active Dodo subscription.
+      planExpiresAt: null,
+      ...(plan === "free" ? { billingInterval: null } : {}),
+    },
+  });
   return true;
 }
 

@@ -1,8 +1,10 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getOrCreateSyncToken } from "@/lib/sync-store";
+import { putUserEntitlement } from "@/lib/entitlement-store";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
-import { normalizePlan } from "@/lib/ai-coach";
+import { effectivePlan, FREE_ENTITLEMENT, parseEntitlement } from "@/lib/plans";
+import type { CloudUserProfile } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
 
@@ -13,22 +15,35 @@ export async function POST() {
   const user = DEV_NO_CLERK ? null : await currentUser();
   if (!DEV_NO_CLERK && !user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const profile = user
-    ? {
-        id: user.id,
-        email: user.primaryEmailAddress?.emailAddress ?? null,
-        name: user.firstName || user.username || null,
-        // Stamp the tier onto the token profile so the extension + backend can
-        // enforce per-tier caps without re-reading Clerk on every request.
-        plan: normalizePlan((user.publicMetadata as { plan?: unknown } | undefined)?.plan),
-      }
-    : { ...DEV_PROFILE };
+  let profile: CloudUserProfile;
+  let entitlement = { ...FREE_ENTITLEMENT };
+  if (user) {
+    entitlement = parseEntitlement(user.publicMetadata as Record<string, unknown>);
+    const plan = effectivePlan(entitlement);
+    profile = {
+      id: user.id,
+      email: user.primaryEmailAddress?.emailAddress ?? null,
+      name: user.firstName || user.username || null,
+      plan,
+      billingInterval: entitlement.billingInterval,
+      planExpiresAt: entitlement.planExpiresAt,
+    };
+    entitlement = { ...entitlement, plan };
+  } else {
+    profile = {
+      ...DEV_PROFILE,
+      plan: "free",
+      billingInterval: null,
+      planExpiresAt: null,
+    };
+  }
 
   // Idempotent per user with a TTL — repeated mints from one page load reuse the
   // same token instead of minting a fresh KV-backed credential each time.
   let token: string;
   try {
     token = await getOrCreateSyncToken(profile.id, profile);
+    await putUserEntitlement(profile.id, entitlement);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "sync_store_unavailable" },
@@ -38,5 +53,8 @@ export async function POST() {
 
   // Profile rides along so the extension popup can show who is linked
   // ("Synced as <email>") instead of leaving the account state invisible.
-  return NextResponse.json({ token, profile: { email: profile.email, name: profile.name } });
+  return NextResponse.json({
+    token,
+    profile: { email: profile.email, name: profile.name, plan: profile.plan },
+  });
 }

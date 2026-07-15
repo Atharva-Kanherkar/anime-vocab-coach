@@ -9,7 +9,7 @@ import type { CoachMode, CoachResult } from "@/lib/ai-coach";
 
 const promo = getPromoState();
 
-type Usage = { used: number; limit: number; plan: "free" | "pro" | "launch" };
+type Usage = { used: number; limit: number; plan: "free" | "pro" | "max" };
 
 export function AiCoach() {
   const snapshot = useCloudSnapshot();
@@ -127,7 +127,7 @@ export function AiCoach() {
       {error && (
         <p className="mt-3 text-sm text-danger">
           {error}{" "}
-          {usage && quotaLeft === 0 && usage.plan !== "launch" && promo.checkoutConfigured && (
+          {usage && quotaLeft === 0 && usage.plan === "free" && promo.checkoutConfigured && (
             <a href={promo.checkoutUrl} rel="noopener noreferrer" className="underline">
               Upgrade to Pro
             </a>
@@ -162,8 +162,16 @@ export function AiCoach() {
       )}
 
       <p className="mt-4 text-[13px] text-ink2">
-        {usage?.plan === "launch" ? (
-          <>All AI features are free during launch, capped per account. Your saved words stay local and exportable.</>
+        {usage?.plan === "max" ? (
+          <>You&apos;re on Max — higher AI + Listening caps. Reply to Atharva anytime with feedback.</>
+        ) : usage?.plan === "pro" ? (
+          <>
+            Pro monthly AI cap.{" "}
+            <Link href="/#pricing" className="underline">
+              Max
+            </Link>{" "}
+            raises it further. Your saved words stay local and exportable.
+          </>
         ) : (
           <>
             Free accounts get a taste.{" "}
@@ -178,8 +186,8 @@ export function AiCoach() {
   );
 }
 
-function tierLabel(plan: "free" | "pro" | "launch"): string {
-  if (plan === "launch") return "free launch";
+function tierLabel(plan: "free" | "pro" | "max"): string {
+  if (plan === "max") return "Max";
   if (plan === "pro") return "Pro";
   return "free";
 }

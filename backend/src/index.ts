@@ -10,7 +10,7 @@ import { publicConfig } from "./promo";
 import { lookupTranscript, transcribeAndStore } from "./transcript";
 import { getProviderMetrics, TranscriptionError } from "./transcribe/index";
 import { requireAuth } from "./sync-auth";
-import { capMinutesForPlan, normalizePlan } from "./plan";
+import { capMinutesForPlan, effectivePlanFromProfile } from "./plan";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
@@ -88,7 +88,7 @@ export default {
         const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
 
-        const cap = capMinutesForPlan(env, normalizePlan(auth.profile.plan));
+        const cap = capMinutesForPlan(env, effectivePlanFromProfile(auth.profile));
         const capErr = await checkUsageCap(env, req, auth.userId, cap);
         if (capErr) return capErr;
 
@@ -107,7 +107,7 @@ export default {
 
         const body = (await req.json().catch(() => ({}))) as { minutes?: number };
         const minutes = Math.max(0, Math.min(10, Math.round(Number(body.minutes) || 0)));
-        const cap = capMinutesForPlan(env, normalizePlan(auth.profile.plan));
+        const cap = capMinutesForPlan(env, effectivePlanFromProfile(auth.profile));
         let used: number;
         try {
           used = await addMinutes(env, auth.userId, minutes);
@@ -159,7 +159,7 @@ export default {
         const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
 
-        const cap = capMinutesForPlan(env, normalizePlan(auth.profile.plan));
+        const cap = capMinutesForPlan(env, effectivePlanFromProfile(auth.profile));
         const capErr = await checkUsageCap(env, req, auth.userId, cap);
         if (capErr) return capErr;
 

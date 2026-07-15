@@ -13,6 +13,20 @@ export function normalizePlan(value: unknown): Plan {
   return value === "pro" || value === "max" ? value : "free";
 }
 
+/** Apply gift expiry stamped on the sync-token profile (expired → free). */
+export function effectivePlanFromProfile(
+  profile: { plan?: unknown; planExpiresAt?: string | null },
+  now = Date.now()
+): Plan {
+  const plan = normalizePlan(profile.plan);
+  if (plan === "free") return "free";
+  if (profile.planExpiresAt) {
+    const ends = Date.parse(profile.planExpiresAt);
+    if (Number.isFinite(ends) && now >= ends) return "free";
+  }
+  return plan;
+}
+
 /** Parse an env var as a number, falling back to a sane default when unset or
  * malformed. Using the raw `Number(env.X)` silently disabled caps (NaN) when a
  * var was missing or typo'd — always go through here. */

@@ -3,6 +3,20 @@ import { getSyncTokenProfile } from "./sync-store";
 import { DEV_NO_CLERK, DEV_PROFILE } from "./dev-auth";
 import type { CloudUserProfile } from "./sync";
 import { normalizePlan, type Plan } from "./ai-coach";
+import { effectivePlan, parseEntitlement } from "./plans";
+
+function profileFromEntitlement(
+  base: Pick<CloudUserProfile, "id" | "email" | "name">,
+  metadata: unknown
+): CloudUserProfile {
+  const entitlement = parseEntitlement(metadata);
+  return {
+    ...base,
+    plan: effectivePlan(entitlement),
+    billingInterval: entitlement.billingInterval,
+    planExpiresAt: entitlement.planExpiresAt,
+  };
+}
 
 // Resolve the caller to a cloud profile. Three paths, in priority order:
 //  1. A sync-token bearer (the extension's background credential) — validated
@@ -22,14 +36,29 @@ export async function resolveProfile(req: Request): Promise<CloudUserProfile | n
     // A KV read hiccup here must not 500 every extension-authenticated request —
     // treat a lookup failure as "no valid session" so the caller gets a clean 401.
     try {
-      return await getSyncTokenProfile(match[1]);
+      const profile = await getSyncTokenProfile(match[1]);
+      if (!profile) return null;
+      // Re-apply expiry so a gifted Max stamped on the token doesn't outlive planExpiresAt.
+      const plan = effectivePlan({
+        plan: normalizePlan(profile.plan),
+        billingInterval: profile.billingInterval ?? null,
+        planExpiresAt: profile.planExpiresAt ?? null,
+      });
+      return { ...profile, plan };
     } catch (err) {
       console.warn("[auth] sync-token lookup failed", err);
       return null;
     }
   }
 
-  if (DEV_NO_CLERK) return { ...DEV_PROFILE };
+  if (DEV_NO_CLERK) {
+    return {
+      ...DEV_PROFILE,
+      plan: "free",
+      billingInterval: null,
+      planExpiresAt: null,
+    };
+  }
 
   let user: Awaited<ReturnType<typeof currentUser>>;
   try {
@@ -40,18 +69,23 @@ export async function resolveProfile(req: Request): Promise<CloudUserProfile | n
   }
   if (!user) return null;
 
-  return {
-    id: user.id,
-    email: user.primaryEmailAddress?.emailAddress ?? null,
-    name: user.firstName || user.username || null,
-    plan: normalizePlan((user.publicMetadata as { plan?: unknown } | undefined)?.plan),
-  };
+  return profileFromEntitlement(
+    {
+      id: user.id,
+      email: user.primaryEmailAddress?.emailAddress ?? null,
+      name: user.firstName || user.username || null,
+    },
+    user.publicMetadata
+  );
 }
 
-// Plan for AI + listening metering, read from the buyer's tier. The Dodo billing
-// webhook writes `plan` (free | pro | max) to Clerk publicMetadata, which rides
-// on the resolved profile (and on the extension sync-token profile). Owners still
-// get an effectively-unlimited AI cap per-route via isOwnerEmail(profile.email).
+// Plan for AI + listening metering. Dodo webhook + Max-gift admin write Clerk
+// publicMetadata (plan / billingInterval / planExpiresAt). Expired gifts → free.
+// Owners still get an effectively-unlimited AI cap via isOwnerEmail.
 export function resolvePlan(profile?: CloudUserProfile | null): Plan {
-  return normalizePlan(profile?.plan);
+  return effectivePlan({
+    plan: normalizePlan(profile?.plan),
+    billingInterval: profile?.billingInterval ?? null,
+    planExpiresAt: profile?.planExpiresAt ?? null,
+  });
 }

@@ -58,7 +58,10 @@
     // (400 endings/day × 5 panels × ~$0.04 ≈ $80/day ceiling).
     "ENDING_FREE_PER_IP": "1",
     "ENDING_SIGNED_PER_MONTH": "3",
-    "ENDING_GLOBAL_PER_DAY": "400"
+    "ENDING_GLOBAL_PER_DAY": "400",
+    // Resend transactional mail (API key is a Worker secret: RESEND_API_KEY).
+    "EMAIL_FROM": "Anime Vocab <atharva@animevocab.com>",
+    "EMAIL_REPLY_TO": "atharvakanherkar25@gmail.com"
   },
   "observability": {
     "enabled": true
