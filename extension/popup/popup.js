@@ -182,34 +182,9 @@
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     return tab?.id ?? null;
   }
-  async function initListening() {
-    const btn = byId("listen-btn");
-    const errEl = byId("listen-error");
-    const tabId = await activeTabId();
-    if (tabId == null) return;
-    const setUi = (listening) => {
-      btn.classList.toggle("active", listening);
-      btn.textContent = listening ? "Stop Listening Mode" : "Start Listening Mode";
-    };
-    chrome.runtime.sendMessage({ type: "avc-listen-status", tabId }, (res) => {
-      setUi(!!res?.listening);
-    });
-    btn.addEventListener("click", () => {
-      errEl.hidden = true;
-      const starting = !btn.classList.contains("active");
-      const type = starting ? "avc-listen-start" : "avc-listen-stop";
-      chrome.runtime.sendMessage({ type, tabId }, (res) => {
-        if (res?.ok) {
-          setUi(starting);
-        } else {
-          errEl.textContent = res?.error || "Failed to toggle listening mode.";
-          errEl.hidden = false;
-        }
-      });
-    });
-  }
   async function initCopilotToggle() {
     const btn = byId("copilot-btn");
+    const errEl = byId("listen-error");
     const tabId = await activeTabId();
     if (tabId == null) {
       btn.disabled = true;
@@ -219,14 +194,21 @@
     const refresh = () => {
       chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
         const on = !!res?.visible;
-        btn.textContent = on ? "Hide Copilot on this tab" : "Open Copilot on this tab";
+        btn.textContent = on ? "Stop Copilot & Listening" : "Open Copilot on this tab";
         btn.classList.toggle("active", on);
       });
     };
     btn.addEventListener("click", () => {
+      errEl.hidden = true;
       chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
         const type = res?.visible ? "avc-agent-hide" : "avc-agent-show";
-        chrome.runtime.sendMessage({ type, tabId }, () => refresh());
+        chrome.runtime.sendMessage({ type, tabId }, (r) => {
+          if (r && r.ok === false && r.error) {
+            errEl.textContent = r.error;
+            errEl.hidden = false;
+          }
+          refresh();
+        });
       });
     });
     refresh();
@@ -235,7 +217,6 @@
     initTheme();
     void render();
     void renderAccount();
-    void initListening();
     void initCopilotToggle();
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded)) void renderAccount();

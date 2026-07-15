@@ -226,7 +226,14 @@
       heartbeat: null,
       cacheKey: cacheKey || "",
       playbackTime: 0,
-      playbackPaused: true,
+      // Assume PLAYING until a playback relay says otherwise. A session only
+      // starts on a playing video, and the content→background→offscreen relay
+      // that flips this can silently fail to land — when it did, this stayed
+      // `true` forever and gated ALL audio off (proc.onaudioprocess + flushChunk),
+      // so nothing was ever transcribed and no words appeared. Defaulting to
+      // playing makes audio flow immediately; the relay still pauses it when it
+      // works. Better to over-capture briefly than to transcribe nothing.
+      playbackPaused: false,
       pcmBuffer: [],
       chunkStartSec: 0,
       chunkStarted: false,

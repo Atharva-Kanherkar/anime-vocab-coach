@@ -377,6 +377,22 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
             return;
           }
           sendResponse(res ?? { ok: true });
+
+          // The copilot is the single control now — there is no separate
+          // Listening Mode button. Opening it always starts Listening for the
+          // tab; closing it stops. Best-effort: a listening failure (not linked
+          // / capture) must not block the copilot from opening — surface it as
+          // a toast instead.
+          if (outType === "avc-agent-show") {
+            void getListening().then((tabs) => {
+              if (tabs[tabId]) return; // already listening — don't restart
+              return startListening(tabId).then((ack) => {
+                if (ack && ack.ok === false && ack.error) toastTab(tabId, ack.error, "error");
+              });
+            }).catch(() => {});
+          } else if (outType === "avc-agent-hide") {
+            void stopListening(tabId).catch(() => {});
+          }
         });
       })
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
