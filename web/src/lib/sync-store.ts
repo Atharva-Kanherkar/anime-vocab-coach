@@ -104,3 +104,21 @@ export async function getSyncTokenProfile(token: string): Promise<CloudUserProfi
   if (!raw) return null;
   return JSON.parse(raw) as CloudUserProfile;
 }
+
+// Entitlement changes (Dodo webhook, Max-gift grant) must reach the extension's
+// existing credential, not just the next mint: the backend Worker meters caps
+// off the token-embedded profile, and extension-only users may not re-open the
+// web app for weeks. Follows the userId → token pointer; no-op when the user
+// has never minted a token. Returns whether a token profile was rewritten.
+export async function refreshSyncTokenProfile(
+  userId: string,
+  profile: CloudUserProfile
+): Promise<boolean> {
+  const store = await resolveStore();
+  const token = await store.get(userTokenKey(userId));
+  if (!token) return false;
+  await store.put(tokenKey(token), JSON.stringify(profile), {
+    expirationTtl: SYNC_TOKEN_TTL_SECONDS,
+  });
+  return true;
+}

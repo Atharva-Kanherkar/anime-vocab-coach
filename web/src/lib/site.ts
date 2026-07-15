@@ -23,11 +23,8 @@ export function installUrl(): string {
 }
 
 // ── Tiers ────────────────────────────────────────────────────────────────
-// The three plans. `free` is live now (everyone is free until billing lands —
-// see resolvePlan in auth.ts). `pro`/`max` are defined and priced, but their
-// checkout is GATED: `checkoutUrl` is a Dodo placeholder that 404s until the
-// real product id is pasted in. Going live after Dodo approval = swap the two
-// REPLACE_* ids below, nothing else.
+// Canonical free / pro / max limits. Live gating reads Clerk publicMetadata
+// (see resolvePlan in auth.ts). Checkout URLs point at live Dodo products.
 export type PlanId = "free" | "pro" | "max";
 
 export interface PricingTier {

@@ -10,6 +10,8 @@ export interface CloudUserProfile {
   // Subscription tier, written by the web app from Clerk metadata when the
   // token is minted. Absent on tokens minted before tiers existed → free.
   plan?: Plan;
+  billingInterval?: "monthly" | "yearly" | null;
+  planExpiresAt?: string | null;
 }
 
 function tokenKey(token: string): string {
