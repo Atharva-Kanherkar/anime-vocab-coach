@@ -15,7 +15,8 @@ import { TIERS } from "@/lib/site";
 
 export type CoachMode = "explain" | "hooks" | "chat";
 export type Plan = "free" | "pro" | "max";
-export type Tier = "free" | "pro" | "max" | "launch";
+// The free-launch window ("launch" pseudo-tier) is gone: plans are the only tiers.
+export type Tier = Plan;
 
 /** Coerce arbitrary input (e.g. Clerk publicMetadata.plan) to a known plan.
  * Anything unrecognized is treated as the free tier. */
@@ -68,22 +69,10 @@ export type CoachResult = ExplainResult | HooksResult | ChatResult;
 export const DEFAULT_COACH_MODEL = "gpt-4.1-nano";
 // Enforced monthly caps derive from the advertised tiers in site.ts, so the
 // number a user is billed against is the same number the pricing UI shows.
-// Overridable via FREE_AI_CALLS_PER_MONTH / PRO_AI_CALLS_PER_MONTH env.
+// Overridable via FREE_/PRO_/MAX_AI_CALLS_PER_MONTH env.
 export const DEFAULT_FREE_LIMIT = TIERS.free.aiCallsPerMonth;
 export const DEFAULT_PRO_LIMIT = TIERS.pro.aiCallsPerMonth;
 export const DEFAULT_MAX_LIMIT = TIERS.max.aiCallsPerMonth;
-// Free launch: while the window is open every signed-in account gets this cap for
-// all AI features. Capped so a launch cannot blow the budget (30 * ~$0.00014 =
-// ~$0.004/user/mo). Overridable via LAUNCH_AI_CALLS_PER_MONTH / AI_FREE_LAUNCH_UNTIL.
-export const DEFAULT_LAUNCH_LIMIT = 30;
-export const DEFAULT_LAUNCH_UNTIL = "2026-09-01T00:00:00.000Z";
-
-/** True while the free launch window is open. */
-export function launchActive(until: string | undefined, now = Date.now()): boolean {
-  const iso = until || DEFAULT_LAUNCH_UNTIL;
-  const t = Date.parse(iso);
-  return Number.isFinite(t) && now < t;
-}
 
 // Bounds keep the prompt small (cost + the "never send more than needed" constraint).
 export const MAX_WORD_LEN = 80;

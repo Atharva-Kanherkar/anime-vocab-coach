@@ -1,9 +1,8 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getOrCreateSyncToken } from "@/lib/sync-store";
-import { putUserEntitlement } from "@/lib/entitlement-store";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
-import { effectivePlan, FREE_ENTITLEMENT, parseEntitlement } from "@/lib/plans";
+import { effectivePlan, parseEntitlement } from "@/lib/plans";
 import type { CloudUserProfile } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
@@ -16,19 +15,18 @@ export async function POST() {
   if (!DEV_NO_CLERK && !user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   let profile: CloudUserProfile;
-  let entitlement = { ...FREE_ENTITLEMENT };
   if (user) {
-    entitlement = parseEntitlement(user.publicMetadata as Record<string, unknown>);
-    const plan = effectivePlan(entitlement);
+    // Stamp the tier + gift expiry onto the token profile so the extension +
+    // backend can enforce per-tier caps without re-reading Clerk per request.
+    const entitlement = parseEntitlement(user.publicMetadata as Record<string, unknown>);
     profile = {
       id: user.id,
       email: user.primaryEmailAddress?.emailAddress ?? null,
       name: user.firstName || user.username || null,
-      plan,
+      plan: effectivePlan(entitlement),
       billingInterval: entitlement.billingInterval,
       planExpiresAt: entitlement.planExpiresAt,
     };
-    entitlement = { ...entitlement, plan };
   } else {
     profile = {
       ...DEV_PROFILE,
@@ -43,7 +41,6 @@ export async function POST() {
   let token: string;
   try {
     token = await getOrCreateSyncToken(profile.id, profile);
-    await putUserEntitlement(profile.id, entitlement);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "sync_store_unavailable" },

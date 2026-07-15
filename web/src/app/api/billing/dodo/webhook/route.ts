@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { normalizePlan, type Plan } from "@/lib/ai-coach";
+import { billingMetadataPatch, parseEntitlement } from "@/lib/plans";
+import { refreshSyncTokenProfile } from "@/lib/sync-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -129,19 +131,37 @@ async function setUserPlan(email: string, plan: Plan): Promise<boolean> {
   const list = await client.users.getUserList({ emailAddress: [email], limit: 1 });
   const user = list.data[0];
   if (!user) return false;
-  // Merge with existing publicMetadata so a paid sub doesn't wipe unrelated
-  // keys — and clear gift expiry when billing takes over (paid = no gift end).
-  const prev = (user.publicMetadata || {}) as Record<string, unknown>;
+  // Send ONLY the billing keys: Clerk shallow-merges publicMetadata (null
+  // deletes a key), so unrelated keys survive without a racy read-modify-write.
+  // Billing owns the plan — it always clears any Max-gift expiry (paid users
+  // are metered by their sub; a terminal event means free, never a resurrected
+  // gift).
   await client.users.updateUserMetadata(user.id, {
-    publicMetadata: {
-      ...prev,
-      plan,
-      // Paid (or free) billing events clear gift expiry so Max-gift dates don't
-      // override an active Dodo subscription.
-      planExpiresAt: null,
-      ...(plan === "free" ? { billingInterval: null } : {}),
-    },
+    publicMetadata: billingMetadataPatch(plan),
   });
+
+  // Propagate to the extension's existing sync token: the backend Worker
+  // meters caps off the token-embedded profile, so a downgrade (refund,
+  // cancellation) must not keep paid caps alive for up to 30 days, and an
+  // upgrade should not wait for the user's next web visit. Best-effort — a KV
+  // hiccup self-heals on the next token mint, and the Clerk write above is the
+  // source of truth.
+  try {
+    const entitlement = parseEntitlement({
+      ...(user.publicMetadata as Record<string, unknown> | undefined),
+      ...billingMetadataPatch(plan),
+    });
+    await refreshSyncTokenProfile(user.id, {
+      id: user.id,
+      email: user.primaryEmailAddress?.emailAddress ?? email,
+      name: user.firstName || user.username || null,
+      plan: entitlement.plan,
+      billingInterval: entitlement.billingInterval,
+      planExpiresAt: entitlement.planExpiresAt,
+    });
+  } catch (err) {
+    console.warn("[dodo/webhook] sync-token refresh failed", err);
+  }
   return true;
 }
 

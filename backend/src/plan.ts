@@ -13,16 +13,19 @@ export function normalizePlan(value: unknown): Plan {
   return value === "pro" || value === "max" ? value : "free";
 }
 
-/** Apply gift expiry stamped on the sync-token profile (expired → free). */
+/** Apply gift expiry stamped on the sync-token profile (expired → free).
+ * Mirrors web/src/lib/plans.ts effectivePlan — keep expiry semantics in sync.
+ * A present-but-unparseable expiry fails CLOSED to free: corrupt gift data must
+ * never become permanent paid access. Paid subs carry planExpiresAt: null. */
 export function effectivePlanFromProfile(
   profile: { plan?: unknown; planExpiresAt?: string | null },
   now = Date.now()
 ): Plan {
   const plan = normalizePlan(profile.plan);
   if (plan === "free") return "free";
-  if (profile.planExpiresAt) {
+  if (profile.planExpiresAt != null) {
     const ends = Date.parse(profile.planExpiresAt);
-    if (Number.isFinite(ends) && now >= ends) return "free";
+    if (!Number.isFinite(ends) || now >= ends) return "free";
   }
   return plan;
 }

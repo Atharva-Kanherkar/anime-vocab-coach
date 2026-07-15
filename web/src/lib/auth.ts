@@ -18,6 +18,16 @@ function profileFromEntitlement(
   };
 }
 
+/** Effective plan for a stored profile: re-applies gift expiry so a Max stamped
+ * on a sync token (or any cached profile) can't outlive planExpiresAt. */
+function planFromProfile(profile: CloudUserProfile | null | undefined): Plan {
+  return effectivePlan({
+    plan: normalizePlan(profile?.plan),
+    billingInterval: profile?.billingInterval ?? null,
+    planExpiresAt: profile?.planExpiresAt ?? null,
+  });
+}
+
 // Resolve the caller to a cloud profile. Three paths, in priority order:
 //  1. A sync-token bearer (the extension's background credential) — validated
 //     first so a *presented* token that's invalid 401s rather than silently
@@ -38,13 +48,7 @@ export async function resolveProfile(req: Request): Promise<CloudUserProfile | n
     try {
       const profile = await getSyncTokenProfile(match[1]);
       if (!profile) return null;
-      // Re-apply expiry so a gifted Max stamped on the token doesn't outlive planExpiresAt.
-      const plan = effectivePlan({
-        plan: normalizePlan(profile.plan),
-        billingInterval: profile.billingInterval ?? null,
-        planExpiresAt: profile.planExpiresAt ?? null,
-      });
-      return { ...profile, plan };
+      return { ...profile, plan: planFromProfile(profile) };
     } catch (err) {
       console.warn("[auth] sync-token lookup failed", err);
       return null;
@@ -83,9 +87,5 @@ export async function resolveProfile(req: Request): Promise<CloudUserProfile | n
 // publicMetadata (plan / billingInterval / planExpiresAt). Expired gifts → free.
 // Owners still get an effectively-unlimited AI cap via isOwnerEmail.
 export function resolvePlan(profile?: CloudUserProfile | null): Plan {
-  return effectivePlan({
-    plan: normalizePlan(profile?.plan),
-    billingInterval: profile?.billingInterval ?? null,
-    planExpiresAt: profile?.planExpiresAt ?? null,
-  });
+  return planFromProfile(profile);
 }

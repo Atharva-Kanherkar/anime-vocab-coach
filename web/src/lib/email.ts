@@ -1,8 +1,11 @@
 // Thin Resend wrapper for transactional mail from the Next.js Worker.
-// Always check `{ data, error }` — the Resend SDK does not throw on API errors.
+// The Resend SDK returns `{ data, error }` for API errors but THROWS on
+// network/fetch failures — sendEmail normalizes both into { id, error } so a
+// transient fetch failure can never abort a caller's batch loop.
 
 import { Resend } from "resend";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { SITE_URL } from "./site";
 
 const DEFAULT_FROM = "Anime Vocab <atharva@animevocab.com>";
 const DEFAULT_REPLY_TO = "atharvakanherkar25@gmail.com";
@@ -32,6 +35,17 @@ async function emailEnv(): Promise<EmailEnv> {
   }
 }
 
+/** Escape user-controlled text for interpolation into email HTML. Clerk names
+ * are user-settable — never trust them as markup. */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export interface SendEmailInput {
   to: string | string[];
   subject: string;
@@ -58,22 +72,25 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const to = Array.isArray(input.to) ? input.to : [input.to];
   const replyTo = input.replyTo ?? env.EMAIL_REPLY_TO ?? DEFAULT_REPLY_TO;
 
-  const { data, error } = await resend.emails.send(
-    {
-      from: env.EMAIL_FROM || DEFAULT_FROM,
-      to,
-      subject: input.subject,
-      text: input.text,
-      html: input.html,
-      replyTo: Array.isArray(replyTo) ? replyTo : [replyTo],
-    },
-    input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined
-  );
-
-  if (error) {
-    return { id: null, error: error.message };
+  try {
+    const { data, error } = await resend.emails.send(
+      {
+        from: env.EMAIL_FROM || DEFAULT_FROM,
+        to,
+        subject: input.subject,
+        text: input.text,
+        html: input.html,
+        replyTo: Array.isArray(replyTo) ? replyTo : [replyTo],
+      },
+      input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined
+    );
+    if (error) {
+      return { id: null, error: error.message };
+    }
+    return { id: data?.id ?? null, error: null };
+  } catch (err) {
+    return { id: null, error: err instanceof Error ? err.message : "email_send_failed" };
   }
-  return { id: data?.id ?? null, error: null };
 }
 
 export function maxGiftEmailCopy(opts: {
@@ -99,23 +116,23 @@ I'm giving every account Max for the next 3 months — free (through ${expiresLa
 That's the higher AI coach + Listening Mode limits. Nothing to buy.
 
 Just keep using the app / extension as you are:
-https://animevocab.com
+${SITE_URL}
 
 One ask: reply to this email with any feedback — what's working, what's confusing, what you want next. I read every reply.
 
 — Atharva
-Anime Vocab · https://animevocab.com
+Anime Vocab · ${SITE_URL}
 `;
 
-  const html = `<p>${hello}</p>
+  const html = `<p>${escapeHtml(hello)}</p>
 <p>Thanks for signing up for Anime Vocab early.</p>
 <p>I'm giving every account <strong>Max for the next 3 months — free</strong> (through ${expiresLabel}).
 That's the higher AI coach + Listening Mode limits. Nothing to buy.</p>
 <p>Just keep using the app / extension as you are:<br>
-<a href="https://animevocab.com">https://animevocab.com</a></p>
+<a href="${SITE_URL}">${SITE_URL}</a></p>
 <p><strong>One ask:</strong> reply to this email with any feedback — what's working, what's confusing, what you want next. I read every reply.</p>
 <p>— Atharva<br>
-Anime Vocab · <a href="https://animevocab.com">animevocab.com</a></p>`;
+Anime Vocab · <a href="${SITE_URL}">animevocab.com</a></p>`;
 
   return { subject, text, html };
 }
