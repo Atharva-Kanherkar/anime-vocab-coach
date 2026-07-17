@@ -1,8 +1,18 @@
 import { warn } from "./log";
-import { checkEligibility } from "./scoring";
-import { lookup } from "./dictionary";
+import { checkEligibility, lookupForDirection } from "./scoring";
 import { DEFAULTS, SRS_INTERVALS } from "../types";
-import type { Judgment, JudgmentMeta, Settings, Stats, Token, VocabMap, VocabRecord, WordSource, WordState } from "../types";
+import type {
+  DictEntry,
+  Judgment,
+  JudgmentMeta,
+  Settings,
+  Stats,
+  Token,
+  VocabMap,
+  VocabRecord,
+  WordSource,
+  WordState,
+} from "../types";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -118,7 +128,13 @@ export function setWordState(base: string, state: WordState): Promise<void> {
   });
 }
 
-export function recordSeen(tokens: Token[], wordStates: VocabMap, targetedSet: Set<string>): Promise<void> {
+export function recordSeen(
+  tokens: Token[],
+  wordStates: VocabMap,
+  targetedSet: Set<string>,
+  direction: Settings["learningDirection"] = "en-ja",
+  overlay?: Record<string, DictEntry> | null
+): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
     const vocab: VocabMap = { ...((r.vocab as VocabMap | undefined) || {}) };
@@ -128,10 +144,10 @@ export function recordSeen(tokens: Token[], wordStates: VocabMap, targetedSet: S
     let changed = false;
 
     for (const token of tokens) {
-      const eligibility = checkEligibility(token, wordStates, targetedSet);
+      const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
       if (!eligibility.countSeen) continue;
 
-      const entry = lookup(token.base);
+      const entry = lookupForDirection(token.base, direction, overlay);
       if (!entry) continue;
 
       if (!vocab[token.base]) {

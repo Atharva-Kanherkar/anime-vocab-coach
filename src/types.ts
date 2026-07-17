@@ -1,5 +1,7 @@
 export type PauseMode = "copilot" | "pause" | "off";
 export type DisplayScript = "romaji" | "kana" | "kanji";
+/** en-ja = English speakers learn Japanese; ja-en = Japanese speakers learn English. */
+export type LearningDirection = "en-ja" | "ja-en";
 export type WordState = "new" | "learning" | "known" | "ignored";
 export type Judgment = "know" | "learn" | "ignore" | "review-pass" | "review-fail" | "dismiss";
 
@@ -10,6 +12,8 @@ export interface Settings {
   targetLevel: number;
   autoResumeSec: number;
   displayScript: DisplayScript;
+  /** Which side of the bilingual pair you study. Default: learn Japanese. */
+  learningDirection: LearningDirection;
   autoSpeak: boolean;
   openaiKey: string;
   transcribeModel: string;
@@ -114,6 +118,7 @@ export const DEFAULTS: Settings = {
   targetLevel: 5,
   autoResumeSec: 15,
   displayScript: "romaji",
+  learningDirection: "en-ja",
   autoSpeak: true,
   openaiKey: "",
   transcribeModel: "gpt-4o-mini-transcribe",

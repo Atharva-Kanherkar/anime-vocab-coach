@@ -14,7 +14,11 @@ export interface EphemeralToken {
   expiresAt: number;
 }
 
-export async function mintTranscriptionToken(env: Env): Promise<EphemeralToken> {
+export async function mintTranscriptionToken(
+  env: Env,
+  language: string = "ja"
+): Promise<EphemeralToken> {
+  const lang = language === "en" ? "en" : "ja";
   const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
     method: "POST",
     headers: {
@@ -31,7 +35,7 @@ export async function mintTranscriptionToken(env: Env): Promise<EphemeralToken> 
         audio: {
           input: {
             format: { type: "audio/pcm", rate: 24000 },
-            transcription: { model: env.TRANSCRIBE_MODEL, language: "ja" },
+            transcription: { model: env.TRANSCRIBE_MODEL, language: lang },
             turn_detection: { type: "server_vad", silence_duration_ms: 500 }
           }
         }

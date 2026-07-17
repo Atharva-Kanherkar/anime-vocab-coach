@@ -13,6 +13,7 @@ export interface CoachPayload {
   animeContext?: string | null;
   learnerLevel?: number | null;
   wordsKnown?: number | null;
+  direction?: "en-ja" | "ja-en";
 }
 
 export interface ChatMessage {

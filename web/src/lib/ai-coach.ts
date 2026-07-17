@@ -12,6 +12,12 @@
 // so repeated explanations cost nothing and do not consume a user's quota.
 
 import { TIERS } from "@/lib/site";
+import {
+  explainLangName,
+  normalizeDirection,
+  targetLangName,
+  type LearningDirection,
+} from "@/lib/direction";
 
 export type CoachMode = "explain" | "hooks" | "chat";
 export type Plan = "free" | "pro" | "max";
@@ -40,6 +46,8 @@ export interface CoachRequest {
   animeContext?: string;
   learnerLevel?: number | null;
   wordsKnown?: number | null;
+  /** en-ja = learn Japanese; ja-en = learn English */
+  direction?: LearningDirection;
   /** chat mode only */
   message?: string;
   history?: ChatMessage[];
@@ -152,6 +160,7 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
         Number.isFinite(Number(body.wordsKnown)) && Number(body.wordsKnown) >= 0
           ? Math.round(Number(body.wordsKnown))
           : null,
+      direction: normalizeDirection(body.direction),
       message,
       history,
     },
@@ -161,10 +170,11 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
 /** Stable cache key: same word+line+level (across users) reuses one answer. */
 export async function coachCacheKey(req: CoachRequest): Promise<string> {
   const ctxPart = req.animeContext ? req.animeContext.slice(0, 80) : "";
-  const basis = `${req.word}\u0001${req.line}\u0001${req.level ?? 0}\u0001${ctxPart}`;
+  const dir = normalizeDirection(req.direction);
+  const basis = `${dir}\u0001${req.word}\u0001${req.line}\u0001${req.level ?? 0}\u0001${ctxPart}`;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(basis));
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
-  return `ai:v1:${req.mode}:${hex}`;
+  return `ai:v2:${req.mode}:${hex}`;
 }
 
 function learnerProfileLine(req: CoachRequest): string {
@@ -203,22 +213,30 @@ function contextBlock(req: CoachRequest): string {
 }
 
 function buildPrompt(req: CoachRequest): { system: string; user: string } {
+  const direction = normalizeDirection(req.direction);
+  const target = targetLangName(direction);
+  const explain = explainLangName(direction);
   if (req.mode === "explain") {
+    const nuanceHint =
+      direction === "ja-en"
+        ? "tone, register (casual/formal), slang, or why this English phrasing fits the anime moment"
+        : "politeness level (keigo, casual, rough), emotion, or anime speech quirks";
     return {
       system:
-        "You are an anime Japanese tutor. A learner tapped a word inside a line of anime dialogue. " +
-        "Return strict JSON with two fields. `meaning`: the word's meaning in simple beginner English, 1-2 sentences. " +
-        "`nuance`: why the character phrased it THIS way in THIS line — politeness level (keigo, casual, rough), " +
-        "emotion, or anime speech quirks. Be specific to the line, not generic. Keep each field under 60 words. " +
+        `You are an anime ${target} tutor. A learner tapped a word inside a line of anime dialogue. ` +
+        `Return strict JSON with two fields. \`meaning\`: the word's meaning in simple beginner ${explain}, 1-2 sentences. ` +
+        `\`nuance\`: why the character phrased it THIS way in THIS line — ${nuanceHint}. ` +
+        "Be specific to the line, not generic. Keep each field under 60 words. " +
         'Respond only as {"meaning": string, "nuance": string}.',
       user: contextBlock(req),
     };
   }
   return {
     system:
-      "You are a mnemonic coach for anime Japanese learners. Given a word and the exact anime line it appeared in, " +
+      `You are a mnemonic coach for anime ${target} learners (explanations in ${explain}). ` +
+      "Given a word and the exact anime line it appeared in, " +
       "create exactly 3 short, vivid memory hooks that tie the word's sound or meaning to the scene so it sticks. " +
-      "Each hook is one sentence, playful, and references the line or anime moment. " +
+      `Each hook is one sentence in ${explain}, playful, and references the line or anime moment. ` +
       'Respond only as strict JSON {"hooks": [string, string, string]}.',
     user: contextBlock(req),
   };
@@ -279,13 +297,20 @@ export async function runCoach(
   return { mode: "hooks", hooks };
 }
 
-function chatSystemPrompt(): string {
+function chatSystemPrompt(direction: LearningDirection = "en-ja"): string {
+  const dir = normalizeDirection(direction);
+  const target = targetLangName(dir);
+  const explain = explainLangName(dir);
+  const readingHint =
+    dir === "en-ja"
+      ? "Use romaji for Japanese readings when helpful. "
+      : "Keep English examples natural; gloss hard words in Japanese when helpful. ";
   return (
-    "You are a concise anime Japanese tutor embedded in a learner's video player. " +
-    "The learner is watching anime with subtitles. Answer in clear beginner-friendly English. " +
+    `You are a concise anime ${target} tutor embedded in a learner's video player. ` +
+    `The learner is watching anime with subtitles. Answer in clear beginner-friendly ${explain}. ` +
     "Stay focused on the highlighted word and the exact line from the scene. " +
     "Keep replies under 120 words unless they ask for more detail. " +
-    "Use romaji for Japanese readings when helpful. " +
+    readingHint +
     "Use light markdown when it helps clarity: **bold** for key terms, bullet lists, short ### headings. No emoji."
   );
 }
@@ -294,7 +319,7 @@ function buildChatMessages(req: CoachRequest): { role: "system" | "user" | "assi
   const message = (req.message || "").trim();
   const contextUser = `[Scene context]\n${contextBlock(req)}\n\n[Learner question]\n${message}`;
   const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-    { role: "system", content: chatSystemPrompt() },
+    { role: "system", content: chatSystemPrompt(normalizeDirection(req.direction)) },
   ];
   for (const turn of req.history || []) {
     messages.push({ role: turn.role, content: turn.content });

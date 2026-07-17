@@ -85,24 +85,167 @@
     return base in ESSENTIAL_WORDS;
   }
 
+  // src/lib/english-essentials.ts
+  var ENGLISH_ESSENTIALS = {
+    please: { gloss: "\u304A\u9858\u3044\u3057\u307E\u3059\uFF0F\u3069\u3046\u305E", level: 5 },
+    thanks: { gloss: "\u3042\u308A\u304C\u3068\u3046", level: 5 },
+    thank: { gloss: "\u611F\u8B1D\u3059\u308B", level: 5 },
+    sorry: { gloss: "\u3054\u3081\u3093\uFF0F\u3059\u307F\u307E\u305B\u3093", level: 5 },
+    hello: { gloss: "\u3053\u3093\u306B\u3061\u306F", level: 5 },
+    goodbye: { gloss: "\u3055\u3088\u3046\u306A\u3089", level: 5 },
+    love: { gloss: "\u611B\u3059\u308B\uFF0F\u5927\u597D\u304D", level: 5 },
+    like: { gloss: "\u597D\u304D\uFF0F\u301C\u307F\u305F\u3044", level: 5 },
+    want: { gloss: "\u6B32\u3057\u3044\uFF0F\u3057\u305F\u3044", level: 5 },
+    need: { gloss: "\u5FC5\u8981\u3060", level: 5 },
+    know: { gloss: "\u77E5\u3063\u3066\u3044\u308B", level: 5 },
+    think: { gloss: "\u601D\u3046", level: 5 },
+    feel: { gloss: "\u611F\u3058\u308B", level: 5 },
+    come: { gloss: "\u6765\u308B", level: 5 },
+    go: { gloss: "\u884C\u304F", level: 5 },
+    see: { gloss: "\u898B\u308B", level: 5 },
+    look: { gloss: "\u898B\u308B\uFF0F\u69D8\u5B50", level: 5 },
+    hear: { gloss: "\u805E\u304F", level: 5 },
+    listen: { gloss: "\u8033\u3092\u50BE\u3051\u308B", level: 5 },
+    speak: { gloss: "\u8A71\u3059", level: 5 },
+    talk: { gloss: "\u8A71\u3059", level: 5 },
+    say: { gloss: "\u8A00\u3046", level: 5 },
+    tell: { gloss: "\u4F1D\u3048\u308B", level: 5 },
+    ask: { gloss: "\u5C0B\u306D\u308B", level: 5 },
+    give: { gloss: "\u4E0E\u3048\u308B", level: 5 },
+    take: { gloss: "\u53D6\u308B", level: 5 },
+    make: { gloss: "\u4F5C\u308B", level: 5 },
+    get: { gloss: "\u5F97\u308B\uFF0F\u306A\u308B", level: 5 },
+    find: { gloss: "\u898B\u3064\u3051\u308B", level: 5 },
+    help: { gloss: "\u52A9\u3051\u308B", level: 5 },
+    wait: { gloss: "\u5F85\u3064", level: 5 },
+    stop: { gloss: "\u6B62\u3081\u308B", level: 5 },
+    start: { gloss: "\u59CB\u3081\u308B", level: 5 },
+    leave: { gloss: "\u53BB\u308B", level: 5 },
+    stay: { gloss: "\u6B8B\u308B\uFF0F\u6CCA\u307E\u308B", level: 5 },
+    open: { gloss: "\u958B\u3051\u308B\uFF0F\u958B\u3044\u305F", level: 5 },
+    close: { gloss: "\u9589\u3081\u308B\uFF0F\u8FD1\u3044", level: 4 },
+    friend: { gloss: "\u53CB\u9054", level: 5 },
+    family: { gloss: "\u5BB6\u65CF", level: 5 },
+    school: { gloss: "\u5B66\u6821", level: 5 },
+    home: { gloss: "\u5BB6", level: 5 },
+    house: { gloss: "\u5BB6\uFF0F\u4F4F\u5B85", level: 5 },
+    world: { gloss: "\u4E16\u754C", level: 5 },
+    life: { gloss: "\u4EBA\u751F\uFF0F\u751F\u6D3B", level: 5 },
+    time: { gloss: "\u6642\u9593", level: 5 },
+    day: { gloss: "\u65E5\uFF0F\u663C\u9593", level: 5 },
+    night: { gloss: "\u591C", level: 5 },
+    morning: { gloss: "\u671D", level: 5 },
+    today: { gloss: "\u4ECA\u65E5", level: 5 },
+    tomorrow: { gloss: "\u660E\u65E5", level: 5 },
+    yesterday: { gloss: "\u6628\u65E5", level: 5 },
+    people: { gloss: "\u4EBA\u3005", level: 5 },
+    person: { gloss: "\u4EBA", level: 5 },
+    man: { gloss: "\u7537\uFF0F\u4EBA", level: 5 },
+    woman: { gloss: "\u5973", level: 5 },
+    child: { gloss: "\u5B50\u4F9B", level: 5 },
+    kid: { gloss: "\u5B50\u4F9B", level: 5 },
+    boy: { gloss: "\u5C11\u5E74", level: 5 },
+    girl: { gloss: "\u5C11\u5973", level: 5 },
+    heart: { gloss: "\u5FC3\uFF0F\u5FC3\u81D3", level: 4 },
+    dream: { gloss: "\u5922", level: 4 },
+    power: { gloss: "\u529B", level: 4 },
+    fight: { gloss: "\u6226\u3046\uFF0F\u55A7\u5629", level: 4 },
+    battle: { gloss: "\u6226\u3044", level: 4 },
+    enemy: { gloss: "\u6575", level: 4 },
+    danger: { gloss: "\u5371\u967A", level: 4 },
+    safe: { gloss: "\u5B89\u5168\u306A", level: 4 },
+    truth: { gloss: "\u771F\u5B9F", level: 4 },
+    lie: { gloss: "\u5618", level: 4 },
+    secret: { gloss: "\u79D8\u5BC6", level: 4 },
+    promise: { gloss: "\u7D04\u675F", level: 4 },
+    believe: { gloss: "\u4FE1\u3058\u308B", level: 4 },
+    remember: { gloss: "\u899A\u3048\u3066\u3044\u308B", level: 4 },
+    forget: { gloss: "\u5FD8\u308C\u308B", level: 4 },
+    understand: { gloss: "\u7406\u89E3\u3059\u308B", level: 4 },
+    change: { gloss: "\u5909\u3048\u308B\uFF0F\u5909\u5316", level: 4 },
+    happen: { gloss: "\u8D77\u3053\u308B", level: 4 },
+    forever: { gloss: "\u6C38\u9060\u306B", level: 3 },
+    together: { gloss: "\u4E00\u7DD2\u306B", level: 5 },
+    alone: { gloss: "\u4E00\u4EBA\u3067", level: 5 },
+    always: { gloss: "\u3044\u3064\u3082", level: 5 },
+    never: { gloss: "\u6C7A\u3057\u3066\u301C\u306A\u3044", level: 5 },
+    really: { gloss: "\u672C\u5F53\u306B", level: 5 },
+    maybe: { gloss: "\u305F\u3076\u3093", level: 5 },
+    because: { gloss: "\u306A\u305C\u306A\u3089", level: 5 },
+    right: { gloss: "\u6B63\u3057\u3044\uFF0F\u53F3", level: 5 },
+    wrong: { gloss: "\u9593\u9055\u3063\u305F", level: 5 },
+    good: { gloss: "\u826F\u3044", level: 5 },
+    bad: { gloss: "\u60AA\u3044", level: 5 },
+    great: { gloss: "\u7D20\u6674\u3089\u3057\u3044", level: 5 },
+    beautiful: { gloss: "\u7F8E\u3057\u3044", level: 4 },
+    happy: { gloss: "\u5E78\u305B\u306A", level: 5 },
+    sad: { gloss: "\u60B2\u3057\u3044", level: 5 },
+    angry: { gloss: "\u6012\u3063\u305F", level: 4 },
+    scared: { gloss: "\u6016\u304C\u3063\u3066\u3044\u308B", level: 4 },
+    strong: { gloss: "\u5F37\u3044", level: 5 },
+    weak: { gloss: "\u5F31\u3044", level: 5 },
+    important: { gloss: "\u5927\u5207\u306A", level: 4 },
+    different: { gloss: "\u9055\u3046", level: 4 },
+    same: { gloss: "\u540C\u3058", level: 5 }
+  };
+
+  // src/lib/direction.ts
+  function normalizeDirection(value) {
+    return value === "ja-en" ? "ja-en" : "en-ja";
+  }
+  function targetLang(direction) {
+    return direction === "ja-en" ? "en" : "ja";
+  }
+  function audioLang(direction) {
+    return targetLang(direction);
+  }
+  function contextLang(direction) {
+    return direction === "ja-en" ? "ja" : "en";
+  }
+  function contextSubtitleLabel(direction) {
+    return direction === "ja-en" ? "Japanese subtitle" : "English subtitle";
+  }
+  function chatPlaceholder(direction) {
+    return direction === "ja-en" ? "\u3053\u306E\u30B7\u30FC\u30F3\u306E\u82F1\u8A9E\u306B\u3064\u3044\u3066\u805E\u304F\u2026" : "Ask about Japanese in this scene\u2026";
+  }
+
   // src/lib/scoring.ts
-  var ELIGIBLE_POS = ["\u540D\u8A5E", "\u52D5\u8A5E", "\u5F62\u5BB9\u8A5E", "\u526F\u8A5E"];
+  var ELIGIBLE_POS = ["\u540D\u8A5E", "\u52D5\u8A5E", "\u5F62\u5BB9\u8A5E", "\u526F\u8A5E", "CONTENT"];
   var EXCLUDED_NOUN_POS1 = ["\u4EE3\u540D\u8A5E", "\u6570", "\u63A5\u5C3E", "\u975E\u81EA\u7ACB", "\u56FA\u6709\u540D\u8A5E"];
   function hasKanji(base) {
-    return /[一-鿿]/.test(base);
+    return /[\u4E00-\u9FFF]/.test(base);
   }
-  function checkEligibility(token, wordStates, targetedSet, now = Date.now()) {
+  function lookupForDirection(base, direction, overlay) {
+    if (overlay?.[base]) return overlay[base];
+    if (normalizeDirection(direction) === "ja-en") {
+      const hit = ENGLISH_ESSENTIALS[base];
+      if (!hit) return null;
+      return {
+        reading: "",
+        glosses: [hit.gloss],
+        level: hit.level,
+        freqRank: Math.round((6 - hit.level) * 2e3)
+      };
+    }
+    return lookup(base);
+  }
+  function checkEligibility(token, wordStates, targetedSet, now = Date.now(), direction = "en-ja", overlay) {
     const { base, pos, pos1 } = token;
+    const dir = normalizeDirection(direction);
+    const isEnglish = dir === "ja-en" || pos === "CONTENT";
     if (!ELIGIBLE_POS.includes(pos)) {
       return { eligible: false, countSeen: false };
     }
-    if (pos === "\u540D\u8A5E" && EXCLUDED_NOUN_POS1.includes(pos1)) {
+    if (!isEnglish && pos === "\u540D\u8A5E" && EXCLUDED_NOUN_POS1.includes(pos1)) {
       return { eligible: false, countSeen: false };
     }
-    if (base.length < 2 && !hasKanji(base) && !isEssentialWord(base)) {
+    if (!isEnglish && base.length < 2 && !hasKanji(base) && !isEssentialWord(base)) {
       return { eligible: false, countSeen: false };
     }
-    const entry = lookup(base);
+    if (isEnglish && base.length < 2) {
+      return { eligible: false, countSeen: false };
+    }
+    const entry = lookupForDirection(base, dir, overlay);
     if (!entry) {
       return { eligible: false, countSeen: false };
     }
@@ -120,11 +263,11 @@
     }
     return { eligible: true, countSeen: true, entry };
   }
-  function collectEligible(tokens, wordStates, targetedSet) {
+  function collectEligible(tokens, wordStates, targetedSet, direction = "en-ja", overlay) {
     const survivors = [];
     const now = Date.now();
     for (const token of tokens) {
-      const check = checkEligibility(token, wordStates, targetedSet, now);
+      const check = checkEligibility(token, wordStates, targetedSet, now, direction, overlay);
       if (check.eligible && check.entry) {
         survivors.push({ token, entry: check.entry });
       }
@@ -153,8 +296,9 @@
   function pickTargetHeuristic(newWords, wordStates, settings) {
     let best = null;
     let bestScore = -1;
+    const dir = normalizeDirection(settings.learningDirection);
     for (const { token, entry } of newWords) {
-      const essential = essentialBoost(token.base, settings.targetLevel);
+      const essential = dir === "ja-en" ? ENGLISH_ESSENTIALS[token.base] ? 0.25 : 0 : essentialBoost(token.base, settings.targetLevel);
       const freqScore = 1 - Math.min(entry.freqRank, 2e4) / 2e4;
       const levelScore = 1 - Math.abs(entry.level - settings.targetLevel) / 4;
       const familiarity = Math.min(wordStates[token.base]?.seenCount || 0, 5) / 5;
@@ -177,6 +321,7 @@
     targetLevel: 5,
     autoResumeSec: 15,
     displayScript: "romaji",
+    learningDirection: "en-ja",
     autoSpeak: true,
     openaiKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
@@ -261,7 +406,7 @@
       });
     });
   }
-  function recordSeen(tokens, wordStates, targetedSet) {
+  function recordSeen(tokens, wordStates, targetedSet, direction = "en-ja", overlay) {
     return enqueue(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = { ...r.vocab || {} };
@@ -270,9 +415,9 @@
       const daily = ensureDaily(stats, day);
       let changed = false;
       for (const token of tokens) {
-        const eligibility = checkEligibility(token, wordStates, targetedSet);
+        const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
         if (!eligibility.countSeen) continue;
-        const entry = lookup(token.base);
+        const entry = lookupForDirection(token.base, direction, overlay);
         if (!entry) continue;
         if (!vocab[token.base]) {
           vocab[token.base] = {
@@ -727,11 +872,231 @@
     }));
   }
 
+  // src/lib/english-tokenize.ts
+  var STOPWORDS = /* @__PURE__ */ new Set([
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "but",
+    "if",
+    "then",
+    "so",
+    "as",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "into",
+    "of",
+    "on",
+    "onto",
+    "to",
+    "with",
+    "without",
+    "about",
+    "above",
+    "after",
+    "before",
+    "between",
+    "over",
+    "under",
+    "up",
+    "down",
+    "out",
+    "off",
+    "over",
+    "again",
+    "further",
+    "once",
+    "here",
+    "there",
+    "when",
+    "where",
+    "why",
+    "how",
+    "all",
+    "each",
+    "few",
+    "more",
+    "most",
+    "other",
+    "some",
+    "such",
+    "no",
+    "nor",
+    "not",
+    "only",
+    "own",
+    "same",
+    "than",
+    "too",
+    "very",
+    "can",
+    "will",
+    "just",
+    "don",
+    "should",
+    "now",
+    "i",
+    "me",
+    "my",
+    "myself",
+    "we",
+    "our",
+    "ours",
+    "you",
+    "your",
+    "yours",
+    "he",
+    "him",
+    "his",
+    "she",
+    "her",
+    "hers",
+    "it",
+    "its",
+    "they",
+    "them",
+    "their",
+    "what",
+    "which",
+    "who",
+    "whom",
+    "this",
+    "that",
+    "these",
+    "those",
+    "am",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "having",
+    "do",
+    "does",
+    "did",
+    "doing",
+    "would",
+    "could",
+    "ought",
+    "i'm",
+    "you're",
+    "he's",
+    "she's",
+    "it's",
+    "we're",
+    "they're",
+    "i've",
+    "you've",
+    "we've",
+    "they've",
+    "i'd",
+    "you'd",
+    "he'd",
+    "she'd",
+    "we'd",
+    "they'd",
+    "i'll",
+    "you'll",
+    "he'll",
+    "she'll",
+    "we'll",
+    "they'll",
+    "isn't",
+    "aren't",
+    "wasn't",
+    "weren't",
+    "hasn't",
+    "haven't",
+    "hadn't",
+    "doesn't",
+    "don't",
+    "didn't",
+    "won't",
+    "wouldn't",
+    "shan't",
+    "shouldn't",
+    "can't",
+    "cannot",
+    "couldn't",
+    "mustn't",
+    "let's",
+    "that's",
+    "who's",
+    "what's",
+    "here's",
+    "there's",
+    "when's",
+    "where's",
+    "why's",
+    "how's",
+    "oh",
+    "ah",
+    "uh",
+    "um",
+    "yeah",
+    "yes",
+    "ok",
+    "okay",
+    "hey",
+    "hi",
+    "hello"
+  ]);
+  function lemmatize(raw) {
+    const w = raw.toLowerCase();
+    if (w.length <= 3) return w;
+    if (w.endsWith("ies") && w.length > 4) return w.slice(0, -3) + "y";
+    if (w.endsWith("ves") && w.length > 4) return w.slice(0, -3) + "f";
+    if (w.endsWith("ing") && w.length > 5) {
+      const stem = w.slice(0, -3);
+      if (stem.length >= 3 && stem[stem.length - 1] === stem[stem.length - 2]) return stem.slice(0, -1);
+      return stem;
+    }
+    if (w.endsWith("ed") && w.length > 4) {
+      const stem = w.slice(0, -2);
+      if (stem.length >= 3 && stem[stem.length - 1] === stem[stem.length - 2]) return stem.slice(0, -1);
+      return stem;
+    }
+    if (w.endsWith("es") && w.length > 4) return w.slice(0, -2);
+    if (w.endsWith("s") && !w.endsWith("ss") && w.length > 3) return w.slice(0, -1);
+    return w;
+  }
+  function tokenizeEnglish(text) {
+    const tokens = [];
+    const re = /[A-Za-z]+(?:'[A-Za-z]+)?/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const surface = m[0];
+      const lower = surface.toLowerCase();
+      if (STOPWORDS.has(lower)) continue;
+      if (lower.length < 3 && !/[A-Z]/.test(surface)) continue;
+      const base = lemmatize(lower);
+      if (STOPWORDS.has(base) || base.length < 2) continue;
+      tokens.push({
+        surface,
+        base,
+        reading: "",
+        pos: "CONTENT",
+        pos1: "english"
+      });
+    }
+    return tokens;
+  }
+
   // src/lib/word-picker-client.ts
   var sessionCache = /* @__PURE__ */ new Map();
   function sessionKey(req) {
     const bases = req.candidates.map((c) => c.word).sort().join("|");
-    return `${req.learnerLevel}:${req.line}:${bases}`;
+    return `${req.direction || "en-ja"}:${req.learnerLevel}:${req.line}:${bases}`;
   }
   async function fetchWordPick(req) {
     const key = sessionKey(req);
@@ -789,8 +1154,15 @@
     }
     return n;
   }
-  async function pickTargetSmart(tokens, wordStates, settings, targetedSet, line, title) {
-    const { dueReview, newWords } = collectEligible(tokens, wordStates, targetedSet);
+  async function pickTargetSmart(tokens, wordStates, settings, targetedSet, line, title, overlay) {
+    const direction = normalizeDirection(settings.learningDirection);
+    const { dueReview, newWords } = collectEligible(
+      tokens,
+      wordStates,
+      targetedSet,
+      direction,
+      overlay
+    );
     if (dueReview) return dueReview;
     if (!newWords.length) return null;
     if (newWords.length === 1) return newWords[0];
@@ -799,7 +1171,7 @@
       reading: entry.reading,
       gloss: entry.glosses[0] || "",
       level: entry.level,
-      essential: isEssentialWord(token.base)
+      essential: direction === "ja-en" ? !!ENGLISH_ESSENTIALS[token.base] : isEssentialWord(token.base)
     }));
     const ai = await fetchWordPick({
       line,
@@ -807,10 +1179,11 @@
       learnerLevel: settings.targetLevel,
       wordsKnown: countProgress(wordStates),
       title,
-      animeContext: peekAnimeContext(title)
+      animeContext: peekAnimeContext(title),
+      direction
     });
     if (ai.ok && ai.word) {
-      const match = newWords.find((t) => t.token.base === ai.word);
+      const match = newWords.find((t) => t.token.base === ai.word || t.token.surface === ai.word);
       if (match) return match;
     }
     return pickTargetHeuristic(newWords, wordStates, settings);
@@ -1413,7 +1786,13 @@
       document.addEventListener("mouseup", onUp);
     });
   }
-  function wordDisplays(token, entry, displayScript) {
+  function wordDisplays(token, entry, displayScript, direction) {
+    if (normalizeDirection(direction) === "ja-en") {
+      return {
+        big: token.surface || token.base,
+        secondary: entry.reading || token.base
+      };
+    }
     const roma = toRomaji(entry.reading);
     if (displayScript === "kana") return { big: entry.reading, secondary: `${roma} \xB7 ${token.surface}` };
     if (displayScript === "kanji") return { big: token.surface, secondary: `${entry.reading} \xB7 ${roma}` };
@@ -1458,7 +1837,7 @@
     });
     return line;
   }
-  function buildSentence(sentence, tokens, targetIndex, surface, displayScript) {
+  function buildSentence(sentence, tokens, targetIndex, surface, displayScript, direction = "en-ja") {
     const el = document.createElement("div");
     el.className = "avc-agent-sentence";
     const label = document.createElement("span");
@@ -1466,7 +1845,7 @@
     label.textContent = tokens?.length ? "In this line" : "Line";
     el.appendChild(label);
     if (tokens?.length) {
-      if (displayScript === "romaji") {
+      if (normalizeDirection(direction) === "en-ja" && displayScript === "romaji") {
         const pieces = sentencePieces(tokens, targetIndex ?? -1);
         const romajiLine = document.createElement("div");
         romajiLine.className = "avc-agent-romaji-line";
@@ -1579,7 +1958,8 @@
       title: ctx.title,
       animeContext: ctx.options.animeContext ?? null,
       learnerLevel: ctx.options.learnerLevel ?? null,
-      wordsKnown: ctx.options.wordsKnown ?? null
+      wordsKnown: ctx.options.wordsKnown ?? null,
+      direction: normalizeDirection(ctx.options.learningDirection)
     };
   }
   function clearWordTimers() {
@@ -1762,6 +2142,7 @@
   function populateWordSection(ctx) {
     if (!shell) return;
     const { token, entry, sentence, isReview, options: opts } = ctx;
+    const direction = normalizeDirection(opts.learningDirection);
     const displayScript = opts.displayScript || "romaji";
     shell.wordIdle.style.display = "none";
     shell.wordActive.classList.add("avc-active");
@@ -1771,10 +2152,11 @@
     chatHistory = [];
     shell.chatLog.textContent = "";
     chatPayload = payloadFromCtx(ctx);
+    shell.chatInput.placeholder = chatPlaceholder(direction);
     const chip = document.createElement("div");
     chip.className = isReview ? "avc-agent-chip avc-agent-chip-review" : "avc-agent-chip";
     chip.textContent = isReview ? "Review" : `${isEssentialWord(token.base) ? "Essential \xB7 " : ""}${commonnessLabel(entry.level)} \xB7 #${entry.freqRank.toLocaleString()}${opts.fromAudio ? " \xB7 heard" : ""}`;
-    const displays = wordDisplays(token, entry, displayScript);
+    const displays = wordDisplays(token, entry, displayScript, direction);
     const wordRow = document.createElement("div");
     wordRow.className = "avc-agent-word-row";
     const wordEl = document.createElement("div");
@@ -1821,12 +2203,14 @@
       ctxEl.className = "avc-agent-context";
       const lbl = document.createElement("span");
       lbl.className = "avc-agent-label";
-      lbl.textContent = "English subtitle";
+      lbl.textContent = contextSubtitleLabel(direction);
       ctxEl.appendChild(lbl);
       ctxEl.appendChild(document.createTextNode(opts.contextEn));
       shell.wordActive.appendChild(ctxEl);
     }
-    shell.wordActive.appendChild(buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript));
+    shell.wordActive.appendChild(
+      buildSentence(sentence, opts.tokens, opts.targetIndex, token.surface, displayScript, direction)
+    );
     renderJudgmentButtons(ctx);
     if (opts.autoSpeak && opts.interaction === "focus") {
       setTimeout(() => speak(entry.reading || token.reading || token.surface), 250);
@@ -2125,16 +2509,30 @@
     return text.replace(/\s+/g, " ").trim();
   }
   function hasJapanese(text) {
-    return /[぀-ヿ㐀-䶿一-鿿]/.test(text);
+    return /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/.test(text);
+  }
+  function hasEnglish(text) {
+    return /[A-Za-z]{2,}/.test(text);
+  }
+  function matchesTargetScript(text, direction) {
+    return normalizeDirection(direction) === "ja-en" ? hasEnglish(text) : hasJapanese(text);
+  }
+  var activeDirection = "en-ja";
+  function setAdapterDirection(direction) {
+    activeDirection = normalizeDirection(direction);
+  }
+  function getAdapterDirection() {
+    return activeDirection;
   }
 
   // src/lib/adapters/youtube.ts
   var onLineCb = null;
-  var jaCues = [];
-  var enCues = [];
+  var targetCues = [];
+  var contextCues = [];
   var currentVideoId = "";
   var lastCueKey = "";
   var attachedVideo = null;
+  var loadedForDirection = "";
   function parseJson3(data2) {
     const cues = [];
     for (const ev of data2.events || []) {
@@ -2161,33 +2559,42 @@
     return matches.find((t) => t.kind !== "asr") || matches[0] || null;
   }
   async function handleTracks(msg) {
-    if (msg.videoId === currentVideoId) return;
+    const direction = getAdapterDirection();
+    const dirKey = `${msg.videoId}:${direction}`;
+    if (dirKey === currentVideoId + ":" + loadedForDirection && targetCues.length) return;
     currentVideoId = msg.videoId;
-    jaCues = [];
-    enCues = [];
+    loadedForDirection = direction;
+    targetCues = [];
+    contextCues = [];
     lastCueKey = "";
-    const jaTrack = pickTrack(msg.tracks, "ja");
-    if (!jaTrack) {
-      log("youtube: no Japanese caption track on this video \u2014 DOM fallback only");
+    const study = audioLang(direction);
+    const ctx = contextLang(direction);
+    const studyTrack = pickTrack(msg.tracks, study);
+    if (!studyTrack) {
+      log(`youtube: no ${study} caption track on this video \u2014 DOM fallback only`);
       return;
     }
     try {
-      jaCues = await fetchTrack(jaTrack);
-    } catch (err) {
-      jaCues = [];
+      targetCues = await fetchTrack(studyTrack);
+    } catch {
+      targetCues = [];
     }
-    if (!jaCues.length) {
-      log("youtube: hidden caption track unavailable (YouTube blocks silent fetches). Use Listening Mode from the toolbar, or turn on Japanese captions to read them from the page.");
+    if (!targetCues.length) {
+      log(
+        `youtube: hidden ${study} caption track unavailable. Use Listening Mode from the toolbar, or turn on matching captions to read them from the page.`
+      );
       return;
     }
-    log(`youtube: loaded ${jaCues.length} Japanese cues (${jaTrack.kind === "asr" ? "auto-generated" : "manual"})`);
-    const enTrack = pickTrack(msg.tracks, "en");
-    if (enTrack) {
+    log(
+      `youtube: loaded ${targetCues.length} ${study} cues (${studyTrack.kind === "asr" ? "auto-generated" : "manual"})`
+    );
+    const ctxTrack = pickTrack(msg.tracks, ctx);
+    if (ctxTrack) {
       try {
-        enCues = await fetchTrack(enTrack);
-        log(`youtube: loaded ${enCues.length} English cues for context`);
-      } catch (err) {
-        enCues = [];
+        contextCues = await fetchTrack(ctxTrack);
+        log(`youtube: loaded ${contextCues.length} ${ctx} cues for context`);
+      } catch {
+        contextCues = [];
       }
     }
   }
@@ -2199,16 +2606,16 @@
     return null;
   }
   function onTimeUpdate() {
-    if (!jaCues.length || !onLineCb || !attachedVideo) return;
+    if (!targetCues.length || !onLineCb || !attachedVideo) return;
     const t = attachedVideo.currentTime;
-    const cue = cueAt(jaCues, t);
+    const cue = cueAt(targetCues, t);
     if (!cue) return;
     const key = `${cue.start}:${cue.text}`;
     if (key === lastCueKey) return;
     lastCueKey = key;
-    if (!hasJapanese(cue.text)) return;
-    const enCue = cueAt(enCues, (cue.start + cue.end) / 2);
-    onLineCb(cue.text, { en: enCue ? enCue.text : "" });
+    if (!matchesTargetScript(cue.text, getAdapterDirection())) return;
+    const ctxCue = cueAt(contextCues, (cue.start + cue.end) / 2);
+    onLineCb(cue.text, { en: ctxCue ? ctxCue.text : "" });
   }
   function getVideo() {
     return document.querySelector("#movie_player video, video.html5-main-video");
@@ -2223,8 +2630,6 @@
       return location.hostname.endsWith("youtube.com");
     },
     getVideo,
-    // Whatever subtitle is on screen right now, any language — used as
-    // human-readable context alongside audio transcripts.
     getVisibleText,
     start(onLine) {
       onLineCb = onLine;
@@ -2245,10 +2650,10 @@
       let debounceTimer = null;
       const check = () => {
         try {
-          if (jaCues.length) return;
+          if (targetCues.length) return;
           const text = getVisibleText();
           if (!text || text === lastText) return;
-          if (!hasJapanese(text)) return;
+          if (!matchesTargetScript(text, getAdapterDirection())) return;
           lastText = text;
           onLine(text, { en: "" });
         } catch (err) {
@@ -2284,7 +2689,7 @@
         try {
           const text = getVisibleText2();
           if (!text || text === lastText) return;
-          if (!hasJapanese(text)) return;
+          if (!matchesTargetScript(text, getAdapterDirection())) return;
           lastText = text;
           onLine(text, { en: "" });
         } catch (err) {
@@ -2329,13 +2734,23 @@
     start(onLine) {
       const hooked = /* @__PURE__ */ new WeakSet();
       const lastByTrack = /* @__PURE__ */ new WeakMap();
-      const enContext = (video) => {
+      const contextFromVideo = (video) => {
+        const want = contextLang(getAdapterDirection());
         for (const track of video.textTracks) {
-          if (!(track.language || "").startsWith("en") || !track.activeCues) continue;
+          if (!(track.language || "").startsWith(want) || !track.activeCues) continue;
           const text = normalize(
             Array.from(track.activeCues).map((c) => c.text.replace(/<[^>]+>/g, "")).join(" ")
           );
           if (text) return text;
+        }
+        for (const track of video.textTracks) {
+          if (track.mode !== "showing" || !track.activeCues) continue;
+          const text = normalize(
+            Array.from(track.activeCues).map((c) => c.text.replace(/<[^>]+>/g, "")).join(" ")
+          );
+          if (!text) continue;
+          if (want === "en" && hasEnglish(text)) return text;
+          if (want === "ja" && matchesTargetScript(text, "en-ja")) return text;
         }
         return "";
       };
@@ -2355,9 +2770,9 @@
                   );
                   const lastText = lastByTrack.get(track) || "";
                   if (!text || text === lastText) return;
-                  if (!hasJapanese(text)) return;
+                  if (!matchesTargetScript(text, getAdapterDirection())) return;
                   lastByTrack.set(track, text);
-                  onLine(text, { en: enContext(v) });
+                  onLine(text, { en: contextFromVideo(v) });
                 } catch (err) {
                   warn("generic adapter cue error:", err);
                 }
@@ -2371,16 +2786,67 @@
     }
   };
 
+  // src/lib/extract-words-client.ts
+  var sessionCache3 = /* @__PURE__ */ new Map();
+  function sessionKey2(line, direction, level) {
+    return `${direction}:${level}:${line}`;
+  }
+  async function fetchExtractWords(opts) {
+    const key = sessionKey2(opts.line, opts.direction, opts.learnerLevel);
+    const hit = sessionCache3.get(key);
+    if (hit) return { ok: true, words: hit, cached: true };
+    const token = await getSyncToken();
+    if (!token) return { ok: false, error: "not_linked" };
+    try {
+      const res = await fetch(WEB_URL + "/api/ai/extract-words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({
+          line: opts.line,
+          direction: opts.direction,
+          learnerLevel: opts.learnerLevel,
+          title: opts.title || void 0
+        })
+      });
+      const data2 = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data2.error || `http_${res.status}` };
+      const words = data2.result?.words;
+      if (!words?.length) return { ok: false, error: "empty_extract" };
+      sessionCache3.set(key, words);
+      return { ok: true, words, cached: data2.cached };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
+  function overlayFromExtract(words) {
+    const overlay = {};
+    for (const w of words) {
+      const base = w.word.trim().toLowerCase();
+      if (!base) continue;
+      overlay[base] = {
+        reading: w.reading || "",
+        glosses: w.gloss ? [w.gloss] : [],
+        level: w.level,
+        freqRank: Math.round((6 - w.level) * 2e3)
+      };
+      if (w.word !== base) {
+        overlay[w.word] = overlay[base];
+      }
+    }
+    return overlay;
+  }
+
   // src/lib/cache-key.ts
   var ALLOWED_AUDIO_LANGS = /* @__PURE__ */ new Set(["ja", "en"]);
-  function cacheKey(platform, contentId, audioLang) {
-    const lang = ALLOWED_AUDIO_LANGS.has(audioLang) ? audioLang : "ja";
+  function cacheKey(platform, contentId, audioLang2) {
+    const lang = ALLOWED_AUDIO_LANGS.has(audioLang2) ? audioLang2 : "ja";
     if (platform === "generic") {
       return `fp:${contentId}:${lang}`;
     }
     return `${platform}:${contentId}:${lang}`;
   }
-  function detectAudioLang(video) {
+  function detectAudioLang(video, preferred) {
+    if (preferred === "ja" || preferred === "en") return preferred;
     const v = video || document.querySelector("video");
     const tracks = v && v.audioTracks;
     if (tracks && tracks.length) {
@@ -2422,15 +2888,15 @@
         return null;
     }
   }
-  function deriveCacheKey(platform, video) {
+  function deriveCacheKey(platform, video, preferredLang) {
     const contentId = deriveContentId(platform);
     if (!contentId) return null;
-    const audioLang = detectAudioLang(video);
-    return { key: cacheKey(platform, contentId, audioLang), platform, contentId, audioLang };
+    const lang = detectAudioLang(video, preferredLang);
+    return { key: cacheKey(platform, contentId, lang), platform, contentId, audioLang: lang };
   }
-  function sessionIdentity(platform) {
+  function sessionIdentity(platform, preferredLang) {
     const id = deriveContentId(platform);
-    const lang = detectAudioLang();
+    const lang = detectAudioLang(void 0, preferredLang);
     return id ? `${platform}:${id}:${lang}` : location.pathname;
   }
 
@@ -2488,10 +2954,13 @@
     async function ensureInit() {
       if (initialized || pipelineDisabled) return;
       try {
-        await init();
-        const data2 = await load();
-        log("dictionary loaded:", Object.keys(data2).length, "entries");
         settings = await getSettings();
+        setAdapterDirection(normalizeDirection(settings.learningDirection));
+        if (normalizeDirection(settings.learningDirection) === "en-ja") {
+          await init();
+          const data2 = await load();
+          log("dictionary loaded:", Object.keys(data2).length, "entries");
+        }
         wordStates = await getVocab();
         initialized = true;
         startWatchInterval();
@@ -2506,12 +2975,16 @@
       if (location.hostname.endsWith("crunchyroll.com")) return "crunchyroll";
       return "generic";
     }
+    function studyLang() {
+      return audioLang(normalizeDirection(settings?.learningDirection));
+    }
     function refreshCacheKey() {
       const a = pickAdapter();
       if (!a) return;
       const video = a.getVideo();
-      const result = deriveCacheKey(platformForAdapter(a), video);
-      const next = result && result.audioLang === "ja" ? result.key : "";
+      const preferred = studyLang();
+      const result = deriveCacheKey(platformForAdapter(a), video, preferred);
+      const next = result && result.audioLang === preferred ? result.key : "";
       if (next !== cacheKey2) {
         cacheKey2 = next;
         chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey2 }).catch(() => {
@@ -2534,7 +3007,9 @@
           const key = `${seg.start}:${seg.text}`;
           if (key === lastCacheCueKey) continue;
           lastCacheCueKey = key;
-          if (!/[぀-ヿ一-鿿]/.test(seg.text)) continue;
+          const lang = studyLang();
+          if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
+          if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
           const en = a?.getVisibleText() || "";
           await onLine(seg.text, { en, fromAudio: true });
         }
@@ -2595,6 +3070,7 @@
     }
     async function refreshState() {
       settings = await getSettings();
+      setAdapterDirection(normalizeDirection(settings.learningDirection));
       wordStates = await getVocab();
     }
     async function handleCard(target, sentence, tokens, context) {
@@ -2612,6 +3088,7 @@
       };
       const title = currentTitle();
       prefetchAnimeContext(title);
+      const direction = normalizeDirection(settings.learningDirection);
       const cardOptions = {
         interaction: mode === "pause" ? "focus" : "ambient",
         autoResumeSec: settings.autoResumeSec,
@@ -2624,7 +3101,8 @@
         title,
         animeContext: peekAnimeContext(title),
         learnerLevel: settings.targetLevel,
-        wordsKnown: countProgress2(wordStates)
+        wordsKnown: countProgress2(wordStates),
+        learningDirection: direction
       };
       const judgment = await showAgentPanel(target, sentence, video, cardOptions);
       if (judgment && judgment !== "dismiss") {
@@ -2656,8 +3134,36 @@
       const normalized = text.replace(/\s+/g, " ").trim();
       if (normalized === lastLine) return;
       lastLine = normalized;
-      const tokens = await tokenize(normalized);
-      await recordSeen(tokens, wordStates, targetedThisSession);
+      const direction = normalizeDirection(settings.learningDirection);
+      setAdapterDirection(direction);
+      let tokens;
+      let dictOverlay = null;
+      if (direction === "ja-en") {
+        tokens = tokenizeEnglish(normalized);
+        const extracted = await fetchExtractWords({
+          line: normalized,
+          direction,
+          learnerLevel: settings.targetLevel,
+          title: currentTitle()
+        });
+        if (extracted.ok && extracted.words?.length) {
+          dictOverlay = overlayFromExtract(extracted.words);
+          for (const w of extracted.words) {
+            const base = w.word.trim().toLowerCase();
+            if (!base || tokens.some((t) => t.base === base)) continue;
+            tokens.push({
+              surface: w.word,
+              base,
+              reading: w.reading || "",
+              pos: "CONTENT",
+              pos1: "english"
+            });
+          }
+        }
+      } else {
+        tokens = await tokenize(normalized);
+      }
+      await recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
       wordStates = await getVocab();
       if (isOpen()) {
         log("skipped line (word card still open):", normalized.slice(0, 40));
@@ -2669,7 +3175,8 @@
         settings,
         targetedThisSession,
         normalized,
-        currentTitle()
+        currentTitle(),
+        dictOverlay
       );
       if (!target) {
         log("no target word in:", normalized);
@@ -2742,7 +3249,8 @@
       }
       log("transcript received:", msg.text);
       const en = a.getVisibleText();
-      const segments = (msg.text || "").split(/(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
+      const direction = normalizeDirection(settings?.learningDirection);
+      const segments = (msg.text || "").split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
       (async () => {
         for (const seg of segments) {
           await onLine(seg, { en, fromAudio: true });
@@ -2755,7 +3263,7 @@
     }, 2e3);
     setInterval(() => {
       const a = pickAdapter();
-      const sid = a ? sessionIdentity(platformForAdapter(a)) : location.pathname;
+      const sid = a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
       if (sid !== lastSessionId) {
         lastSessionId = sid;
         targetedThisSession.clear();
@@ -2777,7 +3285,7 @@
     });
     refreshCacheKey();
     const initial = pickAdapter();
-    lastSessionId = initial ? sessionIdentity(platformForAdapter(initial)) : location.pathname;
+    lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
     void setAgentPinned(false);
   })();
 })();

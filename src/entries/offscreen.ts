@@ -24,6 +24,7 @@ interface Session {
   ready: boolean;
   auth: SessionAuth;
   model: string;
+  language: string;
   tabId: number;
   srcRate: number;
   reconnects: number;
@@ -43,7 +44,11 @@ async function getWsKey(session: Session): Promise<string> {
   if (session.auth.kind === "byo") return session.auth.key;
   const res = await fetch(session.auth.backendUrl + "/v1/session", {
     method: "POST",
-    headers: { Authorization: "Bearer " + session.auth.syncToken }
+    headers: {
+      Authorization: "Bearer " + session.auth.syncToken,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ language: session.language || "ja" })
   });
   const data = (await res.json().catch(() => ({}))) as {
     token?: { value: string };
@@ -107,6 +112,7 @@ interface StartMsg {
   tabId: number;
   auth: SessionAuth;
   model: string;
+  language?: string;
   cacheKey?: string;
 }
 
@@ -250,7 +256,10 @@ async function flushChunk(session: Session): Promise<void> {
     if (!res.ok) throw new Error(data.error || "transcribe HTTP " + res.status);
     for (const seg of data.segments || []) {
       const t = (seg.text || "").trim();
-      if (t && /[぀-ヿ一-鿿]/.test(t)) {
+      const langOk = session.language === "en"
+        ? /[A-Za-z]{2,}/.test(t)
+        : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
+      if (t && langOk) {
         olog(data.hit ? "cache hit:" : "transcribed:", t);
         chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
       }
@@ -262,7 +271,7 @@ async function flushChunk(session: Session): Promise<void> {
   }
 }
 
-async function start({ streamId, tabId, auth, model, cacheKey }: StartMsg): Promise<void> {
+async function start({ streamId, tabId, auth, model, language, cacheKey }: StartMsg): Promise<void> {
   if (sessions[tabId]) stop(tabId);
 
   let stream: MediaStream;
@@ -290,7 +299,7 @@ async function start({ streamId, tabId, auth, model, cacheKey }: StartMsg): Prom
   const useCache = auth.kind === "cloud" && !!cacheKey;
   const session: Session = {
     ws: null, ctx, stream, proc, sink, source,
-    active: true, ready: false, auth, model, tabId,
+    active: true, ready: false, auth, model, language: language === "en" ? "en" : "ja", tabId,
     srcRate: ctx.sampleRate, reconnects: 0, heartbeat: null,
     cacheKey: cacheKey || "",
     playbackTime: 0,
@@ -370,7 +379,7 @@ async function connectWS(session: Session): Promise<void> {
           audio: {
             input: {
               format: { type: "audio/pcm", rate: OUT_RATE },
-              transcription: { model: session.model, language: "ja" },
+              transcription: { model: session.model, language: session.language || "ja" },
               turn_detection: { type: "server_vad", silence_duration_ms: 500 }
             }
           }
@@ -382,7 +391,10 @@ async function connectWS(session: Session): Promise<void> {
       olog("realtime session ready — streaming audio");
     } else if (msg.type === "conversation.item.input_audio_transcription.completed") {
       const t = (msg.transcript || "").trim();
-      if (t && /[぀-ヿ一-鿿]/.test(t)) {
+      const langOk = session.language === "en"
+        ? /[A-Za-z]{2,}/.test(t)
+        : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
+      if (t && langOk) {
         olog("transcript:", t);
         chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
       }

@@ -233,12 +233,14 @@ async function startListening(tabId: number): Promise<Ack> {
     return { ok: false, error: "Couldn't capture this tab's audio: " + detail + ". Try clicking the extension icon again directly on the video tab." };
   }
   await ensureOffscreen();
+  const language = settings.learningDirection === "ja-en" ? "en" : "ja";
   const ack = await sendToOffscreen({
     type: "avc-offscreen-start",
     streamId,
     tabId,
     auth,
     model: settings.transcribeModel || DEFAULTS.transcribeModel,
+    language,
     cacheKey: cacheKey || undefined
   }).catch((err): Ack => ({ ok: false, error: String(err.message || err) }));
 

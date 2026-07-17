@@ -19,10 +19,20 @@ export function cacheKey(platform: PlatformId, contentId: string, audioLang: str
   return `${platform}:${contentId}:${lang}`;
 }
 
-/** Best-effort detection of the active audio track language. */
-export function detectAudioLang(video?: HTMLVideoElement | null): string {
+/** Prefer an explicit study language; fall back to media track detection. */
+export function detectAudioLang(
+  video?: HTMLVideoElement | null,
+  preferred?: "ja" | "en" | null
+): string {
+  if (preferred === "ja" || preferred === "en") return preferred;
   const v = video || document.querySelector<HTMLVideoElement>("video");
-  const tracks = v && (v as HTMLVideoElement & { audioTracks?: { length: number; [i: number]: { enabled?: boolean; language?: string } } }).audioTracks;
+  const tracks =
+    v &&
+    (
+      v as HTMLVideoElement & {
+        audioTracks?: { length: number; [i: number]: { enabled?: boolean; language?: string } };
+      }
+    ).audioTracks;
   if (tracks && tracks.length) {
     for (let i = 0; i < tracks.length; i++) {
       const track = tracks[i];
@@ -52,7 +62,6 @@ export function deriveContentId(platform: PlatformId): string | null {
     case "crunchyroll": {
       const parts = location.pathname.split("/").filter(Boolean);
       const watchIdx = parts.indexOf("watch");
-      // Prefer stable episode GUID (e.g. GY...), not the series slug.
       if (watchIdx >= 0) {
         for (let i = watchIdx + 1; i < parts.length; i++) {
           if (/^[A-Z0-9]{8,}$/.test(parts[i])) return parts[i];
@@ -65,16 +74,23 @@ export function deriveContentId(platform: PlatformId): string | null {
   }
 }
 
-export function deriveCacheKey(platform: PlatformId, video?: HTMLVideoElement | null): CacheKeyResult | null {
+export function deriveCacheKey(
+  platform: PlatformId,
+  video?: HTMLVideoElement | null,
+  preferredLang?: "ja" | "en" | null
+): CacheKeyResult | null {
   const contentId = deriveContentId(platform);
   if (!contentId) return null;
-  const audioLang = detectAudioLang(video);
-  return { key: cacheKey(platform, contentId, audioLang), platform, contentId, audioLang };
+  const lang = detectAudioLang(video, preferredLang);
+  return { key: cacheKey(platform, contentId, lang), platform, contentId, audioLang: lang };
 }
 
 /** Session identity for detecting SPA navigations (YouTube ?v= changes without pathname change). */
-export function sessionIdentity(platform: PlatformId): string {
+export function sessionIdentity(
+  platform: PlatformId,
+  preferredLang?: "ja" | "en" | null
+): string {
   const id = deriveContentId(platform);
-  const lang = detectAudioLang();
+  const lang = detectAudioLang(undefined, preferredLang);
   return id ? `${platform}:${id}:${lang}` : location.pathname;
 }

@@ -181,7 +181,8 @@ describe("pickTarget", () => {
   });
 
   it("boosts essential beginner phrases like お願いします", () => {
-    const target = pickTarget([tok("学校"), tok("お願いします")], {}, settings, new Set());
+    // 犬 is common but not essential-boosted; お願いします should win on boost.
+    const target = pickTarget([tok("犬"), tok("お願いします")], {}, settings, new Set());
     expect(target!.token.base).toBe("お願いします");
   });
 });

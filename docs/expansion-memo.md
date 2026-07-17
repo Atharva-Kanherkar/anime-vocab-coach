@@ -2,11 +2,15 @@
 
 ## Recommendation & timing
 
-**Do not expand yet.** Hold the wedge — English speakers learning Japanese from anime — until it has paying users and a measurable install→Pro funnel (the #9 success target: credible path to $1K+ MRR). Expansion dilutes positioning and multiplies content/QA cost before the core loop has proven it converts.
+**Bilingual EN↔JP is now supported** via Settings → Learning direction (`en-ja` | `ja-en`). Keep the anime wedge; do not expand to other language pairs yet.
 
-**Revisit when** any of: (a) Pro MRR is growing month over month, (b) organic demand appears from a specific other pair (e.g. Japanese speakers learning English), or (c) the JP/anime niche visibly plateaus despite good conversion.
+- **en-ja (default):** English speakers learn Japanese from anime (kuromoji + JMdict, romaji cards).
+- **ja-en:** Japanese speakers learn English from anime (English captions/Listening Mode, Japanese glosses via essentials + OpenAI extract).
 
-**First expansion to consider (when the time comes):** English *grammar/sentence-pattern* depth for the *same* audience (still EN→JP), not a new language pair. It reuses all infrastructure and deepens the existing wedge. A new source language (localized explanations) is second; a new target language (e.g. JP→EN) is a much larger lift and should be last.
+**Revisit other pairs when** any of: (a) Pro MRR is growing month over month, (b) organic demand appears from a specific other pair, or (c) the JP/anime niche visibly plateaus despite good conversion.
+
+**Next expansions to consider:** English grammar/sentence-pattern depth for EN→JP; localized marketing copy for ja-en; richer offline English dictionary.
+
 
 ## Code areas that assume an English-speaking learner
 

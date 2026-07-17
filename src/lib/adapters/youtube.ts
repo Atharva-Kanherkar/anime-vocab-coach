@@ -1,5 +1,6 @@
 import { log, warn } from "../log";
-import { normalize, hasJapanese } from "./util";
+import { normalize, hasJapanese, matchesTargetScript, getAdapterDirection, setAdapterDirection } from "./util";
+import { audioLang, contextLang, normalizeDirection } from "../direction";
 import type { LineContext, SiteAdapter } from "../../types";
 
 interface Cue {
@@ -17,13 +18,14 @@ type OnLine = (text: string, context: LineContext) => void;
 
 let onLineCb: OnLine | null = null;
 
-// --- Hidden caption-track mode (primary): the Japanese track is fetched and
-// synced to playback even while the viewer displays English subs.
-let jaCues: Cue[] = [];
-let enCues: Cue[] = [];
+// Hidden caption-track mode: study-language track is fetched and synced to
+// playback even while the viewer displays the other language.
+let targetCues: Cue[] = [];
+let contextCues: Cue[] = [];
 let currentVideoId = "";
 let lastCueKey = "";
 let attachedVideo: HTMLVideoElement | null = null;
+let loadedForDirection = "";
 
 interface Json3Event {
   tStartMs: number;
@@ -50,9 +52,6 @@ async function fetchTrack(track: { baseUrl: string }): Promise<Cue[]> {
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
   const text = await res.text();
-  // YouTube now returns an empty 200 body unless the request carries a
-  // Proof-of-Origin token, which content scripts can't produce. Treat empty
-  // as "no captions available" rather than an error.
   if (!text) return [];
   return parseJson3(JSON.parse(text));
 }
@@ -63,35 +62,44 @@ function pickTrack(tracks: CaptionTrackMsg["tracks"], langPrefix: string) {
 }
 
 async function handleTracks(msg: CaptionTrackMsg): Promise<void> {
-  if (msg.videoId === currentVideoId) return;
+  const direction = getAdapterDirection();
+  const dirKey = `${msg.videoId}:${direction}`;
+  if (dirKey === currentVideoId + ":" + loadedForDirection && targetCues.length) return;
   currentVideoId = msg.videoId;
-  jaCues = [];
-  enCues = [];
+  loadedForDirection = direction;
+  targetCues = [];
+  contextCues = [];
   lastCueKey = "";
 
-  const jaTrack = pickTrack(msg.tracks, "ja");
-  if (!jaTrack) {
-    log("youtube: no Japanese caption track on this video — DOM fallback only");
+  const study = audioLang(direction);
+  const ctx = contextLang(direction);
+  const studyTrack = pickTrack(msg.tracks, study);
+  if (!studyTrack) {
+    log(`youtube: no ${study} caption track on this video — DOM fallback only`);
     return;
   }
   try {
-    jaCues = await fetchTrack(jaTrack);
-  } catch (err) {
-    jaCues = [];
+    targetCues = await fetchTrack(studyTrack);
+  } catch {
+    targetCues = [];
   }
-  if (!jaCues.length) {
-    log("youtube: hidden caption track unavailable (YouTube blocks silent fetches). " +
-      "Use Listening Mode from the toolbar, or turn on Japanese captions to read them from the page.");
+  if (!targetCues.length) {
+    log(
+      `youtube: hidden ${study} caption track unavailable. ` +
+        "Use Listening Mode from the toolbar, or turn on matching captions to read them from the page."
+    );
     return;
   }
-  log(`youtube: loaded ${jaCues.length} Japanese cues (${jaTrack.kind === "asr" ? "auto-generated" : "manual"})`);
-  const enTrack = pickTrack(msg.tracks, "en");
-  if (enTrack) {
+  log(
+    `youtube: loaded ${targetCues.length} ${study} cues (${studyTrack.kind === "asr" ? "auto-generated" : "manual"})`
+  );
+  const ctxTrack = pickTrack(msg.tracks, ctx);
+  if (ctxTrack) {
     try {
-      enCues = await fetchTrack(enTrack);
-      log(`youtube: loaded ${enCues.length} English cues for context`);
-    } catch (err) {
-      enCues = [];
+      contextCues = await fetchTrack(ctxTrack);
+      log(`youtube: loaded ${contextCues.length} ${ctx} cues for context`);
+    } catch {
+      contextCues = [];
     }
   }
 }
@@ -105,16 +113,16 @@ function cueAt(cues: Cue[], t: number): Cue | null {
 }
 
 function onTimeUpdate(): void {
-  if (!jaCues.length || !onLineCb || !attachedVideo) return;
+  if (!targetCues.length || !onLineCb || !attachedVideo) return;
   const t = attachedVideo.currentTime;
-  const cue = cueAt(jaCues, t);
+  const cue = cueAt(targetCues, t);
   if (!cue) return;
   const key = `${cue.start}:${cue.text}`;
   if (key === lastCueKey) return;
   lastCueKey = key;
-  if (!hasJapanese(cue.text)) return;
-  const enCue = cueAt(enCues, (cue.start + cue.end) / 2);
-  onLineCb(cue.text, { en: enCue ? enCue.text : "" });
+  if (!matchesTargetScript(cue.text, getAdapterDirection())) return;
+  const ctxCue = cueAt(contextCues, (cue.start + cue.end) / 2);
+  onLineCb(cue.text, { en: ctxCue ? ctxCue.text : "" });
 }
 
 function getVideo(): HTMLVideoElement | null {
@@ -132,8 +140,6 @@ export const youtubeAdapter: SiteAdapter = {
     return location.hostname.endsWith("youtube.com");
   },
   getVideo,
-  // Whatever subtitle is on screen right now, any language — used as
-  // human-readable context alongside audio transcripts.
   getVisibleText,
   start(onLine) {
     onLineCb = onLine;
@@ -144,7 +150,6 @@ export const youtubeAdapter: SiteAdapter = {
       handleTracks(e.data as CaptionTrackMsg).catch((err) => warn("youtube tracks error:", err));
     });
 
-    // (Re)attach the cue-sync listener; the video element is replaced on SPA nav.
     setInterval(() => {
       const v = getVideo();
       if (v && v !== attachedVideo) {
@@ -154,17 +159,15 @@ export const youtubeAdapter: SiteAdapter = {
       }
     }, 2000);
 
-    // --- DOM-scraping fallback: only when no ja track could be loaded
-    // (e.g. the viewer displays Japanese subs on a video without track data).
     let lastText = "";
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const check = () => {
       try {
-        if (jaCues.length) return; // track mode active — avoid double-firing
+        if (targetCues.length) return;
         const text = getVisibleText();
         if (!text || text === lastText) return;
-        if (!hasJapanese(text)) return;
+        if (!matchesTargetScript(text, getAdapterDirection())) return;
         lastText = text;
         onLine(text, { en: "" });
       } catch (err) {
@@ -178,5 +181,8 @@ export const youtubeAdapter: SiteAdapter = {
     });
 
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  }
+  },
 };
+
+// Re-export for tests / callers that still import hasJapanese from youtube path.
+export { hasJapanese, setAdapterDirection, normalizeDirection };
