@@ -1,32 +1,71 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
+import {
+  LOCALE_COOKIE,
+  LOCALE_COOKIE_MAX_AGE,
+  enPathToJa,
+  isJaPath,
+  jaPathToEn,
+  resolveSiteLocale,
+} from "@/lib/locale";
 
 const isProtectedRoute = createRouteMatcher(["/app(.*)"]);
-
-// Anonymous product-funnel beacons (always 204, no auth). Exempt before Clerk
-// so a Clerk outage / CPU spike cannot 5xx them or amplify bot flood cost.
-const BEACON_ROUTES = ["/api/extension/track", "/api/ending/track"];
-const isBeaconRoute = createRouteMatcher(BEACON_ROUTES);
-
-// Routes where clerkMiddleware must run: everything that calls auth() /
-// currentUser() on the server, plus the auth pages and the Clerk proxy.
-// Keep this list tight — running Clerk on every marketing page multiplied
-// per-request CPU ~5x and caused intermittent 1102 "exceeded resource
-// limits" errors under traffic bursts. Static pages skip Clerk entirely.
-const CLERK_ROUTES = [
+const isBeaconRoute = createRouteMatcher(["/api/extension/track", "/api/ending/track"]);
+const needsClerk = createRouteMatcher([
   "/app(.*)",
-  "/studio", // public page, but reads signed-in state via currentUser()
+  "/studio",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/(api|trpc)(.*)",
   "/__clerk(.*)",
-];
-const needsClerk = createRouteMatcher(CLERK_ROUTES);
+]);
+
+function currentLocale(req: NextRequest) {
+  return resolveSiteLocale({
+    cookie: req.cookies.get(LOCALE_COOKIE)?.value,
+    acceptLanguage: req.headers.get("accept-language"),
+    langParam: req.nextUrl.searchParams.get("lang"),
+  });
+}
+
+function localeRedirect(req: NextRequest): NextResponse | null {
+  const pathname = req.nextUrl.pathname;
+  const locale = currentLocale(req);
+  const jaTarget = enPathToJa(pathname);
+  const enTarget = jaPathToEn(pathname);
+
+  if (locale === "ja" && jaTarget && pathname !== jaTarget) {
+    const url = req.nextUrl.clone();
+    url.pathname = jaTarget;
+    const res = NextResponse.redirect(url);
+    res.cookies.set(LOCALE_COOKIE, "ja", { path: "/", maxAge: LOCALE_COOKIE_MAX_AGE });
+    return res;
+  }
+
+  if (locale === "en" && isJaPath(pathname) && enTarget) {
+    const url = req.nextUrl.clone();
+    url.pathname = enTarget;
+    const res = NextResponse.redirect(url);
+    res.cookies.set(LOCALE_COOKIE, "en", { path: "/", maxAge: LOCALE_COOKIE_MAX_AGE });
+    return res;
+  }
+
+  return null;
+}
+
+function stampLocaleCookie(req: NextRequest, res: NextResponse): NextResponse {
+  const langParam = req.nextUrl.searchParams.get("lang");
+  if (!req.cookies.get(LOCALE_COOKIE) || langParam === "ja" || langParam === "en") {
+    res.cookies.set(LOCALE_COOKIE, currentLocale(req), {
+      path: "/",
+      maxAge: LOCALE_COOKIE_MAX_AGE,
+    });
+  }
+  return res;
+}
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
-  // Canonical host: www has a proxied DNS record; the Worker answers it and
-  // redirects here (www previously 522ed with nothing bound to it).
   const host = req.headers.get("host");
   if (host === "www.animevocab.com") {
     const url = new URL(req.url);
@@ -34,34 +73,21 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     return NextResponse.redirect(url, 301);
   }
 
-  // Local dev without Clerk keys: let every request through untouched.
-  if (DEV_NO_CLERK) return NextResponse.next();
+  const redirect = localeRedirect(req);
+  if (redirect) return redirect;
 
-  if (isBeaconRoute(req)) return NextResponse.next();
-
-  // Marketing/static pages: no server-side auth — skip Clerk's per-request
-  // work. Clerk client components (sign-in buttons) still function; they
-  // talk to the /__clerk proxy, which is matched above.
-  if (!needsClerk(req)) return NextResponse.next();
+  if (DEV_NO_CLERK || isBeaconRoute(req) || !needsClerk(req)) {
+    return stampLocaleCookie(req, NextResponse.next());
+  }
 
   return clerkMiddleware(
     async (auth, request) => {
       if (isProtectedRoute(request)) await auth.protect();
     },
-    {
-      frontendApiProxy: {
-        enabled: true,
-      },
-    }
+    { frontendApiProxy: { enabled: true } }
   )(req, event);
 }
 
 export const config = {
-  // Broad on purpose: the www→apex redirect must see every path. Anything
-  // not in CLERK_ROUTES exits via the cheap NextResponse.next() above.
-  matcher: [
-    "/((?!_next|.*\\..*).*)",
-    "/(api|trpc)(.*)",
-    "/__clerk/:path*",
-  ],
+  matcher: ["/((?!_next|.*\\..*).*)", "/(api|trpc)(.*)", "/__clerk/:path*"],
 };

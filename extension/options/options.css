@@ -226,3 +226,13 @@ select:focus-visible {
 @media (max-width: 480px) {
   .av-grid { grid-template-columns: 1fr; }
 }
+
+.av-ja-en-banner {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--av-line);
+  border-radius: 10px;
+  background: var(--av-panel);
+}
+.av-ja-en-banner p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; }
+.av-ja-en-banner__actions { display: flex; flex-wrap: wrap; gap: 8px; }

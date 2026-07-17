@@ -18,6 +18,7 @@ import { GamificationPanel } from "@/components/gamification-panel";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { CloudAutoSync } from "@/components/app/cloud-auto-sync";
 import { HelpPanel } from "@/components/app/help-panel";
+import { JaEnDirectionBanner } from "@/components/app/ja-en-direction-banner";
 import { SettingsPanel } from "@/components/app/settings-panel";
 import { BillingPanel, type BillingPanelProps } from "@/components/app/billing-panel";
 
@@ -81,6 +82,7 @@ export function AppShell({
     <>
       <CloudAutoSync />
       <WordTicker />
+      <JaEnDirectionBanner />
 
       <div className="mx-auto max-w-[960px] px-5 pb-24 md:px-8">
         <header className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3 border-2 border-ink bg-panel px-4 py-3 md:px-5">
