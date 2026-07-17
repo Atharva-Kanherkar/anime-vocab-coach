@@ -4,6 +4,7 @@ import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, TIERS, installUrl } from "@/lib/site";
+import { enJaHreflang } from "@/lib/ja-seo";
 import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/animelon-alternative";
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     "animelon replacement",
     "animelon free alternative",
   ],
-  alternates: { canonical: `${SITE_URL}${path}` },
+  alternates: enJaHreflang(path, "/ja/animelon-alternative"),
   openGraph: {
     ...defaultOpenGraph,
     type: "article",
