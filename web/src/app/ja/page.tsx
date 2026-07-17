@@ -82,6 +82,7 @@ export default function JaHubPage() {
           <section style={{ paddingTop: 0 }}>
             <div className="wrap prose">
               <h2>目的別ガイド</h2>
+              <h3>アニメで英語を学ぶ（ja→en）</h3>
               <ul>
                 <li>
                   <Link href="/ja/eigo-jimaku-kakucho">英語字幕 拡張機能</Link>
@@ -106,6 +107,29 @@ export default function JaHubPage() {
                 <li>
                   <Link href="/ja/kakucho-nashi">拡張機能なしで使う</Link>
                   — クラウドアプリだけでできること
+                </li>
+              </ul>
+
+              <h3>日本語学習ツール比較（GSC 日本クエリ）</h3>
+              <p>
+                Search Console 上、日本からは英語の競合クエリ（Animelon 代替、Crunchyroll × LR/Migaku 等）も来ています。
+                日本語で読める版：
+              </p>
+              <ul>
+                <li>
+                  <Link href="/ja/animelon-alternative">Animelon 代替</Link>
+                </li>
+                <li>
+                  <Link href="/ja/language-reactor-crunchyroll">Language Reactor は Crunchyroll で使える？</Link>
+                </li>
+                <li>
+                  <Link href="/ja/migaku-crunchyroll">Migaku × Crunchyroll</Link>
+                </li>
+                <li>
+                  <Link href="/ja/yomitan-netflix">Yomitan × Netflix</Link>
+                </li>
+                <li>
+                  <Link href="/ja/anime-eigo-listening">アニメ リスニング / シャドーイング練習</Link>
                 </li>
               </ul>
 

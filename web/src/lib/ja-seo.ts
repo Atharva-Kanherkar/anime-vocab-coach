@@ -12,8 +12,25 @@ export const JA_SITEMAP_ROUTES = [
   { path: "/ja/anime-eigo-listening", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/ja/crunchyroll-eigo-jimaku", priority: 0.88, changeFrequency: "weekly" as const },
   { path: "/ja/vs-language-reactor", priority: 0.86, changeFrequency: "monthly" as const },
+  // GSC Japan: English competitor queries with ja locale impressions
+  { path: "/ja/animelon-alternative", priority: 0.9, changeFrequency: "weekly" as const },
+  { path: "/ja/language-reactor-crunchyroll", priority: 0.93, changeFrequency: "weekly" as const },
+  { path: "/ja/migaku-crunchyroll", priority: 0.93, changeFrequency: "weekly" as const },
+  { path: "/ja/yomitan-netflix", priority: 0.88, changeFrequency: "weekly" as const },
   { path: "/ja/kakucho-nashi", priority: 0.6, changeFrequency: "monthly" as const },
 ] as const;
+
+/** hreflang block for English BOFU pages that have a /ja/ mirror. */
+export function enJaHreflang(enPath: string, jaPath: string) {
+  return {
+    canonical: `${SITE_URL}${enPath}`,
+    languages: {
+      en: `${SITE_URL}${enPath}`,
+      ja: `${SITE_URL}${jaPath}`,
+      "x-default": `${SITE_URL}${enPath}`,
+    },
+  };
+}
 
 /** CTA into ja→en onboarding — pairs with issue #81 direction surfacing. */
 export function jaEnOnboardUrl(): string {

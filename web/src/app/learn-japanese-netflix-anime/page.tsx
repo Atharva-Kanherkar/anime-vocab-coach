@@ -4,6 +4,7 @@ import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, installUrl } from "@/lib/site";
+import { enJaHreflang } from "@/lib/ja-seo";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 const path = "/learn-japanese-netflix-anime";
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
   title: "Learn Japanese on Netflix Anime (2026): Subtitles & Tools",
   description:
     "Learn Japanese on Netflix anime — Japanese subtitle tracks, dual subs, Language Reactor, HASHIGO, and AnimeVocab Listening Mode when subs are missing.",
-  alternates: { canonical: `${SITE_URL}${path}` },
+  alternates: enJaHreflang(path, "/ja/yomitan-netflix"),
   openGraph: {
     ...defaultOpenGraph,
     type: "article",

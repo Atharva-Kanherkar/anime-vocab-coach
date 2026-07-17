@@ -4,6 +4,7 @@ import { Breadcrumbs, CompareHero } from "@/components/marketing";
 import { LandingJsonLd } from "@/components/landing-json-ld";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { GITHUB_URL, SITE_URL, TIERS, installUrl } from "@/lib/site";
+import { enJaHreflang } from "@/lib/ja-seo";
 import { defaultOpenGraph, defaultTwitter, faqJsonLd } from "@/lib/seo";
 
 const path = "/does-migaku-work-on-crunchyroll";
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
     "migaku crunchyroll alternative",
     "migaku alternative crunchyroll",
   ],
-  alternates: { canonical: `${SITE_URL}${path}` },
+  alternates: enJaHreflang(path, "/ja/migaku-crunchyroll"),
   openGraph: {
     ...defaultOpenGraph,
     type: "article",

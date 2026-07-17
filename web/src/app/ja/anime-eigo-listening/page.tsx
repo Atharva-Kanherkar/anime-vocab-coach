@@ -18,6 +18,8 @@ export const metadata: Metadata = jaPageMetadata({
     "アニメ 英語 リスニング",
     "アニメ 英語 聞き取り",
     "アニメで英語 リスニング 練習",
+    "japanese listening practice anime",
+    "shadowing anime",
   ],
   enAlternate: "/learn-japanese-with-anime",
 });
@@ -78,6 +80,13 @@ export default function JaAnimeEigoListeningPage() {
 
           <section style={{ paddingTop: 0 }}>
             <div className="wrap prose">
+              <h2>シャドーイングとの組み合わせ</h2>
+              <p>
+                「<strong>shadowing anime</strong>」「<strong>japanese listening practice anime</strong>」—
+                シャドーイングは発音・リズムに効きますが、<strong>語彙は自動では残りません</strong>。
+                聞いたあと AnimeVocab で 1 語だけ保存 → 翌日 SRS、が現実的な併用です。
+              </p>
+
               <h2>リスニングが「学習」になる条件</h2>
               <ul>
                 <li>同じ単語を<strong>別の場面</strong>でもう一度聞く（SRS）</li>
