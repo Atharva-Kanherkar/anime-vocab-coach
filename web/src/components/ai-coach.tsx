@@ -3,11 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useCloudSnapshot } from "@/components/cloud-sync-panel";
-import { getPromoState } from "@/lib/site";
 import { pickRecentWords } from "@/lib/sync";
 import type { CoachMode, CoachResult } from "@/lib/ai-coach";
-
-const promo = getPromoState();
 
 type Usage = { used: number; limit: number; plan: "free" | "pro" | "max" };
 
@@ -127,10 +124,10 @@ export function AiCoach() {
       {error && (
         <p className="mt-3 text-sm text-danger">
           {error}{" "}
-          {usage && quotaLeft === 0 && usage.plan === "free" && promo.checkoutConfigured && (
-            <a href={promo.checkoutUrl} rel="noopener noreferrer" className="underline">
+          {usage && quotaLeft === 0 && usage.plan === "free" && (
+            <Link href="/app#billing" className="underline">
               Upgrade to Pro
-            </a>
+            </Link>
           )}
         </p>
       )}
@@ -167,7 +164,7 @@ export function AiCoach() {
         ) : usage?.plan === "pro" ? (
           <>
             Pro monthly AI cap.{" "}
-            <Link href="/#pricing" className="underline">
+            <Link href="/app#billing" className="underline">
               Max
             </Link>{" "}
             raises it further. Your saved words stay local and exportable.
@@ -175,7 +172,7 @@ export function AiCoach() {
         ) : (
           <>
             Free accounts get a taste.{" "}
-            <Link href="/#pricing" className="underline">
+            <Link href="/app#billing" className="underline">
               Pro
             </Link>{" "}
             raises the monthly cap. Your saved words stay local and exportable.

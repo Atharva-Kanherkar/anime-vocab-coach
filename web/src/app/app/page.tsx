@@ -3,6 +3,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { AppShell } from "@/components/app/app-shell";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import { isOwnerEmail } from "@/lib/entitlements";
+import { effectivePlan, parseEntitlement } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,15 @@ export default async function AppPage() {
     : user?.firstName || user?.username || user?.primaryEmailAddress?.emailAddress || "there";
   // Owners get the full card collection unlocked for review, regardless of XP.
   const owner = DEV_NO_CLERK ? true : isOwnerEmail(user?.primaryEmailAddress?.emailAddress);
+  const entitlement = parseEntitlement(user?.publicMetadata);
+  const billing = {
+    plan: effectivePlan(entitlement),
+    billingInterval: entitlement.billingInterval,
+    planExpiresAt: entitlement.planExpiresAt,
+    email: DEV_NO_CLERK
+      ? DEV_PROFILE.email
+      : (user?.primaryEmailAddress?.emailAddress ?? null),
+  };
 
-  return <AppShell name={name} owner={owner} />;
+  return <AppShell name={name} owner={owner} billing={billing} />;
 }

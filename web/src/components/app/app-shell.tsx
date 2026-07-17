@@ -19,6 +19,7 @@ import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { CloudAutoSync } from "@/components/app/cloud-auto-sync";
 import { HelpPanel } from "@/components/app/help-panel";
 import { SettingsPanel } from "@/components/app/settings-panel";
+import { BillingPanel, type BillingPanelProps } from "@/components/app/billing-panel";
 
 type SectionId =
   | "today"
@@ -31,6 +32,7 @@ type SectionId =
   | "word-manga"
   | "progress"
   | "backup"
+  | "billing"
   | "settings";
 
 const NAV: { id: SectionId; label: string }[] = [
@@ -44,6 +46,7 @@ const NAV: { id: SectionId; label: string }[] = [
   { id: "word-manga", label: "Word Manga" },
   { id: "progress", label: "Progress" },
   { id: "backup", label: "Backup" },
+  { id: "billing", label: "Billing" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -52,7 +55,15 @@ function sectionFromHash(): SectionId | null {
   return NAV.some((n) => n.id === id) ? (id as SectionId) : null;
 }
 
-export function AppShell({ name, owner = false }: { name: string; owner?: boolean }) {
+export function AppShell({
+  name,
+  owner = false,
+  billing,
+}: {
+  name: string;
+  owner?: boolean;
+  billing: BillingPanelProps;
+}) {
   const [section, setSection] = useState<SectionId>("today");
 
   useEffect(() => {
@@ -141,6 +152,9 @@ export function AppShell({ name, owner = false }: { name: string; owner?: boolea
           </div>
           <div hidden={section !== "backup"}>
             <CloudSyncPanel />
+          </div>
+          <div hidden={section !== "billing"}>
+            <BillingPanel {...billing} />
           </div>
           <div hidden={section !== "settings"}>
             <SettingsPanel />
