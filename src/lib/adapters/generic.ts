@@ -1,5 +1,6 @@
 import { warn } from "../log";
-import { normalize, hasJapanese } from "./util";
+import { normalize, matchesTargetScript, getAdapterDirection, hasEnglish } from "./util";
+import { contextLang } from "../direction";
 import type { SiteAdapter } from "../../types";
 
 function getVideo(): HTMLVideoElement | null {
@@ -33,13 +34,28 @@ export const genericAdapter: SiteAdapter = {
     const hooked = new WeakSet<TextTrack>();
     const lastByTrack = new WeakMap<TextTrack, string>();
 
-    const enContext = (video: HTMLVideoElement): string => {
+    const contextFromVideo = (video: HTMLVideoElement): string => {
+      const want = contextLang(getAdapterDirection());
       for (const track of video.textTracks) {
-        if (!(track.language || "").startsWith("en") || !track.activeCues) continue;
+        if (!(track.language || "").startsWith(want) || !track.activeCues) continue;
         const text = normalize(
-          Array.from(track.activeCues).map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, "")).join(" ")
+          Array.from(track.activeCues)
+            .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
+            .join(" ")
         );
         if (text) return text;
+      }
+      // Fallback: if studying English, any Japanese-looking showing track; vice versa.
+      for (const track of video.textTracks) {
+        if (track.mode !== "showing" || !track.activeCues) continue;
+        const text = normalize(
+          Array.from(track.activeCues)
+            .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
+            .join(" ")
+        );
+        if (!text) continue;
+        if (want === "en" && hasEnglish(text)) return text;
+        if (want === "ja" && matchesTargetScript(text, "en-ja")) return text;
       }
       return "";
     };
@@ -50,8 +66,6 @@ export const genericAdapter: SiteAdapter = {
           for (const track of v.textTracks) {
             if (hooked.has(track)) continue;
             hooked.add(track);
-            // A hidden track still fires cuechange — so a Japanese track can
-            // feed the pipeline while the viewer displays English (or nothing).
             if (track.mode === "disabled") track.mode = "hidden";
 
             track.addEventListener("cuechange", () => {
@@ -65,9 +79,9 @@ export const genericAdapter: SiteAdapter = {
                 );
                 const lastText = lastByTrack.get(track) || "";
                 if (!text || text === lastText) return;
-                if (!hasJapanese(text)) return;
+                if (!matchesTargetScript(text, getAdapterDirection())) return;
                 lastByTrack.set(track, text);
-                onLine(text, { en: enContext(v) });
+                onLine(text, { en: contextFromVideo(v) });
               } catch (err) {
                 warn("generic adapter cue error:", err);
               }
@@ -78,5 +92,5 @@ export const genericAdapter: SiteAdapter = {
         warn("generic adapter error:", err);
       }
     }, 2000);
-  }
+  },
 };

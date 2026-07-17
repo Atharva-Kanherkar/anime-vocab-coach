@@ -50,6 +50,16 @@ const faqs = [
     answer:
       "Yes for the dual-sub immersion loop on supported sites. It is not a free Migaku alternative for Crunchyroll or for learners who cannot read Japanese subtitles yet.",
   },
+  {
+    question: "Do Migaku or Language Reactor work on Crunchyroll?",
+    answer:
+      "No. Neither Migaku nor Language Reactor supports Crunchyroll. If you watch simulcasts, use AnimeVocab, Lexirise, ManabiDojo, or a fan-subtitle mining stack instead — see the dedicated Crunchyroll answers for each tool.",
+  },
+  {
+    question: "If I watch on Crunchyroll, which should I pick — Migaku or Language Reactor?",
+    answer:
+      "Neither for Crunchyroll nights. Pick AnimeVocab if you need romaji or audio capture; pick Lexirise/ManabiDojo if Japanese text is on screen. Keep Migaku or Language Reactor only for the Netflix/YouTube nights where they actually run.",
+  },
 ];
 
 export default function MigakuVsLanguageReactorPage() {
@@ -181,6 +191,49 @@ export default function MigakuVsLanguageReactorPage() {
               gap both Migaku and Language Reactor leave open.
             </p>
 
+            <h2>Crunchyroll: neither Migaku nor Language Reactor</h2>
+            <p>
+              This is the third option the head-to-head must name out loud.{" "}
+              <strong>If you watch on Crunchyroll, neither Migaku nor Language Reactor works — AnimeVocab (or a
+              CR reader) does.</strong>{" "}
+              Direct answers:{" "}
+              <Link href="/does-migaku-work-on-crunchyroll">does Migaku work on Crunchyroll?</Link> ·{" "}
+              <Link href="/does-language-reactor-work-on-crunchyroll">
+                does Language Reactor work on Crunchyroll?
+              </Link>
+              . For Japanese subtitle overlays (or skipping them):{" "}
+              <Link href="/crunchyroll-japanese-subtitles">Crunchyroll Japanese subtitles</Link>. Full workflow hub:{" "}
+              <Link href="/learn-japanese-crunchyroll">learn Japanese on Crunchyroll</Link>. Crunchyroll-focused LR
+              alternative:{" "}
+              <Link href="/language-reactor-alternative-crunchyroll">
+                Language Reactor alternative for Crunchyroll
+              </Link>
+              .
+            </p>
+
+            <h2>Related Crunchyroll cluster</h2>
+            <ul>
+              <li>
+                <Link href="/does-language-reactor-work-on-crunchyroll">
+                  Does Language Reactor work on Crunchyroll?
+                </Link>
+              </li>
+              <li>
+                <Link href="/does-migaku-work-on-crunchyroll">Does Migaku work on Crunchyroll?</Link>
+              </li>
+              <li>
+                <Link href="/crunchyroll-japanese-subtitles">Crunchyroll Japanese subtitles</Link>
+              </li>
+              <li>
+                <Link href="/language-reactor-alternative-crunchyroll">
+                  Language Reactor alternative for Crunchyroll
+                </Link>
+              </li>
+              <li>
+                <Link href="/learn-japanese-crunchyroll">Learn Japanese on Crunchyroll</Link>
+              </li>
+            </ul>
+
             <h2>FAQ</h2>
             {faqs.map((f) => (
               <div key={f.question}>
@@ -203,6 +256,9 @@ export default function MigakuVsLanguageReactorPage() {
       <SiteFooter
         links={[
           { href: "/migaku-free-alternative", label: "Migaku free alt" },
+          { href: "/does-migaku-work-on-crunchyroll", label: "Migaku on CR?" },
+          { href: "/does-language-reactor-work-on-crunchyroll", label: "LR on CR?" },
+          { href: "/learn-japanese-crunchyroll", label: "Crunchyroll hub" },
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/vs-migaku", label: "vs Migaku" },
           { href: "/anki-vs-migaku", label: "Anki vs Migaku" },

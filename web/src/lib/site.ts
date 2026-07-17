@@ -12,6 +12,9 @@ export const CHROME_STORE_URL =
 export const EXTENSION_DOWNLOAD_URL = `${SITE_URL}/downloads/animevocab-chrome-extension.zip`;
 export const CHROME_EXTENSIONS_URL = "chrome://extensions";
 
+/** Dodo's unified customer portal — cancel, invoices, payment method. */
+export const DODO_CUSTOMER_PORTAL_URL = "https://customer.dodopayments.com";
+
 export function isStoreInstallAvailable(): boolean {
   return !!CHROME_STORE_URL;
 }
@@ -26,6 +29,7 @@ export function installUrl(): string {
 // Canonical free / pro / max limits. Live gating reads Clerk publicMetadata
 // (see resolvePlan in auth.ts). Checkout URLs point at live Dodo products.
 export type PlanId = "free" | "pro" | "max";
+export type CheckoutInterval = "monthly" | "yearly";
 
 export interface PricingTier {
   id: PlanId;
@@ -38,8 +42,10 @@ export interface PricingTier {
   listeningMinutes: number;
   blurb: string;
   perks: string[];
-  /** Dodo checkout link. Empty/REPLACE = not purchasable yet (see checkoutFor). */
+  /** Dodo monthly checkout link. Empty/REPLACE = not purchasable yet. */
   checkoutUrl: string;
+  /** Dodo yearly checkout link. Empty/REPLACE = yearly not wired yet. */
+  yearlyCheckoutUrl?: string;
 }
 
 export const TIERS: Record<PlanId, PricingTier> = {
@@ -68,6 +74,7 @@ export const TIERS: Record<PlanId, PricingTier> = {
     blurb: "For the nightly binge-learner.",
     perks: ["20 hours of Listening Mode / month", "150 AI messages / month", "Everything in Free"],
     checkoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6UgznpQBcuqEgqQvh",
+    yearlyCheckoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC7U0M47YSNH1im6hK1",
   },
   max: {
     id: "max",
@@ -79,13 +86,33 @@ export const TIERS: Record<PlanId, PricingTier> = {
     blurb: "For the marathoner. Effectively unlimited.",
     perks: ["60 hours of Listening Mode / month", "600 AI messages / month", "Priority on new card styles"],
     checkoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6keUai2ij7peo7bOr",
+    yearlyCheckoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6vrfhe4ejCgC8mOXH",
   },
 };
 
-/** A tier's checkout URL if it's really wired (Dodo id pasted), else null. */
-export function checkoutFor(id: PlanId): string | null {
-  const url = TIERS[id].checkoutUrl;
-  return url && !url.includes("REPLACE_") ? url : null;
+function isLiveCheckoutUrl(url: string | undefined): url is string {
+  return !!url && !url.includes("REPLACE_");
+}
+
+/** A tier's checkout URL for the given billing interval, if wired. */
+export function checkoutFor(
+  id: PlanId,
+  interval: CheckoutInterval = "monthly"
+): string | null {
+  const tier = TIERS[id];
+  const url = interval === "yearly" ? tier.yearlyCheckoutUrl : tier.checkoutUrl;
+  return isLiveCheckoutUrl(url) ? url : null;
+}
+
+/** Prefill email + bounce back to the app after Dodo checkout. */
+export function checkoutWithContext(
+  url: string,
+  opts?: { email?: string | null; redirectUrl?: string | null }
+): string {
+  const u = new URL(url);
+  if (opts?.email) u.searchParams.set("email", opts.email);
+  if (opts?.redirectUrl) u.searchParams.set("redirect_url", opts.redirectUrl);
+  return u.toString();
 }
 
 export const promoConfig = {

@@ -10,6 +10,7 @@ import {
   type ExtensionSettings,
   type PauseMode,
 } from "@/lib/extension-settings";
+import { directionLabel, type LearningDirection } from "@/lib/direction";
 import type { CloudSyncEnvelope } from "@/lib/sync";
 
 function notifyExtensionSync(): void {
@@ -147,16 +148,32 @@ export function SettingsPanel() {
         </div>
 
         <label className="grid gap-1.5 text-sm text-ink2">
+          Learning direction
+          <select
+            className="av-input"
+            value={settings.learningDirection}
+            onChange={(e) => patch({ learningDirection: e.target.value as LearningDirection })}
+          >
+            <option value="en-ja">{directionLabel("en-ja")}</option>
+            <option value="ja-en">{directionLabel("ja-en")}</option>
+          </select>
+        </label>
+
+        <label className="grid gap-1.5 text-sm text-ink2">
           Word cards show
           <select
             className="av-input"
             value={settings.displayScript}
             onChange={(e) => patch({ displayScript: e.target.value as DisplayScript })}
+            disabled={settings.learningDirection === "ja-en"}
           >
             <option value="romaji">Romaji first</option>
             <option value="kana">Kana first</option>
             <option value="kanji">Kanji first</option>
           </select>
+          {settings.learningDirection === "ja-en" && (
+            <span className="text-xs text-ink3">English cards always show the English word first.</span>
+          )}
         </label>
 
         <label className="flex cursor-pointer items-center gap-2 text-sm text-ink2">

@@ -1,5 +1,5 @@
 import { warn } from "../log";
-import { normalize, hasJapanese } from "./util";
+import { normalize, matchesTargetScript, getAdapterDirection } from "./util";
 import type { SiteAdapter } from "../../types";
 
 function getVisibleText(): string {
@@ -24,7 +24,7 @@ export const netflixAdapter: SiteAdapter = {
       try {
         const text = getVisibleText();
         if (!text || text === lastText) return;
-        if (!hasJapanese(text)) return;
+        if (!matchesTargetScript(text, getAdapterDirection())) return;
         lastText = text;
         onLine(text, { en: "" });
       } catch (err) {
@@ -38,5 +38,5 @@ export const netflixAdapter: SiteAdapter = {
     });
 
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  }
+  },
 };

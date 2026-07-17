@@ -29,9 +29,10 @@ export async function runNotebookSummary(
   nb: Notebook
 ): Promise<NotebookSummaryResult> {
   const system =
-    "You are an anime Japanese study coach. Given a learner's notebook of saved words, lines, and notes, " +
-    "identify recurring weak spots (grammar, politeness levels, kanji, word types) and generate short review " +
-    "prompts that quiz the learner on this exact material. Be specific to the entries, not generic. " +
+    "You are an anime immersion study coach (Japanese↔English). Given a learner's notebook of saved words, lines, and notes, " +
+    "identify recurring weak spots and generate short review prompts that quiz the learner on this exact material. " +
+    "Match the output language to the notebook content (Japanese notes → Japanese prompts; English notes → English prompts). " +
+    "Be specific to the entries, not generic. " +
     'Respond only as strict JSON {"weakSpots": string[], "reviewPrompts": string[]} with 3-6 items each, ' +
     "each item one sentence.";
   const user = `Notebook: ${nb.name}\nEntries:\n${entriesBlock(nb)}`;

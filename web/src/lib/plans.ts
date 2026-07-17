@@ -80,12 +80,16 @@ export function entitlementToPublicMetadata(entitlement: Entitlement): Record<st
 
 /** Clerk publicMetadata patch for a Dodo billing event. Billing owns the plan:
  * it always clears any gift expiry (paid users are metered by their sub, and a
- * terminal event means free — never a resurrected gift). */
-export function billingMetadataPatch(plan: PlanId): Record<string, unknown> {
+ * terminal event means free — never a resurrected gift). Pass billingInterval
+ * on paid events when known from the product id (monthly vs yearly). */
+export function billingMetadataPatch(
+  plan: PlanId,
+  billingInterval: BillingInterval | null = null
+): Record<string, unknown> {
   return {
     plan,
     planExpiresAt: null,
-    ...(plan === "free" ? { billingInterval: null } : {}),
+    billingInterval: plan === "free" ? null : billingInterval,
   };
 }
 

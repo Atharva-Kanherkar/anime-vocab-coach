@@ -8,6 +8,7 @@
     targetLevel: 5,
     autoResumeSec: 15,
     displayScript: "romaji",
+    learningDirection: "en-ja",
     autoSpeak: true,
     openaiKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
@@ -252,7 +253,7 @@
   var sessionCache = /* @__PURE__ */ new Map();
   function sessionKey(req) {
     const bases = req.candidates.map((c) => c.word).sort().join("|");
-    return `${req.learnerLevel}:${req.line}:${bases}`;
+    return `${req.direction || "en-ja"}:${req.learnerLevel}:${req.line}:${bases}`;
   }
   async function fetchWordPick(req) {
     const key = sessionKey(req);
@@ -521,12 +522,14 @@
       return { ok: false, error: "Couldn't capture this tab's audio: " + detail + ". Try clicking the extension icon again directly on the video tab." };
     }
     await ensureOffscreen();
+    const language = settings.learningDirection === "ja-en" ? "en" : "ja";
     const ack = await sendToOffscreen({
       type: "avc-offscreen-start",
       streamId,
       tabId,
       auth,
       model: settings.transcribeModel || DEFAULTS.transcribeModel,
+      language,
       cacheKey: cacheKey || void 0
     }).catch((err) => ({ ok: false, error: String(err.message || err) }));
     if (!ack || ack.ok === false) {

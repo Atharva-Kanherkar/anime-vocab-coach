@@ -1,12 +1,14 @@
-import { lookup } from "./dictionary";
+import { lookup as jaLookup } from "./dictionary";
 import { essentialBoost, isEssentialWord } from "./priority-words";
+import { ENGLISH_ESSENTIALS } from "./english-essentials";
 import type { DictEntry, Settings, Target, Token, VocabMap } from "../types";
+import { normalizeDirection } from "./direction";
 
-const ELIGIBLE_POS = ["名詞", "動詞", "形容詞", "副詞"];
+const ELIGIBLE_POS = ["名詞", "動詞", "形容詞", "副詞", "CONTENT"];
 const EXCLUDED_NOUN_POS1 = ["代名詞", "数", "接尾", "非自立", "固有名詞"];
 
 export function hasKanji(base: string): boolean {
-  return /[一-鿿]/.test(base);
+  return /[\u4E00-\u9FFF]/.test(base);
 }
 
 export interface Eligibility {
@@ -15,25 +17,52 @@ export interface Eligibility {
   entry?: DictEntry;
 }
 
+/** Resolve a dictionary entry for either Japanese (JMdict) or English (essentials + AI overlay). */
+export function lookupForDirection(
+  base: string,
+  direction: Settings["learningDirection"],
+  overlay?: Record<string, DictEntry> | null
+): DictEntry | null {
+  if (overlay?.[base]) return overlay[base]!;
+  if (normalizeDirection(direction) === "ja-en") {
+    const hit = ENGLISH_ESSENTIALS[base];
+    if (!hit) return null;
+    return {
+      reading: "",
+      glosses: [hit.gloss],
+      level: hit.level,
+      freqRank: Math.round((6 - hit.level) * 2000),
+    };
+  }
+  return jaLookup(base);
+}
+
 export function checkEligibility(
   token: Token,
   wordStates: VocabMap,
   targetedSet: Set<string> | null,
-  now: number = Date.now()
+  now: number = Date.now(),
+  direction: Settings["learningDirection"] = "en-ja",
+  overlay?: Record<string, DictEntry> | null
 ): Eligibility {
   const { base, pos, pos1 } = token;
+  const dir = normalizeDirection(direction);
+  const isEnglish = dir === "ja-en" || pos === "CONTENT";
 
   if (!ELIGIBLE_POS.includes(pos)) {
     return { eligible: false, countSeen: false };
   }
-  if (pos === "名詞" && EXCLUDED_NOUN_POS1.includes(pos1)) {
+  if (!isEnglish && pos === "名詞" && EXCLUDED_NOUN_POS1.includes(pos1)) {
     return { eligible: false, countSeen: false };
   }
-  if (base.length < 2 && !hasKanji(base) && !isEssentialWord(base)) {
+  if (!isEnglish && base.length < 2 && !hasKanji(base) && !isEssentialWord(base)) {
+    return { eligible: false, countSeen: false };
+  }
+  if (isEnglish && base.length < 2) {
     return { eligible: false, countSeen: false };
   }
 
-  const entry = lookup(base);
+  const entry = lookupForDirection(base, dir, overlay);
   if (!entry) {
     return { eligible: false, countSeen: false };
   }
@@ -60,13 +89,15 @@ export function checkEligibility(
 export function collectEligible(
   tokens: Token[],
   wordStates: VocabMap,
-  targetedSet: Set<string>
+  targetedSet: Set<string>,
+  direction: Settings["learningDirection"] = "en-ja",
+  overlay?: Record<string, DictEntry> | null
 ): { dueReview: Target | null; newWords: Target[] } {
   const survivors: { token: Token; entry: DictEntry }[] = [];
   const now = Date.now();
 
   for (const token of tokens) {
-    const check = checkEligibility(token, wordStates, targetedSet, now);
+    const check = checkEligibility(token, wordStates, targetedSet, now, direction, overlay);
     if (check.eligible && check.entry) {
       survivors.push({ token, entry: check.entry });
     }
@@ -104,9 +135,15 @@ export function pickTargetHeuristic(
 ): Target | null {
   let best: Target | null = null;
   let bestScore = -1;
+  const dir = normalizeDirection(settings.learningDirection);
 
   for (const { token, entry } of newWords) {
-    const essential = essentialBoost(token.base, settings.targetLevel);
+    const essential =
+      dir === "ja-en"
+        ? ENGLISH_ESSENTIALS[token.base]
+          ? 0.25
+          : 0
+        : essentialBoost(token.base, settings.targetLevel);
     const freqScore = 1 - Math.min(entry.freqRank, 20000) / 20000;
     const levelScore = 1 - Math.abs(entry.level - settings.targetLevel) / 4;
     const familiarity = Math.min(wordStates[token.base]?.seenCount || 0, 5) / 5;
@@ -128,9 +165,16 @@ export function pickTarget(
   tokens: Token[],
   wordStates: VocabMap,
   settings: Settings,
-  targetedSet: Set<string>
+  targetedSet: Set<string>,
+  overlay?: Record<string, DictEntry> | null
 ): Target | null {
-  const { dueReview, newWords } = collectEligible(tokens, wordStates, targetedSet);
+  const { dueReview, newWords } = collectEligible(
+    tokens,
+    wordStates,
+    targetedSet,
+    settings.learningDirection,
+    overlay
+  );
   if (dueReview) return dueReview;
   return pickTargetHeuristic(newWords, wordStates, settings);
 }

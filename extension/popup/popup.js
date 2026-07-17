@@ -15,6 +15,7 @@
     targetLevel: 5,
     autoResumeSec: 15,
     displayScript: "romaji",
+    learningDirection: "en-ja",
     autoSpeak: true,
     openaiKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",

@@ -11,6 +11,7 @@
     targetLevel: 5,
     autoResumeSec: 15,
     displayScript: "romaji",
+    learningDirection: "en-ja",
     autoSpeak: true,
     openaiKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
@@ -133,6 +134,7 @@
     byId("site-netflix").checked = s.sites?.netflix !== false;
     byId("site-generic").checked = s.sites?.generic !== false;
     byId("displayScript").value = s.displayScript || "romaji";
+    byId("learningDirection").value = s.learningDirection || "en-ja";
     byId("autoSpeak").checked = s.autoSpeak !== false;
     byId("openaiKey").value = s.openaiKey || "";
     byId("transcribeModel").value = s.transcribeModel || "gpt-4o-mini-transcribe";
@@ -177,6 +179,9 @@
     byId("site-generic").addEventListener("change", async (e) => {
       const s = await getSettings();
       savePartial({ sites: { ...s.sites, generic: e.target.checked } });
+    });
+    byId("learningDirection").addEventListener("change", (e) => {
+      savePartial({ learningDirection: e.target.value });
     });
     byId("displayScript").addEventListener("change", (e) => {
       savePartial({ displayScript: e.target.value });

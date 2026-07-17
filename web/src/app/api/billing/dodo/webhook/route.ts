@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { normalizePlan, type Plan } from "@/lib/ai-coach";
-import { billingMetadataPatch, parseEntitlement } from "@/lib/plans";
+import {
+  billingMetadataPatch,
+  parseEntitlement,
+  type BillingInterval,
+} from "@/lib/plans";
 import { refreshSyncTokenProfile } from "@/lib/sync-store";
 
 export const dynamic = "force-dynamic";
@@ -112,6 +116,18 @@ function idList(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+// Env lists are ordered monthly,yearly — index 0 = monthly, index 1 = yearly.
+function intervalForProduct(productId: string | null, env: DodoEnv): BillingInterval | null {
+  if (!productId) return null;
+  for (const list of [idList(env.DODO_PRO_PRODUCT_ID), idList(env.DODO_MAX_PRODUCT_ID)]) {
+    const idx = list.indexOf(productId);
+    if (idx === 0) return "monthly";
+    if (idx === 1) return "yearly";
+    if (idx > 1) return "yearly"; // extra ids treated as non-monthly
+  }
+  return null;
+}
+
 // Active subscription → the product's tier; a terminal event → back to free.
 function planForEvent(eventType: string, productId: string | null, env: DodoEnv): Plan | null {
   const t = eventType.toLowerCase();
@@ -126,7 +142,11 @@ function planForEvent(eventType: string, productId: string | null, env: DodoEnv)
   return "pro";
 }
 
-async function setUserPlan(email: string, plan: Plan): Promise<boolean> {
+async function setUserPlan(
+  email: string,
+  plan: Plan,
+  billingInterval: BillingInterval | null
+): Promise<boolean> {
   const client = await clerkClient();
   const list = await client.users.getUserList({ emailAddress: [email], limit: 1 });
   const user = list.data[0];
@@ -136,8 +156,9 @@ async function setUserPlan(email: string, plan: Plan): Promise<boolean> {
   // Billing owns the plan — it always clears any Max-gift expiry (paid users
   // are metered by their sub; a terminal event means free, never a resurrected
   // gift).
+  const patch = billingMetadataPatch(plan, billingInterval);
   await client.users.updateUserMetadata(user.id, {
-    publicMetadata: billingMetadataPatch(plan),
+    publicMetadata: patch,
   });
 
   // Propagate to the extension's existing sync token: the backend Worker
@@ -149,7 +170,7 @@ async function setUserPlan(email: string, plan: Plan): Promise<boolean> {
   try {
     const entitlement = parseEntitlement({
       ...(user.publicMetadata as Record<string, unknown> | undefined),
-      ...billingMetadataPatch(plan),
+      ...patch,
     });
     await refreshSyncTokenProfile(user.id, {
       id: user.id,
@@ -190,15 +211,17 @@ export async function POST(request: Request) {
 
   const eventType = typeof event.type === "string" ? event.type : "";
   const data = (event.data ?? {}) as Record<string, unknown>;
-  const plan = planForEvent(eventType, extractProductId(data), env);
+  const productId = extractProductId(data);
+  const plan = planForEvent(eventType, productId, env);
   if (!plan) return NextResponse.json({ ok: true, ignored: eventType });
+  const billingInterval = plan === "free" ? null : intervalForProduct(productId, env);
 
   const email = extractEmail(data);
   if (!email) return NextResponse.json({ ok: true, note: "no_customer_email" });
 
   try {
-    const applied = await setUserPlan(email, normalizePlan(plan));
-    return NextResponse.json({ ok: true, plan, applied });
+    const applied = await setUserPlan(email, normalizePlan(plan), billingInterval);
+    return NextResponse.json({ ok: true, plan, billingInterval, applied });
   } catch (err) {
     // Return 500 so Dodo retries rather than dropping the entitlement update.
     console.error("[dodo/webhook] failed to apply plan", err);
