@@ -29,10 +29,19 @@ from videos you watch. This policy explains exactly what it does with data.
   the monthly fair-use cap.
 - Nothing is captured when Listening Mode is off.
 
+## Anonymous product counters (optional, non-personal)
+
+When the extension shows or you click the in-product Chrome Web Store rating
+prompt, it may send a tiny allowlisted event name (e.g. `review_prompt_shown`)
+to `animevocab.com` so we can count how often the prompt appears. These are
+aggregate counters only — no account id, vocabulary, or browsing history is
+included.
+
 ## What it never does
 
-- No analytics, no tracking, no advertising, no selling of data.
-- No accounts — there is nothing to sign up for and no profile of you anywhere.
+- No advertising, no selling of data, and no profiles built from your vocab.
+- Cloud sync and accounts are opt-in (sign in on animevocab.com); local-only
+  use never creates an account.
 - It reads only the video sites it supports, and only to find subtitle text and
   the video element.
 
