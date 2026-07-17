@@ -16,9 +16,12 @@ import { heroSlides } from "@/lib/slides";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Learn Japanese from Anime — Netflix, Crunchyroll & YouTube | AnimeVocab",
+  title: "Anime Vocabulary Coach — Learn Japanese from Anime | AnimeVocab",
   description: SITE_DESCRIPTION,
-  alternates: { canonical: SITE_URL },
+  alternates: {
+    canonical: SITE_URL,
+    languages: { en: SITE_URL, ja: `${SITE_URL}/ja`, "x-default": SITE_URL },
+  },
   openGraph: {
     ...defaultOpenGraph,
     title: "Learn Japanese from Anime | AnimeVocab",

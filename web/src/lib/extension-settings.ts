@@ -1,7 +1,6 @@
-import {
-  normalizeDirection,
-  type LearningDirection,
-} from "./direction";
+import type { LearningDirection } from "./direction";
+import { resolveLearningDirection } from "./locale-direction";
+import type { SiteLocale } from "./locale";
 
 export type PauseMode = "copilot" | "pause" | "off";
 export type DisplayScript = "romaji" | "kana" | "kanji";
@@ -30,11 +29,17 @@ export const EXTENSION_SETTINGS_DEFAULTS: ExtensionSettings = {
   sites: { youtube: true, netflix: true, generic: true },
 };
 
-export function parseExtensionSettings(raw: Record<string, unknown> | undefined): ExtensionSettings {
+export function parseExtensionSettings(
+  raw: Record<string, unknown> | undefined,
+  locale: SiteLocale = "en"
+): ExtensionSettings {
   const d = EXTENSION_SETTINGS_DEFAULTS;
   const sites = (raw?.sites as Record<string, boolean> | undefined) || {};
   let pauseMode = raw?.pauseMode;
   if (pauseMode === "notify") pauseMode = "copilot";
+
+  const hasExplicitDirection =
+    raw?.learningDirection === "ja-en" || raw?.learningDirection === "en-ja";
 
   return {
     pauseMode:
@@ -49,7 +54,9 @@ export function parseExtensionSettings(raw: Record<string, unknown> | undefined)
       raw?.displayScript === "kana" || raw?.displayScript === "kanji" || raw?.displayScript === "romaji"
         ? raw.displayScript
         : d.displayScript,
-    learningDirection: normalizeDirection(raw?.learningDirection),
+    learningDirection: hasExplicitDirection
+      ? (raw!.learningDirection as LearningDirection)
+      : resolveLearningDirection(undefined, locale),
     autoSpeak: raw?.autoSpeak !== false,
     sites: {
       youtube: sites.youtube !== false,

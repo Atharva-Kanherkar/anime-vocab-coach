@@ -1,4 +1,5 @@
 import { warn } from "./log";
+import { isJapaneseUiLocale, resolveStoredDirection } from "./locale-direction";
 import { checkEligibility, lookupForDirection } from "./scoring";
 import { DEFAULTS, SRS_INTERVALS } from "../types";
 import type {
@@ -58,7 +59,12 @@ function sendBadge(stats: Pick<Stats, "daily">): void {
 export function getSettings(): Promise<Settings> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["settings"], (r) => {
-      resolve({ ...DEFAULTS, ...(r.settings || {}) });
+      const stored = (r.settings || {}) as Partial<Settings>;
+      const merged: Settings = { ...DEFAULTS, ...stored };
+      if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
+        merged.learningDirection = "ja-en";
+      }
+      resolve(merged);
     });
   });
 }

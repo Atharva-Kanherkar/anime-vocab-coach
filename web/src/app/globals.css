@@ -137,6 +137,19 @@ body::after {
 .top-nav-compact { gap: 16px; }
 .top-nav-compact a { font-size: 13px; }
 
+.lang-switch {
+  display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden;
+}
+.lang-switch--compact { scale: 0.92; transform-origin: center; }
+.lang-switch__btn {
+  border: 0; background: transparent; color: var(--ink-3); font-size: 11px;
+  padding: 4px 10px; cursor: pointer; font-family: var(--jp), var(--sans);
+}
+.lang-switch__btn.is-active {
+  background: rgba(219, 122, 92, 0.18); color: var(--ink); font-weight: 600;
+}
+.home-bar__actions { display: flex; align-items: center; gap: 10px; }
+
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   text-decoration: none; border-radius: 10px; font-weight: 600;
