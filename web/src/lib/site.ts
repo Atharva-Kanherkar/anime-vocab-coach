@@ -110,7 +110,7 @@ export function checkoutWithContext(
   opts?: { email?: string | null; redirectUrl?: string | null }
 ): string {
   const u = new URL(url);
-  if (opts?.email) u.searchParams.set("customer_email", opts.email);
+  if (opts?.email) u.searchParams.set("email", opts.email);
   if (opts?.redirectUrl) u.searchParams.set("redirect_url", opts.redirectUrl);
   return u.toString();
 }

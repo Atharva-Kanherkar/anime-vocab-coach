@@ -15,13 +15,13 @@ describe("checkoutFor", () => {
 });
 
 describe("checkoutWithContext", () => {
-  it("prefills customer_email and redirect_url", () => {
+  it("prefills email and redirect_url", () => {
     const url = checkoutWithContext(TIERS.pro.checkoutUrl, {
       email: "a@b.com",
       redirectUrl: "https://animevocab.com/app#billing",
     });
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("customer_email")).toBe("a@b.com");
+    expect(parsed.searchParams.get("email")).toBe("a@b.com");
     expect(parsed.searchParams.get("redirect_url")).toBe("https://animevocab.com/app#billing");
   });
 });
