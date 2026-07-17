@@ -62,6 +62,11 @@ const faqs = [
     answer:
       "No. AnimeVocab does not mirror dual-subtitle playback. It pushes one curated romaji-first word per line with built-in SRS — a different job than a dual-sub reader.",
   },
+  {
+    question: "What is the best Language Reactor alternative for Crunchyroll specifically?",
+    answer:
+      "AnimeVocab Listening Mode for beginners and missing JP tracks; Lexirise or ManabiDojo when Japanese text is on screen. See the dedicated Crunchyroll page for the long-tail comparison.",
+  },
 ];
 
 export default function LanguageReactorAlternativePage() {
@@ -196,6 +201,21 @@ export default function LanguageReactorAlternativePage() {
               <Link href="/learn-japanese-crunchyroll">learn Japanese on Crunchyroll</Link>.
             </p>
 
+            <h2>Crunchyroll-specific: Language Reactor alternative</h2>
+            <p>
+              The long-tail query is not just &quot;Language Reactor alternative&quot; — it is often{" "}
+              <strong>Language Reactor alternative Crunchyroll</strong>. Direct answer: LR does not run there (
+              <Link href="/does-language-reactor-work-on-crunchyroll">full write-up</Link>
+              ). Dedicated page for that intent:{" "}
+              <Link href="/language-reactor-alternative-crunchyroll">
+                Language Reactor alternative for Crunchyroll
+              </Link>
+              . Same gap for Migaku:{" "}
+              <Link href="/does-migaku-work-on-crunchyroll">does Migaku work on Crunchyroll?</Link>. Need JP text
+              overlays instead of a dual-sub clone?{" "}
+              <Link href="/crunchyroll-japanese-subtitles">Crunchyroll Japanese subtitles</Link>.
+            </p>
+
             <h2>Related pages</h2>
             <ul>
               <li>
@@ -203,6 +223,16 @@ export default function LanguageReactorAlternativePage() {
               </li>
               <li>
                 <Link href="/migaku-vs-language-reactor">Migaku vs Language Reactor</Link>
+              </li>
+              <li>
+                <Link href="/language-reactor-alternative-crunchyroll">
+                  Language Reactor alternative for Crunchyroll
+                </Link>
+              </li>
+              <li>
+                <Link href="/does-language-reactor-work-on-crunchyroll">
+                  Does Language Reactor work on Crunchyroll?
+                </Link>
               </li>
               <li>
                 <Link href="/animelon-alternative">Animelon alternative</Link>
@@ -235,6 +265,8 @@ export default function LanguageReactorAlternativePage() {
         links={[
           { href: "/vs-language-reactor", label: "vs Language Reactor" },
           { href: "/migaku-vs-language-reactor", label: "Migaku vs LR" },
+          { href: "/language-reactor-alternative-crunchyroll", label: "LR alt for CR" },
+          { href: "/does-language-reactor-work-on-crunchyroll", label: "LR on CR?" },
           { href: "/animelon-alternative", label: "Animelon alt" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/free-japanese-anime-extension", label: "Free extension" },

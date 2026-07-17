@@ -199,6 +199,33 @@ export default function LearnJapaneseCrunchyrollPage() {
               <Link href="/vs-manabidojo">vs ManabiDojo</Link>, or see the full{" "}
               <Link href="/learn-japanese-with-anime">2026 tool ranking</Link>.
             </p>
+
+            <h2>Incumbent dead ends (exact questions)</h2>
+            <ul>
+              <li>
+                <Link href="/does-language-reactor-work-on-crunchyroll">
+                  Does Language Reactor work on Crunchyroll?
+                </Link>{" "}
+                — no (Netflix/YouTube only).
+              </li>
+              <li>
+                <Link href="/does-migaku-work-on-crunchyroll">Does Migaku work on Crunchyroll?</Link> — no.
+              </li>
+              <li>
+                <Link href="/crunchyroll-japanese-subtitles">Crunchyroll Japanese subtitles</Link> — how to get
+                JP text (or skip files).
+              </li>
+              <li>
+                <Link href="/migaku-vs-language-reactor">Migaku vs Language Reactor</Link> — when AnimeVocab is
+                option 3.
+              </li>
+              <li>
+                <Link href="/language-reactor-alternative-crunchyroll">
+                  Language Reactor alternative for Crunchyroll
+                </Link>
+                .
+              </li>
+            </ul>
           </div>
         </section>
 
