@@ -24,6 +24,9 @@
   var log = (...args) => console.log("[AVC]", ...args);
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/lib/review-prompt.ts
+  var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
+
   // src/lib/storage.ts
   var queue = Promise.resolve();
   function enqueue(fn) {

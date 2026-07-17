@@ -35,10 +35,16 @@ function matches(list: string[], path: string): boolean {
 
 const matcherPatterns = () => patterns(source.match(/matcher:\s*\[([\s\S]*?)\]/), "matcher");
 const clerkPatterns = () => patterns(source.match(/CLERK_ROUTES\s*=\s*\[([\s\S]*?)\]/), "CLERK_ROUTES");
+const beaconPatterns = () =>
+  patterns(source.match(/BEACON_ROUTES\s*=\s*\[([\s\S]*?)\]/), "BEACON_ROUTES");
 
 /** A page runs clerkMiddleware only if the matcher AND the Clerk early-return allow it. */
 function covered(path: string): boolean {
-  return matches(matcherPatterns(), path) && matches(clerkPatterns(), path);
+  return (
+    matches(matcherPatterns(), path) &&
+    matches(clerkPatterns(), path) &&
+    !matches(beaconPatterns(), path)
+  );
 }
 
 describe("middleware matcher", () => {
@@ -52,6 +58,15 @@ describe("middleware matcher", () => {
   it("covers the API and Clerk proxy", () => {
     expect(covered("/api/sync/token")).toBe(true);
     expect(covered("/__clerk/v1/client")).toBe(true);
+  });
+
+  it("skips Clerk on anonymous funnel beacons", () => {
+    // Still matched by /(api|trpc)(.*), but BEACON_ROUTES exits before Clerk.
+    for (const path of ["/api/extension/track", "/api/ending/track"]) {
+      expect(matches(matcherPatterns(), path), `matcher should see ${path}`).toBe(true);
+      expect(matches(beaconPatterns(), path), `beacon list should include ${path}`).toBe(true);
+      expect(covered(path), `Clerk must not run on ${path}`).toBe(false);
+    }
   });
 
   it("skips Next internals and static assets", () => {

@@ -1,6 +1,7 @@
 import { WEB_URL } from "../config";
 import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
+import { mountReviewPrompt } from "../lib/review-prompt-ui";
 import type { DailyStats } from "../types";
 
 type Theme = "dark" | "light";
@@ -139,6 +140,9 @@ async function render(): Promise<void> {
   } else {
     reviewBtn.hidden = true;
   }
+
+  // Idle surface only — popup never mounts on a playing video.
+  await mountReviewPrompt({ host: byId("review-prompt"), variant: "popup" });
 }
 
 async function activeTabId(): Promise<number | null> {

@@ -13,6 +13,12 @@ import type {
   WordSource,
   WordState,
 } from "../types";
+import {
+  applyShown,
+  normalizeReviewPrompt,
+  shouldCountShown,
+  type ReviewPromptState,
+} from "./review-prompt";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -376,8 +382,41 @@ export function getSyncProfile(): Promise<SyncProfile | null> {
   });
 }
 
+export function getReviewPrompt(): Promise<ReviewPromptState> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["reviewPrompt"], (r) => {
+      resolve(normalizeReviewPrompt(r.reviewPrompt));
+    });
+  });
+}
+
+export function setReviewPrompt(next: ReviewPromptState): Promise<ReviewPromptState> {
+  return enqueue(async () => {
+    const state = normalizeReviewPrompt(next);
+    await chrome.storage.local.set({ reviewPrompt: state });
+    return state;
+  });
+}
+
+/**
+ * Atomically (within this page's storage queue) record a new ask display.
+ * Re-reads before write so a popup+dashboard race that already counted a show
+ * does not increment askCount twice. Returns whether this call counted a show.
+ */
+export function recordReviewPromptShown(now = Date.now()): Promise<boolean> {
+  return enqueue(async () => {
+    const r = await chrome.storage.local.get(["reviewPrompt"]);
+    const prompt = normalizeReviewPrompt(r.reviewPrompt);
+    if (!shouldCountShown(prompt, now)) return false;
+    await chrome.storage.local.set({ reviewPrompt: applyShown(prompt, now) });
+    return true;
+  });
+}
+
 export function resetProgress(): Promise<void> {
   return enqueue(async () => {
+    // Wipe learning progress only. reviewPrompt must survive so "No thanks",
+    // Rate, and the two-ask cap remain install-lifetime preferences.
     await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
     sendBadge({ daily: {} });
   });

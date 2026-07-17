@@ -20,6 +20,14 @@
       "id": "8e67f3701aa04195975a583cc59d8425"
     }
   ],
+  // Append-only extension product-funnel events (review_prompt_*). Dataset is
+  // created on first write — query via Cloudflare Analytics Engine SQL API.
+  "analytics_engine_datasets": [
+    {
+      "binding": "EXTENSION_AE",
+      "dataset": "extension_funnel"
+    }
+  ],
   // AI coach (issue #13). OPENAI_API_KEY is a Worker secret, not a var:
   //   npx wrangler secret put OPENAI_API_KEY
   // gpt-4.1-nano is the cheapest capable model ($0.10/$0.40 per 1M tokens as of

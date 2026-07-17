@@ -2,6 +2,7 @@ import * as storage from "../lib/storage";
 import { toRomaji } from "../lib/romaji";
 import { getDueWords } from "../lib/review";
 import { commonnessShort } from "../lib/levels";
+import { mountReviewPrompt } from "../lib/review-prompt-ui";
 import type { DailyStats, Stats, VocabMap } from "../types";
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -384,6 +385,13 @@ function runReviewSession(host: HTMLElement, due: ReturnType<typeof getDueWords>
   let i = 0;
   let reviewed = 0;
 
+  // Never leave the CWS rating nudge visible during an active review session.
+  const promptHost = document.getElementById("review-prompt");
+  if (promptHost) {
+    promptHost.hidden = true;
+    promptHost.innerHTML = "";
+  }
+
   const showCard = (): void => {
     if (i >= due.length) {
       host.innerHTML = `<div class="review-intro"><h2>Review complete</h2><p>${reviewed} reviewed. Nice work.</p></div>`;
@@ -449,6 +457,15 @@ async function boot(): Promise<void> {
   }
   renderReview(vocab);
   renderTiles(vocab, stats);
+  // Never interrupt an in-progress review session (deep-link or active card UI).
+  const reviewHost = document.getElementById("review");
+  const inReviewSession =
+    location.hash === "#review" || !!reviewHost?.querySelector(".review-session");
+  await mountReviewPrompt({
+    host: document.getElementById("review-prompt") as HTMLElement,
+    variant: "dashboard",
+    blocked: inReviewSession,
+  });
   renderTime(stats);
   renderDonut(vocab);
   renderLevel(vocab);

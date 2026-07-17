@@ -6,13 +6,13 @@ import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "AnimeVocab privacy policy: your learning data stays in your browser. No accounts, no analytics, no tracking.",
+    "AnimeVocab privacy policy: learning progress stays in your browser by default. Cloud sync is opt-in. Aggregate rating-prompt counters only — no ads, no selling of data.",
   alternates: { canonical: `${SITE_URL}/privacy` },
   openGraph: {
     ...defaultOpenGraph,
     title: "Privacy Policy | AnimeVocab",
     description:
-      "AnimeVocab privacy policy: your learning data stays in your browser. No accounts, no analytics, no tracking.",
+      "AnimeVocab privacy policy: learning progress stays in your browser by default. Cloud sync is opt-in. Aggregate rating-prompt counters only — no ads, no selling of data.",
     url: `${SITE_URL}/privacy`,
   },
   twitter: {
@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         <section className="legal wrap narrow" style={{ paddingTop: 48 }}>
           <h1>Privacy Policy</h1>
           <p className="date" style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 40 }}>
-            Last updated: July 3, 2026
+            Last updated: July 17, 2026
           </p>
 
           <p>
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
           <ul>
             <li>
               <b>Your vocabulary progress, settings, and statistics</b> are stored locally in
-              your browser. The extension never uploads them anywhere.
+              your browser. The extension never uploads them unless you opt into cloud sync.
             </li>
             <li>
               <b>Your OpenAI API key</b> (only if you use bring-your-own-key Listening Mode) is
@@ -54,12 +54,12 @@ export default function PrivacyPage() {
             </li>
           </ul>
 
-          <h2>What leaves your device (Listening Mode only)</h2>
+          <h2>What leaves your device (Listening Mode)</h2>
           <ul>
             <li>
               The current tab&apos;s <b>audio</b> is streamed to OpenAI&apos;s transcription API
               solely to convert Japanese speech into text for vocabulary detection. Audio goes
-              directly from your browser to OpenAI; it is not recorded or stored.
+              directly from your browser to OpenAI; it is not recorded or stored by AnimeVocab.
             </li>
             <li>
               With a Pro subscription, the extension additionally sends your <b>license key and
@@ -69,10 +69,30 @@ export default function PrivacyPage() {
             <li>Nothing is captured when Listening Mode is off.</li>
           </ul>
 
+          <h2>Anonymous product counters</h2>
+          <ul>
+            <li>
+              When the extension shows the in-product Chrome Web Store rating prompt (or you
+              click Rate), it sends a tiny allowlisted event name such as{" "}
+              <code>review_prompt_shown</code> plus the extension id to{" "}
+              <code>animevocab.com</code>. These are aggregate counters only — no account id,
+              vocabulary, or browsing history.
+            </li>
+            <li>
+              There is no separate opt-out toggle for these counters; dismissing the prompt
+              (&quot;No thanks&quot; / Rate) stops further prompts and thus further beacons.
+              The endpoint rate-limits by IP and only accepts requests that present as our
+              Chrome extension (a public id, not a secret).
+            </li>
+          </ul>
+
           <h2>What it never does</h2>
           <ul>
-            <li>No analytics, no tracking, no advertising, no selling of data to anyone, ever.</li>
-            <li>No accounts. There is nothing to sign up for and no profile of you anywhere.</li>
+            <li>No advertising, no selling of data, and no profiles built from your vocab.</li>
+            <li>
+              Cloud sync and accounts are opt-in (sign in on animevocab.com); local-only use
+              never creates an account.
+            </li>
             <li>
               It reads only the video sites it supports, and only to find subtitle text and the
               video element.

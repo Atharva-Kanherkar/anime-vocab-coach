@@ -108,6 +108,35 @@ td.meaning { white-space: normal; color: var(--ink-2); max-width: 280px; }
 .state-tag.new { background: rgba(168,154,126,.14); color: var(--new); }
 .state-tag.ignored { background: rgba(255,255,255,.06); color: var(--muted); }
 
+/* Chrome Web Store review prompt (idle dashboard only) */
+.rp-host { margin: 0 0 16px; }
+.rp-host[hidden] { display: none; }
+.rp-card {
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+}
+.rp-copy { font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.rp-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.rp-btn {
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  background: transparent;
+  color: var(--ink);
+}
+.rp-btn-primary { background: var(--accent); border-color: var(--accent); color: #fffdf6; }
+.rp-btn-ghost { border-color: rgba(255,255,255,.18); color: var(--ink-2); }
+.rp-btn-quiet { color: var(--muted); border-color: transparent; }
+.rp-btn:hover { opacity: 0.9; }
+
 .empty { text-align: center; color: var(--muted); padding: 40px; font-size: 14px; }
 
 /* tooltip */

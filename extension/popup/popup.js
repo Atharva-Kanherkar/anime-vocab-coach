@@ -2,6 +2,10 @@
 (() => {
   // src/config.ts
   var WEB_URL = "https://animevocab.com";
+  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
+
+  // src/lib/log.ts
+  var warn = (...args) => console.warn("[AVC]", ...args);
 
   // src/types.ts
   var DEFAULTS = {
@@ -19,8 +23,100 @@
   };
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
+  // src/lib/review-prompt.ts
+  var CWS_REVIEWS_URL = "https://chromewebstore.google.com/detail/lkjbomofgfonjjbemobacegffepbdnel/reviews";
+  var REVIEW_PROMPT_MIN_MINED = 10;
+  var REVIEW_PROMPT_MAX_ASKS = 2;
+  var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
+  var REVIEW_PROMPT_SNOOZE_EXTRA_CARDS = 20;
+  var EMPTY_REVIEW_PROMPT = {
+    dismissedForever: false,
+    askCount: 0,
+    snoozeUntil: 0,
+    snoozeAfterCards: 0,
+    lastShownAt: 0
+  };
+  function countMinedCards(vocab) {
+    let n = 0;
+    for (const rec of Object.values(vocab)) {
+      if (rec.state === "known" || rec.state === "learning") n++;
+    }
+    return n;
+  }
+  function totalReviewsDone(stats) {
+    let n = 0;
+    for (const day of Object.values(stats.daily || {})) {
+      n += day.reviews || 0;
+    }
+    return n;
+  }
+  function asBool(v) {
+    if (v === true || v === 1) return true;
+    if (typeof v === "string") return v.toLowerCase() === "true";
+    return false;
+  }
+  function normalizeReviewPrompt(raw) {
+    if (!raw || typeof raw !== "object") return { ...EMPTY_REVIEW_PROMPT };
+    const o = raw;
+    return {
+      // Avoid `!!o.dismissedForever` — a legacy string "false" would become true.
+      dismissedForever: asBool(o.dismissedForever),
+      askCount: Math.max(0, Number(o.askCount) || 0),
+      snoozeUntil: Math.max(0, Number(o.snoozeUntil) || 0),
+      snoozeAfterCards: Math.max(0, Number(o.snoozeAfterCards) || 0),
+      lastShownAt: Math.max(0, Number(o.lastShownAt) || 0)
+    };
+  }
+  function shouldShowReviewPrompt(input) {
+    const now = input.now ?? Date.now();
+    if (input.blocked) return false;
+    const { prompt } = input;
+    if (prompt.dismissedForever) return false;
+    const mined = countMinedCards(input.vocab);
+    if (mined < REVIEW_PROMPT_MIN_MINED) return false;
+    if (totalReviewsDone(input.stats) < 1) return false;
+    const awaitingResponse = prompt.lastShownAt > 0 && prompt.snoozeUntil === 0 && prompt.askCount > 0 && prompt.askCount <= REVIEW_PROMPT_MAX_ASKS;
+    if (awaitingResponse) return true;
+    if (prompt.askCount >= REVIEW_PROMPT_MAX_ASKS) return false;
+    if (prompt.snoozeUntil > 0 && now < prompt.snoozeUntil) return false;
+    if (prompt.snoozeAfterCards > 0 && mined < prompt.snoozeAfterCards) return false;
+    return true;
+  }
+  function applyShown(prompt, now = Date.now()) {
+    return {
+      ...prompt,
+      lastShownAt: now,
+      askCount: prompt.askCount + 1,
+      snoozeUntil: 0,
+      snoozeAfterCards: 0
+    };
+  }
+  function shouldCountShown(prompt, now = Date.now()) {
+    if (prompt.askCount >= REVIEW_PROMPT_MAX_ASKS) return false;
+    if (prompt.lastShownAt === 0) return true;
+    return prompt.snoozeUntil > 0 && now >= prompt.snoozeUntil;
+  }
+  function applyMaybeLater(prompt, minedCards, now = Date.now()) {
+    return {
+      ...prompt,
+      snoozeUntil: now + REVIEW_PROMPT_SNOOZE_MS,
+      snoozeAfterCards: minedCards + REVIEW_PROMPT_SNOOZE_EXTRA_CARDS
+    };
+  }
+  function applyNoThanks(prompt) {
+    return { ...prompt, dismissedForever: true };
+  }
+  function applyRate(prompt) {
+    return { ...prompt, dismissedForever: true };
+  }
+
   // src/lib/storage.ts
   var queue = Promise.resolve();
+  function enqueue(fn) {
+    const next = queue.then(fn, fn);
+    queue = next.catch((err) => warn("storage error:", err));
+    return next;
+  }
   function pruneTimestamps(timestamps) {
     const cutoff = Date.now() - 36e5;
     return (timestamps || []).filter((t) => t >= cutoff);
@@ -72,6 +168,29 @@
       });
     });
   }
+  function getReviewPrompt() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["reviewPrompt"], (r) => {
+        resolve(normalizeReviewPrompt(r.reviewPrompt));
+      });
+    });
+  }
+  function setReviewPrompt(next) {
+    return enqueue(async () => {
+      const state = normalizeReviewPrompt(next);
+      await chrome.storage.local.set({ reviewPrompt: state });
+      return state;
+    });
+  }
+  function recordReviewPromptShown(now = Date.now()) {
+    return enqueue(async () => {
+      const r = await chrome.storage.local.get(["reviewPrompt"]);
+      const prompt = normalizeReviewPrompt(r.reviewPrompt);
+      if (!shouldCountShown(prompt, now)) return false;
+      await chrome.storage.local.set({ reviewPrompt: applyShown(prompt, now) });
+      return true;
+    });
+  }
 
   // src/lib/review.ts
   function dueCount(vocab, now = Date.now()) {
@@ -81,6 +200,106 @@
       if (r.state === "learning" && r.srs && r.srs.dueAt <= now) n++;
     }
     return n;
+  }
+
+  // src/lib/extension-events.ts
+  var EXTENSION_EVENTS = [
+    "review_prompt_shown",
+    "review_prompt_clicked"
+  ];
+  function isExtensionEvent(v) {
+    return typeof v === "string" && EXTENSION_EVENTS.includes(v);
+  }
+  function extensionId() {
+    try {
+      if (typeof chrome !== "undefined" && chrome.runtime?.id) return chrome.runtime.id;
+    } catch {
+    }
+    return CWS_EXTENSION_ID;
+  }
+  function trackExtensionEvent(event) {
+    if (!isExtensionEvent(event)) return;
+    try {
+      const url = `${WEB_URL}/api/extension/track`;
+      const payload = JSON.stringify({ event });
+      void fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-avc-extension-id": extensionId()
+        },
+        body: payload,
+        keepalive: true
+      }).catch(() => {
+      });
+    } catch {
+    }
+  }
+
+  // src/lib/review-prompt-ui.ts
+  async function mountReviewPrompt(opts) {
+    const { host, blocked = false, variant = "popup" } = opts;
+    try {
+      return await mountReviewPromptInner(host, blocked, variant);
+    } catch {
+      try {
+        host.hidden = true;
+        host.innerHTML = "";
+      } catch {
+      }
+      return false;
+    }
+  }
+  async function mountReviewPromptInner(host, blocked, variant) {
+    const [vocab, stats, prompt] = await Promise.all([
+      getVocab(),
+      getStats(),
+      getReviewPrompt()
+    ]);
+    const now = Date.now();
+    if (!shouldShowReviewPrompt({ vocab, stats, prompt, blocked, now })) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return false;
+    }
+    if (await recordReviewPromptShown(now)) {
+      trackExtensionEvent("review_prompt_shown");
+    }
+    const rootClass = variant === "popup" ? "av-review-prompt" : "rp-card";
+    const btnPrimary = variant === "popup" ? "av-btn av-btn-primary av-btn-block" : "rp-btn rp-btn-primary";
+    const btnGhost = variant === "popup" ? "av-btn av-btn-ghost av-btn-block" : "rp-btn rp-btn-ghost";
+    const btnQuiet = variant === "popup" ? "av-btn av-btn-quiet av-btn-block" : "rp-btn rp-btn-quiet";
+    host.hidden = false;
+    host.innerHTML = `<div class="${rootClass}" role="region" aria-label="Rate AnimeVocab"><p class="${variant === "popup" ? "av-review-prompt-copy" : "rp-copy"}">Enjoying AnimeVocab? A rating helps other learners find it.</p><div class="${variant === "popup" ? "av-review-prompt-actions" : "rp-actions"}"><button type="button" class="${btnPrimary}" data-rp="rate">Rate on Chrome Web Store</button><button type="button" class="${btnGhost}" data-rp="later">Maybe later</button><button type="button" class="${btnQuiet}" data-rp="no">No thanks</button></div></div>`;
+    const hide = () => {
+      host.hidden = true;
+      host.innerHTML = "";
+    };
+    const mined = countMinedCards(vocab);
+    host.querySelector('[data-rp="rate"]')?.addEventListener("click", () => {
+      void (async () => {
+        const current = await getReviewPrompt();
+        await setReviewPrompt(applyRate(current));
+        trackExtensionEvent("review_prompt_clicked");
+        chrome.tabs.create({ url: CWS_REVIEWS_URL });
+        hide();
+      })();
+    });
+    host.querySelector('[data-rp="later"]')?.addEventListener("click", () => {
+      void (async () => {
+        const current = await getReviewPrompt();
+        await setReviewPrompt(applyMaybeLater(current, mined));
+        hide();
+      })();
+    });
+    host.querySelector('[data-rp="no"]')?.addEventListener("click", () => {
+      void (async () => {
+        const current = await getReviewPrompt();
+        await setReviewPrompt(applyNoThanks(current));
+        hide();
+      })();
+    });
+    return true;
   }
 
   // src/entries/popup.ts
@@ -178,6 +397,7 @@
     } else {
       reviewBtn.hidden = true;
     }
+    await mountReviewPrompt({ host: byId("review-prompt"), variant: "popup" });
   }
   async function activeTabId() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

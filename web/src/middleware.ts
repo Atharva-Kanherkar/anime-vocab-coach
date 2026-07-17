@@ -4,6 +4,11 @@ import { DEV_NO_CLERK } from "@/lib/dev-auth";
 
 const isProtectedRoute = createRouteMatcher(["/app(.*)"]);
 
+// Anonymous product-funnel beacons (always 204, no auth). Exempt before Clerk
+// so a Clerk outage / CPU spike cannot 5xx them or amplify bot flood cost.
+const BEACON_ROUTES = ["/api/extension/track", "/api/ending/track"];
+const isBeaconRoute = createRouteMatcher(BEACON_ROUTES);
+
 // Routes where clerkMiddleware must run: everything that calls auth() /
 // currentUser() on the server, plus the auth pages and the Clerk proxy.
 // Keep this list tight — running Clerk on every marketing page multiplied
@@ -31,6 +36,8 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
 
   // Local dev without Clerk keys: let every request through untouched.
   if (DEV_NO_CLERK) return NextResponse.next();
+
+  if (isBeaconRoute(req)) return NextResponse.next();
 
   // Marketing/static pages: no server-side auth — skip Clerk's per-request
   // work. Clerk client components (sign-in buttons) still function; they
