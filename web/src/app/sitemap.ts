@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { blogPosts } from "@/content/blog/posts";
 import { listGallery } from "@/lib/studio-store";
 import { listGallery as listWordMangaGallery } from "@/lib/word-manga-store";
+import { JA_CLUSTER_LASTMOD, JA_SITEMAP_ROUTES } from "@/lib/ja-seo";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,12 @@ const staticRoutes = [
   { path: "/without-extension", priority: 0.6, changeFrequency: "monthly" as const, lastModified: "2026-07-11" },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" as const, lastModified: "2026-07-04" },
   // /feed.xml is an RSS feed, not an HTML landing — omit from sitemap
+  ...JA_SITEMAP_ROUTES.map((route) => ({
+    path: route.path,
+    priority: route.priority,
+    changeFrequency: route.changeFrequency,
+    lastModified: JA_CLUSTER_LASTMOD,
+  })),
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
