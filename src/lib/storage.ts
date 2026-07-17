@@ -3,6 +3,7 @@ import { checkEligibility } from "./scoring";
 import { lookup } from "./dictionary";
 import { DEFAULTS, SRS_INTERVALS } from "../types";
 import type { Judgment, JudgmentMeta, Settings, Stats, Token, VocabMap, VocabRecord, WordSource, WordState } from "../types";
+import { EMPTY_REVIEW_PROMPT, normalizeReviewPrompt, type ReviewPromptState } from "./review-prompt";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -360,9 +361,29 @@ export function getSyncProfile(): Promise<SyncProfile | null> {
   });
 }
 
+export function getReviewPrompt(): Promise<ReviewPromptState> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["reviewPrompt"], (r) => {
+      resolve(normalizeReviewPrompt(r.reviewPrompt));
+    });
+  });
+}
+
+export function setReviewPrompt(next: ReviewPromptState): Promise<ReviewPromptState> {
+  return enqueue(async () => {
+    const state = normalizeReviewPrompt(next);
+    await chrome.storage.local.set({ reviewPrompt: state });
+    return state;
+  });
+}
+
 export function resetProgress(): Promise<void> {
   return enqueue(async () => {
-    await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
+    await chrome.storage.local.set({
+      vocab: {},
+      stats: emptyStats(),
+      reviewPrompt: { ...EMPTY_REVIEW_PROMPT },
+    });
     sendBadge({ daily: {} });
   });
 }
