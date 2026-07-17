@@ -4,7 +4,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { heroMobileImage, preloadHeroImages } from "@/lib/hero-images";
 import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
-import { GITHUB_URL, installUrl, TIERS, checkoutFor, type PlanId } from "@/lib/site";
+import {
+  GITHUB_URL,
+  installUrl,
+  TIERS,
+  checkoutFor,
+  type CheckoutInterval,
+  type PlanId,
+} from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
 import { AuthControls } from "@/components/site-chrome";
 
@@ -25,6 +32,7 @@ function slideBgStyle(image?: string, tone?: string): CSSProperties {
 export function FxSlider({ slides }: { slides: HeroSlide[] }) {
   const wrapRef = useRef<HTMLElement>(null);
   const [index, setIndex] = useState(0);
+  const [billingInterval, setBillingInterval] = useState<CheckoutInterval>("monthly");
   const indexRef = useRef(0);
   const rafRef = useRef(0);
 
@@ -161,18 +169,48 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
           <div className="hero__center hero__center--wide hero__center--pricing" key={active.id}>
             <h2 className="hero__title">{active.title}</h2>
             <p className="hero__body">{active.body}</p>
+            <div className="billing-toggle" role="group" aria-label="Billing interval">
+              <button
+                type="button"
+                className={billingInterval === "monthly" ? "is-active" : ""}
+                aria-pressed={billingInterval === "monthly"}
+                onClick={() => setBillingInterval("monthly")}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                className={billingInterval === "yearly" ? "is-active" : ""}
+                aria-pressed={billingInterval === "yearly"}
+                onClick={() => setBillingInterval("yearly")}
+              >
+                Yearly <span className="billing-toggle__save">save ~38%</span>
+              </button>
+            </div>
             <div className="price-grid price-grid--three hero__pricing">
               {(["free", "pro", "max"] as PlanId[]).map((id) => {
                 const t = TIERS[id];
                 const isPro = id === "pro";
-                const url = id === "free" ? null : checkoutFor(id);
+                const url = id === "free" ? null : checkoutFor(id, billingInterval);
+                const amount =
+                  id === "free"
+                    ? t.priceLabel
+                    : billingInterval === "yearly" && t.yearlyLabel
+                      ? t.yearlyLabel
+                      : t.priceLabel;
+                const sub =
+                  id === "free"
+                    ? null
+                    : billingInterval === "yearly"
+                      ? t.priceLabel
+                      : t.yearlyLabel ?? null;
                 return (
                   <div key={id} className={"price-card" + (isPro ? " price-card-pro" : "")}>
                     {isPro && <span className="pro-tag">Popular</span>}
                     <h3>{t.name}</h3>
                     <p className="amount-row">
-                      <span className="amount">{t.priceLabel}</span>
-                      {t.yearlyLabel && <span className="price-sub">{t.yearlyLabel}</span>}
+                      <span className="amount">{amount}</span>
+                      {sub && <span className="price-sub">or {sub}</span>}
                     </p>
                     <ul>
                       {t.perks.slice(0, 3).map((p) => (

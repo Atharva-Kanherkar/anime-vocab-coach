@@ -129,8 +129,17 @@ describe("isPaidSubscription", () => {
 });
 
 describe("billingMetadataPatch", () => {
-  it("clears gift expiry when a paid sub lands, leaving other keys untouched", () => {
-    expect(billingMetadataPatch("pro")).toEqual({ plan: "pro", planExpiresAt: null });
+  it("clears gift expiry and records billing interval on paid events", () => {
+    expect(billingMetadataPatch("pro", "yearly")).toEqual({
+      plan: "pro",
+      planExpiresAt: null,
+      billingInterval: "yearly",
+    });
+    expect(billingMetadataPatch("max")).toEqual({
+      plan: "max",
+      planExpiresAt: null,
+      billingInterval: null,
+    });
   });
 
   it("also clears billingInterval on terminal (free) events", () => {
