@@ -9,7 +9,8 @@ In-product Chrome Web Store review prompt after the user has experienced value
 - Mined cards ≥ 10, where mined = words with `state === "known" || state === "learning"`.
 - At least one review completed: sum of `stats.daily[*].reviews` ≥ 1.
 - Not dismissed forever (`dismissedForever === false`).
-- Ask count < 2 (max two asks per install).
+- Max two asks per install (`askCount` increments on each new display). Remounts of
+  an unanswered ask stay visible; a third new ask never starts.
 - Not snoozed: either no snooze, or both conditions cleared:
   - `now >= snoozeUntil` (≈ 2 weeks from "Maybe later"), **and**
   - mined cards ≥ `snoozeAfterCards` (cards at snooze + 20).
@@ -22,7 +23,7 @@ In-product Chrome Web Store review prompt after the user has experienced value
   - **Rate on Chrome Web Store** → opens
     `https://chromewebstore.google.com/detail/lkjbomofgfonjjbemobacegffepbdnel/reviews`
     and records a click (counts as one ask / does not re-show after max asks).
-  - **Maybe later** → snooze ≈ 14 days and require +20 mined cards; increments ask count.
+  - **Maybe later** → snooze ≈ 14 days and require +20 mined cards (ask already counted on show).
   - **No thanks** → `dismissedForever = true`; never ask again.
 
 ### Persistence
@@ -44,21 +45,24 @@ In-product Chrome Web Store review prompt after the user has experienced value
 - `shouldShowReviewPrompt_respectsDismissedForever` — dismissed → false
 - `shouldShowReviewPrompt_maxTwoAsks` — askCount ≥ 2 → false
 - `shouldShowReviewPrompt_snoozeUntilAndCards` — within 2 weeks or under +20 cards → false; both cleared → true
-- `applyMaybeLater_setsSnooze` — snoozeUntil ≈ now+14d, snoozeAfterCards = mined+20, askCount++
+- `applyMaybeLater_setsSnooze` — snoozeUntil ≈ now+14d, snoozeAfterCards = mined+20
 - `applyNoThanks_dismissesForever` — dismissedForever true
 - `applyRate_stopsAsking` — after rate click, shouldShow → false
+- `applyShown_incrementsAskCount` — new display increments askCount and clears snooze
 - `isExtensionEvent_allowlist` — only allowlisted names accepted
 
 ## Integration / Functional Tests
 
-- Storage round-trip: `getReviewPrompt` / `setReviewPrompt` persist fields via chrome.storage.local
-  (unit-tested with a mock storage if chrome is unavailable in vitest; otherwise pure state transitions).
+- Storage helpers `getReviewPrompt` / `setReviewPrompt` wrap `chrome.storage.local`
+  (state transitions covered by pure unit tests; chrome mock not required for this PR).
 
 ## Smoke Tests
 
 - `npm run typecheck` passes
-- `npm run test:unit` passes
+- `npm run test:unit -- test/review-prompt.test.ts` passes (13 tests)
+- `cd web && npm run test:unit -- src/lib/extension-store.test.ts` passes (3 tests)
 - `npm run build` produces updated `extension/popup/popup.js` and `extension/dashboard/dashboard.js`
+- Note: pre-existing failure in `test/scoring.test.ts` (お願いします boost) is unrelated to #76
 
 ## E2E Tests
 
@@ -73,8 +77,8 @@ In-product Chrome Web Store review prompt after the user has experienced value
    - `stats.daily` with `reviews: 1`
    - clear `reviewPrompt`
 3. Open popup: review card appears between account and actions.
-4. Click **Maybe later**: card disappears; `reviewPrompt.askCount === 1`, snooze fields set.
-5. Force eligibility again (clear snooze / set askCount 1, mined ≥ snoozeAfterCards): card reappears once more.
+4. Click **Maybe later**: card disappears; `askCount` stays 1 (counted on show); snooze fields set.
+5. Force eligibility again (clear snooze, keep askCount 1, mined ≥ snoozeAfterCards): card reappears once more (askCount → 2).
 6. Click **No thanks**: never reappears.
 7. Reset; show prompt; click **Rate**: CWS reviews tab opens; prompt does not return.
 8. Confirm content script / while watching never shows the prompt.
