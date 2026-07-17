@@ -5,9 +5,7 @@ import {
   applyMaybeLater,
   applyNoThanks,
   applyRate,
-  applyShown,
   countMinedCards,
-  shouldCountShown,
   shouldShowReviewPrompt,
 } from "./review-prompt";
 
@@ -23,9 +21,28 @@ export interface MountReviewPromptOptions {
 /**
  * Render the Chrome Web Store review nudge into `host` when eligible.
  * Safe to call on every popup/dashboard boot; no-ops when blocked or ineligible.
+ * Never throws — storage failures must not abort popup/dashboard boot.
  */
 export async function mountReviewPrompt(opts: MountReviewPromptOptions): Promise<boolean> {
   const { host, blocked = false, variant = "popup" } = opts;
+  try {
+    return await mountReviewPromptInner(host, blocked, variant);
+  } catch {
+    try {
+      host.hidden = true;
+      host.innerHTML = "";
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+}
+
+async function mountReviewPromptInner(
+  host: HTMLElement,
+  blocked: boolean,
+  variant: "popup" | "dashboard"
+): Promise<boolean> {
   const [vocab, stats, prompt] = await Promise.all([
     storage.getVocab(),
     storage.getStats(),
@@ -39,8 +56,9 @@ export async function mountReviewPrompt(opts: MountReviewPromptOptions): Promise
     return false;
   }
 
-  if (shouldCountShown(prompt, now)) {
-    await storage.setReviewPrompt(applyShown(prompt, now));
+  // Re-check inside the storage queue so popup+dashboard open together do not
+  // both increment askCount / fire review_prompt_shown.
+  if (await storage.recordReviewPromptShown(now)) {
     trackExtensionEvent("review_prompt_shown");
   }
 

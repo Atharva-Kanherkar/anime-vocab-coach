@@ -49,11 +49,17 @@
     }
     return n;
   }
+  function asBool(v) {
+    if (v === true || v === 1) return true;
+    if (typeof v === "string") return v.toLowerCase() === "true";
+    return false;
+  }
   function normalizeReviewPrompt(raw) {
     if (!raw || typeof raw !== "object") return { ...EMPTY_REVIEW_PROMPT };
     const o = raw;
     return {
-      dismissedForever: !!o.dismissedForever,
+      // Avoid `!!o.dismissedForever` — a legacy string "false" would become true.
+      dismissedForever: asBool(o.dismissedForever),
       askCount: Math.max(0, Number(o.askCount) || 0),
       snoozeUntil: Math.max(0, Number(o.snoozeUntil) || 0),
       snoozeAfterCards: Math.max(0, Number(o.snoozeAfterCards) || 0),
@@ -175,6 +181,15 @@
       return state;
     });
   }
+  function recordReviewPromptShown(now = Date.now()) {
+    return enqueue(async () => {
+      const r = await chrome.storage.local.get(["reviewPrompt"]);
+      const prompt = normalizeReviewPrompt(r.reviewPrompt);
+      if (!shouldCountShown(prompt, now)) return false;
+      await chrome.storage.local.set({ reviewPrompt: applyShown(prompt, now) });
+      return true;
+    });
+  }
 
   // src/lib/review.ts
   function dueCount(vocab, now = Date.now()) {
@@ -206,22 +221,15 @@
     try {
       const url = `${WEB_URL}/api/extension/track`;
       const payload = JSON.stringify({ event });
-      const headers = {
-        "content-type": "application/json",
-        "x-avc-extension-id": extensionId()
-      };
       void fetch(url, {
         method: "POST",
-        headers,
+        headers: {
+          "content-type": "application/json",
+          "x-avc-extension-id": extensionId()
+        },
         body: payload,
         keepalive: true
       }).catch(() => {
-        try {
-          if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-            navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
-          }
-        } catch {
-        }
       });
     } catch {
     }
@@ -230,6 +238,18 @@
   // src/lib/review-prompt-ui.ts
   async function mountReviewPrompt(opts) {
     const { host, blocked = false, variant = "popup" } = opts;
+    try {
+      return await mountReviewPromptInner(host, blocked, variant);
+    } catch {
+      try {
+        host.hidden = true;
+        host.innerHTML = "";
+      } catch {
+      }
+      return false;
+    }
+  }
+  async function mountReviewPromptInner(host, blocked, variant) {
     const [vocab, stats, prompt] = await Promise.all([
       getVocab(),
       getStats(),
@@ -241,8 +261,7 @@
       host.innerHTML = "";
       return false;
     }
-    if (shouldCountShown(prompt, now)) {
-      await setReviewPrompt(applyShown(prompt, now));
+    if (await recordReviewPromptShown(now)) {
       trackExtensionEvent("review_prompt_shown");
     }
     const rootClass = variant === "popup" ? "av-review-prompt" : "rp-card";

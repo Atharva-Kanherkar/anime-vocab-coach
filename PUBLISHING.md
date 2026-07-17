@@ -57,7 +57,8 @@ upload file is already built for you: **`dist/anime-vocab-coach.zip`**.
      transcription."
    - youtube/netflix/crunchyroll hosts: "Detect on-screen subtitles and the video player."
 9. **Data-use disclosures:** declare that audio is sent to a third party (OpenAI) only
-   in Listening Mode; no data is sold; no analytics. This matches `PRIVACY.md`.
+   in Listening Mode; no data is sold; aggregate rating-prompt counters only
+   (see `PRIVACY.md`).
 10. Submit for review.
 
 ### Reality check on review

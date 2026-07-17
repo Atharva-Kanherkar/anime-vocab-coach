@@ -43,11 +43,18 @@ export function totalReviewsDone(stats: Stats): number {
   return n;
 }
 
+function asBool(v: unknown): boolean {
+  if (v === true || v === 1) return true;
+  if (typeof v === "string") return v.toLowerCase() === "true";
+  return false;
+}
+
 export function normalizeReviewPrompt(raw: unknown): ReviewPromptState {
   if (!raw || typeof raw !== "object") return { ...EMPTY_REVIEW_PROMPT };
-  const o = raw as Partial<ReviewPromptState>;
+  const o = raw as Record<string, unknown>;
   return {
-    dismissedForever: !!o.dismissedForever,
+    // Avoid `!!o.dismissedForever` — a legacy string "false" would become true.
+    dismissedForever: asBool(o.dismissedForever),
     askCount: Math.max(0, Number(o.askCount) || 0),
     snoozeUntil: Math.max(0, Number(o.snoozeUntil) || 0),
     snoozeAfterCards: Math.max(0, Number(o.snoozeAfterCards) || 0),

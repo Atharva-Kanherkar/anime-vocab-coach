@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Privacy Policy — AnimeVocab</title>
-  <meta name="description" content="AnimeVocab privacy policy: your learning data stays in your browser. No accounts, no analytics, no tracking.">
+  <meta name="description" content="AnimeVocab privacy policy: learning progress stays in your browser by default. Cloud sync is opt-in. Aggregate rating-prompt counters only — no ads, no selling of data.">
   <link rel="canonical" href="https://animevocab.com/privacy.html">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +34,7 @@
   <main>
     <section class="legal">
       <h1>Privacy Policy</h1>
-      <p class="date">Last updated: July 3, 2026</p>
+      <p class="date">Last updated: July 17, 2026</p>
 
       <p>AnimeVocab is a browser extension that helps you learn Japanese vocabulary from
       videos you watch. This policy explains exactly what it does with data.</p>
@@ -42,14 +42,15 @@
       <h2>What stays on your device</h2>
       <ul>
         <li><b>Your vocabulary progress, settings, and statistics</b> are stored locally in
-        your browser (<code>chrome.storage.local</code>). The extension never uploads them anywhere.</li>
+        your browser (<code>chrome.storage.local</code>). The extension never uploads them
+        unless you opt into cloud sync.</li>
         <li><b>Your OpenAI API key</b> (only if you use bring-your-own-key Listening Mode) is
         stored locally and sent only to OpenAI's API to transcribe audio.</li>
         <li><b>Your Pro license key</b> (only if you subscribe) is stored locally and sent only
         to the AnimeVocab licensing server to verify your subscription and meter listening hours.</li>
       </ul>
 
-      <h2>What leaves your device — only in Listening Mode, only when you start it</h2>
+      <h2>What leaves your device — Listening Mode, only when you start it</h2>
       <ul>
         <li>The current tab's <b>audio</b> is streamed to OpenAI's transcription API solely to
         convert Japanese speech into text for vocabulary detection. Audio goes directly from
@@ -61,10 +62,24 @@
         <li>Nothing is captured when Listening Mode is off.</li>
       </ul>
 
+      <h2>Anonymous product counters</h2>
+      <ul>
+        <li>When the extension shows the in-product Chrome Web Store rating prompt (or you
+        click Rate), it sends a tiny allowlisted event name such as
+        <code>review_prompt_shown</code> plus the extension id to
+        <code>animevocab.com</code>. These are aggregate counters only — no account id,
+        vocabulary, or browsing history.</li>
+        <li>There is no separate opt-out toggle for these counters; dismissing the prompt
+        ("No thanks" / Rate) stops further prompts and thus further beacons. The endpoint
+        rate-limits by IP and only accepts requests that present as our Chrome extension
+        (a public id, not a secret).</li>
+      </ul>
+
       <h2>What it never does</h2>
       <ul>
-        <li>No analytics, no tracking, no advertising, no selling of data — to anyone, ever.</li>
-        <li>No accounts. There is nothing to sign up for and no profile of you anywhere.</li>
+        <li>No advertising, no selling of data, and no profiles built from your vocab.</li>
+        <li>Cloud sync and accounts are opt-in (sign in on animevocab.com); local-only use
+        never creates an account.</li>
         <li>It reads only the video sites it supports, and only to find subtitle text and the
         video element.</li>
       </ul>

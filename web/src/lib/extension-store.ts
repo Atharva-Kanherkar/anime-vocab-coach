@@ -67,8 +67,10 @@ export function currentExtStatsHour(now = new Date()): string {
 }
 
 /**
- * Approximate per-IP hourly gate. Races may admit a few extras under load —
- * acceptable for abuse bounds, not used for the product counters themselves.
+ * Approximate per-IP hourly abuse bound (KV read-modify-write).
+ * Not a hard guarantee: cross-colo races can exceed the cap, and KV's
+ * ~1 write/sec/key can throw under burst (we fail closed and drop). Fine as a
+ * soft ceiling until a dedicated rate-limiting binding exists.
  */
 export async function allowExtensionTrack(ipHash: string, hour = currentExtStatsHour()): Promise<boolean> {
   const key = `extrate:${ipHash}:${hour}`;

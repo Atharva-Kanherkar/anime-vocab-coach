@@ -57,7 +57,7 @@ See [`extension/README-INSTALL.md`](extension/README-INSTALL.md) for screenshots
 - **Tokenization** — [kuromoji.js](https://github.com/takuyaa/kuromoji.js) + bundled [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html)-derived dictionary with frequency ranks
 - **Word picking** — scores by frequency, difficulty band, and exposure; one card per line with cooldowns
 - **Listening Mode** — OpenAI Realtime transcription; Pro subscription or your own API key
-- **Privacy** — no analytics; progress stays on-device unless you opt into cloud sync ([PRIVACY.md](PRIVACY.md))
+- **Privacy** — progress stays on-device unless you opt into cloud sync; aggregate rating-prompt counters only ([PRIVACY.md](PRIVACY.md))
 
 ## Pro
 

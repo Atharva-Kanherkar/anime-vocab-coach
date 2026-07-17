@@ -24,33 +24,23 @@ function extensionId(): string {
 /**
  * Fire-and-forget allowlisted counter. Never throws — analytics must not
  * break popup/dashboard UX. Sends the extension id so the server can reject
- * non-extension callers.
+ * non-extension callers. fetch-only (sendBeacon cannot set the id header and
+ * is not CORS-safelisted for application/json).
  */
 export function trackExtensionEvent(event: ExtensionEvent): void {
   if (!isExtensionEvent(event)) return;
   try {
     const url = `${WEB_URL}/api/extension/track`;
     const payload = JSON.stringify({ event });
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-      "x-avc-extension-id": extensionId(),
-    };
     void fetch(url, {
       method: "POST",
-      headers,
+      headers: {
+        "content-type": "application/json",
+        "x-avc-extension-id": extensionId(),
+      },
       body: payload,
       keepalive: true,
-    }).catch(() => {
-      try {
-        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-          // sendBeacon cannot set custom headers; server still accepts Origin
-          // from chrome-extension:// pages when the browser attaches it.
-          navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
-        }
-      } catch {
-        // swallow
-      }
-    });
+    }).catch(() => {});
   } catch {
     // swallow
   }

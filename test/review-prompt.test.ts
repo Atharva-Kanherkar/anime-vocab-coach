@@ -11,6 +11,7 @@ import {
   applyRate,
   applyShown,
   countMinedCards,
+  normalizeReviewPrompt,
   shouldCountShown,
   shouldShowReviewPrompt,
   totalReviewsDone,
@@ -99,21 +100,6 @@ describe("shouldShowReviewPrompt", () => {
   it("caps at two asks, but keeps remounting the current unanswered ask", () => {
     const vocab = vocabWithMined(20);
     const stats = statsWithReviews(1);
-    // After two completed ask cycles (shown twice, then snoozed past max)
-    expect(
-      shouldShowReviewPrompt({
-        vocab,
-        stats,
-        prompt: {
-          ...EMPTY_REVIEW_PROMPT,
-          askCount: REVIEW_PROMPT_MAX_ASKS,
-          lastShownAt: 0,
-          snoozeUntil: NOW + 1,
-          snoozeAfterCards: 99,
-        },
-        now: NOW,
-      })
-    ).toBe(false);
     // Mid-ask remount: shown once, user has not answered yet
     expect(
       shouldShowReviewPrompt({
@@ -123,6 +109,29 @@ describe("shouldShowReviewPrompt", () => {
         now: NOW,
       })
     ).toBe(true);
+    // Two asks already counted; snooze expired and cards met — must NOT start a third.
+    // (Regression: a vacuous case that also failed on snooze masked deletion of this check.)
+    expect(
+      shouldShowReviewPrompt({
+        vocab: vocabWithMined(40),
+        stats,
+        prompt: {
+          ...EMPTY_REVIEW_PROMPT,
+          askCount: REVIEW_PROMPT_MAX_ASKS,
+          lastShownAt: 0,
+          snoozeUntil: NOW - 1,
+          snoozeAfterCards: 10,
+        },
+        now: NOW,
+      })
+    ).toBe(false);
+  });
+
+  it("normalizeReviewPrompt treats legacy string false as not dismissed", () => {
+    expect(normalizeReviewPrompt({ dismissedForever: "false" }).dismissedForever).toBe(false);
+    expect(normalizeReviewPrompt({ dismissedForever: "true" }).dismissedForever).toBe(true);
+    expect(normalizeReviewPrompt({ dismissedForever: 1 }).dismissedForever).toBe(true);
+    expect(normalizeReviewPrompt(null).askCount).toBe(0);
   });
 
   it("honors snooze until and +20 cards", () => {

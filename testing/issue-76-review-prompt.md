@@ -89,4 +89,10 @@ In-product Chrome Web Store review prompt after the user has experienced value
 7. Reset; show prompt; click **Rate**: CWS reviews tab opens; prompt does not return.
 8. Confirm content script / while watching never shows the prompt.
 9. Dashboard: prompt appears after tiles when eligible; not during active `#review` session.
-10. `curl -X POST https://animevocab.com/api/extension/track -H 'content-type: application/json' -d '{"event":"review_prompt_shown"}'` → 204 (after deploy).
+10. After web deploy with `EXTENSION_AE` live: trigger a real prompt show from the
+    published extension, then confirm a row via Analytics Engine SQL
+    (`SELECT blob1, SUM(double1) FROM extension_funnel GROUP BY blob1`). A bare
+    curl without the extension Origin/id header must 204 **without** writing.
+11. Product note (intentional): an unanswered ask re-renders on every
+    popup/dashboard open until the user clicks Rate / Maybe later / No thanks
+    ("max 2 asks" caps counted asks, not idle remounts).
