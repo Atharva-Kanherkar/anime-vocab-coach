@@ -5,8 +5,6 @@ import {
   LOCALE_COOKIE,
   LOCALE_COOKIE_MAX_AGE,
   enPathToJa,
-  isJaPath,
-  jaPathToEn,
   resolveSiteLocale,
 } from "@/lib/locale";
 
@@ -29,35 +27,33 @@ function currentLocale(req: NextRequest) {
   });
 }
 
+// One-directional on purpose: ja-locale visitors on a mapped EN page get sent
+// to the /ja mirror, but nothing EVER redirects off an explicitly requested
+// /ja path — crawlers send no Accept-Language and no cookies, so a ja→en
+// redirect would 307 the entire live /ja cluster out of the index (and bounce
+// EN-browser humans who follow a shared /ja link). Leaving /ja means clicking
+// the language switcher (cookie-first) or just navigating away.
 function localeRedirect(req: NextRequest): NextResponse | null {
   const pathname = req.nextUrl.pathname;
-  const locale = currentLocale(req);
   const jaTarget = enPathToJa(pathname);
-  const enTarget = jaPathToEn(pathname);
+  if (!jaTarget || pathname === jaTarget) return null;
+  if (currentLocale(req) !== "ja") return null;
 
-  if (locale === "ja" && jaTarget && pathname !== jaTarget) {
-    const url = req.nextUrl.clone();
-    url.pathname = jaTarget;
-    const res = NextResponse.redirect(url);
-    res.cookies.set(LOCALE_COOKIE, "ja", { path: "/", maxAge: LOCALE_COOKIE_MAX_AGE });
-    return res;
-  }
-
-  if (locale === "en" && isJaPath(pathname) && enTarget) {
-    const url = req.nextUrl.clone();
-    url.pathname = enTarget;
-    const res = NextResponse.redirect(url);
-    res.cookies.set(LOCALE_COOKIE, "en", { path: "/", maxAge: LOCALE_COOKIE_MAX_AGE });
-    return res;
-  }
-
-  return null;
+  const url = req.nextUrl.clone();
+  url.pathname = jaTarget;
+  const res = NextResponse.redirect(url);
+  res.cookies.set(LOCALE_COOKIE, "ja", { path: "/", maxAge: LOCALE_COOKIE_MAX_AGE });
+  return res;
 }
 
+// Only stamp the cookie on an explicit ?lang= switch. Stamping on every
+// cookieless request would add Set-Cookie to all marketing/crawler/beacon
+// responses, defeating edge caching — the same per-request-cost class of
+// regression as the Clerk 1102 "exceeded resource limits" incidents.
 function stampLocaleCookie(req: NextRequest, res: NextResponse): NextResponse {
   const langParam = req.nextUrl.searchParams.get("lang");
-  if (!req.cookies.get(LOCALE_COOKIE) || langParam === "ja" || langParam === "en") {
-    res.cookies.set(LOCALE_COOKIE, currentLocale(req), {
+  if (langParam === "ja" || langParam === "en") {
+    res.cookies.set(LOCALE_COOKIE, langParam, {
       path: "/",
       maxAge: LOCALE_COOKIE_MAX_AGE,
     });
@@ -73,10 +69,14 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     return NextResponse.redirect(url, 301);
   }
 
+  // Anonymous product-funnel beacons (always 204, no auth): exempt before
+  // Clerk AND before locale work so nothing can slow or 5xx them.
+  if (isBeaconRoute(req)) return NextResponse.next();
+
   const redirect = localeRedirect(req);
   if (redirect) return redirect;
 
-  if (DEV_NO_CLERK || isBeaconRoute(req) || !needsClerk(req)) {
+  if (DEV_NO_CLERK || !needsClerk(req)) {
     return stampLocaleCookie(req, NextResponse.next());
   }
 

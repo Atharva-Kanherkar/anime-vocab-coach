@@ -4,6 +4,20 @@
   var log = (...args) => console.log("[AVC]", ...args);
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/lib/locale-direction.ts
+  function isJapaneseUiLocale() {
+    try {
+      const ui = chrome.i18n?.getUILanguage?.() || navigator.language || "en";
+      return ui.toLowerCase().startsWith("ja");
+    } catch {
+      return false;
+    }
+  }
+  function resolveStoredDirection(stored) {
+    if (stored === "ja-en" || stored === "en-ja") return stored;
+    return null;
+  }
+
   // src/lib/dictionary.ts
   var loadPromise = null;
   var data = null;
@@ -362,17 +376,24 @@
     chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
     });
   }
+  function withDefaults(stored) {
+    const merged = { ...DEFAULTS, ...stored };
+    if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
+      merged.learningDirection = "ja-en";
+    }
+    return merged;
+  }
   function getSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["settings"], (r) => {
-        resolve({ ...DEFAULTS, ...r.settings || {} });
+        resolve(withDefaults(r.settings || {}));
       });
     });
   }
   function setSettings(partial) {
     return enqueue(async () => {
       const r = await chrome.storage.local.get(["settings"]);
-      const settings = { ...DEFAULTS, ...r.settings || {}, ...partial };
+      const settings = { ...withDefaults(r.settings || {}), ...partial };
       await chrome.storage.local.set({ settings });
       return settings;
     });

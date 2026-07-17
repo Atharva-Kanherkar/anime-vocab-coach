@@ -46,7 +46,11 @@ function resolveLocale(pathname: string): SiteLocale {
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
-  const [locale, setLocaleState] = useState<SiteLocale>(() => resolveLocale(pathname));
+  // Initial render must match SSR output (which can't see the cookie), so
+  // derive only from the path here; the effect below applies the cookie
+  // locale after hydration. Reading document.cookie in the initializer
+  // causes hydration mismatches for every ja-cookie user on non-/ja pages.
+  const [locale, setLocaleState] = useState<SiteLocale>(() => (isJaPath(pathname) ? "ja" : "en"));
 
   useEffect(() => {
     const next = resolveLocale(pathname);

@@ -56,15 +56,21 @@ function sendBadge(stats: Pick<Stats, "daily">): void {
   chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {});
 }
 
+// Locale-aware defaulting must be identical on every read AND write path
+// (getSettings / setSettings / exportAll), or runtime, storage, and cloud
+// sync disagree about learningDirection for ja-UI users with no explicit choice.
+function withDefaults(stored: Partial<Settings>): Settings {
+  const merged: Settings = { ...DEFAULTS, ...stored };
+  if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
+    merged.learningDirection = "ja-en";
+  }
+  return merged;
+}
+
 export function getSettings(): Promise<Settings> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["settings"], (r) => {
-      const stored = (r.settings || {}) as Partial<Settings>;
-      const merged: Settings = { ...DEFAULTS, ...stored };
-      if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
-        merged.learningDirection = "ja-en";
-      }
-      resolve(merged);
+      resolve(withDefaults((r.settings || {}) as Partial<Settings>));
     });
   });
 }
@@ -72,7 +78,7 @@ export function getSettings(): Promise<Settings> {
 export function setSettings(partial: Partial<Settings>): Promise<Settings> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["settings"]);
-    const settings: Settings = { ...DEFAULTS, ...(r.settings || {}), ...partial };
+    const settings: Settings = { ...withDefaults((r.settings || {}) as Partial<Settings>), ...partial };
     await chrome.storage.local.set({ settings });
     return settings;
   });
@@ -307,7 +313,7 @@ export function exportAll(): Promise<ExportData> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
       resolve({
-        settings: { ...DEFAULTS, ...(r.settings || {}) },
+        settings: withDefaults((r.settings || {}) as Partial<Settings>),
         vocab: (r.vocab as VocabMap | undefined) || {},
         stats: (r.stats as Stats | undefined) || emptyStats(),
         exportedAt: new Date().toISOString()

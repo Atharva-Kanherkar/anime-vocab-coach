@@ -1,9 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { directionLabel, type LearningDirection } from "@/lib/direction";
-import { JA_EN_PROMPT_DISMISSED_KEY } from "@/lib/locale-direction";
+import {
+  DIRECTION_QUERY_KEY,
+  JA_EN_PROMPT_DISMISSED_KEY,
+  parseDirectionQuery,
+} from "@/lib/locale-direction";
 import { useSiteLocale } from "@/components/locale-provider";
 import {
   EXTENSION_SETTINGS_DEFAULTS,
@@ -60,15 +64,34 @@ export function JaEnDirectionBanner() {
     [meta.revision, settings, snapshot]
   );
 
+  // ?direction= deep link: apply exactly once, only after the initial cloud
+  // fetch has settled (never PUT an empty pre-fetch snapshot over real data),
+  // and strip the param so re-renders can't re-trigger the write. Without the
+  // ref guard this loops forever: each PUT publishes a new snapshot/revision,
+  // which recreates applyDirection and re-runs the effect.
+  const appliedQueryDirection = useRef(false);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const q = params.get("direction");
-    if (q === "ja-en" || q === "en-ja") {
-      void applyDirection(q);
-    }
-  }, [applyDirection]);
+    if (meta.fetchedAt === null || appliedQueryDirection.current) return;
+    appliedQueryDirection.current = true;
 
-  if (locale !== "ja" || dismissed || settings.learningDirection === "ja-en") return null;
+    const params = new URLSearchParams(window.location.search);
+    const q = parseDirectionQuery(params.get(DIRECTION_QUERY_KEY));
+    if (!q) return;
+
+    params.delete(DIRECTION_QUERY_KEY);
+    const qs = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash
+    );
+
+    const current = parseExtensionSettings(snapshot.settings, locale).learningDirection;
+    if (current !== q) void applyDirection(q);
+  }, [meta.fetchedAt, applyDirection, snapshot.settings, locale]);
+
+  if (locale !== "ja" || dismissed || meta.fetchedAt === null || settings.learningDirection === "ja-en")
+    return null;
 
   return (
     <div className="av-ja-en-banner" role="status">

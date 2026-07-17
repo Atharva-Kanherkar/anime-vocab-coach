@@ -3,6 +3,20 @@
   // src/lib/log.ts
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/lib/locale-direction.ts
+  function isJapaneseUiLocale() {
+    try {
+      const ui = chrome.i18n?.getUILanguage?.() || navigator.language || "en";
+      return ui.toLowerCase().startsWith("ja");
+    } catch {
+      return false;
+    }
+  }
+  function resolveStoredDirection(stored) {
+    if (stored === "ja-en" || stored === "en-ja") return stored;
+    return null;
+  }
+
   // src/types.ts
   var DEFAULTS = {
     pauseMode: "copilot",
@@ -41,17 +55,24 @@
     chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
     });
   }
+  function withDefaults(stored) {
+    const merged = { ...DEFAULTS, ...stored };
+    if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
+      merged.learningDirection = "ja-en";
+    }
+    return merged;
+  }
   function getSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["settings"], (r) => {
-        resolve({ ...DEFAULTS, ...r.settings || {} });
+        resolve(withDefaults(r.settings || {}));
       });
     });
   }
   function setSettings(partial) {
     return enqueue(async () => {
       const r = await chrome.storage.local.get(["settings"]);
-      const settings = { ...DEFAULTS, ...r.settings || {}, ...partial };
+      const settings = { ...withDefaults(r.settings || {}), ...partial };
       await chrome.storage.local.set({ settings });
       return settings;
     });
@@ -60,7 +81,7 @@
     return new Promise((resolve) => {
       chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
         resolve({
-          settings: { ...DEFAULTS, ...r.settings || {} },
+          settings: withDefaults(r.settings || {}),
           vocab: r.vocab || {},
           stats: r.stats || emptyStats(),
           exportedAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -143,6 +164,34 @@
     await setSettings(partial);
     showSaved();
   }
+  function maybeShowJaEnBanner() {
+    if (!isJapaneseUiLocale()) return;
+    try {
+      if (localStorage.getItem("av-ja-en-prompt-dismissed") === "1") return;
+    } catch {
+    }
+    void getSettings().then((s) => {
+      if (s.learningDirection === "ja-en") return;
+      const banner = document.createElement("div");
+      banner.className = "av-ja-en-banner";
+      banner.innerHTML = '<p><strong>\u65E5\u672C\u8A9E \u2192 English \u3067\u5B66\u3079\u307E\u3059\u3002</strong> \u30A2\u30CB\u30E1\u306E\u82F1\u8A9E\u304B\u3089\u5358\u8A9E\u3092\u899A\u3048\u3001\u89E3\u8AAC\u306F\u65E5\u672C\u8A9E\u3067\u3059\u3002</p><div class="av-ja-en-banner__actions"><button type="button" class="av-btn av-btn-primary" id="ja-en-apply">\u65E5\u672C\u8A9E \u2192 English \u306B\u5207\u308A\u66FF\u3048</button><button type="button" class="av-btn av-btn-ghost" id="ja-en-dismiss">\u9589\u3058\u308B</button></div>';
+      const shell = document.querySelector(".shell");
+      shell?.insertBefore(banner, shell.querySelector(".av-sub"));
+      banner.querySelector("#ja-en-apply")?.addEventListener("click", () => {
+        void savePartial({ learningDirection: "ja-en" }).then(() => {
+          byId("learningDirection").value = "ja-en";
+          banner.remove();
+        });
+      });
+      banner.querySelector("#ja-en-dismiss")?.addEventListener("click", () => {
+        try {
+          localStorage.setItem("av-ja-en-prompt-dismissed", "1");
+        } catch {
+        }
+        banner.remove();
+      });
+    });
+  }
   document.addEventListener("DOMContentLoaded", async () => {
     const token = await getSyncToken();
     if (token) {
@@ -151,6 +200,7 @@
     }
     initTheme();
     await loadSettingsForm();
+    maybeShowJaEnBanner();
     document.querySelectorAll('input[name="pauseMode"]').forEach((el) => {
       el.addEventListener("change", () => savePartial({ pauseMode: el.value }));
     });

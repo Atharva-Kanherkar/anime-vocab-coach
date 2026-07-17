@@ -22,10 +22,9 @@ export const metadata: Metadata = {
     "anime words for vocabulary",
     "common anime vocabulary",
   ],
-  alternates: {
-    canonical: `${SITE_URL}${path}`,
-    languages: { en: `${SITE_URL}${path}`, ja: `${SITE_URL}/ja`, "x-default": `${SITE_URL}${path}` },
-  },
+  // No ja hreflang: /ja is the Japanese homepage, not a translation of this
+  // article — non-equivalent hreflang pairs get ignored or flagged by Google.
+  alternates: { canonical: `${SITE_URL}${path}` },
   openGraph: {
     ...defaultOpenGraph,
     type: "article",

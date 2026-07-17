@@ -7,6 +7,20 @@
   // src/lib/log.ts
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/lib/locale-direction.ts
+  function isJapaneseUiLocale() {
+    try {
+      const ui = chrome.i18n?.getUILanguage?.() || navigator.language || "en";
+      return ui.toLowerCase().startsWith("ja");
+    } catch {
+      return false;
+    }
+  }
+  function resolveStoredDirection(stored) {
+    if (stored === "ja-en" || stored === "en-ja") return stored;
+    return null;
+  }
+
   // src/types.ts
   var DEFAULTS = {
     pauseMode: "copilot",
@@ -124,6 +138,13 @@
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
   }
+  function withDefaults(stored) {
+    const merged = { ...DEFAULTS, ...stored };
+    if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
+      merged.learningDirection = "ja-en";
+    }
+    return merged;
+  }
   function getVocab() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["vocab"], (r) => resolve(r.vocab || {}));
@@ -142,7 +163,7 @@
     return new Promise((resolve) => {
       chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
         resolve({
-          settings: { ...DEFAULTS, ...r.settings || {} },
+          settings: withDefaults(r.settings || {}),
           vocab: r.vocab || {},
           stats: r.stats || emptyStats(),
           exportedAt: (/* @__PURE__ */ new Date()).toISOString()
