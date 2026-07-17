@@ -63,6 +63,9 @@ export const BACKEND_URL = "https://api.animevocab.com";
 // via postMessage and uses it for cloud sync and Listening Mode transcription.
 export const WEB_URL = "https://animevocab.com";
 
+/** Published Chrome Web Store extension id (reviews URL / track allowlist). */
+export const CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
+
 export const PRO_HOURS_PER_MONTH = 45;
 
 /** Bump when stored transcript format or Whisper model changes (lazy re-transcribe). */

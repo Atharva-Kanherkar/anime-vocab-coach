@@ -20,13 +20,6 @@
 
   // src/lib/review-prompt.ts
   var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
-  var EMPTY_REVIEW_PROMPT = {
-    dismissedForever: false,
-    askCount: 0,
-    snoozeUntil: 0,
-    snoozeAfterCards: 0,
-    lastShownAt: 0
-  };
 
   // src/lib/storage.ts
   var queue = Promise.resolve();
@@ -81,11 +74,7 @@
   }
   function resetProgress() {
     return enqueue(async () => {
-      await chrome.storage.local.set({
-        vocab: {},
-        stats: emptyStats(),
-        reviewPrompt: { ...EMPTY_REVIEW_PROMPT }
-      });
+      await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
       sendBadge({ daily: {} });
     });
   }

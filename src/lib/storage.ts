@@ -3,7 +3,7 @@ import { checkEligibility } from "./scoring";
 import { lookup } from "./dictionary";
 import { DEFAULTS, SRS_INTERVALS } from "../types";
 import type { Judgment, JudgmentMeta, Settings, Stats, Token, VocabMap, VocabRecord, WordSource, WordState } from "../types";
-import { EMPTY_REVIEW_PROMPT, normalizeReviewPrompt, type ReviewPromptState } from "./review-prompt";
+import { normalizeReviewPrompt, type ReviewPromptState } from "./review-prompt";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -379,11 +379,9 @@ export function setReviewPrompt(next: ReviewPromptState): Promise<ReviewPromptSt
 
 export function resetProgress(): Promise<void> {
   return enqueue(async () => {
-    await chrome.storage.local.set({
-      vocab: {},
-      stats: emptyStats(),
-      reviewPrompt: { ...EMPTY_REVIEW_PROMPT },
-    });
+    // Wipe learning progress only. reviewPrompt must survive so "No thanks",
+    // Rate, and the two-ask cap remain install-lifetime preferences.
+    await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
     sendBadge({ daily: {} });
   });
 }

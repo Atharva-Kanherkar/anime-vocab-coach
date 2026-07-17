@@ -33,9 +33,10 @@ from videos you watch. This policy explains exactly what it does with data.
 
 When the extension shows or you click the in-product Chrome Web Store rating
 prompt, it may send a tiny allowlisted event name (e.g. `review_prompt_shown`)
-to `animevocab.com` so we can count how often the prompt appears. These are
-aggregate counters only — no account id, vocabulary, or browsing history is
-included.
+plus the extension id to `animevocab.com` so we can count how often the prompt
+appears. These are aggregate Analytics Engine counters only — no account id,
+vocabulary, or browsing history is included. The endpoint rejects non-extension
+callers and rate-limits by IP.
 
 ## What it never does
 

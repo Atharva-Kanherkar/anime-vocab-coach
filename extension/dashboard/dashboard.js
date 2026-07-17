@@ -217,6 +217,7 @@
 
   // src/config.ts
   var WEB_URL = "https://animevocab.com";
+  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
   // src/lib/romaji.ts
   var DIGRAPHS = {
@@ -452,14 +453,25 @@
   function isExtensionEvent(v) {
     return typeof v === "string" && EXTENSION_EVENTS.includes(v);
   }
+  function extensionId() {
+    try {
+      if (typeof chrome !== "undefined" && chrome.runtime?.id) return chrome.runtime.id;
+    } catch {
+    }
+    return CWS_EXTENSION_ID;
+  }
   function trackExtensionEvent(event) {
     if (!isExtensionEvent(event)) return;
     try {
       const url = `${WEB_URL}/api/extension/track`;
       const payload = JSON.stringify({ event });
+      const headers = {
+        "content-type": "application/json",
+        "x-avc-extension-id": extensionId()
+      };
       void fetch(url, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers,
         body: payload,
         keepalive: true
       }).catch(() => {

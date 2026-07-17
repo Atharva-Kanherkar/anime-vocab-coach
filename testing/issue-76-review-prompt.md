@@ -33,11 +33,17 @@ In-product Chrome Web Store review prompt after the user has experienced value
   `review_prompt_shown` once per ask (popup remounts of the same unanswered ask
   do not re-fire or re-increment).
 - Rate click fires `review_prompt_clicked` and sets `dismissedForever`.
+- `resetProgress()` clears vocab/stats only — never `reviewPrompt` (opt-out and
+  the two-ask cap are install-lifetime).
 
 ### Events
 - Allowlisted extension funnel events: `review_prompt_shown`, `review_prompt_clicked`.
-- Fire-and-forget beacon to `/api/extension/track` (same pattern as ending funnel).
-- Unknown events are dropped; analytics failures never break UI.
+- Fire-and-forget POST to `/api/extension/track` with `X-AVC-Extension-Id`.
+- Server writes append-only Analytics Engine points (`EXTENSION_AE` /
+  `extension_funnel`) — not KV read-modify-write counters.
+- Gate: published Chrome extension id (Origin and/or header), body ≤ 256 bytes,
+  per-IP hourly rate limit; unknown/forged callers get 204 and no write.
+- Analytics failures never break UI.
 
 ## Unit Tests
 
