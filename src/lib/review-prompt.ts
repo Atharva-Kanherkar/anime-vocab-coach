@@ -70,24 +70,49 @@ export function shouldShowReviewPrompt(input: ReviewPromptEligibilityInput): boo
 
   const { prompt } = input;
   if (prompt.dismissedForever) return false;
-  if (prompt.askCount >= REVIEW_PROMPT_MAX_ASKS) return false;
 
   const mined = countMinedCards(input.vocab);
   if (mined < REVIEW_PROMPT_MIN_MINED) return false;
   if (totalReviewsDone(input.stats) < 1) return false;
 
+  // Remount of the same unanswered ask (popup closed/reopened).
+  const awaitingResponse =
+    prompt.lastShownAt > 0 &&
+    prompt.snoozeUntil === 0 &&
+    prompt.askCount > 0 &&
+    prompt.askCount <= REVIEW_PROMPT_MAX_ASKS;
+  if (awaitingResponse) return true;
+
+  if (prompt.askCount >= REVIEW_PROMPT_MAX_ASKS) return false;
   if (prompt.snoozeUntil > 0 && now < prompt.snoozeUntil) return false;
   if (prompt.snoozeAfterCards > 0 && mined < prompt.snoozeAfterCards) return false;
 
   return true;
 }
 
-/** Record that the prompt was displayed (does not increment askCount). */
+/**
+ * Record a new ask display. Increments askCount (max 2 asks per install).
+ * Clears snooze so remounts of this ask stay visible until the user acts.
+ */
 export function applyShown(prompt: ReviewPromptState, now = Date.now()): ReviewPromptState {
-  return { ...prompt, lastShownAt: now };
+  return {
+    ...prompt,
+    lastShownAt: now,
+    askCount: prompt.askCount + 1,
+    snoozeUntil: 0,
+    snoozeAfterCards: 0,
+  };
 }
 
-/** "Maybe later" — re-ask after ~2 weeks and +20 mined cards. Counts as one ask. */
+/** True when this mount should count as a new `review_prompt_shown` (not a remount of the same ask). */
+export function shouldCountShown(prompt: ReviewPromptState, now = Date.now()): boolean {
+  if (prompt.askCount >= REVIEW_PROMPT_MAX_ASKS) return false;
+  if (prompt.lastShownAt === 0) return true;
+  // Previous ask was snoozed; snooze has cleared → next ask.
+  return prompt.snoozeUntil > 0 && now >= prompt.snoozeUntil;
+}
+
+/** "Maybe later" — re-ask after ~2 weeks and +20 mined cards (ask already counted on show). */
 export function applyMaybeLater(
   prompt: ReviewPromptState,
   minedCards: number,
@@ -95,7 +120,6 @@ export function applyMaybeLater(
 ): ReviewPromptState {
   return {
     ...prompt,
-    askCount: prompt.askCount + 1,
     snoozeUntil: now + REVIEW_PROMPT_SNOOZE_MS,
     snoozeAfterCards: minedCards + REVIEW_PROMPT_SNOOZE_EXTRA_CARDS,
   };
@@ -108,9 +132,5 @@ export function applyNoThanks(prompt: ReviewPromptState): ReviewPromptState {
 
 /** User opened the CWS rating link — stop asking. */
 export function applyRate(prompt: ReviewPromptState): ReviewPromptState {
-  return {
-    ...prompt,
-    dismissedForever: true,
-    askCount: Math.min(REVIEW_PROMPT_MAX_ASKS, prompt.askCount + 1),
-  };
+  return { ...prompt, dismissedForever: true };
 }

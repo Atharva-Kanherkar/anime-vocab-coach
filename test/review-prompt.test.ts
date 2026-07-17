@@ -11,6 +11,7 @@ import {
   applyRate,
   applyShown,
   countMinedCards,
+  shouldCountShown,
   shouldShowReviewPrompt,
   totalReviewsDone,
 } from "../src/lib/review-prompt";
@@ -95,20 +96,39 @@ describe("shouldShowReviewPrompt", () => {
     ).toBe(false);
   });
 
-  it("caps at two asks", () => {
+  it("caps at two asks, but keeps remounting the current unanswered ask", () => {
+    const vocab = vocabWithMined(20);
+    const stats = statsWithReviews(1);
+    // After two completed ask cycles (shown twice, then snoozed past max)
     expect(
       shouldShowReviewPrompt({
-        vocab: vocabWithMined(20),
-        stats: statsWithReviews(1),
-        prompt: { ...EMPTY_REVIEW_PROMPT, askCount: REVIEW_PROMPT_MAX_ASKS },
+        vocab,
+        stats,
+        prompt: {
+          ...EMPTY_REVIEW_PROMPT,
+          askCount: REVIEW_PROMPT_MAX_ASKS,
+          lastShownAt: 0,
+          snoozeUntil: NOW + 1,
+          snoozeAfterCards: 99,
+        },
         now: NOW,
       })
     ).toBe(false);
+    // Mid-ask remount: shown once, user has not answered yet
+    expect(
+      shouldShowReviewPrompt({
+        vocab,
+        stats,
+        prompt: { ...EMPTY_REVIEW_PROMPT, askCount: 1, lastShownAt: NOW - 1000 },
+        now: NOW,
+      })
+    ).toBe(true);
   });
 
   it("honors snooze until and +20 cards", () => {
     const mined = 15;
-    const prompt = applyMaybeLater({ ...EMPTY_REVIEW_PROMPT }, mined, NOW);
+    const afterFirstShow = applyShown({ ...EMPTY_REVIEW_PROMPT }, NOW);
+    const prompt = applyMaybeLater(afterFirstShow, mined, NOW);
     const base = {
       vocab: vocabWithMined(mined),
       stats: statsWithReviews(1),
@@ -133,7 +153,7 @@ describe("shouldShowReviewPrompt", () => {
         vocab: vocabWithMined(mined + REVIEW_PROMPT_SNOOZE_EXTRA_CARDS),
       })
     ).toBe(false);
-    // Both cleared
+    // Both cleared → second ask
     expect(
       shouldShowReviewPrompt({
         ...base,
@@ -157,8 +177,9 @@ describe("shouldShowReviewPrompt", () => {
 });
 
 describe("apply* transitions", () => {
-  it("applyMaybeLater sets snooze and increments askCount", () => {
-    const next = applyMaybeLater({ ...EMPTY_REVIEW_PROMPT }, 12, NOW);
+  it("applyMaybeLater sets snooze without changing askCount", () => {
+    const afterShow = applyShown({ ...EMPTY_REVIEW_PROMPT }, NOW);
+    const next = applyMaybeLater(afterShow, 12, NOW);
     expect(next.askCount).toBe(1);
     expect(next.snoozeUntil).toBe(NOW + REVIEW_PROMPT_SNOOZE_MS);
     expect(next.snoozeAfterCards).toBe(12 + REVIEW_PROMPT_SNOOZE_EXTRA_CARDS);
@@ -169,7 +190,7 @@ describe("apply* transitions", () => {
   });
 
   it("applyRate stops asking", () => {
-    const after = applyRate({ ...EMPTY_REVIEW_PROMPT });
+    const after = applyRate(applyShown({ ...EMPTY_REVIEW_PROMPT }, NOW));
     expect(
       shouldShowReviewPrompt({
         vocab: vocabWithMined(20),
@@ -180,8 +201,29 @@ describe("apply* transitions", () => {
     ).toBe(false);
   });
 
-  it("applyShown records lastShownAt", () => {
-    expect(applyShown({ ...EMPTY_REVIEW_PROMPT }, NOW).lastShownAt).toBe(NOW);
+  it("applyShown increments askCount and clears snooze", () => {
+    const next = applyShown(
+      { ...EMPTY_REVIEW_PROMPT, snoozeUntil: NOW - 1, snoozeAfterCards: 30 },
+      NOW
+    );
+    expect(next.lastShownAt).toBe(NOW);
+    expect(next.askCount).toBe(1);
+    expect(next.snoozeUntil).toBe(0);
+    expect(next.snoozeAfterCards).toBe(0);
+  });
+
+  it("shouldCountShown fires once per ask, again after snooze clears, never a third", () => {
+    expect(shouldCountShown({ ...EMPTY_REVIEW_PROMPT }, NOW)).toBe(true);
+    const afterShow = applyShown({ ...EMPTY_REVIEW_PROMPT }, NOW);
+    expect(shouldCountShown(afterShow, NOW + 1000)).toBe(false);
+    const snoozed = applyMaybeLater(afterShow, 12, NOW + 1000);
+    expect(shouldCountShown(snoozed, NOW + 1000)).toBe(false);
+    const afterSnooze = NOW + 1000 + REVIEW_PROMPT_SNOOZE_MS + 1;
+    expect(shouldCountShown(snoozed, afterSnooze)).toBe(true);
+    const second = applyShown(snoozed, afterSnooze);
+    expect(second.askCount).toBe(2);
+    const snoozedAgain = applyMaybeLater(second, 40, afterSnooze);
+    expect(shouldCountShown(snoozedAgain, afterSnooze + REVIEW_PROMPT_SNOOZE_MS + 1)).toBe(false);
   });
 });
 

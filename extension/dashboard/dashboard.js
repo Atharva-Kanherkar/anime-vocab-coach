@@ -6,6 +6,87 @@
   // src/types.ts
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
+  // src/lib/review-prompt.ts
+  var CWS_REVIEWS_URL = "https://chromewebstore.google.com/detail/lkjbomofgfonjjbemobacegffepbdnel/reviews";
+  var REVIEW_PROMPT_MIN_MINED = 10;
+  var REVIEW_PROMPT_MAX_ASKS = 2;
+  var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
+  var REVIEW_PROMPT_SNOOZE_EXTRA_CARDS = 20;
+  var EMPTY_REVIEW_PROMPT = {
+    dismissedForever: false,
+    askCount: 0,
+    snoozeUntil: 0,
+    snoozeAfterCards: 0,
+    lastShownAt: 0
+  };
+  function countMinedCards(vocab) {
+    let n = 0;
+    for (const rec of Object.values(vocab)) {
+      if (rec.state === "known" || rec.state === "learning") n++;
+    }
+    return n;
+  }
+  function totalReviewsDone(stats) {
+    let n = 0;
+    for (const day of Object.values(stats.daily || {})) {
+      n += day.reviews || 0;
+    }
+    return n;
+  }
+  function normalizeReviewPrompt(raw) {
+    if (!raw || typeof raw !== "object") return { ...EMPTY_REVIEW_PROMPT };
+    const o = raw;
+    return {
+      dismissedForever: !!o.dismissedForever,
+      askCount: Math.max(0, Number(o.askCount) || 0),
+      snoozeUntil: Math.max(0, Number(o.snoozeUntil) || 0),
+      snoozeAfterCards: Math.max(0, Number(o.snoozeAfterCards) || 0),
+      lastShownAt: Math.max(0, Number(o.lastShownAt) || 0)
+    };
+  }
+  function shouldShowReviewPrompt(input) {
+    const now = input.now ?? Date.now();
+    if (input.blocked) return false;
+    const { prompt } = input;
+    if (prompt.dismissedForever) return false;
+    const mined = countMinedCards(input.vocab);
+    if (mined < REVIEW_PROMPT_MIN_MINED) return false;
+    if (totalReviewsDone(input.stats) < 1) return false;
+    const awaitingResponse = prompt.lastShownAt > 0 && prompt.snoozeUntil === 0 && prompt.askCount > 0 && prompt.askCount <= REVIEW_PROMPT_MAX_ASKS;
+    if (awaitingResponse) return true;
+    if (prompt.askCount >= REVIEW_PROMPT_MAX_ASKS) return false;
+    if (prompt.snoozeUntil > 0 && now < prompt.snoozeUntil) return false;
+    if (prompt.snoozeAfterCards > 0 && mined < prompt.snoozeAfterCards) return false;
+    return true;
+  }
+  function applyShown(prompt, now = Date.now()) {
+    return {
+      ...prompt,
+      lastShownAt: now,
+      askCount: prompt.askCount + 1,
+      snoozeUntil: 0,
+      snoozeAfterCards: 0
+    };
+  }
+  function shouldCountShown(prompt, now = Date.now()) {
+    if (prompt.askCount >= REVIEW_PROMPT_MAX_ASKS) return false;
+    if (prompt.lastShownAt === 0) return true;
+    return prompt.snoozeUntil > 0 && now >= prompt.snoozeUntil;
+  }
+  function applyMaybeLater(prompt, minedCards, now = Date.now()) {
+    return {
+      ...prompt,
+      snoozeUntil: now + REVIEW_PROMPT_SNOOZE_MS,
+      snoozeAfterCards: minedCards + REVIEW_PROMPT_SNOOZE_EXTRA_CARDS
+    };
+  }
+  function applyNoThanks(prompt) {
+    return { ...prompt, dismissedForever: true };
+  }
+  function applyRate(prompt) {
+    return { ...prompt, dismissedForever: true };
+  }
+
   // src/lib/storage.ts
   var queue = Promise.resolve();
   function todayKey() {
@@ -119,6 +200,23 @@
       return vocab[base];
     });
   }
+  function getReviewPrompt() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["reviewPrompt"], (r) => {
+        resolve(normalizeReviewPrompt(r.reviewPrompt));
+      });
+    });
+  }
+  function setReviewPrompt(next) {
+    return enqueue(async () => {
+      const state = normalizeReviewPrompt(next);
+      await chrome.storage.local.set({ reviewPrompt: state });
+      return state;
+    });
+  }
+
+  // src/config.ts
+  var WEB_URL = "https://animevocab.com";
 
   // src/lib/romaji.ts
   var DIGRAPHS = {
@@ -344,6 +442,91 @@
       default:
         return "Rare";
     }
+  }
+
+  // src/lib/extension-events.ts
+  var EXTENSION_EVENTS = [
+    "review_prompt_shown",
+    "review_prompt_clicked"
+  ];
+  function isExtensionEvent(v) {
+    return typeof v === "string" && EXTENSION_EVENTS.includes(v);
+  }
+  function trackExtensionEvent(event) {
+    if (!isExtensionEvent(event)) return;
+    try {
+      const url = `${WEB_URL}/api/extension/track`;
+      const payload = JSON.stringify({ event });
+      void fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: payload,
+        keepalive: true
+      }).catch(() => {
+        try {
+          if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+            navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
+          }
+        } catch {
+        }
+      });
+    } catch {
+    }
+  }
+
+  // src/lib/review-prompt-ui.ts
+  async function mountReviewPrompt(opts) {
+    const { host, blocked = false, variant = "popup" } = opts;
+    const [vocab, stats, prompt] = await Promise.all([
+      getVocab(),
+      getStats(),
+      getReviewPrompt()
+    ]);
+    const now = Date.now();
+    if (!shouldShowReviewPrompt({ vocab, stats, prompt, blocked, now })) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return false;
+    }
+    if (shouldCountShown(prompt, now)) {
+      await setReviewPrompt(applyShown(prompt, now));
+      trackExtensionEvent("review_prompt_shown");
+    }
+    const rootClass = variant === "popup" ? "av-review-prompt" : "rp-card";
+    const btnPrimary = variant === "popup" ? "av-btn av-btn-primary av-btn-block" : "rp-btn rp-btn-primary";
+    const btnGhost = variant === "popup" ? "av-btn av-btn-ghost av-btn-block" : "rp-btn rp-btn-ghost";
+    const btnQuiet = variant === "popup" ? "av-btn av-btn-quiet av-btn-block" : "rp-btn rp-btn-quiet";
+    host.hidden = false;
+    host.innerHTML = `<div class="${rootClass}" role="region" aria-label="Rate AnimeVocab"><p class="${variant === "popup" ? "av-review-prompt-copy" : "rp-copy"}">Enjoying AnimeVocab? A rating helps other learners find it.</p><div class="${variant === "popup" ? "av-review-prompt-actions" : "rp-actions"}"><button type="button" class="${btnPrimary}" data-rp="rate">Rate on Chrome Web Store</button><button type="button" class="${btnGhost}" data-rp="later">Maybe later</button><button type="button" class="${btnQuiet}" data-rp="no">No thanks</button></div></div>`;
+    const hide = () => {
+      host.hidden = true;
+      host.innerHTML = "";
+    };
+    const mined = countMinedCards(vocab);
+    host.querySelector('[data-rp="rate"]')?.addEventListener("click", () => {
+      void (async () => {
+        const current = await getReviewPrompt();
+        await setReviewPrompt(applyRate(current));
+        trackExtensionEvent("review_prompt_clicked");
+        chrome.tabs.create({ url: CWS_REVIEWS_URL });
+        hide();
+      })();
+    });
+    host.querySelector('[data-rp="later"]')?.addEventListener("click", () => {
+      void (async () => {
+        const current = await getReviewPrompt();
+        await setReviewPrompt(applyMaybeLater(current, mined));
+        hide();
+      })();
+    });
+    host.querySelector('[data-rp="no"]')?.addEventListener("click", () => {
+      void (async () => {
+        const current = await getReviewPrompt();
+        await setReviewPrompt(applyNoThanks(current));
+        hide();
+      })();
+    });
+    return true;
   }
 
   // src/entries/dashboard.ts
@@ -734,6 +917,11 @@
   function runReviewSession(host, due) {
     let i = 0;
     let reviewed = 0;
+    const promptHost = document.getElementById("review-prompt");
+    if (promptHost) {
+      promptHost.hidden = true;
+      promptHost.innerHTML = "";
+    }
     const showCard = () => {
       if (i >= due.length) {
         host.innerHTML = `<div class="review-intro"><h2>Review complete</h2><p>${reviewed} reviewed. Nice work.</p></div>`;
@@ -778,6 +966,13 @@
     }
     renderReview(vocab);
     renderTiles(vocab, stats);
+    const reviewHost = document.getElementById("review");
+    const inReviewSession = location.hash === "#review" || !!reviewHost?.querySelector(".review-session");
+    await mountReviewPrompt({
+      host: document.getElementById("review-prompt"),
+      variant: "dashboard",
+      blocked: inReviewSession
+    });
     renderTime(stats);
     renderDonut(vocab);
     renderLevel(vocab);

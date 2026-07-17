@@ -14,24 +14,28 @@ export function isExtensionEvent(v: unknown): v is ExtensionEvent {
 
 /**
  * Fire-and-forget allowlisted counter. Never throws — analytics must not
- * break popup/dashboard UX. Uses sendBeacon when available.
+ * break popup/dashboard UX. Uses fetch (extension has host permission for
+ * animevocab.com); sendBeacon as a secondary path for page navigations.
  */
 export function trackExtensionEvent(event: ExtensionEvent): void {
   if (!isExtensionEvent(event)) return;
   try {
     const url = `${WEB_URL}/api/extension/track`;
     const payload = JSON.stringify({ event });
-    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-      navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
-      return;
-    }
     void fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: payload,
       keepalive: true,
-      mode: "no-cors",
-    }).catch(() => {});
+    }).catch(() => {
+      try {
+        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+          navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
+        }
+      } catch {
+        // swallow
+      }
+    });
   } catch {
     // swallow
   }

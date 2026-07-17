@@ -18,6 +18,16 @@
   };
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
+  // src/lib/review-prompt.ts
+  var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
+  var EMPTY_REVIEW_PROMPT = {
+    dismissedForever: false,
+    askCount: 0,
+    snoozeUntil: 0,
+    snoozeAfterCards: 0,
+    lastShownAt: 0
+  };
+
   // src/lib/storage.ts
   var queue = Promise.resolve();
   function todayKey() {
@@ -71,7 +81,11 @@
   }
   function resetProgress() {
     return enqueue(async () => {
-      await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
+      await chrome.storage.local.set({
+        vocab: {},
+        stats: emptyStats(),
+        reviewPrompt: { ...EMPTY_REVIEW_PROMPT }
+      });
       sendBadge({ daily: {} });
     });
   }

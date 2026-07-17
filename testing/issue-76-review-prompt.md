@@ -28,9 +28,10 @@ In-product Chrome Web Store review prompt after the user has experienced value
 ### Persistence
 - State key in `chrome.storage.local`: `reviewPrompt`
   `{ dismissedForever, askCount, snoozeUntil, snoozeAfterCards, lastShownAt }`
-- Showing the prompt records `lastShownAt` and fires `review_prompt_shown` once per display.
-- Rate click fires `review_prompt_clicked` and treats the install as done asking
-  (set `dismissedForever` or askCount ≥ max so it does not reappear).
+- A new ask display increments `askCount` (max 2), sets `lastShownAt`, and fires
+  `review_prompt_shown` once per ask (popup remounts of the same unanswered ask
+  do not re-fire or re-increment).
+- Rate click fires `review_prompt_clicked` and sets `dismissedForever`.
 
 ### Events
 - Allowlisted extension funnel events: `review_prompt_shown`, `review_prompt_clicked`.

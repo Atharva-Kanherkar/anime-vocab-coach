@@ -139,6 +139,34 @@ body.av {
   background: #f0a637;
 }
 
+.av-review-prompt-host {
+  margin-top: 12px;
+}
+
+.av-review-prompt-host[hidden] {
+  display: none;
+}
+
+.av-review-prompt {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1.5px solid var(--av-line);
+  border-radius: 10px;
+  background: var(--av-panel);
+}
+
+.av-review-prompt-copy {
+  font-size: 12px;
+  color: var(--av-ink-2);
+  line-height: 1.4;
+}
+
+.av-review-prompt-actions {
+  display: grid;
+  gap: 6px;
+}
+
 .av-actions {
   margin-top: 12px;
   display: grid;
