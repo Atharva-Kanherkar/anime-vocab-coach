@@ -11,6 +11,7 @@ import {
   type PauseMode,
 } from "@/lib/extension-settings";
 import { directionLabel, type LearningDirection } from "@/lib/direction";
+import { useSiteLocale } from "@/components/locale-provider";
 import type { CloudSyncEnvelope } from "@/lib/sync";
 
 function notifyExtensionSync(): void {
@@ -22,6 +23,7 @@ function notifyExtensionSync(): void {
 }
 
 export function SettingsPanel() {
+  const { locale } = useSiteLocale();
   const snapshot = useCloudSnapshot();
   const meta = useCloudSyncMeta();
   const [settings, setSettings] = useState<ExtensionSettings>(EXTENSION_SETTINGS_DEFAULTS);
@@ -29,8 +31,8 @@ export function SettingsPanel() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setSettings(parseExtensionSettings(snapshot.settings));
-  }, [snapshot.settings]);
+    setSettings(parseExtensionSettings(snapshot.settings, locale));
+  }, [snapshot.settings, locale]);
 
   const patch = useCallback((partial: Partial<ExtensionSettings>) => {
     setSettings((prev) => ({ ...prev, ...partial }));

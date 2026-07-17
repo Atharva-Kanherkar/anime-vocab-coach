@@ -4,6 +4,7 @@ import { dark } from "@clerk/themes";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
 import { ExtensionSignoutBridge } from "@/components/extension-signout-bridge";
 import { FxAudioPrimer } from "@/components/fx-audio-primer";
+import { LocaleProvider } from "@/components/locale-provider";
 import { MetaPixel } from "@/components/meta-pixel";
 import { ScrollEffects } from "@/components/site-chrome";
 import {
@@ -122,14 +123,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const shell = (
-    <>
+    <LocaleProvider>
       <a className="skip" href="#main">
         Skip to content
       </a>
       {children}
       <FxAudioPrimer />
       <ScrollEffects />
-    </>
+    </LocaleProvider>
   );
 
   return (

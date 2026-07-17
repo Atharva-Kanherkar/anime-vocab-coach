@@ -1,5 +1,6 @@
 import * as storage from "../lib/storage";
 import { WEB_URL } from "../config";
+import { isJapaneseUiLocale } from "../lib/locale-direction";
 import type { DisplayScript, LearningDirection, PauseMode, Settings } from "../types";
 
 type Theme = "dark" | "light";
@@ -70,6 +71,47 @@ async function savePartial(partial: Partial<Settings>): Promise<void> {
   showSaved();
 }
 
+function maybeShowJaEnBanner(): void {
+  if (!isJapaneseUiLocale()) return;
+  try {
+    if (localStorage.getItem("av-ja-en-prompt-dismissed") === "1") return;
+  } catch {
+    /* private mode */
+  }
+
+  void storage.getSettings().then((s) => {
+    if (s.learningDirection === "ja-en") return;
+
+    const banner = document.createElement("div");
+    banner.className = "av-ja-en-banner";
+    banner.innerHTML =
+      "<p><strong>日本語 → English で学べます。</strong> アニメの英語から単語を覚え、解説は日本語です。</p>" +
+      '<div class="av-ja-en-banner__actions">' +
+      '<button type="button" class="av-btn av-btn-primary" id="ja-en-apply">日本語 → English に切り替え</button>' +
+      '<button type="button" class="av-btn av-btn-ghost" id="ja-en-dismiss">閉じる</button>' +
+      "</div>";
+
+    const shell = document.querySelector(".shell");
+    shell?.insertBefore(banner, shell.querySelector(".av-sub"));
+
+    banner.querySelector("#ja-en-apply")?.addEventListener("click", () => {
+      void savePartial({ learningDirection: "ja-en" }).then(() => {
+        byId<HTMLSelectElement>("learningDirection").value = "ja-en";
+        banner.remove();
+      });
+    });
+
+    banner.querySelector("#ja-en-dismiss")?.addEventListener("click", () => {
+      try {
+        localStorage.setItem("av-ja-en-prompt-dismissed", "1");
+      } catch {
+        /* ignore */
+      }
+      banner.remove();
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   const token = await storage.getSyncToken();
   if (token) {
@@ -79,6 +121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   initTheme();
   await loadSettingsForm();
+  maybeShowJaEnBanner();
 
   document.querySelectorAll<HTMLInputElement>('input[name="pauseMode"]').forEach((el) => {
     el.addEventListener("change", () => savePartial({ pauseMode: el.value as PauseMode }));

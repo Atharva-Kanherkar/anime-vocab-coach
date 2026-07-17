@@ -4,14 +4,21 @@ export const SITE_NAME = "AnimeVocab";
 export const SITE_TAGLINE = "Learn Japanese from the anime you watch";
 /** ≤160 chars for Google SERP snippets */
 export const SITE_DESCRIPTION =
-  "Free Chrome extension to learn Japanese from anime. Romaji-first word cards, spaced repetition, and Listening Mode for Netflix and Crunchyroll.";
+  "Free anime vocabulary coach — romaji-first word cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube.";
 export const SITE_OG_DESCRIPTION =
-  "Romaji-first word cards while you watch. Spaced repetition built in. Add to Chrome free.";
+  "Anime vocab flashcards while you watch. Spaced repetition built in. Add to Chrome free.";
 export const TWITTER_HANDLE = "@attharrva15";
 
 export const SEO_KEYWORDS = [
-  "learn Japanese from anime",
   "anime vocabulary",
+  "anime vocabulary list",
+  "anime vocab",
+  "japanese anime vocabulary",
+  "anime vocabulary coach",
+  "japanese vocabulary anime",
+  "anime words for vocabulary",
+  "common anime vocabulary",
+  "learn Japanese from anime",
   "Japanese flashcards",
   "romaji Japanese",
   "Netflix Japanese learning",

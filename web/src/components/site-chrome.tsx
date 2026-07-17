@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useSiteLocale } from "@/components/locale-provider";
 import { GITHUB_URL, installUrl } from "@/lib/site";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
 
 export function SiteHeader({ compact = false }: { compact?: boolean }) {
+  const { t } = useSiteLocale();
+
   return (
     <header className="top">
       <div className="wrap top-inner">
@@ -15,25 +19,26 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         </Link>
         {compact ? (
           <nav aria-label="Primary" className="top-nav-compact">
-            <Link href="/blog">Blog</Link>
-            <Link href="/end">Endings</Link>
-            <Link href="/studio">Studio</Link>
-            <Link href="/gallery">Gallery</Link>
-            <Link href="/learn-japanese-with-anime">Guides</Link>
+            <Link href="/blog">{t("blog")}</Link>
+            <Link href="/end">{t("endings")}</Link>
+            <Link href="/studio">{t("studio")}</Link>
+            <Link href="/gallery">{t("gallery")}</Link>
+            <Link href="/learn-japanese-with-anime">{t("guides")}</Link>
           </nav>
         ) : (
           <nav aria-label="Primary">
-            <Link href="/#features">Features</Link>
-            <Link href="/studio">Studio</Link>
-            <Link href="/gallery">Gallery</Link>
-            <Link href="/cloud">Cloud</Link>
-            <Link href="/#pricing">Pricing</Link>
-            <Link href="/#faq">FAQ</Link>
+            <Link href="/#features">{t("features")}</Link>
+            <Link href="/studio">{t("studio")}</Link>
+            <Link href="/gallery">{t("gallery")}</Link>
+            <Link href="/cloud">{t("cloud")}</Link>
+            <Link href="/#pricing">{t("pricing")}</Link>
+            <Link href="/#faq">{t("faq")}</Link>
           </nav>
         )}
+        <LanguageSwitcher compact />
         <AuthControls size="sm" />
         <a className="btn btn-sm btn-line" href={installUrl()} rel="noopener noreferrer">
-          Install free
+          {t("installFree")}
         </a>
       </div>
     </header>
@@ -41,13 +46,18 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
 }
 
 export function HomeNav() {
+  const { t } = useSiteLocale();
+
   return (
     <header className="floatnav">
       <Link className="floatnav__logo" href="/" aria-label="AnimeVocab home">
         アニメ<b>Vocab</b>
       </Link>
       <div className="floatnav__right">
-        <Link href="/cloud" prefetch={false}>Cloud</Link>
+        <Link href="/cloud" prefetch={false}>
+          {t("cloud")}
+        </Link>
+        <LanguageSwitcher compact />
         <AuthControls size="sm" />
       </div>
     </header>
@@ -55,15 +65,14 @@ export function HomeNav() {
 }
 
 export function AuthControls({ size = "md" }: { size?: "sm" | "md" }) {
+  const { t } = useSiteLocale();
   const lineClass = size === "sm" ? "btn btn-sm btn-line" : "btn btn-line";
   const accentClass = size === "sm" ? "btn btn-sm btn-accent" : "btn btn-accent";
 
-  // Dev bypass: no ClerkProvider is mounted, so Clerk components would throw.
-  // Show a plain link to the app instead.
   if (DEV_NO_CLERK) {
     return (
       <Link className={lineClass} href="/app" prefetch={false}>
-        Cloud app
+        {t("cloudApp")}
       </Link>
     );
   }
@@ -72,15 +81,19 @@ export function AuthControls({ size = "md" }: { size?: "sm" | "md" }) {
     <>
       <Show when="signed-out">
         <SignUpButton mode="modal">
-          <button className={accentClass} type="button">Sign up</button>
+          <button className={accentClass} type="button">
+            {t("signUp")}
+          </button>
         </SignUpButton>
         <SignInButton mode="modal">
-          <button className={lineClass} type="button">Sign in</button>
+          <button className={lineClass} type="button">
+            {t("signIn")}
+          </button>
         </SignInButton>
       </Show>
       <Show when="signed-in">
         <Link className={lineClass} href="/app" prefetch={false}>
-          Cloud app
+          {t("cloudApp")}
         </Link>
         <UserButton />
       </Show>
@@ -89,6 +102,7 @@ export function AuthControls({ size = "md" }: { size?: "sm" | "md" }) {
 }
 
 export function HomeBrandBar() {
+  const { t } = useSiteLocale();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -104,32 +118,34 @@ export function HomeBrandBar() {
       <Link className="logo" href="/" aria-label="AnimeVocab home">
         アニメ<b>Vocab</b>
       </Link>
-      <a className="btn btn-sm btn-accent" href={installUrl()} rel="noopener noreferrer">
-        Add to Chrome
-      </a>
+      <div className="home-bar__actions">
+        <LanguageSwitcher compact />
+        <a className="btn btn-sm btn-accent" href={installUrl()} rel="noopener noreferrer">
+          {t("addToChrome")}
+        </a>
+      </div>
     </header>
   );
 }
 
 export function SiteFooter({ links }: { links?: { href: string; label: string }[] }) {
+  const { t } = useSiteLocale();
   const defaultLinks = [
-    { href: "/studio", label: "Manga Studio" },
-    { href: "/gallery", label: "Gallery" },
-    { href: "/blog", label: "Blog" },
-    { href: "/learn-japanese-with-anime", label: "Guides" },
-    { href: "/animelon-alternative", label: "Animelon alt" },
-    { href: "/language-reactor-alternative", label: "LR alt" },
-    { href: "/asbplayer-alternative", label: "asbplayer alt" },
+    { href: "/anime-vocabulary", label: "Anime vocabulary" },
+    { href: "/studio", label: t("studio") },
+    { href: "/gallery", label: t("gallery") },
+    { href: "/blog", label: t("blog") },
+    { href: "/learn-japanese-with-anime", label: t("guides") },
+    { href: "/ja", label: t("languageJa") },
     { href: GITHUB_URL, label: "GitHub" },
     { href: "/privacy", label: "Privacy" },
     { href: "/without-extension", label: "No extension?" },
-    { href: "https://github.com/sponsors/Atharva-Kanherkar", label: "Sponsor" },
   ];
 
   return (
     <footer className="foot">
       <div className="wrap foot-inner">
-        <span>© AnimeVocab · learn Japanese from what you watch</span>
+        <span>{t("footerTagline")}</span>
         <nav>
           {(links ?? defaultLinks).map((link) =>
             link.href.startsWith("http") ? (
@@ -180,4 +196,3 @@ export function ScrollEffects() {
 
   return null;
 }
-

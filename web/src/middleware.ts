@@ -1,32 +1,67 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
+import {
+  LOCALE_COOKIE,
+  LOCALE_COOKIE_MAX_AGE,
+  enPathToJa,
+  resolveSiteLocale,
+} from "@/lib/locale";
 
 const isProtectedRoute = createRouteMatcher(["/app(.*)"]);
-
-// Anonymous product-funnel beacons (always 204, no auth). Exempt before Clerk
-// so a Clerk outage / CPU spike cannot 5xx them or amplify bot flood cost.
-const BEACON_ROUTES = ["/api/extension/track", "/api/ending/track"];
-const isBeaconRoute = createRouteMatcher(BEACON_ROUTES);
-
-// Routes where clerkMiddleware must run: everything that calls auth() /
-// currentUser() on the server, plus the auth pages and the Clerk proxy.
-// Keep this list tight — running Clerk on every marketing page multiplied
-// per-request CPU ~5x and caused intermittent 1102 "exceeded resource
-// limits" errors under traffic bursts. Static pages skip Clerk entirely.
-const CLERK_ROUTES = [
+const isBeaconRoute = createRouteMatcher(["/api/extension/track", "/api/ending/track"]);
+const needsClerk = createRouteMatcher([
   "/app(.*)",
-  "/studio", // public page, but reads signed-in state via currentUser()
+  "/studio",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/(api|trpc)(.*)",
   "/__clerk(.*)",
-];
-const needsClerk = createRouteMatcher(CLERK_ROUTES);
+]);
+
+function currentLocale(req: NextRequest) {
+  return resolveSiteLocale({
+    cookie: req.cookies.get(LOCALE_COOKIE)?.value,
+    acceptLanguage: req.headers.get("accept-language"),
+    langParam: req.nextUrl.searchParams.get("lang"),
+  });
+}
+
+// One-directional on purpose: ja-locale visitors on a mapped EN page get sent
+// to the /ja mirror, but nothing EVER redirects off an explicitly requested
+// /ja path — crawlers send no Accept-Language and no cookies, so a ja→en
+// redirect would 307 the entire live /ja cluster out of the index (and bounce
+// EN-browser humans who follow a shared /ja link). Leaving /ja means clicking
+// the language switcher (cookie-first) or just navigating away.
+function localeRedirect(req: NextRequest): NextResponse | null {
+  const pathname = req.nextUrl.pathname;
+  const jaTarget = enPathToJa(pathname);
+  if (!jaTarget || pathname === jaTarget) return null;
+  if (currentLocale(req) !== "ja") return null;
+
+  const url = req.nextUrl.clone();
+  url.pathname = jaTarget;
+  const res = NextResponse.redirect(url);
+  res.cookies.set(LOCALE_COOKIE, "ja", { path: "/", maxAge: LOCALE_COOKIE_MAX_AGE });
+  return res;
+}
+
+// Only stamp the cookie on an explicit ?lang= switch. Stamping on every
+// cookieless request would add Set-Cookie to all marketing/crawler/beacon
+// responses, defeating edge caching — the same per-request-cost class of
+// regression as the Clerk 1102 "exceeded resource limits" incidents.
+function stampLocaleCookie(req: NextRequest, res: NextResponse): NextResponse {
+  const langParam = req.nextUrl.searchParams.get("lang");
+  if (langParam === "ja" || langParam === "en") {
+    res.cookies.set(LOCALE_COOKIE, langParam, {
+      path: "/",
+      maxAge: LOCALE_COOKIE_MAX_AGE,
+    });
+  }
+  return res;
+}
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
-  // Canonical host: www has a proxied DNS record; the Worker answers it and
-  // redirects here (www previously 522ed with nothing bound to it).
   const host = req.headers.get("host");
   if (host === "www.animevocab.com") {
     const url = new URL(req.url);
@@ -34,34 +69,25 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     return NextResponse.redirect(url, 301);
   }
 
-  // Local dev without Clerk keys: let every request through untouched.
-  if (DEV_NO_CLERK) return NextResponse.next();
-
+  // Anonymous product-funnel beacons (always 204, no auth): exempt before
+  // Clerk AND before locale work so nothing can slow or 5xx them.
   if (isBeaconRoute(req)) return NextResponse.next();
 
-  // Marketing/static pages: no server-side auth — skip Clerk's per-request
-  // work. Clerk client components (sign-in buttons) still function; they
-  // talk to the /__clerk proxy, which is matched above.
-  if (!needsClerk(req)) return NextResponse.next();
+  const redirect = localeRedirect(req);
+  if (redirect) return redirect;
+
+  if (DEV_NO_CLERK || !needsClerk(req)) {
+    return stampLocaleCookie(req, NextResponse.next());
+  }
 
   return clerkMiddleware(
     async (auth, request) => {
       if (isProtectedRoute(request)) await auth.protect();
     },
-    {
-      frontendApiProxy: {
-        enabled: true,
-      },
-    }
+    { frontendApiProxy: { enabled: true } }
   )(req, event);
 }
 
 export const config = {
-  // Broad on purpose: the www→apex redirect must see every path. Anything
-  // not in CLERK_ROUTES exits via the cheap NextResponse.next() above.
-  matcher: [
-    "/((?!_next|.*\\..*).*)",
-    "/(api|trpc)(.*)",
-    "/__clerk/:path*",
-  ],
+  matcher: ["/((?!_next|.*\\..*).*)", "/(api|trpc)(.*)", "/__clerk/:path*"],
 };
