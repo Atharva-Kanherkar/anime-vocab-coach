@@ -43,7 +43,7 @@ export function GettingStarted() {
         </ol>
 
         <div>
-          <p className="av-eyebrow mb-3">What you'll see</p>
+          <p className="av-eyebrow mb-3">What you&apos;ll see</p>
           <div className="av-bubble !p-5">
             <p className="text-[10.5px] font-extrabold tracking-[0.16em] text-indigo">NOW PLAYING · EPISODE 3</p>
             <p className="mt-3 font-jp text-lg leading-relaxed">

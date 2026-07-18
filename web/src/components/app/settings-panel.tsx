@@ -31,6 +31,9 @@ export function SettingsPanel() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // Re-seed the local draft whenever the cloud snapshot changes; the form is
+    // intentionally an editable copy, so this sync setState is deliberate.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSettings(parseExtensionSettings(snapshot.settings, locale));
   }, [snapshot.settings, locale]);
 

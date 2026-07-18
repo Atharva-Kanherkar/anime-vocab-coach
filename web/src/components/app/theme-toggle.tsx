@@ -13,7 +13,11 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // data-theme is set by a pre-hydration inline script, so it can only be
+    // read after mount; adopting it here (and gating render on `mounted`) is
+    // the intended SSR-safe pattern.
     const current = document.documentElement.getAttribute("data-theme");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (current === "light" || current === "dark") setTheme(current);
     setMounted(true);
   }, []);

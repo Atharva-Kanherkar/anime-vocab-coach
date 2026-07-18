@@ -9,15 +9,24 @@ import {
 } from "@/lib/locale";
 
 const isProtectedRoute = createRouteMatcher(["/app(.*)"]);
-const isBeaconRoute = createRouteMatcher(["/api/extension/track", "/api/ending/track"]);
-const needsClerk = createRouteMatcher([
+
+// Anonymous product-funnel beacons (always 204, no auth). Exempt before Clerk
+// so a Clerk outage / CPU spike cannot 5xx them. Named because
+// middleware-matcher.test.ts pins these route lists from source.
+const BEACON_ROUTES = ["/api/extension/track", "/api/ending/track"];
+const isBeaconRoute = createRouteMatcher(BEACON_ROUTES);
+
+// Routes where clerkMiddleware must run: everything that calls auth() /
+// currentUser() on the server, plus the auth pages and the Clerk proxy.
+const CLERK_ROUTES = [
   "/app(.*)",
   "/studio",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/(api|trpc)(.*)",
   "/__clerk(.*)",
-]);
+];
+const needsClerk = createRouteMatcher(CLERK_ROUTES);
 
 function currentLocale(req: NextRequest) {
   return resolveSiteLocale({

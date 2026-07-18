@@ -28,17 +28,24 @@ try {
   // innerText reflects CSS text-transform (the eyebrow is uppercased), so match
   // case-insensitively.
   const appText = (await page.locator("body").innerText()).toLowerCase();
-  check("dashboard greets dev user", appText.includes("hey, dev learner"));
-  check("dashboard shows due-today tile", appText.includes("due today"));
+  check("dashboard greets dev user", appText.includes("welcome back, dev learner"));
+  check("dashboard renders section nav", appText.includes("notebooks") && appText.includes("progress"));
 
-  // 2. Connection banner minted + broadcast a token in-browser.
+  // 2. Connection status resolves out of "Checking for extension…" to a
+  // terminal state. Headless CI has no extension installed, so "Extension not
+  // installed yet" is the expected healthy answer; the sync-token loop the
+  // extension uses is exercised directly in step 3.
   await page.waitForFunction(
     () => document.body.innerText.includes("Extension connected") ||
-          document.body.innerText.includes("Extension not linked"),
+          document.body.innerText.includes("Extension not installed yet") ||
+          document.body.innerText.includes("Could not link extension"),
     { timeout: 10000 }
   );
-  const linked = (await page.locator("body").innerText()).includes("Extension connected");
-  check("extension connector links (token minted client-side)", linked);
+  const connectorText = await page.locator("body").innerText();
+  check(
+    "extension connector reaches a terminal state",
+    !connectorText.includes("Checking for extension") && !connectorText.includes("Could not link extension")
+  );
 
   // 3. Sync loop the extension uses: mint token → push raw export → read back.
   const loop = await page.evaluate(async () => {
@@ -130,15 +137,16 @@ try {
   check("notebook shows in list with count", nbFlow.listedCount === 1, `listed ${nbFlow.listedCount}`);
   check("notebook deleted", nbFlow.delStatus === 200, `status ${nbFlow.delStatus}`);
 
-  // NotebooksPanel renders on /app (Notebooks tab).
+  // NotebooksPanel renders on /app (Notebooks section — nav is plain buttons).
   await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
-  await page.getByRole("tab", { name: "Notebooks" }).click();
+  await page.getByLabel("Sections").getByRole("button", { name: "Notebooks", exact: true }).click();
   check("notebooks panel renders on /app",
     (await page.locator("body").innerText()).toLowerCase().includes("notebooks"));
 
-  // Anki/CSV export lives under Sync → Advanced (the synced 猫 is a "learning" card → count >= 1).
-  await page.getByRole("tab", { name: "Sync" }).click();
-  await page.locator("details.sync-advanced summary").click();
+  // Anki/CSV export lives under Backup → Advanced options (the synced 猫 is a
+  // "learning" card → count >= 1).
+  await page.getByLabel("Sections").getByRole("button", { name: "Backup", exact: true }).click();
+  await page.getByText("Advanced options", { exact: true }).click();
   check("Anki export button renders on /app",
     (await page.locator("body").innerText()).includes("Export for Anki"));
 
@@ -165,7 +173,7 @@ try {
   check("leaderboard has an entry after opt-in sync", gam.count >= 1, `count ${gam.count}`);
   check("caller has a leaderboard rank", gam.meRank === 1, `rank ${gam.meRank}`);
   check("leaderboard reflects server-computed reviews", gam.meReviewed === 7, `reviewed ${gam.meReviewed}`);
-  await page.getByRole("tab", { name: "Progress" }).click();
+  await page.getByLabel("Sections").getByRole("button", { name: "Progress", exact: true }).click();
   check("progress panel renders on /app",
     (await page.locator("body").innerText()).toLowerCase().includes("leaderboard"));
 

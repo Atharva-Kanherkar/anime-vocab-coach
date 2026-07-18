@@ -54,6 +54,9 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const next = resolveLocale(pathname);
+    // Cookie locale is applied after hydration on purpose (see comment above
+    // the initializer) — reading it during render would mismatch SSR output.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocaleState(next);
     document.documentElement.lang = next === "ja" ? "ja" : "en";
   }, [pathname]);

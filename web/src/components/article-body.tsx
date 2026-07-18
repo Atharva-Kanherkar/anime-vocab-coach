@@ -60,7 +60,7 @@ export function ArticleBody({
   blocks: ArticleBlock[];
   midArticleCta?: BlogPost["midArticleCta"];
 }) {
-  let insertedCta = false;
+  const ctaAfterIndex = midArticleCta ? blocks.findIndex((b) => b.type === "h2") : -1;
 
   return (
     <div className="prose">
@@ -98,8 +98,7 @@ export function ArticleBody({
             return [];
         }
 
-        if (midArticleCta && !insertedCta && block.type === "h2") {
-          insertedCta = true;
+        if (midArticleCta && i === ctaAfterIndex) {
           nodes.push(<MidArticleCta key={`${i}-cta`} cta={midArticleCta} />);
         }
 
