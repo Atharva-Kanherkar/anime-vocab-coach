@@ -1,6 +1,7 @@
 import * as storage from "../lib/storage";
 import { WEB_URL } from "../config";
 import { isJapaneseUiLocale } from "../lib/locale-direction";
+import { initAnalytics, posthog } from "../lib/analytics";
 import type { DisplayScript, LearningDirection, PauseMode, Settings } from "../types";
 
 type Theme = "dark" | "light";
@@ -119,69 +120,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  void initAnalytics();
   initTheme();
   await loadSettingsForm();
   maybeShowJaEnBanner();
 
   document.querySelectorAll<HTMLInputElement>('input[name="pauseMode"]').forEach((el) => {
-    el.addEventListener("change", () => savePartial({ pauseMode: el.value as PauseMode }));
+    el.addEventListener("change", () => {
+      posthog.capture("setting_changed", { setting_name: "pauseMode", value: el.value });
+      savePartial({ pauseMode: el.value as PauseMode });
+    });
   });
 
   byId("cooldownSec").addEventListener("change", (e) => {
     const v = Number((e.target as HTMLInputElement).value) || 20;
+    posthog.capture("setting_changed", { setting_name: "cooldownSec" });
     savePartial({ cooldownSec: Math.max(5, Math.min(120, v)) });
   });
 
   byId("maxCardsPerHour").addEventListener("change", (e) => {
     const v = Number((e.target as HTMLInputElement).value) || 12;
+    posthog.capture("setting_changed", { setting_name: "maxCardsPerHour" });
     savePartial({ maxCardsPerHour: Math.max(1, Math.min(60, v)) });
   });
 
   byId("targetLevel").addEventListener("change", (e) => {
+    posthog.capture("setting_changed", { setting_name: "targetLevel", value: (e.target as HTMLSelectElement).value });
     savePartial({ targetLevel: Number((e.target as HTMLSelectElement).value) });
   });
 
   byId("autoResumeSec").addEventListener("change", (e) => {
+    posthog.capture("setting_changed", { setting_name: "autoResumeSec" });
     savePartial({ autoResumeSec: Math.max(0, Number((e.target as HTMLInputElement).value) || 0) });
   });
 
   byId("site-youtube").addEventListener("change", async (e) => {
     const s = await storage.getSettings();
+    posthog.capture("setting_changed", { setting_name: "site_youtube", value: (e.target as HTMLInputElement).checked });
     savePartial({ sites: { ...s.sites, youtube: (e.target as HTMLInputElement).checked } });
   });
 
   byId("site-netflix").addEventListener("change", async (e) => {
     const s = await storage.getSettings();
+    posthog.capture("setting_changed", { setting_name: "site_netflix", value: (e.target as HTMLInputElement).checked });
     savePartial({ sites: { ...s.sites, netflix: (e.target as HTMLInputElement).checked } });
   });
 
   byId("site-generic").addEventListener("change", async (e) => {
     const s = await storage.getSettings();
+    posthog.capture("setting_changed", { setting_name: "site_generic", value: (e.target as HTMLInputElement).checked });
     savePartial({ sites: { ...s.sites, generic: (e.target as HTMLInputElement).checked } });
   });
 
   byId("learningDirection").addEventListener("change", (e) => {
+    posthog.capture("setting_changed", { setting_name: "learningDirection", value: (e.target as HTMLSelectElement).value });
     savePartial({ learningDirection: (e.target as HTMLSelectElement).value as LearningDirection });
   });
 
   byId("displayScript").addEventListener("change", (e) => {
+    posthog.capture("setting_changed", { setting_name: "displayScript", value: (e.target as HTMLSelectElement).value });
     savePartial({ displayScript: (e.target as HTMLSelectElement).value as DisplayScript });
   });
 
   byId("autoSpeak").addEventListener("change", (e) => {
+    posthog.capture("setting_changed", { setting_name: "autoSpeak", value: (e.target as HTMLInputElement).checked });
     savePartial({ autoSpeak: (e.target as HTMLInputElement).checked });
   });
 
   byId("openaiKey").addEventListener("change", (e) => {
-    savePartial({ openaiKey: (e.target as HTMLInputElement).value.trim() });
+    const key = (e.target as HTMLInputElement).value.trim();
+    if (key) posthog.capture("byo_key_saved");
+    savePartial({ openaiKey: key });
   });
 
   byId("transcribeModel").addEventListener("change", (e) => {
+    posthog.capture("setting_changed", { setting_name: "transcribeModel", value: (e.target as HTMLSelectElement).value });
     savePartial({ transcribeModel: (e.target as HTMLSelectElement).value });
   });
 
   byId("export-btn").addEventListener("click", async () => {
     const data = await storage.exportAll();
+    posthog.capture("data_exported", { source: "options" });
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -193,6 +212,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   byId("reset-btn").addEventListener("click", async () => {
     if (!confirm("Reset all vocab and stats? Settings will be kept.")) return;
+    posthog.capture("progress_reset");
     await storage.resetProgress();
   });
 });

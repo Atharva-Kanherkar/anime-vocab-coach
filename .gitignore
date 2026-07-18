@@ -11,3 +11,4 @@ test/vid.mp4
 .env*
 !.env.example
 .gstack/
+.env
