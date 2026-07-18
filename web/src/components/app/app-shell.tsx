@@ -69,6 +69,9 @@ export function AppShell({
 
   useEffect(() => {
     const fromHash = sectionFromHash();
+    // The hash only exists client-side; SSR must render "today" and adopt the
+    // hash section after mount, so this one-time sync setState is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fromHash) setSection(fromHash);
     const onHash = () => {
       const next = sectionFromHash();

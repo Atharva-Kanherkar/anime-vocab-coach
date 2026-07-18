@@ -125,7 +125,7 @@ export default function LingopieAlternativePage() {
                 wasteful.
               </li>
               <li>
-                <strong>You want tonight's simulcast</strong> — Lingopie's catalog does not track weekly CR
+                <strong>You want tonight&apos;s simulcast</strong> — Lingopie&apos;s catalog does not track weekly CR
                 releases.
               </li>
               <li>

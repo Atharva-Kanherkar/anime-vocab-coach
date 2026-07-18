@@ -12,6 +12,7 @@
 // free manga held in this browser; saving/publishing needs a (free) sign-in,
 // after which the in-progress draft is restored and saved to the account.
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LINE_KINDS,
@@ -197,9 +198,9 @@ export function StudioEditor({ signedIn }: { signedIn?: boolean }) {
         {auth === "out" && (
           <p className="mt-3 rounded-lg border-2 border-line bg-panel px-4 py-2.5 text-[13px] font-bold text-ink2">
             Try it free — no account needed. Sign in (also free) to save, publish, and make more.{" "}
-            <a className="text-accent underline" href="/end">
+            <Link className="text-accent underline" href="/end">
               Or write a fan ending for a famous manga →
-            </a>
+            </Link>
           </p>
         )}
       </header>

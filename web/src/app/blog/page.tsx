@@ -636,7 +636,7 @@ export default function BlogIndexPage() {
                 </li>
                 <li>
                   <Link href="/blog/kikis-delivery-service-learn-japanese-2026">
-                    Kiki's Delivery Service for Japanese
+                    Kiki&apos;s Delivery Service for Japanese
                   </Link>
                 </li>
                 <li>

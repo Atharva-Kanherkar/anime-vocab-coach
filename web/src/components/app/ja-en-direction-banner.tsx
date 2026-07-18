@@ -34,6 +34,9 @@ export function JaEnDirectionBanner() {
   const [settings, setSettings] = useState<ExtensionSettings>(EXTENSION_SETTINGS_DEFAULTS);
 
   useEffect(() => {
+    // localStorage/cloud snapshot are client-only sources; adopting them after
+    // mount (SSR renders the dismissed state) is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDismissed(localStorage.getItem(JA_EN_PROMPT_DISMISSED_KEY) === "1");
     setSettings(parseExtensionSettings(snapshot.settings, locale));
   }, [snapshot.settings, locale]);
@@ -87,6 +90,9 @@ export function JaEnDirectionBanner() {
     );
 
     const current = parseExtensionSettings(snapshot.settings, locale).learningDirection;
+    // Applying a URL-provided direction is a one-shot post-mount action tied
+    // to client-only state (query string + cloud snapshot); intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (current !== q) void applyDirection(q);
   }, [meta.fetchedAt, applyDirection, snapshot.settings, locale]);
 

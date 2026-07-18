@@ -66,7 +66,7 @@ describe("coachCacheKey", () => {
     const c = await coachCacheKey({ ...baseReq, mode: "hooks" });
     expect(a).toBe(b);
     expect(a).not.toBe(c);
-    expect(a.startsWith("ai:v1:explain:")).toBe(true);
+    expect(a.startsWith("ai:v2:explain:")).toBe(true);
   });
 });
 
