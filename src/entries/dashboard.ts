@@ -3,6 +3,7 @@ import { toRomaji } from "../lib/romaji";
 import { getDueWords } from "../lib/review";
 import { commonnessShort } from "../lib/levels";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
+import { initAnalytics, posthog } from "../lib/analytics";
 import type { DailyStats, Stats, VocabMap } from "../types";
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -372,13 +373,20 @@ function renderReview(vocab: VocabMap): void {
   if (!due.length) { host.hidden = true; return; }
   host.hidden = false;
   // Deep-linked from the popup's "Review N due" button — start immediately.
-  if (location.hash === "#review") { runReviewSession(host, due); return; }
+  if (location.hash === "#review") {
+    posthog.capture("review_session_started", { due_count: due.length, source: "deep_link" });
+    runReviewSession(host, due);
+    return;
+  }
   host.innerHTML =
     `<div class="review-intro"><h2>Review</h2>` +
     `<p>${due.length} word${due.length > 1 ? "s" : ""} due now.</p>` +
     `<button class="review-btn review-start" id="review-start" type="button">Start review</button></div>`;
 
-  document.getElementById("review-start")!.addEventListener("click", () => runReviewSession(host, due));
+  document.getElementById("review-start")!.addEventListener("click", () => {
+    posthog.capture("review_session_started", { due_count: due.length });
+    runReviewSession(host, due);
+  });
 }
 
 function runReviewSession(host: HTMLElement, due: ReturnType<typeof getDueWords>): void {
@@ -394,6 +402,7 @@ function runReviewSession(host: HTMLElement, due: ReturnType<typeof getDueWords>
 
   const showCard = (): void => {
     if (i >= due.length) {
+      posthog.capture("review_session_completed", { cards_reviewed: reviewed, total_due: due.length });
       host.innerHTML = `<div class="review-intro"><h2>Review complete</h2><p>${reviewed} reviewed. Nice work.</p></div>`;
       // SRS/tiles are now stale — reload to reflect the new schedule.
       setTimeout(() => location.reload(), 900);
@@ -428,6 +437,7 @@ function runReviewSession(host: HTMLElement, due: ReturnType<typeof getDueWords>
     const grade = async (judgment: "review-pass" | "review-fail"): Promise<void> => {
       if (graded) return; // guard against double-click / key-repeat double-grading
       graded = true;
+      posthog.capture("word_judged", { judgment, word_level: record.level });
       (document.getElementById("review-got") as HTMLButtonElement | null)?.setAttribute("disabled", "");
       (document.getElementById("review-miss") as HTMLButtonElement | null)?.setAttribute("disabled", "");
       await storage.judgeWord(base, judgment, {
@@ -449,6 +459,7 @@ function runReviewSession(host: HTMLElement, due: ReturnType<typeof getDueWords>
 
 // ---------- boot ----------
 async function boot(): Promise<void> {
+  void initAnalytics();
   const vocab = await storage.getVocab();
   const stats = await storage.getStats();
   VOCAB = vocab;

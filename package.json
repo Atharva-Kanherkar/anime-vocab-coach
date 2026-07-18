@@ -35,7 +35,8 @@
     "immersion"
   ],
   "dependencies": {
-    "kuromoji": "^0.1.2"
+    "kuromoji": "^0.1.2",
+    "posthog-js": "^1.404.1"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.2",

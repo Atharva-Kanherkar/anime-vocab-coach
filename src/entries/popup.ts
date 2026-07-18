@@ -2,6 +2,7 @@ import { WEB_URL } from "../config";
 import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
+import { initAnalytics, posthog } from "../lib/analytics";
 import type { DailyStats } from "../types";
 
 type Theme = "dark" | "light";
@@ -114,6 +115,7 @@ async function renderAccount(): Promise<void> {
       `<div><b>${title}</b><span class="av-account-sub">${sub}</span></div></div>` +
       `<button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">${cta}</button>`;
     byId("signin-btn").addEventListener("click", () => {
+      posthog.capture("sign_in_clicked", { relink: relink });
       chrome.tabs.create({ url: `${WEB_URL}/app` });
     });
     return;
@@ -173,11 +175,13 @@ async function initCopilotToggle(): Promise<void> {
   btn.addEventListener("click", () => {
     errEl.hidden = true;
     chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
-      const type = res?.visible ? "avc-agent-hide" : "avc-agent-show";
-      chrome.runtime.sendMessage({ type, tabId }, (r) => {
+      const action = res?.visible ? "avc-agent-hide" : "avc-agent-show";
+      chrome.runtime.sendMessage({ type: action, tabId }, (r) => {
         if (r && r.ok === false && r.error) {
           errEl.textContent = r.error;
           errEl.hidden = false;
+        } else {
+          posthog.capture(action === "avc-agent-show" ? "copilot_opened" : "copilot_closed");
         }
         refresh();
       });
@@ -188,6 +192,7 @@ async function initCopilotToggle(): Promise<void> {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  void initAnalytics();
   initTheme();
   void render();
   void renderAccount();
@@ -205,6 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   byId("review-due").addEventListener("click", () => {
+    posthog.capture("review_due_opened");
     chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
   });
 
@@ -221,6 +227,7 @@ document.addEventListener("DOMContentLoaded", () => {
   byId("export-link").addEventListener("click", async (e) => {
     e.preventDefault();
     const data = await storage.exportAll();
+    posthog.capture("data_exported", { source: "popup" });
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
