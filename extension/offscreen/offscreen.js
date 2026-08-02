@@ -29,26 +29,99 @@
       this.code = code;
     }
   };
+  var MIN_FLUSH_MS = 3e4;
+  var HEARTBEAT_INTERVAL_MS = 5 * 60 * 1e3;
+  function accrueListening(session, now = Date.now()) {
+    if (session.billedFromMs == null) return;
+    const delta = now - session.billedFromMs;
+    if (delta > 0) session.pendingBillMs += delta;
+    session.billedFromMs = now;
+  }
+  function setListeningClock(session, playing) {
+    if (session.auth.kind !== "cloud" || session.useCache) {
+      session.billedFromMs = null;
+      return;
+    }
+    if (playing) {
+      if (session.billedFromMs == null) session.billedFromMs = Date.now();
+      return;
+    }
+    accrueListening(session);
+    session.billedFromMs = null;
+  }
+  async function flushListening(session, final = false) {
+    if (session.auth.kind !== "cloud") return;
+    accrueListening(session);
+    if (session.pendingBillMs <= 0) return;
+    if (!final && session.pendingBillMs < MIN_FLUSH_MS) return;
+    const { backendUrl, syncToken } = session.auth;
+    const minutes = Math.min(10, session.pendingBillMs / 6e4);
+    const sentMs = minutes * 6e4;
+    session.pendingBillMs = Math.max(0, session.pendingBillMs - sentMs);
+    try {
+      const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + syncToken },
+        body: JSON.stringify({ minutes })
+      });
+      if (res.status === 429) {
+        olog("monthly cap reached \u2014 stopping");
+        report(session.tabId, "quota-exceeded", "monthly listening hours used up");
+        stop(session.tabId);
+      }
+    } catch (err) {
+      session.pendingBillMs += sentMs;
+      olog("heartbeat failed (will retry):", String(err));
+    }
+  }
   function startHeartbeat(session) {
     if (session.auth.kind !== "cloud") return;
-    const { backendUrl, syncToken } = session.auth;
-    session.heartbeat = setInterval(async () => {
-      if (!session.active || session.playbackPaused) return;
-      try {
-        const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + syncToken },
-          body: JSON.stringify({ minutes: 5 })
-        });
-        if (res.status === 429) {
-          olog("monthly cap reached \u2014 stopping");
-          report(session.tabId, "quota-exceeded", "monthly listening hours used up");
-          stop(session.tabId);
-        }
-      } catch (err) {
-        olog("heartbeat failed (will retry):", String(err));
+    if (session.useCache) return;
+    if (session.heartbeat) return;
+    setListeningClock(session, session.active && !session.playbackPaused);
+    session.heartbeat = setInterval(() => {
+      void flushListening(session);
+    }, HEARTBEAT_INTERVAL_MS);
+  }
+  function closeRealtimeSocket(session) {
+    const ws = session.ws;
+    if (!ws) return;
+    session.ws = null;
+    session.ready = false;
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.onclose = null;
+    try {
+      if (ws.readyState <= 1) ws.close();
+    } catch {
+    }
+  }
+  function applyCacheMode(session) {
+    session.modeGeneration += 1;
+    if (session.useCache) {
+      if (session.heartbeat) {
+        clearInterval(session.heartbeat);
+        session.heartbeat = null;
       }
-    }, 5 * 60 * 1e3);
+      void flushListening(session, true);
+      session.billedFromMs = null;
+      closeRealtimeSocket(session);
+      if (!session.chunkTimer) {
+        session.chunkTimer = setInterval(() => {
+          if (session.active) flushChunk(session).catch((err) => olog("flush error:", String(err)));
+        }, CHUNK_SEC * 1e3);
+      }
+      return;
+    }
+    if (session.chunkTimer) {
+      clearInterval(session.chunkTimer);
+      session.chunkTimer = null;
+    }
+    if (!session.ws && session.active) {
+      connectWS(session).catch((err) => olog("reconnect after cache-key loss failed:", String(err)));
+    }
+    startHeartbeat(session);
   }
   var sessions = {};
   function olog(...args) {
@@ -67,8 +140,10 @@
   }
   function onPlaybackUpdate(session, time, paused) {
     const prev = session.playbackTime;
+    const wasPaused = session.playbackPaused;
     session.playbackTime = time;
     session.playbackPaused = paused;
+    if (paused !== wasPaused) setListeningClock(session, !paused);
     if (Math.abs(time - prev) > SEEK_THRESHOLD_SEC) {
       olog("playback seek detected", prev, "\u2192", time, "\u2014 resetting audio buffer");
       resetAudioBuffer(session, time);
@@ -98,6 +173,7 @@
           session.cacheKey = newKey;
           session.useCache = session.auth.kind === "cloud" && !!newKey;
           resetAudioBuffer(session);
+          applyCacheMode(session);
           olog("cache key updated for tab", msg.tabId, "\u2192", newKey || "(none)");
         }
       }
@@ -245,7 +321,10 @@
       chunkStarted: false,
       transcribing: false,
       chunkTimer: null,
-      useCache
+      useCache,
+      billedFromMs: null,
+      pendingBillMs: 0,
+      modeGeneration: 0
     };
     sessions[tabId] = session;
     proc.onaudioprocess = (e) => {
@@ -267,18 +346,21 @@
     };
     if (useCache) {
       olog("using shared transcript cache for", cacheKey);
-      session.chunkTimer = setInterval(() => {
-        if (session.active) flushChunk(session).catch((err) => olog("flush error:", String(err)));
-      }, CHUNK_SEC * 1e3);
-      startHeartbeat(session);
+      applyCacheMode(session);
       return;
     }
     olog("audio graph ready (src rate", session.srcRate + "Hz), connecting realtime WS");
     await connectWS(session);
-    startHeartbeat(session);
+    applyCacheMode(session);
   }
   async function connectWS(session) {
+    const generation = session.modeGeneration;
+    const stale = () => !session.active || session.useCache || session.modeGeneration !== generation;
     const wsKey = await getWsKey(session);
+    if (stale()) {
+      olog("dropping realtime connect \u2014 session switched modes while authorizing");
+      return;
+    }
     let ws;
     try {
       ws = new WebSocket(RT_URL, ["realtime", "openai-insecure-api-key." + wsKey]);
@@ -339,7 +421,7 @@
       if (ev.code !== 4001 && session.reconnects < 3) {
         session.reconnects += 1;
         setTimeout(() => {
-          if (session.active) {
+          if (session.active && !session.useCache) {
             connectWS(session).catch((err) => {
               const code = err instanceof CodedError ? err.code : "capture-failed";
               report(session.tabId, code, String(err && err.message || err));
@@ -357,6 +439,8 @@
     const session = sessions[tabId];
     if (!session) return;
     session.active = false;
+    setListeningClock(session, false);
+    void flushListening(session, true);
     if (session.heartbeat) clearInterval(session.heartbeat);
     if (session.chunkTimer) clearInterval(session.chunkTimer);
     if (session.useCache && session.pcmBuffer.length && !session.playbackPaused) {

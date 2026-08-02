@@ -1,7 +1,8 @@
 import * as scoring from "./scoring";
 import { isEssentialWord } from "./priority-words";
 import { ENGLISH_ESSENTIALS } from "./english-essentials";
-import { fetchWordPick } from "./word-picker-client";
+import { requestWordPick } from "./word-picker-client";
+import { reportLimitReached } from "./agent-panel";
 import { peekAnimeContext } from "./anime-context-client";
 import { normalizeDirection } from "./direction";
 import type { DictEntry, Settings, Target, Token, VocabMap } from "../types";
@@ -50,7 +51,7 @@ export async function pickTargetSmart(
         : isEssentialWord(token.base),
   }));
 
-  const ai = await fetchWordPick({
+  const ai = await requestWordPick({
     line,
     candidates,
     learnerLevel: settings.targetLevel,
@@ -63,6 +64,13 @@ export async function pickTargetSmart(
   if (ai.ok && ai.word) {
     const match = newWords.find((t) => t.token.base === ai.word || t.token.surface === ai.word);
     if (match) return match;
+  }
+
+  // Falling back to the heuristic is fine for a network blip, but when the
+  // reason is an exhausted quota the learner deserves to know why their word
+  // choices got worse — this used to be a pure silent downgrade.
+  if (!ai.ok && ai.error === "auto_quota_exhausted") {
+    void reportLimitReached("auto");
   }
 
   return scoring.pickTargetHeuristic(newWords, wordStates, settings);

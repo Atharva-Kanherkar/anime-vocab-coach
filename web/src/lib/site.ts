@@ -36,8 +36,15 @@ export interface PricingTier {
   name: string;
   priceLabel: string;
   yearlyLabel?: string;
-  /** Monthly AI-call cap (coach + chat + pick-word share this pool). */
+  /** Monthly cap on AI the learner *asks* for: explain, memory hooks, chat,
+   * notebook summaries. This is the number the pricing page advertises, so
+   * nothing the learner didn't request may be charged against it. */
   aiCallsPerMonth: number;
+  /** Separate monthly cap for AI the extension fires on its own — smart word
+   * picking and pronunciation audio. These are cheap, heavily cached, and
+   * invisible; metering them against `aiCallsPerMonth` meant a learner could
+   * burn the whole advertised allowance without ever opening the coach. */
+  autoCallsPerMonth: number;
   /** Monthly Listening-Mode minutes. */
   listeningMinutes: number;
   blurb: string;
@@ -53,13 +60,14 @@ export const TIERS: Record<PlanId, PricingTier> = {
     id: "free",
     name: "Free",
     priceLabel: "$0",
-    aiCallsPerMonth: 40,
-    listeningMinutes: 480, // 8h
+    aiCallsPerMonth: 300,
+    autoCallsPerMonth: 1200,
+    listeningMinutes: 600, // 10h
     blurb: "The whole game, on the house.",
     perks: [
       "Full extension: capture, SRS reviews, cards & manga",
-      "8 hours of Listening Mode / month",
-      "40 AI coach + chat messages / month",
+      "10 hours of Listening Mode / month",
+      "300 AI coach + chat messages / month",
       "Cloud sync & backup",
     ],
     checkoutUrl: "", // free — no checkout
@@ -69,10 +77,11 @@ export const TIERS: Record<PlanId, PricingTier> = {
     name: "Pro",
     priceLabel: "$8/mo",
     yearlyLabel: "$59/year",
-    aiCallsPerMonth: 150,
+    aiCallsPerMonth: 2500,
+    autoCallsPerMonth: 8000,
     listeningMinutes: 1200, // 20h
     blurb: "For the nightly binge-learner.",
-    perks: ["20 hours of Listening Mode / month", "150 AI messages / month", "Everything in Free"],
+    perks: ["20 hours of Listening Mode / month", "2,500 AI messages / month", "Everything in Free"],
     checkoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6UgznpQBcuqEgqQvh",
     yearlyCheckoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC7U0M47YSNH1im6hK1",
   },
@@ -81,10 +90,11 @@ export const TIERS: Record<PlanId, PricingTier> = {
     name: "Max",
     priceLabel: "$16/mo",
     yearlyLabel: "$119/year",
-    aiCallsPerMonth: 600,
+    aiCallsPerMonth: 6000,
+    autoCallsPerMonth: 15000,
     listeningMinutes: 3600, // 60h
     blurb: "For the marathoner. Effectively unlimited.",
-    perks: ["60 hours of Listening Mode / month", "600 AI messages / month", "Priority on new card styles"],
+    perks: ["60 hours of Listening Mode / month", "6,000 AI messages / month", "Priority on new card styles"],
     checkoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6keUai2ij7peo7bOr",
     yearlyCheckoutUrl: "https://checkout.dodopayments.com/buy/pdt_0NjC6vrfhe4ejCgC8mOXH",
   },

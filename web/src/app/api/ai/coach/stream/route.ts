@@ -6,13 +6,7 @@ import {
   streamChatCoach,
   type Tier,
 } from "@/lib/ai-coach";
-import {
-  currentMonth,
-  getCoachConfig,
-  getOpenAiKey,
-  getUsage,
-  incrementUsage,
-} from "@/lib/ai-store";
+import { currentMonth, getCoachConfig, getOpenAiKey, reserveUsage } from "@/lib/ai-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -51,9 +45,19 @@ export async function POST(req: Request) {
   const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
 
-  const used = await getUsage(user.id, month);
-  if (used >= limit) {
-    return new Response(JSON.stringify({ error: "ai_quota_exhausted" }), { status: 429 });
+  // Reserve up front, same as the non-streaming route, and give the call back
+  // if the stream produces nothing.
+  const reservation = await reserveUsage(user.id, month, "ai", limit);
+  if (!reservation.ok) {
+    // Same shape as the non-streaming coach route: the client shouldn't have to
+    // special-case which endpoint refused it to know where the learner stands.
+    return new Response(
+      JSON.stringify({
+        error: "ai_quota_exhausted",
+        usage: { used: reservation.used, limit, plan: tier },
+      }),
+      { status: 429, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   const encoder = new TextEncoder();
@@ -62,23 +66,21 @@ export async function POST(req: Request) {
       const send = (obj: Record<string, unknown>) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
       };
+      let streamed = false;
       try {
         let full = "";
         for await (const delta of streamChatCoach(apiKey, model, coachReq)) {
           full += delta;
+          if (delta) streamed = true;
           send({ delta });
         }
         if (!full.trim()) throw new Error("openai_empty");
-        // Usage metering must not fail the reply. KV put limits (or transient
-        // write errors) used to stream a good answer then emit {error}, and the
-        // extension replaced the bubble with "AI unavailable. Try again."
-        try {
-          await incrementUsage(user.id, month);
-        } catch (meterErr) {
-          console.warn("[ai/coach/stream] usage meter write failed", meterErr);
-        }
         send({ done: true });
       } catch (err) {
+        // Nothing usable came back, so the learner shouldn't be charged. If
+        // tokens DID stream before the failure the call really happened, so the
+        // reservation stands — the client keeps the partial answer either way.
+        if (!streamed) await reservation.refund();
         const detail = err instanceof Error ? err.message : "ai_failed";
         send({ error: detail });
       } finally {

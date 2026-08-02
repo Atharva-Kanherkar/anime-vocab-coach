@@ -104,12 +104,37 @@ export default {
         });
       }
 
+      // Read-only listening meter. The extension needs this to show a "how much
+      // is left" bar before the cap is hit — /v1/session only answers when a
+      // listening session is actually starting, and the heartbeat only answers
+      // mid-session, so there was no way to ask ahead of time.
+      if (path === "/v1/usage" && req.method === "GET") {
+        const auth = await requireAuth(env.AVC_KV, req, json);
+        if (!auth.ok) return auth.response;
+
+        const plan = effectivePlanFromProfile(auth.profile);
+        const cap = capMinutesForPlan(env, plan);
+        const used = await getUsage(env, auth.userId);
+        return json(req, {
+          plan,
+          usedMinutes: Math.floor(used),
+          capMinutes: cap,
+          leftMinutes: Math.max(0, Math.floor(cap - used)),
+          overCap: used >= cap
+        });
+      }
+
       if (path === "/v1/usage/heartbeat" && req.method === "POST") {
         const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
 
         const body = (await req.json().catch(() => ({}))) as { minutes?: number };
-        const minutes = Math.max(0, Math.min(10, Math.round(Number(body.minutes) || 0)));
+        // Fractional minutes are accepted (usage is stored as a float): the
+        // client measures real unpaused playback, and rounding here threw away
+        // every partial minute — or rounded a 31-second stretch up to a whole
+        // one. Still clamped to [0, 10] per report so a bad client can't
+        // charge an arbitrary amount in one call.
+        const minutes = Math.max(0, Math.min(10, Number(body.minutes) || 0));
         const cap = capMinutesForPlan(env, effectivePlanFromProfile(auth.profile));
         let used: number;
         try {

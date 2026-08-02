@@ -9,9 +9,13 @@ export {
   dismissAgent,
   isAgentActive,
   isOpen,
+  reportLimitReached,
+  showLimitSheet,
+  dismissLimitSheet,
   type AgentPanelOptions,
   type CardOptions,
   type InteractionMode,
+  type LimitKind,
 } from "./agent-panel";
 
 export { dismissAgent as dismissCopilot, isAgentActive as isCopilotActive } from "./agent-panel";

@@ -37,6 +37,33 @@ function sessionKey(req: WordPickRequest): string {
   return `${req.direction || "en-ja"}:${req.learnerLevel}:${req.line}:${bases}`;
 }
 
+/**
+ * Content-side entry. A content script's fetch is bound by the *page's* CORS,
+ * and the web API sends no Access-Control-Allow-Origin, so calling
+ * fetchWordPick() from a YouTube/Netflix tab always failed its preflight and
+ * fell through to the offline heuristic — silently, because the caller treats
+ * any error as "just use the heuristic". Route it through the background
+ * worker, which fetches with the extension origin + host permission.
+ * (Mirrors requestAnimeContext in anime-context-client.ts.)
+ */
+export async function requestWordPick(req: WordPickRequest): Promise<WordPickResponse> {
+  const key = sessionKey(req);
+  const hit = sessionCache.get(key);
+  if (hit) return { ok: true, word: hit, cached: true };
+  try {
+    const res = (await chrome.runtime.sendMessage({
+      type: "avc-pick-word",
+      payload: req,
+    })) as WordPickResponse | undefined;
+    if (!res) return { ok: false, error: "no_response" };
+    if (res.ok && res.word) sessionCache.set(key, res.word);
+    return res;
+  } catch {
+    return { ok: false, error: "network" };
+  }
+}
+
+/** Background-side: the real network call. */
 export async function fetchWordPick(req: WordPickRequest): Promise<WordPickResponse> {
   const key = sessionKey(req);
   const hit = sessionCache.get(key);

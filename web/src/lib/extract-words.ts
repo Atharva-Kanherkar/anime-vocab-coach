@@ -1,5 +1,5 @@
 import { DEFAULT_COACH_MODEL } from "./ai-coach";
-import { getOpenAiKey, putCachedResult, incrementUsage, currentMonth } from "./ai-store";
+import { putCachedResult } from "./ai-store";
 import {
   explainLangName,
   normalizeDirection,
@@ -139,11 +139,12 @@ export async function runExtractWords(
   return { words };
 }
 
+/** Quota is reserved by the caller BEFORE this runs (see the route), so the
+ * provider is never called on an unreserved slot. */
 export async function extractWordsCached(
   apiKey: string,
   model: string,
-  req: ExtractWordsRequest,
-  userId: string
+  req: ExtractWordsRequest
 ): Promise<{ result: ExtractWordsResult }> {
   const result = await runExtractWords(apiKey, model, req);
   try {
@@ -151,11 +152,6 @@ export async function extractWordsCached(
     await putCachedResult(cacheKey, result);
   } catch (err) {
     console.warn("[extract-words] cache write failed", err);
-  }
-  try {
-    await incrementUsage(userId, currentMonth());
-  } catch (err) {
-    console.warn("[extract-words] usage meter write failed", err);
   }
   return { result };
 }

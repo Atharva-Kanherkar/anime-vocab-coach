@@ -39,17 +39,21 @@ export function numberVar(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+// Defaults mirror TIERS in web/src/lib/site.ts. They only apply when a var is
+// missing or malformed, but a stale default silently reinstates the old, much
+// smaller caps — so they move together with the wrangler [vars].
+
 /** Monthly listening-minute cap for a plan. CAP_MINUTES is the free-tier
  * default (kept for back-compat); pro/max read their own vars. */
 export function capMinutesForPlan(env: Env, plan: Plan): number {
   if (plan === "pro") return numberVar(env.PRO_CAP_MINUTES, 1200);
   if (plan === "max") return numberVar(env.MAX_CAP_MINUTES, 3600);
-  return numberVar(env.CAP_MINUTES, 480);
+  return numberVar(env.CAP_MINUTES, 600);
 }
 
-/** Monthly AI-call cap for a plan. */
+/** Monthly cap on AI the learner asks for (the advertised allowance). */
 export function aiCallsForPlan(env: Env, plan: Plan): number {
-  if (plan === "pro") return numberVar(env.PRO_AI_CALLS_PER_MONTH, 150);
-  if (plan === "max") return numberVar(env.MAX_AI_CALLS_PER_MONTH, 600);
-  return numberVar(env.FREE_AI_CALLS_PER_MONTH, 40);
+  if (plan === "pro") return numberVar(env.PRO_AI_CALLS_PER_MONTH, 2500);
+  if (plan === "max") return numberVar(env.MAX_AI_CALLS_PER_MONTH, 6000);
+  return numberVar(env.FREE_AI_CALLS_PER_MONTH, 300);
 }

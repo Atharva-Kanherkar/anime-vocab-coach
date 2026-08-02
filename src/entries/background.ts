@@ -3,8 +3,10 @@ import { BACKEND_URL } from "../config";
 import { syncWithCloud } from "../lib/cloud-sync";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
+import { fetchExtractWords, type ExtractWordsRequest } from "../lib/extract-words-client";
 import { fetchAnimeContext } from "../lib/anime-context-client";
 import { fetchTtsAudio } from "../lib/tts-client";
+import { fetchUsage } from "../lib/usage-client";
 import { getSyncToken } from "../lib/storage";
 import { toastTab } from "../lib/notify";
 import type { Settings } from "../types";
@@ -283,7 +285,9 @@ interface RuntimeMsg {
   mode?: "explain" | "hooks";
   message?: string;
   history?: ChatMessage[];
-  payload?: CoachPayload | WordPickRequest;
+  payload?: CoachPayload | WordPickRequest | ExtractWordsRequest;
+  url?: string;
+  kind?: string;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
@@ -344,6 +348,13 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     return true;
   }
 
+  if (msg.type === "avc-extract-words") {
+    fetchExtractWords(msg.payload as ExtractWordsRequest)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
   // Anime context + cloud TTS also can't be called cross-origin from a content
   // script (no CORS on the web API), so the content side routes them here.
   if (msg.type === "avc-anime-context") {
@@ -355,12 +366,39 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
 
   if (msg.type === "avc-tts") {
     fetchTtsAudio(msg.text || "")
-      .then((audio) =>
-        audio
-          ? sendResponse({ ok: true, b64: audio.b64, mime: audio.mime })
-          : sendResponse({ ok: false, error: "not_linked" })
+      .then((audio) => {
+        if (audio && audio.b64) {
+          sendResponse({ ok: true, b64: audio.b64, mime: audio.mime });
+          return;
+        }
+        // Pass the reason through: the caller falls back to the browser voice
+        // either way, but a quota rejection is worth reporting to the learner.
+        const reason = (audio && "error" in audio && audio.error) || "not_linked";
+        if (reason === "auto_quota_exhausted" && sender.tab?.id != null) {
+          chrome.tabs
+            .sendMessage(sender.tab.id, { type: "avc-limit-reached", kind: "auto" })
+            .catch(() => {});
+        }
+        sendResponse({ ok: false, error: reason });
+      })
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
+  if (msg.type === "avc-usage") {
+    fetchUsage()
+      .then((usage) =>
+        usage ? sendResponse({ ok: true, usage }) : sendResponse({ ok: false, error: "not_linked" })
       )
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
+  if (msg.type === "avc-open-url" && typeof msg.url === "string") {
+    // Checkout must open in a real tab: the copilot lives inside the video
+    // page, where an in-place navigation would throw away what they're watching.
+    chrome.tabs.create({ url: msg.url }).catch(() => {});
+    sendResponse({ ok: true });
     return true;
   }
 
@@ -441,7 +479,17 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
         chrome.action.setBadgeBackgroundColor({ tabId: msg.tabId, color: "#f87171" });
         // Surface it on the page too — the toolbar badge is invisible while the
         // user is watching (often fullscreen), so failures felt like silent deaths.
-        if (msg.tabId != null) toastTab(msg.tabId, listenErrorText(msg.code || ""), "error");
+        if (msg.tabId != null) {
+          if (msg.code === "quota-exceeded") {
+            // Running out of hours isn't an error to shrug off in a 6s toast —
+            // it needs to say what stopped and what the way out is.
+            chrome.tabs
+              .sendMessage(msg.tabId, { type: "avc-limit-reached", kind: "listening" })
+              .catch(() => toastTab(msg.tabId!, listenErrorText("quota-exceeded"), "error"));
+          } else {
+            toastTab(msg.tabId, listenErrorText(msg.code || ""), "error");
+          }
+        }
       }
       console.warn("[AVC] listening error:", msg.code, msg.detail || "");
     });

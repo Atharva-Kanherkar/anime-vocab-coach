@@ -31,14 +31,17 @@ enabled = true
 head_sampling_rate = 1
 
 [vars]
-# Per-tier monthly listening caps. CAP_MINUTES is the free-tier default (8h);
+# Per-tier monthly listening caps. CAP_MINUTES is the free-tier default (10h);
 # the caller's plan (from the sync-token profile) selects the cap in plan.ts.
-CAP_MINUTES = "480"
+CAP_MINUTES = "600"
 PRO_CAP_MINUTES = "1200"
 MAX_CAP_MINUTES = "3600"
-FREE_AI_CALLS_PER_MONTH = "40"
-PRO_AI_CALLS_PER_MONTH = "150"
-MAX_AI_CALLS_PER_MONTH = "600"
+# Advertised AI-message caps (see TIERS in web/src/lib/site.ts). Enforcement for
+# these lives in the web Worker; the backend reads them only for /v1/usage and
+# the economics snapshot, so all three configs must agree.
+FREE_AI_CALLS_PER_MONTH = "300"
+PRO_AI_CALLS_PER_MONTH = "2500"
+MAX_AI_CALLS_PER_MONTH = "6000"
 AI_COST_USD_PER_CALL = "0.002"
 PAYMENT_FEE_RATE = "0.05"
 PAYMENT_FIXED_FEE_USD = "0.30"

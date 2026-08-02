@@ -24,14 +24,23 @@ async function playBlob(blob: Blob): Promise<void> {
   await audio.play();
 }
 
-async function fetchCloudTts(text: string, token: string): Promise<Blob | null> {
+/** Distinguishes "out of quota" from any other failure. Both fall back to the
+ * browser voice, but only the first is worth telling the learner about. */
+async function fetchCloudTts(
+  text: string,
+  token: string
+): Promise<{ blob: Blob | null; error?: string }> {
   const res = await fetch(WEB_URL + "/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
     body: JSON.stringify({ text }),
   });
-  if (!res.ok) return null;
-  return res.blob();
+  if (res.status === 429) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    return { blob: null, error: data.error || "auto_quota_exhausted" };
+  }
+  if (!res.ok) return { blob: null, error: `http_${res.status}` };
+  return { blob: await res.blob() };
 }
 
 async function fetchByoTts(text: string, key: string): Promise<Blob | null> {
@@ -61,7 +70,9 @@ async function blobToBase64(blob: Blob): Promise<string> {
 // Background-side: perform the actual TTS fetch (BYO key first, else cloud) and
 // return base64 audio. Content scripts can't reach these APIs cross-origin, so
 // this runs in the background service worker; playback stays in the page.
-export async function fetchTtsAudio(text: string): Promise<{ b64: string; mime: string } | null> {
+export async function fetchTtsAudio(
+  text: string
+): Promise<{ b64: string; mime: string } | { b64?: undefined; error: string } | null> {
   const trimmed = (text || "").trim();
   if (!trimmed) return null;
 
@@ -73,8 +84,9 @@ export async function fetchTtsAudio(text: string): Promise<{ b64: string; mime: 
 
   const token = await getSyncToken();
   if (token) {
-    const blob = await fetchCloudTts(trimmed, token);
+    const { blob, error } = await fetchCloudTts(trimmed, token);
     if (blob) return { b64: await blobToBase64(blob), mime: blob.type || "audio/mpeg" };
+    if (error) return { error };
   }
 
   return null;

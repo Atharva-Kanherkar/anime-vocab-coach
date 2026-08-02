@@ -299,12 +299,45 @@
     }
   }
 
-  // src/lib/anime-context-client.ts
+  // src/lib/extract-words-client.ts
   var sessionCache2 = /* @__PURE__ */ new Map();
+  function sessionKey2(line, direction, level) {
+    return `${direction}:${level}:${line}`;
+  }
+  async function fetchExtractWords(opts) {
+    const key = sessionKey2(opts.line, opts.direction, opts.learnerLevel);
+    const hit = sessionCache2.get(key);
+    if (hit) return { ok: true, words: hit, cached: true };
+    const token = await getSyncToken();
+    if (!token) return { ok: false, error: "not_linked" };
+    try {
+      const res = await fetch(WEB_URL + "/api/ai/extract-words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({
+          line: opts.line,
+          direction: opts.direction,
+          learnerLevel: opts.learnerLevel,
+          title: opts.title || void 0
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
+      const words = data.result?.words;
+      if (!words?.length) return { ok: false, error: "empty_extract" };
+      sessionCache2.set(key, words);
+      return { ok: true, words, cached: data.cached };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
+
+  // src/lib/anime-context-client.ts
+  var sessionCache3 = /* @__PURE__ */ new Map();
   async function fetchAnimeContext(title) {
     const clean = (title || "").trim();
     if (!clean) return null;
-    const cached = sessionCache2.get(clean.toLowerCase());
+    const cached = sessionCache3.get(clean.toLowerCase());
     if (cached) return cached;
     const token = await getSyncToken();
     if (!token) return null;
@@ -316,7 +349,7 @@
       if (!res.ok) return null;
       const data = await res.json();
       const ctx = (data.context || "").trim();
-      if (ctx) sessionCache2.set(clean.toLowerCase(), ctx);
+      if (ctx) sessionCache3.set(clean.toLowerCase(), ctx);
       return ctx || null;
     } catch {
       return null;
@@ -330,8 +363,12 @@
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
       body: JSON.stringify({ text })
     });
-    if (!res.ok) return null;
-    return res.blob();
+    if (res.status === 429) {
+      const data = await res.json().catch(() => ({}));
+      return { blob: null, error: data.error || "auto_quota_exhausted" };
+    }
+    if (!res.ok) return { blob: null, error: `http_${res.status}` };
+    return { blob: await res.blob() };
   }
   async function fetchByoTts(text, key) {
     const res = await fetch("https://api.openai.com/v1/audio/speech", {
@@ -358,10 +395,45 @@
     }
     const token = await getSyncToken();
     if (token) {
-      const blob = await fetchCloudTts(trimmed, token);
+      const { blob, error } = await fetchCloudTts(trimmed, token);
       if (blob) return { b64: await blobToBase64(blob), mime: blob.type || "audio/mpeg" };
+      if (error) return { error };
     }
     return null;
+  }
+
+  // src/lib/usage-client.ts
+  function meter(used, limit) {
+    const u = Number(used);
+    const l = Number(limit);
+    if (!Number.isFinite(u) || !Number.isFinite(l)) return null;
+    const usedN = Math.max(0, Math.floor(u));
+    const limitN = Math.max(0, Math.floor(l));
+    return { used: usedN, limit: limitN, left: Math.max(0, limitN - usedN) };
+  }
+  async function fetchUsage() {
+    const token = await getSyncToken();
+    if (!token) return null;
+    const headers = { Authorization: "Bearer " + token };
+    const [aiRes, listenRes] = await Promise.allSettled([
+      fetch(WEB_URL + "/api/me/usage", { headers }).then((r) => r.ok ? r.json() : null),
+      fetch(BACKEND_URL + "/v1/usage", { headers }).then((r) => r.ok ? r.json() : null)
+    ]);
+    const aiData = aiRes.status === "fulfilled" ? aiRes.value : null;
+    const listenData = listenRes.status === "fulfilled" ? listenRes.value : null;
+    if (!aiData && !listenData) return null;
+    const raw = aiData || {};
+    const listen = listenData || {};
+    return {
+      plan: raw.plan || listen.plan || "free",
+      unlimited: !!raw.unlimited,
+      // Each half is independent: the AI endpoint can fail while the listening
+      // one answers (and vice versa). Whatever is missing stays null.
+      ai: aiData ? meter(raw.ai?.used, raw.ai?.limit) : null,
+      auto: aiData ? meter(raw.auto?.used, raw.auto?.limit) : null,
+      listening: listenData ? meter(listen.usedMinutes, listen.capMinutes) : null,
+      tiers: raw.tiers || null
+    };
   }
 
   // src/entries/background.ts
@@ -618,14 +690,39 @@
       fetchWordPick(msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
     }
+    if (msg.type === "avc-extract-words") {
+      fetchExtractWords(msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
     if (msg.type === "avc-anime-context") {
       fetchAnimeContext(msg.title || null).then((context) => sendResponse({ ok: true, context: context || "" })).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
     }
     if (msg.type === "avc-tts") {
-      fetchTtsAudio(msg.text || "").then(
-        (audio) => audio ? sendResponse({ ok: true, b64: audio.b64, mime: audio.mime }) : sendResponse({ ok: false, error: "not_linked" })
+      fetchTtsAudio(msg.text || "").then((audio) => {
+        if (audio && audio.b64) {
+          sendResponse({ ok: true, b64: audio.b64, mime: audio.mime });
+          return;
+        }
+        const reason = audio && "error" in audio && audio.error || "not_linked";
+        if (reason === "auto_quota_exhausted" && sender.tab?.id != null) {
+          chrome.tabs.sendMessage(sender.tab.id, { type: "avc-limit-reached", kind: "auto" }).catch(() => {
+          });
+        }
+        sendResponse({ ok: false, error: reason });
+      }).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
+    if (msg.type === "avc-usage") {
+      fetchUsage().then(
+        (usage) => usage ? sendResponse({ ok: true, usage }) : sendResponse({ ok: false, error: "not_linked" })
       ).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
+    if (msg.type === "avc-open-url" && typeof msg.url === "string") {
+      chrome.tabs.create({ url: msg.url }).catch(() => {
+      });
+      sendResponse({ ok: true });
       return true;
     }
     if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status") {
@@ -691,7 +788,13 @@
           await setListening(tabs);
           chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });
           chrome.action.setBadgeBackgroundColor({ tabId: msg.tabId, color: "#f87171" });
-          if (msg.tabId != null) toastTab(msg.tabId, listenErrorText(msg.code || ""), "error");
+          if (msg.tabId != null) {
+            if (msg.code === "quota-exceeded") {
+              chrome.tabs.sendMessage(msg.tabId, { type: "avc-limit-reached", kind: "listening" }).catch(() => toastTab(msg.tabId, listenErrorText("quota-exceeded"), "error"));
+            } else {
+              toastTab(msg.tabId, listenErrorText(msg.code || ""), "error");
+            }
+          }
         }
         console.warn("[AVC] listening error:", msg.code, msg.detail || "");
       });

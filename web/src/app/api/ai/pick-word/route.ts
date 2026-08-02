@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { resolveProfile, resolvePlan } from "@/lib/auth";
-import { isOwnerEmail, OWNER_AI_LIMIT } from "@/lib/entitlements";
-import { aiLimitForPlan, type Tier } from "@/lib/ai-coach";
-import { getCoachConfig, getOpenAiKey, getUsage, currentMonth, getCachedResult } from "@/lib/ai-store";
+import { isOwnerEmail } from "@/lib/entitlements";
+import { type Tier } from "@/lib/ai-coach";
+import {
+  getCoachConfig,
+  getOpenAiKey,
+  getUsage,
+  currentMonth,
+  getCachedResult,
+  quotaFor,
+  reserveUsage,
+} from "@/lib/ai-store";
 import { normalizeWordPickRequest, pickWordCached, wordPickCacheKey } from "@/lib/word-picker";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +39,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
   }
 
-  const { model, freeLimit, proLimit, maxLimit } = await getCoachConfig();
+  // Metered on the "auto" bucket: the extension fires this per subtitle line
+  // without the learner asking, so it must not spend the advertised allowance.
+  const { model } = await getCoachConfig();
   const tier: Tier = user.plan;
-  const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit, maxLimit);
+  const limit = await quotaFor(user.plan, "auto", owner);
   const month = currentMonth();
 
   const cacheKey = await wordPickCacheKey(pickReq);
@@ -41,32 +51,35 @@ export async function POST(req: Request) {
   if (cached && typeof cached === "object" && cached !== null && "word" in cached) {
     const w = (cached as { word: string }).word;
     if (pickReq.candidates.some((c) => c.word === w)) {
-      const used = await getUsage(user.id, month);
+      const used = await getUsage(user.id, month, "auto");
       return NextResponse.json({
         result: { word: w },
         cached: true,
-        usage: { used, limit, plan: tier },
+        usage: { used, limit, plan: tier, bucket: "auto" },
       });
     }
   }
 
-  const used = await getUsage(user.id, month);
-  if (used >= limit) {
+  const reservation = await reserveUsage(user.id, month, "auto", limit);
+  if (!reservation.ok) {
     return NextResponse.json(
-      { error: "ai_quota_exhausted", usage: { used, limit, plan: tier } },
+      {
+        error: "auto_quota_exhausted",
+        usage: { used: reservation.used, limit, plan: tier, bucket: "auto" },
+      },
       { status: 429 }
     );
   }
 
   try {
-    const { result } = await pickWordCached(apiKey, model, pickReq, user.id);
-    const newUsed = await getUsage(user.id, month);
+    const { result } = await pickWordCached(apiKey, model, pickReq);
     return NextResponse.json({
       result,
       cached: false,
-      usage: { used: newUsed, limit, plan: tier },
+      usage: { used: reservation.used, limit, plan: tier, bucket: "auto" },
     });
   } catch (err) {
+    await reservation.refund();
     const detail = err instanceof Error ? err.message : "pick_failed";
     return NextResponse.json({ error: detail }, { status: 502 });
   }

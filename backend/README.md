@@ -9,8 +9,14 @@ Pro ($8/mo), and Max ($16/mo) tiers. It does three small jobs:
    the Worker enforces per-tier caps without calling Clerk per request. Billing
    itself (Dodo → Clerk metadata) is handled in the web app, not here.
 2. **Metering** — counts listening minutes per user per calendar month in
-   Workers KV and enforces the per-tier cap (`CAP_MINUTES` free = 480/8 h,
+   Workers KV and enforces the per-tier cap (`CAP_MINUTES` free = 600/10 h,
    `PRO_CAP_MINUTES` = 1200/20 h, `MAX_CAP_MINUTES` = 3600/60 h; see `plan.ts`).
+   A session is billed by exactly one path: the shared-cache path charges the
+   real audio duration of each chunk it transcribes, while the realtime path —
+   where audio goes straight to OpenAI and never reaches this Worker — reports
+   measured unpaused playback to `POST /v1/usage/heartbeat` (fractional minutes
+   accepted, clamped to 10 per report). Running both double-charged the same
+   playback. `GET /v1/usage` returns the current listening balance.
 3. **Shared transcript cache** — users share a per-episode transcript cache.
    Cache hits return stored segments with no audio upload; cache misses are
    transcribed server-side once via Whisper and stored in Workers KV.

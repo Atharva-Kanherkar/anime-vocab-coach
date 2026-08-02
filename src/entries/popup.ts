@@ -126,6 +126,113 @@ async function renderAccount(): Promise<void> {
     `<div><b>Cloud sync on</b><span class="av-account-sub">Synced as ${esc(who)}</span></div></div>`;
 }
 
+// Monthly usage. Two meters, both fetched by the background worker (a popup
+// page could fetch these itself, but the worker already owns the token + both
+// base URLs). Silently stays hidden when signed out or offline — the account
+// section above already explains a signed-out state.
+function meterMarkup(label: string, used: number, limit: number, unit: "calls" | "minutes"): string {
+  if (!limit) return "";
+  const pct = Math.min(100, Math.round((used / limit) * 100));
+  const cls = pct >= 100 ? "av-meter-fill av-meter-full" : pct >= 85 ? "av-meter-fill av-meter-low" : "av-meter-fill";
+  const fmt = (n: number) =>
+    unit === "minutes"
+      ? `${Number.isInteger(n / 60) ? n / 60 : (n / 60).toFixed(1)}h`
+      : n.toLocaleString();
+  return (
+    `<div class="av-meter">` +
+    `<div class="av-meter-row"><span>${esc(label)}</span>` +
+    `<span class="av-meter-val">${esc(fmt(Math.min(used, limit)))} / ${esc(fmt(limit))}</span></div>` +
+    `<div class="av-meter-track"><div class="${cls}" style="width:${pct}%"></div></div>` +
+    `</div>`
+  );
+}
+
+/** Mirrors UsageSnapshot in lib/usage-client. Every meter is nullable: the two
+ * halves come from different Workers and either can be missing. */
+interface PopupMeter {
+  used: number;
+  limit: number;
+}
+
+interface PopupUsage {
+  plan: "free" | "pro" | "max";
+  unlimited?: boolean;
+  ai: PopupMeter | null;
+  auto: PopupMeter | null;
+  listening: PopupMeter | null;
+  tiers: {
+    pro: { name: string; priceLabel: string; checkoutUrl: string | null };
+    max: { name: string; priceLabel: string; checkoutUrl: string | null };
+  } | null;
+}
+
+/** True once a meter is 80% spent. Unknown meters never trigger an upsell. */
+function meterLow(m: PopupMeter | null | undefined): boolean {
+  return !!m && m.limit > 0 && m.used / m.limit >= 0.8;
+}
+
+async function renderUsage(): Promise<void> {
+  const el = byId("usage");
+  const token = await storage.getSyncToken();
+  if (!token) {
+    el.hidden = true;
+    return;
+  }
+
+  let usage: PopupUsage | null = null;
+  try {
+    const res = (await chrome.runtime.sendMessage({ type: "avc-usage" })) as
+      | { ok?: boolean; usage?: PopupUsage }
+      | undefined;
+    if (res?.ok && res.usage) usage = res.usage;
+  } catch {
+    /* worker asleep — leave the section hidden rather than show a broken box */
+  }
+  if (!usage) {
+    el.hidden = true;
+    return;
+  }
+
+  const planName = usage.plan === "max" ? "Max" : usage.plan === "pro" ? "Pro" : "Free";
+  const bars = usage.unlimited
+    ? ""
+    : (usage.ai ? meterMarkup("AI messages", usage.ai.used, usage.ai.limit, "calls") : "") +
+      (usage.listening
+        ? meterMarkup("Listening Mode", usage.listening.used, usage.listening.limit, "minutes")
+        : "");
+
+  // A meter we couldn't fetch is unknown, not empty — say so instead of drawing
+  // a bar that looks like real data.
+  const meters = usage.unlimited
+    ? `<p class="av-usage-note">No caps on this account.</p>`
+    : bars || `<p class="av-usage-note">Usage is unavailable right now.</p>`;
+
+  // Only offer a real step up, and only once something is actually running low —
+  // a permanent upsell in the popup is noise.
+  const aiLow = !usage.unlimited && meterLow(usage.ai);
+  const listenLow = !usage.unlimited && meterLow(usage.listening);
+  const offer =
+    usage.plan === "free" ? usage.tiers?.pro : usage.plan === "pro" ? usage.tiers?.max : null;
+  const cta =
+    (aiLow || listenLow) && offer?.checkoutUrl
+      ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">` +
+        `Upgrade to ${esc(offer.name)} — ${esc(offer.priceLabel)}</button>`
+      : "";
+
+  el.innerHTML =
+    `<div class="av-usage-head"><span class="av-usage-title">This month</span>` +
+    `<span class="av-usage-plan">${esc(planName)}</span></div>` +
+    meters +
+    cta;
+  el.hidden = false;
+
+  if (cta && offer?.checkoutUrl) {
+    byId("usage-upgrade").addEventListener("click", () => {
+      chrome.tabs.create({ url: offer.checkoutUrl as string });
+    });
+  }
+}
+
 async function render(): Promise<void> {
   const vocab = await storage.getVocab();
   const stats = await storage.getStats();
@@ -191,12 +298,16 @@ document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   void render();
   void renderAccount();
+  void renderUsage();
   void initCopilotToggle();
 
   // If the user signs in on animevocab.com while this popup is open, the
   // token lands in storage — flip the account section live.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded)) void renderAccount();
+    if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded)) {
+      void renderAccount();
+      void renderUsage();
+    }
   });
 
   byId("cloud-link").addEventListener("click", (e) => {

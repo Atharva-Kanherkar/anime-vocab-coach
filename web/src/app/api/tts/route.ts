@@ -1,7 +1,6 @@
 import { resolveProfile, resolvePlan } from "@/lib/auth";
-import { isOwnerEmail, OWNER_AI_LIMIT } from "@/lib/entitlements";
-import { aiLimitForPlan } from "@/lib/ai-coach";
-import { currentMonth, getCoachConfig, getUsage, incrementUsage } from "@/lib/ai-store";
+import { isOwnerEmail } from "@/lib/entitlements";
+import { currentMonth, quotaFor, reserveUsage, type Reservation } from "@/lib/ai-store";
 import { runTts } from "@/lib/tts";
 
 export const dynamic = "force-dynamic";
@@ -20,29 +19,26 @@ export async function POST(req: Request) {
   const text = typeof (body as { text?: string }).text === "string" ? (body as { text: string }).text.trim() : "";
   if (!text) return new Response(JSON.stringify({ error: "missing_text" }), { status: 400 });
 
-  // Meter TTS against the same monthly AI-call bucket as the coach. Cache hits
+  // Meter TTS on the "auto" bucket, not the coach allowance: pronunciation
+  // plays automatically on every card (settings.autoSpeak defaults on), so
+  // charging it to the advertised AI messages drained them silently. Cache hits
   // don't spend (onBeforeSpend only runs on a miss); owners are unlimited.
   const owner = isOwnerEmail(profile.email);
-  const { freeLimit, proLimit, maxLimit } = await getCoachConfig();
-  const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(resolvePlan(profile), freeLimit, proLimit, maxLimit);
+  const limit = await quotaFor(resolvePlan(profile), "auto", owner);
   const month = currentMonth();
 
+  // Reserved lazily: `onBeforeSpend` runs only on a cache miss, so a cache hit
+  // still costs nothing. Claiming the slot there — rather than counting after
+  // the synthesis returned — means concurrent misses can't all slip past the
+  // cap on the same stale count.
+  let reservation: Reservation | null = null;
   try {
-    const { audio, cached } = await runTts(text, {
+    const { audio } = await runTts(text, {
       onBeforeSpend: async () => {
-        const used = await getUsage(profile.id, month);
-        if (used >= limit) throw new Error("ai_quota_exhausted");
+        reservation = await reserveUsage(profile.id, month, "auto", limit);
+        if (!reservation.ok) throw new Error("auto_quota_exhausted");
       },
     });
-    if (!cached) {
-      // Soft-fail the meter write: the audio already synthesized, so a KV
-      // put-limit rejection must not turn a delivered buffer into an error.
-      try {
-        await incrementUsage(profile.id, month);
-      } catch (meterErr) {
-        console.warn("[tts] usage meter write failed", meterErr);
-      }
-    }
     return new Response(audio, {
       headers: {
         "Content-Type": "audio/mpeg",
@@ -51,8 +47,13 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "tts_failed";
+    // Synthesis failed after the slot was claimed — give it back. (A refused
+    // reservation has a no-op refund, so this is safe either way.)
+    if (detail !== "auto_quota_exhausted") {
+      await (reservation as Reservation | null)?.refund();
+    }
     const status =
-      detail === "ai_not_configured" ? 503 : detail === "ai_quota_exhausted" ? 429 : 502;
+      detail === "ai_not_configured" ? 503 : detail === "auto_quota_exhausted" ? 429 : 502;
     return new Response(JSON.stringify({ error: detail }), { status });
   }
 }

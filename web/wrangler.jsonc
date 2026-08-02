@@ -35,9 +35,19 @@
   // gated by plan (free/pro/max) from Clerk publicMetadata — see resolvePlan.
   "vars": {
     "AI_COACH_MODEL": "gpt-4.1-nano",
-    "FREE_AI_CALLS_PER_MONTH": "40",
-    "PRO_AI_CALLS_PER_MONTH": "150",
-    "MAX_AI_CALLS_PER_MONTH": "600",
+    // Two meters. *_AI_CALLS_PER_MONTH is what the pricing page advertises and
+    // covers only AI the learner asks for (explain / hooks / chat / notebook
+    // summaries). *_AUTO_AI_CALLS_PER_MONTH covers what the extension fires by
+    // itself — smart word picking, per-line word extraction, pronunciation
+    // audio. Those used to share the advertised pool, so a learner could burn
+    // the whole allowance in an episode or two without opening the coach once.
+    // Keep these in sync with TIERS in web/src/lib/site.ts.
+    "FREE_AI_CALLS_PER_MONTH": "300",
+    "PRO_AI_CALLS_PER_MONTH": "2500",
+    "MAX_AI_CALLS_PER_MONTH": "6000",
+    "FREE_AUTO_AI_CALLS_PER_MONTH": "1200",
+    "PRO_AUTO_AI_CALLS_PER_MONTH": "8000",
+    "MAX_AUTO_AI_CALLS_PER_MONTH": "15000",
     // Dodo product ids per tier (monthly,yearly) — the billing webhook maps a
     // purchase's product_id to the plan it writes to Clerk. DODO_WEBHOOK_SECRET
     // is a secret (set in the Cloudflare dashboard), not here.

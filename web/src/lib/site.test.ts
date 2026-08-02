@@ -14,6 +14,38 @@ describe("checkoutFor", () => {
   });
 });
 
+describe("tier limits", () => {
+  const ORDER = ["free", "pro", "max"] as const;
+
+  it("every tier caps both meters", () => {
+    for (const id of ORDER) {
+      expect(TIERS[id].aiCallsPerMonth).toBeGreaterThan(0);
+      expect(TIERS[id].autoCallsPerMonth).toBeGreaterThan(0);
+      expect(TIERS[id].listeningMinutes).toBeGreaterThan(0);
+    }
+  });
+
+  it("never lets a paid tier offer less than a cheaper one", () => {
+    for (let i = 1; i < ORDER.length; i++) {
+      const lower = TIERS[ORDER[i - 1]];
+      const higher = TIERS[ORDER[i]];
+      expect(higher.aiCallsPerMonth).toBeGreaterThan(lower.aiCallsPerMonth);
+      expect(higher.autoCallsPerMonth).toBeGreaterThan(lower.autoCallsPerMonth);
+      expect(higher.listeningMinutes).toBeGreaterThanOrEqual(lower.listeningMinutes);
+    }
+  });
+
+  // Background calls (word picking, pronunciation) fire far more often than
+  // anything the learner asks for. If the auto bucket were the smaller of the
+  // two, it would run dry first and degrade the experience while the advertised
+  // allowance sat unused — the shape of the bug this split was meant to end.
+  it("gives automatic calls more headroom than asked-for ones", () => {
+    for (const id of ORDER) {
+      expect(TIERS[id].autoCallsPerMonth).toBeGreaterThan(TIERS[id].aiCallsPerMonth);
+    }
+  });
+});
+
 describe("checkoutWithContext", () => {
   it("prefills email and redirect_url", () => {
     const url = checkoutWithContext(TIERS.pro.checkoutUrl, {
