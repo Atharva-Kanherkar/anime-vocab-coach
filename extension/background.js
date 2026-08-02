@@ -404,9 +404,12 @@
 
   // src/lib/usage-client.ts
   function meter(used, limit) {
-    const u = Math.max(0, Math.floor(Number(used) || 0));
-    const l = Math.max(0, Math.floor(Number(limit) || 0));
-    return { used: u, limit: l, left: Math.max(0, l - u) };
+    const u = Number(used);
+    const l = Number(limit);
+    if (!Number.isFinite(u) || !Number.isFinite(l)) return null;
+    const usedN = Math.max(0, Math.floor(u));
+    const limitN = Math.max(0, Math.floor(l));
+    return { used: usedN, limit: limitN, left: Math.max(0, limitN - usedN) };
   }
   async function fetchUsage() {
     const token = await getSyncToken();
@@ -424,8 +427,10 @@
     return {
       plan: raw.plan || listen.plan || "free",
       unlimited: !!raw.unlimited,
-      ai: meter(raw.ai?.used, raw.ai?.limit),
-      auto: meter(raw.auto?.used, raw.auto?.limit),
+      // Each half is independent: the AI endpoint can fail while the listening
+      // one answers (and vice versa). Whatever is missing stays null.
+      ai: aiData ? meter(raw.ai?.used, raw.ai?.limit) : null,
+      auto: aiData ? meter(raw.auto?.used, raw.auto?.limit) : null,
       listening: listenData ? meter(listen.usedMinutes, listen.capMinutes) : null,
       tiers: raw.tiers || null
     };

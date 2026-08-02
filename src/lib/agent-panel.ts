@@ -1584,11 +1584,17 @@ export function showLimitSheet(kind: LimitKind, usage: UsageSnapshot | null): vo
   card.appendChild(body);
 
   if (usage) {
-    const meters: [string, Meter | null, "calls" | "minutes"][] = [
-      ["AI messages", usage.ai.limit > 0 ? usage.ai : null, "calls"],
-      ["Listening Mode", usage.listening, "minutes"],
-    ];
-    for (const [label, m, unit] of meters) {
+    // The meter that ran out comes first and is always shown — an "auto" sheet
+    // that listed only AI messages and Listening was reporting balances for two
+    // features that were still working, and none for the one that stopped.
+    const all: Record<LimitKind, [string, Meter | null, "calls" | "minutes"]> = {
+      ai: ["AI messages", usage.ai, "calls"],
+      auto: ["Word picking & audio", usage.auto, "calls"],
+      listening: ["Listening Mode", usage.listening, "minutes"],
+    };
+    const order: LimitKind[] = [kind, ...(["ai", "auto", "listening"] as LimitKind[]).filter((k) => k !== kind)];
+    for (const k of order) {
+      const [label, m, unit] = all[k];
       if (m && m.limit > 0) card.appendChild(buildMeter(label, m.used, m.limit, unit));
     }
   }

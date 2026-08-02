@@ -147,16 +147,28 @@ function meterMarkup(label: string, used: number, limit: number, unit: "calls" |
   );
 }
 
+/** Mirrors UsageSnapshot in lib/usage-client. Every meter is nullable: the two
+ * halves come from different Workers and either can be missing. */
+interface PopupMeter {
+  used: number;
+  limit: number;
+}
+
 interface PopupUsage {
   plan: "free" | "pro" | "max";
   unlimited?: boolean;
-  ai: { used: number; limit: number };
-  auto: { used: number; limit: number };
-  listening: { used: number; limit: number } | null;
+  ai: PopupMeter | null;
+  auto: PopupMeter | null;
+  listening: PopupMeter | null;
   tiers: {
     pro: { name: string; priceLabel: string; checkoutUrl: string | null };
     max: { name: string; priceLabel: string; checkoutUrl: string | null };
   } | null;
+}
+
+/** True once a meter is 80% spent. Unknown meters never trigger an upsell. */
+function meterLow(m: PopupMeter | null | undefined): boolean {
+  return !!m && m.limit > 0 && m.used / m.limit >= 0.8;
 }
 
 async function renderUsage(): Promise<void> {
@@ -182,21 +194,23 @@ async function renderUsage(): Promise<void> {
   }
 
   const planName = usage.plan === "max" ? "Max" : usage.plan === "pro" ? "Pro" : "Free";
-  const meters = usage.unlimited
-    ? `<p class="av-usage-note">No caps on this account.</p>`
-    : meterMarkup("AI messages", usage.ai.used, usage.ai.limit, "calls") +
+  const bars = usage.unlimited
+    ? ""
+    : (usage.ai ? meterMarkup("AI messages", usage.ai.used, usage.ai.limit, "calls") : "") +
       (usage.listening
         ? meterMarkup("Listening Mode", usage.listening.used, usage.listening.limit, "minutes")
         : "");
 
+  // A meter we couldn't fetch is unknown, not empty — say so instead of drawing
+  // a bar that looks like real data.
+  const meters = usage.unlimited
+    ? `<p class="av-usage-note">No caps on this account.</p>`
+    : bars || `<p class="av-usage-note">Usage is unavailable right now.</p>`;
+
   // Only offer a real step up, and only once something is actually running low —
   // a permanent upsell in the popup is noise.
-  const aiLow = !usage.unlimited && usage.ai.limit > 0 && usage.ai.used / usage.ai.limit >= 0.8;
-  const listenLow =
-    !usage.unlimited &&
-    !!usage.listening &&
-    usage.listening.limit > 0 &&
-    usage.listening.used / usage.listening.limit >= 0.8;
+  const aiLow = !usage.unlimited && meterLow(usage.ai);
+  const listenLow = !usage.unlimited && meterLow(usage.listening);
   const offer =
     usage.plan === "free" ? usage.tiers?.pro : usage.plan === "pro" ? usage.tiers?.max : null;
   const cta =

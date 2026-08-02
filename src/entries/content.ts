@@ -49,6 +49,9 @@ declare global {
   let listeningActive = false;
   /** Rate-limits the "hourly card cap" notice to once per rolling window. */
   let hourlyCapNotified = false;
+  /** One subtitle line processed at a time; see onLine. */
+  let lineInFlight = false;
+  let queuedLine: { text: string; context?: LineContext } | null = null;
   let cachePollTimer: ReturnType<typeof setInterval> | null = null;
   let lastCacheCueKey = "";
   let playbackRelayTimer: ReturnType<typeof setInterval> | null = null;
@@ -269,8 +272,35 @@ declare global {
     return candidate;
   }
 
+  /**
+   * Subtitle lines arrive faster than a line takes to process, and processing
+   * now makes background round-trips (word extraction, word picking) before it
+   * decides anything. Left unserialized, several lines could each clear the
+   * `overlay.isOpen()` check while the others were awaiting, each spend quota,
+   * and then each replace the previous card — `presentWord()` dismisses whatever
+   * is up. So: one line in flight at a time, and while one is running only the
+   * newest arrival is held. Older queued lines are dropped on purpose; their
+   * moment on screen has passed, and showing a card for them would be wrong
+   * even if it were free.
+   */
   async function onLine(text: string, context?: LineContext): Promise<void> {
     if (pipelineDisabled) return;
+    if (lineInFlight) {
+      queuedLine = { text, context };
+      return;
+    }
+    lineInFlight = true;
+    try {
+      await processLine(text, context);
+    } finally {
+      lineInFlight = false;
+    }
+    const next = queuedLine;
+    queuedLine = null;
+    if (next) await onLine(next.text, next.context);
+  }
+
+  async function processLine(text: string, context?: LineContext): Promise<void> {
 
     settings = await storage.getSettings();
 
@@ -340,6 +370,14 @@ declare global {
     );
     if (!target) { log("no target word in:", normalized); return; }
 
+    // pickTargetSmart just awaited a network round-trip; a card may have opened
+    // in the meantime (a review can be triggered from the panel). Re-check
+    // rather than trusting the read from before the await.
+    if (overlay.isOpen()) {
+      log("skipped line (card opened while picking):", normalized.slice(0, 40));
+      return;
+    }
+
     const stats = await storage.getStats();
     const now = Date.now();
     const cardTimestamps = stats.cardTimestamps || [];
@@ -371,7 +409,11 @@ declare global {
     }
     log("showing card for:", target.token.base);
 
-    void handleCard(target, normalized, tokens, context).catch((err) => {
+    // Awaited, so the in-flight gate covers the card's whole lifetime — not just
+    // up to the moment it mounts. Previously this was fire-and-forget, leaving a
+    // window where the next line was already picking a word before the card had
+    // rendered and `overlay.isOpen()` could see it.
+    await handleCard(target, normalized, tokens, context).catch((err) => {
       warn("handleCard failed:", err);
       overlay.dismissAgent();
     });

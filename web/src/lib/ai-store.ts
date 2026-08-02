@@ -135,20 +135,123 @@ export async function getUsage(
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/**
+ * Serializes read-modify-write per key *within this isolate*.
+ *
+ * KV has no compare-and-set, so `read → +1 → put` loses updates when two
+ * requests interleave. The dominant real case is one learner's own requests
+ * arriving together (the extension fires word-pick and pronunciation for the
+ * same card), and those usually land on one isolate — chaining them there makes
+ * that case exact. Requests spread across colos can still interleave; closing
+ * that needs a Durable Object (see the PR follow-up).
+ */
+const writeChains = new Map<string, Promise<unknown>>();
+
+function withKeyLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prior = writeChains.get(key) ?? Promise.resolve();
+  const run = prior.then(fn, fn);
+  // The tail others queue behind swallows rejections, so one failed write can't
+  // poison every later one.
+  const tail = run.catch(() => undefined);
+  writeChains.set(key, tail);
+  void tail.then(() => {
+    // Only the last operation scheduled clears the entry, so the map can't grow
+    // unbounded and an in-flight chain is never dropped.
+    if (writeChains.get(key) === tail) writeChains.delete(key);
+  });
+  return run;
+}
+
+async function writeUsage(key: string, value: number): Promise<void> {
+  const kv = await getKV();
+  if (kv) {
+    await kv.put(key, String(value), { expirationTtl: USAGE_TTL_SECONDS });
+  } else {
+    localStore.set(key, String(value));
+  }
+}
+
+async function addUsage(
+  userId: string,
+  month: string,
+  bucket: UsageBucket,
+  delta: number
+): Promise<number> {
+  const key = usageKey(userId, month, bucket);
+  return withKeyLock(key, async () => {
+    const current = await getUsage(userId, month, bucket);
+    const next = Math.max(0, current + delta);
+    await writeUsage(key, next);
+    return next;
+  });
+}
+
 export async function incrementUsage(
   userId: string,
   month: string,
   bucket: UsageBucket = "ai"
 ): Promise<number> {
-  const key = usageKey(userId, month, bucket);
-  const next = (await getUsage(userId, month, bucket)) + 1;
-  const kv = await getKV();
-  if (kv) {
-    await kv.put(key, String(next), { expirationTtl: USAGE_TTL_SECONDS });
-  } else {
-    localStore.set(key, String(next));
+  return addUsage(userId, month, bucket, 1);
+}
+
+/** Give a reserved call back when the provider never ran. */
+export async function refundUsage(
+  userId: string,
+  month: string,
+  bucket: UsageBucket = "ai"
+): Promise<void> {
+  try {
+    await addUsage(userId, month, bucket, -1);
+  } catch (err) {
+    // A lost refund overcounts the learner by one call. Never worth failing a
+    // request that already succeeded, or masking the provider error that got
+    // us here.
+    console.warn("[ai-store] refund failed", err);
   }
-  return next;
+}
+
+export interface Reservation {
+  /** False when the cap is already spent — do NOT call the provider. */
+  ok: boolean;
+  /** Count after reserving (or the current count when refused). */
+  used: number;
+  limit: number;
+  /** Hand back the reserved call if the provider ends up not running. */
+  refund: () => Promise<void>;
+}
+
+/**
+ * Claim one call BEFORE spending money on it.
+ *
+ * The old shape was `check → call provider → increment`, so every request that
+ * arrived while another was in flight read the same pre-spend count, passed the
+ * check, and called the provider. Reserving first means a request that hasn't
+ * claimed a slot never reaches the provider, and the check and the write happen
+ * under the same key lock.
+ */
+export async function reserveUsage(
+  userId: string,
+  month: string,
+  bucket: UsageBucket,
+  limit: number
+): Promise<Reservation> {
+  const key = usageKey(userId, month, bucket);
+  const claimed = await withKeyLock(key, async () => {
+    const current = await getUsage(userId, month, bucket);
+    if (current >= limit) return { ok: false as const, used: current };
+    const next = current + 1;
+    await writeUsage(key, next);
+    return { ok: true as const, used: next };
+  });
+
+  return {
+    ok: claimed.ok,
+    used: claimed.used,
+    limit,
+    refund: claimed.ok
+      ? () => refundUsage(userId, month, bucket)
+      : async () => {},
+  };
 }
 
 export async function getCachedResult(cacheKey: string): Promise<unknown | null> {

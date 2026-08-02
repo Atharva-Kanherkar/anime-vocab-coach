@@ -2602,11 +2602,14 @@
     card.appendChild(title);
     card.appendChild(body);
     if (usage) {
-      const meters = [
-        ["AI messages", usage.ai.limit > 0 ? usage.ai : null, "calls"],
-        ["Listening Mode", usage.listening, "minutes"]
-      ];
-      for (const [label, m, unit] of meters) {
+      const all = {
+        ai: ["AI messages", usage.ai, "calls"],
+        auto: ["Word picking & audio", usage.auto, "calls"],
+        listening: ["Listening Mode", usage.listening, "minutes"]
+      };
+      const order = [kind, ...["ai", "auto", "listening"].filter((k) => k !== kind)];
+      for (const k of order) {
+        const [label, m, unit] = all[k];
         if (m && m.limit > 0) card.appendChild(buildMeter(label, m.used, m.limit, unit));
       }
     }
@@ -3246,6 +3249,8 @@
     let cacheKey2 = "";
     let listeningActive = false;
     let hourlyCapNotified = false;
+    let lineInFlight = false;
+    let queuedLine = null;
     let cachePollTimer = null;
     let lastCacheCueKey = "";
     let playbackRelayTimer = null;
@@ -3433,6 +3438,21 @@
     }
     async function onLine(text, context) {
       if (pipelineDisabled) return;
+      if (lineInFlight) {
+        queuedLine = { text, context };
+        return;
+      }
+      lineInFlight = true;
+      try {
+        await processLine(text, context);
+      } finally {
+        lineInFlight = false;
+      }
+      const next = queuedLine;
+      queuedLine = null;
+      if (next) await onLine(next.text, next.context);
+    }
+    async function processLine(text, context) {
       settings = await getSettings();
       if (settings.pauseMode === "off") return;
       const siteKey = adapter ? adapter.name : "generic";
@@ -3493,6 +3513,10 @@
         log("no target word in:", normalized);
         return;
       }
+      if (isOpen()) {
+        log("skipped line (card opened while picking):", normalized.slice(0, 40));
+        return;
+      }
       const stats = await getStats();
       const now = Date.now();
       const cardTimestamps = stats.cardTimestamps || [];
@@ -3519,7 +3543,7 @@
         }
       }
       log("showing card for:", target.token.base);
-      void handleCard(target, normalized, tokens, context).catch((err) => {
+      await handleCard(target, normalized, tokens, context).catch((err) => {
         warn("handleCard failed:", err);
         dismissAgent();
       });

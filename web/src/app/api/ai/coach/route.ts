@@ -14,8 +14,8 @@ import {
   getCoachConfig,
   getOpenAiKey,
   getUsage,
-  incrementUsage,
   putCachedResult,
+  reserveUsage,
 } from "@/lib/ai-store";
 
 export const dynamic = "force-dynamic";
@@ -67,10 +67,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const used = await getUsage(user.id, month);
-  if (used >= limit) {
+  // Claim the call before spending on it: checking and then incrementing after
+  // the provider returned let every request that arrived in the meantime read
+  // the same pre-spend count and sail past the cap.
+  const reservation = await reserveUsage(user.id, month, "ai", limit);
+  if (!reservation.ok) {
     return NextResponse.json(
-      { error: "ai_quota_exhausted", usage: { used, limit, plan: tier } },
+      { error: "ai_quota_exhausted", usage: { used: reservation.used, limit, plan: tier } },
       { status: 429 }
     );
   }
@@ -79,6 +82,7 @@ export async function POST(req: Request) {
   try {
     result = await runCoach(apiKey, model, coachReq);
   } catch (err) {
+    await reservation.refund();
     const detail = err instanceof Error ? err.message : "ai_failed";
     return NextResponse.json({ error: detail }, { status: 502 });
   }
@@ -91,16 +95,10 @@ export async function POST(req: Request) {
       console.warn("[ai/coach] cache write failed", cacheErr);
     }
   }
-  let newUsed = used + 1;
-  try {
-    newUsed = await incrementUsage(user.id, month);
-  } catch (meterErr) {
-    console.warn("[ai/coach] usage meter write failed", meterErr);
-  }
 
   return NextResponse.json({
     result,
     cached: false,
-    usage: { used: newUsed, limit, plan: tier },
+    usage: { used: reservation.used, limit, plan: tier },
   });
 }

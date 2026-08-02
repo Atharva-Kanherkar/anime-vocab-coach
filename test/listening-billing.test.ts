@@ -69,11 +69,43 @@ describe("listening meters", () => {
   });
 
   it("still bills wall clock on the realtime path", () => {
-    const body = functionBody("startHeartbeat");
-    expect(body).toContain("/v1/usage/heartbeat");
     // Only bails for BYO keys and cached sessions — a plain cloud realtime
-    // session must still reach the interval.
-    expect(body).toMatch(/setInterval/);
+    // session must still arm the interval.
+    expect(functionBody("startHeartbeat")).toMatch(/setInterval/);
+    expect(functionBody("flushListening")).toContain("/v1/usage/heartbeat");
+  });
+
+  it("reports measured time, never a flat interval's worth", () => {
+    const flush = functionBody("flushListening");
+    // The original bug: `minutes: 5` every tick regardless of how much of that
+    // interval was actually watched.
+    expect(source).not.toMatch(/minutes:\s*5\b/);
+    expect(flush).toMatch(/pendingBillMs/);
+    expect(flush).toMatch(/60_000|60000/);
+  });
+
+  it("banks elapsed time when playback pauses or resumes", () => {
+    // Sampling `playbackPaused` at the tick boundary meant playing 4:59 then
+    // pausing cost nothing, and resuming just before a tick cost five minutes.
+    const onUpdate = functionBody("onPlaybackUpdate");
+    expect(onUpdate).toMatch(/setListeningClock\(session,\s*!paused\)/);
+    expect(functionBody("accrueListening")).toMatch(/pendingBillMs\s*\+=/);
+  });
+
+  it("flushes the partial interval on stop and on a mode switch", () => {
+    expect(functionBody("stop")).toMatch(/flushListening\(session,\s*true\)/);
+    expect(functionBody("applyCacheMode")).toMatch(/flushListening\(session,\s*true\)/);
+  });
+
+  it("puts time back when a report fails", () => {
+    // Otherwise a transient network error silently hands out free minutes.
+    expect(functionBody("flushListening")).toMatch(/pendingBillMs\s*\+=\s*sentMs/);
+  });
+
+  it("drops a realtime connect that lost its race with a mode switch", () => {
+    const body = functionBody("connectWS");
+    expect(body).toMatch(/modeGeneration/);
+    expect(body).toMatch(/await getWsKey\(session\);[\s\S]{0,200}?stale\(\)/);
   });
 
   it("does not start the heartbeat twice for one session", () => {

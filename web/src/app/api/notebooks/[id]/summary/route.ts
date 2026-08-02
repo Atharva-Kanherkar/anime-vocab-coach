@@ -3,7 +3,7 @@ import { resolveProfile, resolvePlan } from "@/lib/auth";
 import { isOwnerEmail, OWNER_AI_LIMIT } from "@/lib/entitlements";
 import { getNotebookStore } from "@/lib/notebook-store";
 import { runNotebookSummary } from "@/lib/notebook-ai";
-import { currentMonth, getCoachConfig, getOpenAiKey, getUsage, incrementUsage } from "@/lib/ai-store";
+import { currentMonth, getCoachConfig, getOpenAiKey, reserveUsage } from "@/lib/ai-store";
 import { aiLimitForPlan } from "@/lib/ai-coach";
 
 export const dynamic = "force-dynamic";
@@ -31,28 +31,26 @@ export async function POST(req: Request, { params }: Params) {
   const plan = resolvePlan(profile);
   const limit = isOwnerEmail(profile.email) ? OWNER_AI_LIMIT : aiLimitForPlan(plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
-  const used = await getUsage(profile.id, month);
-  if (used >= limit) {
-    return NextResponse.json({ error: "quota_exceeded", usage: { used, limit } }, { status: 429 });
+  // Claim the slot before paying for the summary; hand it back if the provider
+  // never produced one.
+  const reservation = await reserveUsage(profile.id, month, "ai", limit);
+  if (!reservation.ok) {
+    return NextResponse.json(
+      { error: "quota_exceeded", usage: { used: reservation.used, limit } },
+      { status: 429 }
+    );
   }
 
   let summary;
   try {
     summary = await runNotebookSummary(apiKey, model, notebook);
   } catch (err) {
+    await reservation.refund();
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "summary_failed" },
       { status: 502 }
     );
   }
 
-  // Meter write is its own soft-fail: the paid summary already succeeded, so a
-  // KV put-limit rejection must not turn it into a 502. Fall back to used + 1.
-  let nowUsed = used + 1;
-  try {
-    nowUsed = await incrementUsage(profile.id, month);
-  } catch (err) {
-    console.warn("[notebooks/summary] usage meter write failed", err);
-  }
-  return NextResponse.json({ summary, usage: { used: nowUsed, limit } });
+  return NextResponse.json({ summary, usage: { used: reservation.used, limit } });
 }

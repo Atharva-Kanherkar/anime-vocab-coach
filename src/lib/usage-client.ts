@@ -32,16 +32,23 @@ export interface UsageSnapshot {
   plan: Plan;
   /** Owner accounts / effectively-uncapped plans: render "unlimited", not a bar. */
   unlimited: boolean;
-  ai: Meter;
-  auto: Meter;
+  /** null when that half of the fetch failed — NOT zero. A fabricated 0/0 reads
+   * as a real meter and makes the limit sheet claim the learner burned through
+   * "0" messages. Callers must treat null as "unknown" and omit the bar. */
+  ai: Meter | null;
+  auto: Meter | null;
   listening: Meter | null;
   tiers: { pro: TierOffer; max: TierOffer } | null;
 }
 
-function meter(used: unknown, limit: unknown): Meter {
-  const u = Math.max(0, Math.floor(Number(used) || 0));
-  const l = Math.max(0, Math.floor(Number(limit) || 0));
-  return { used: u, limit: l, left: Math.max(0, l - u) };
+/** Build a meter only from numbers the server actually sent. */
+function meter(used: unknown, limit: unknown): Meter | null {
+  const u = Number(used);
+  const l = Number(limit);
+  if (!Number.isFinite(u) || !Number.isFinite(l)) return null;
+  const usedN = Math.max(0, Math.floor(u));
+  const limitN = Math.max(0, Math.floor(l));
+  return { used: usedN, limit: limitN, left: Math.max(0, limitN - usedN) };
 }
 
 /** Fetch both meters. Either half may be missing (offline, cold Worker); the
@@ -77,8 +84,10 @@ export async function fetchUsage(): Promise<UsageSnapshot | null> {
   return {
     plan: raw.plan || listen.plan || "free",
     unlimited: !!raw.unlimited,
-    ai: meter(raw.ai?.used, raw.ai?.limit),
-    auto: meter(raw.auto?.used, raw.auto?.limit),
+    // Each half is independent: the AI endpoint can fail while the listening
+    // one answers (and vice versa). Whatever is missing stays null.
+    ai: aiData ? meter(raw.ai?.used, raw.ai?.limit) : null,
+    auto: aiData ? meter(raw.auto?.used, raw.auto?.limit) : null,
     listening: listenData ? meter(listen.usedMinutes, listen.capMinutes) : null,
     tiers: raw.tiers || null,
   };

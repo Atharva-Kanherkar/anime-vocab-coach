@@ -129,7 +129,12 @@ export default {
         if (!auth.ok) return auth.response;
 
         const body = (await req.json().catch(() => ({}))) as { minutes?: number };
-        const minutes = Math.max(0, Math.min(10, Math.round(Number(body.minutes) || 0)));
+        // Fractional minutes are accepted (usage is stored as a float): the
+        // client measures real unpaused playback, and rounding here threw away
+        // every partial minute — or rounded a 31-second stretch up to a whole
+        // one. Still clamped to [0, 10] per report so a bad client can't
+        // charge an arbitrary amount in one call.
+        const minutes = Math.max(0, Math.min(10, Number(body.minutes) || 0));
         const cap = capMinutesForPlan(env, effectivePlanFromProfile(auth.profile));
         let used: number;
         try {

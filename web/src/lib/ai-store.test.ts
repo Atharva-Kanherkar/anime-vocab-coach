@@ -9,7 +9,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
   },
 }));
 
-const { currentMonth, getUsage, incrementUsage, quotaFor } = await import("./ai-store");
+const { currentMonth, getUsage, incrementUsage, quotaFor, refundUsage, reserveUsage } =
+  await import("./ai-store");
 
 const MONTH = "2026-08";
 
@@ -69,6 +70,80 @@ describe("quotaFor", () => {
   it("gives owners an effectively unlimited cap on both meters", async () => {
     expect(await quotaFor("free", "ai", true)).toBeGreaterThan(100_000);
     expect(await quotaFor("free", "auto", true)).toBeGreaterThan(100_000);
+  });
+});
+
+describe("reserveUsage", () => {
+  it("claims a slot and reports the post-claim count", async () => {
+    const user = "res-basic";
+    const r = await reserveUsage(user, MONTH, "ai", 3);
+    expect(r.ok).toBe(true);
+    expect(r.used).toBe(1);
+    expect(await getUsage(user, MONTH, "ai")).toBe(1);
+  });
+
+  it("refuses once the cap is spent, without incrementing further", async () => {
+    const user = "res-full";
+    await reserveUsage(user, MONTH, "ai", 2);
+    await reserveUsage(user, MONTH, "ai", 2);
+    const third = await reserveUsage(user, MONTH, "ai", 2);
+    expect(third.ok).toBe(false);
+    expect(third.used).toBe(2);
+    // A refusal must not consume the slot it just denied.
+    expect(await getUsage(user, MONTH, "ai")).toBe(2);
+  });
+
+  // The bug: check-then-call-then-increment let every request that arrived
+  // while one was in flight read the same pre-spend count and pass the cap.
+  // Reserving under a per-key lock means only `limit` callers ever proceed.
+  it("never hands out more slots than the cap under concurrency", async () => {
+    const user = "res-race";
+    const limit = 5;
+    const results = await Promise.all(
+      Array.from({ length: 25 }, () => reserveUsage(user, MONTH, "auto", limit))
+    );
+    expect(results.filter((r) => r.ok)).toHaveLength(limit);
+    expect(await getUsage(user, MONTH, "auto")).toBe(limit);
+  });
+
+  it("counts every concurrent reservation exactly once", async () => {
+    const user = "res-lost-update";
+    await Promise.all(
+      Array.from({ length: 12 }, () => reserveUsage(user, MONTH, "auto", 1000))
+    );
+    expect(await getUsage(user, MONTH, "auto")).toBe(12);
+  });
+
+  it("gives the slot back when the provider never ran", async () => {
+    const user = "res-refund";
+    const r = await reserveUsage(user, MONTH, "ai", 5);
+    expect(await getUsage(user, MONTH, "ai")).toBe(1);
+    await r.refund();
+    expect(await getUsage(user, MONTH, "ai")).toBe(0);
+  });
+
+  it("refunding a refused reservation is a no-op", async () => {
+    const user = "res-refund-refused";
+    await reserveUsage(user, MONTH, "ai", 1);
+    const refused = await reserveUsage(user, MONTH, "ai", 1);
+    await refused.refund();
+    expect(await getUsage(user, MONTH, "ai")).toBe(1);
+  });
+
+  it("keeps the two buckets independent when reserving", async () => {
+    const user = "res-buckets";
+    await reserveUsage(user, MONTH, "auto", 5);
+    expect(await getUsage(user, MONTH, "auto")).toBe(1);
+    expect(await getUsage(user, MONTH, "ai")).toBe(0);
+  });
+});
+
+describe("refundUsage", () => {
+  it("never drives a counter below zero", async () => {
+    const user = "refund-floor";
+    await refundUsage(user, MONTH, "ai");
+    await refundUsage(user, MONTH, "ai");
+    expect(await getUsage(user, MONTH, "ai")).toBe(0);
   });
 });
 

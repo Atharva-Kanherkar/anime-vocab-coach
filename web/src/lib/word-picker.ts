@@ -1,4 +1,4 @@
-import { getOpenAiKey, putCachedResult, incrementUsage, currentMonth } from "./ai-store";
+import { putCachedResult } from "./ai-store";
 import {
   normalizeDirection,
   targetLangName,
@@ -182,11 +182,13 @@ export async function runWordPick(apiKey: string, model: string, req: WordPickRe
   return { word };
 }
 
+/** Run the picker and cache the answer. Quota is reserved by the caller BEFORE
+ * this runs (see the route), so a provider call can never happen on an
+ * unreserved slot — metering here would have been after the money was spent. */
 export async function pickWordCached(
   apiKey: string,
   model: string,
-  req: WordPickRequest,
-  _userId: string
+  req: WordPickRequest
 ): Promise<{ result: WordPickResult }> {
   const result = await runWordPick(apiKey, model, req);
   try {
@@ -194,13 +196,6 @@ export async function pickWordCached(
     await putCachedResult(cacheKey, result);
   } catch (err) {
     console.warn("[word-picker] cache write failed", err);
-  }
-  try {
-    // "auto": the extension picks a word per subtitle line on its own. This
-    // must not eat the coach allowance the pricing page advertises.
-    await incrementUsage(_userId, currentMonth(), "auto");
-  } catch (err) {
-    console.warn("[word-picker] usage meter write failed", err);
   }
   return { result };
 }

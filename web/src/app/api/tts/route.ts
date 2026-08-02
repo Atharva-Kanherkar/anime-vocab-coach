@@ -1,6 +1,6 @@
 import { resolveProfile, resolvePlan } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/entitlements";
-import { currentMonth, getUsage, incrementUsage, quotaFor } from "@/lib/ai-store";
+import { currentMonth, quotaFor, reserveUsage, type Reservation } from "@/lib/ai-store";
 import { runTts } from "@/lib/tts";
 
 export const dynamic = "force-dynamic";
@@ -27,22 +27,18 @@ export async function POST(req: Request) {
   const limit = await quotaFor(resolvePlan(profile), "auto", owner);
   const month = currentMonth();
 
+  // Reserved lazily: `onBeforeSpend` runs only on a cache miss, so a cache hit
+  // still costs nothing. Claiming the slot there — rather than counting after
+  // the synthesis returned — means concurrent misses can't all slip past the
+  // cap on the same stale count.
+  let reservation: Reservation | null = null;
   try {
-    const { audio, cached } = await runTts(text, {
+    const { audio } = await runTts(text, {
       onBeforeSpend: async () => {
-        const used = await getUsage(profile.id, month, "auto");
-        if (used >= limit) throw new Error("auto_quota_exhausted");
+        reservation = await reserveUsage(profile.id, month, "auto", limit);
+        if (!reservation.ok) throw new Error("auto_quota_exhausted");
       },
     });
-    if (!cached) {
-      // Soft-fail the meter write: the audio already synthesized, so a KV
-      // put-limit rejection must not turn a delivered buffer into an error.
-      try {
-        await incrementUsage(profile.id, month, "auto");
-      } catch (meterErr) {
-        console.warn("[tts] usage meter write failed", meterErr);
-      }
-    }
     return new Response(audio, {
       headers: {
         "Content-Type": "audio/mpeg",
@@ -51,6 +47,11 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "tts_failed";
+    // Synthesis failed after the slot was claimed — give it back. (A refused
+    // reservation has a no-op refund, so this is safe either way.)
+    if (detail !== "auto_quota_exhausted") {
+      await (reservation as Reservation | null)?.refund();
+    }
     const status =
       detail === "ai_not_configured" ? 503 : detail === "auto_quota_exhausted" ? 429 : 502;
     return new Response(JSON.stringify({ error: detail }), { status });

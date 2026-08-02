@@ -2,7 +2,15 @@ import { NextResponse } from "next/server";
 import { resolveProfile, resolvePlan } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/entitlements";
 import { type Tier } from "@/lib/ai-coach";
-import { getCoachConfig, getOpenAiKey, getUsage, currentMonth, getCachedResult, quotaFor } from "@/lib/ai-store";
+import {
+  getCoachConfig,
+  getOpenAiKey,
+  getUsage,
+  currentMonth,
+  getCachedResult,
+  quotaFor,
+  reserveUsage,
+} from "@/lib/ai-store";
 import {
   extractCacheKey,
   extractWordsCached,
@@ -57,23 +65,26 @@ export async function POST(req: Request) {
     }
   }
 
-  const used = await getUsage(user.id, month, "auto");
-  if (used >= limit) {
+  const reservation = await reserveUsage(user.id, month, "auto", limit);
+  if (!reservation.ok) {
     return NextResponse.json(
-      { error: "auto_quota_exhausted", usage: { used, limit, plan: tier, bucket: "auto" } },
+      {
+        error: "auto_quota_exhausted",
+        usage: { used: reservation.used, limit, plan: tier, bucket: "auto" },
+      },
       { status: 429 }
     );
   }
 
   try {
-    const { result } = await extractWordsCached(apiKey, model, extractReq, user.id);
-    const newUsed = await getUsage(user.id, month, "auto");
+    const { result } = await extractWordsCached(apiKey, model, extractReq);
     return NextResponse.json({
       result,
       cached: false,
-      usage: { used: newUsed, limit, plan: tier, bucket: "auto" },
+      usage: { used: reservation.used, limit, plan: tier, bucket: "auto" },
     });
   } catch (err) {
+    await reservation.refund();
     const detail = err instanceof Error ? err.message : "extract_failed";
     return NextResponse.json({ error: detail }, { status: 502 });
   }

@@ -413,6 +413,9 @@
     const fmt = (n) => unit === "minutes" ? `${Number.isInteger(n / 60) ? n / 60 : (n / 60).toFixed(1)}h` : n.toLocaleString();
     return `<div class="av-meter"><div class="av-meter-row"><span>${esc(label)}</span><span class="av-meter-val">${esc(fmt(Math.min(used, limit)))} / ${esc(fmt(limit))}</span></div><div class="av-meter-track"><div class="${cls}" style="width:${pct}%"></div></div></div>`;
   }
+  function meterLow(m) {
+    return !!m && m.limit > 0 && m.used / m.limit >= 0.8;
+  }
   async function renderUsage() {
     const el = byId("usage");
     const token = await getSyncToken();
@@ -431,9 +434,10 @@
       return;
     }
     const planName = usage.plan === "max" ? "Max" : usage.plan === "pro" ? "Pro" : "Free";
-    const meters = usage.unlimited ? `<p class="av-usage-note">No caps on this account.</p>` : meterMarkup("AI messages", usage.ai.used, usage.ai.limit, "calls") + (usage.listening ? meterMarkup("Listening Mode", usage.listening.used, usage.listening.limit, "minutes") : "");
-    const aiLow = !usage.unlimited && usage.ai.limit > 0 && usage.ai.used / usage.ai.limit >= 0.8;
-    const listenLow = !usage.unlimited && !!usage.listening && usage.listening.limit > 0 && usage.listening.used / usage.listening.limit >= 0.8;
+    const bars = usage.unlimited ? "" : (usage.ai ? meterMarkup("AI messages", usage.ai.used, usage.ai.limit, "calls") : "") + (usage.listening ? meterMarkup("Listening Mode", usage.listening.used, usage.listening.limit, "minutes") : "");
+    const meters = usage.unlimited ? `<p class="av-usage-note">No caps on this account.</p>` : bars || `<p class="av-usage-note">Usage is unavailable right now.</p>`;
+    const aiLow = !usage.unlimited && meterLow(usage.ai);
+    const listenLow = !usage.unlimited && meterLow(usage.listening);
     const offer = usage.plan === "free" ? usage.tiers?.pro : usage.plan === "pro" ? usage.tiers?.max : null;
     const cta = (aiLow || listenLow) && offer?.checkoutUrl ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">Upgrade to ${esc(offer.name)} \u2014 ${esc(offer.priceLabel)}</button>` : "";
     el.innerHTML = `<div class="av-usage-head"><span class="av-usage-title">This month</span><span class="av-usage-plan">${esc(planName)}</span></div>` + meters + cta;
