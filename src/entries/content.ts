@@ -13,7 +13,7 @@ import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
 import { setAdapterDirection } from "../lib/adapters/util";
 import { audioLang, normalizeDirection } from "../lib/direction";
-import { fetchExtractWords, overlayFromExtract } from "../lib/extract-words-client";
+import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-client";
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
 import type { DictEntry, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
@@ -47,6 +47,8 @@ declare global {
   let watchInterval: ReturnType<typeof setInterval> | null = null;
   let cacheKey = "";
   let listeningActive = false;
+  /** Rate-limits the "hourly card cap" notice to once per rolling window. */
+  let hourlyCapNotified = false;
   let cachePollTimer: ReturnType<typeof setInterval> | null = null;
   let lastCacheCueKey = "";
   let playbackRelayTimer: ReturnType<typeof setInterval> | null = null;
@@ -292,12 +294,15 @@ declare global {
 
     if (direction === "ja-en") {
       tokens = tokenizeEnglish(normalized);
-      const extracted = await fetchExtractWords({
+      const extracted = await requestExtractWords({
         line: normalized,
         direction,
         learnerLevel: settings.targetLevel,
         title: currentTitle(),
       });
+      if (!extracted.ok && extracted.error === "auto_quota_exhausted") {
+        void overlay.reportLimitReached("auto");
+      }
       if (extracted.ok && extracted.words?.length) {
         dictOverlay = overlayFromExtract(extracted.words);
         for (const w of extracted.words) {
@@ -347,6 +352,20 @@ declare global {
       }
       if (cardTimestamps.length >= settings.maxCardsPerHour) {
         log("hourly card cap reached");
+        // This is a pacing *setting*, not a plan limit — but from the couch it
+        // looks identical to the extension having died, so say so once per
+        // hourly window and point at the knob that changes it.
+        if (!hourlyCapNotified) {
+          hourlyCapNotified = true;
+          overlay.showToast(
+            `Paused new words — you've hit your ${settings.maxCardsPerHour}/hour card limit. ` +
+              `Reviews still appear. Raise it in Settings → Max cards per hour.`,
+            "info"
+          );
+          // Re-arm once the oldest timestamp ages out of the rolling hour.
+          const oldest = cardTimestamps[0] ?? now;
+          setTimeout(() => { hourlyCapNotified = false; }, Math.max(60e3, oldest + 3600e3 - now));
+        }
         return;
       }
     }
@@ -364,6 +383,10 @@ declare global {
   chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; active?: boolean; kind?: string }, _sender, sendResponse) => {
     if (msg.type === "avc-toast") {
       overlay.showToast(msg.text || "", msg.kind === "error" ? "error" : "info");
+      return;
+    }
+    if (msg.type === "avc-limit-reached") {
+      void overlay.reportLimitReached((msg.kind as overlay.LimitKind) || "ai");
       return;
     }
     if (msg.type === "avc-get-cache-key") {

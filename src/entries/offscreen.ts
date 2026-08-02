@@ -70,8 +70,21 @@ class CodedError extends Error {
   }
 }
 
+/**
+ * Wall-clock meter for the realtime-WS path ONLY. There, audio goes straight to
+ * OpenAI and the backend never sees a minute of it, so the heartbeat is the only
+ * way to bill listening.
+ *
+ * The cached path must NOT call this: /v1/transcript/transcribe already charges
+ * the real audio duration of every chunk it transcribes. Running both billed the
+ * same playback twice (5 min/tick of wall clock PLUS ~5 min of chunk audio per
+ * 5 min watched), so an "8 hour" free month died at ~4 hours — and cache hits,
+ * which cost the business nothing, still burned quota.
+ */
 function startHeartbeat(session: Session): void {
   if (session.auth.kind !== "cloud") return;
+  if (session.useCache) return;
+  if (session.heartbeat) return;
   const { backendUrl, syncToken } = session.auth;
   session.heartbeat = setInterval(async () => {
     // Don't bill a paused session. The heartbeat charges a flat 5 min/tick, so
@@ -93,6 +106,56 @@ function startHeartbeat(session: Session): void {
       olog("heartbeat failed (will retry):", String(err));
     }
   }, 5 * 60 * 1000);
+}
+
+/** Tear the realtime socket down without tripping the reconnect path in
+ * `onclose` (which only checks `session.active`). */
+function closeRealtimeSocket(session: Session): void {
+  const ws = session.ws;
+  if (!ws) return;
+  session.ws = null;
+  session.ready = false;
+  ws.onopen = null;
+  ws.onmessage = null;
+  ws.onerror = null;
+  ws.onclose = null;
+  try { if (ws.readyState <= 1) ws.close(); } catch { /* already closing */ }
+}
+
+/**
+ * Point the session's timers at whichever mode it is currently in. Called at
+ * start and again whenever the cache key arrives or changes mid-session.
+ *
+ * The cache key often resolves a beat after Listening starts (the background
+ * logs "no cache key yet"), which used to flip `useCache` to true while the
+ * chunk timer had never been created: `onaudioprocess` stopped feeding the
+ * WebSocket and started buffering PCM that nothing ever flushed, so Listening
+ * Mode went silent while the heartbeat kept billing 5 min/tick.
+ */
+function applyCacheMode(session: Session): void {
+  if (session.useCache) {
+    if (session.heartbeat) {
+      clearInterval(session.heartbeat);
+      session.heartbeat = null;
+    }
+    closeRealtimeSocket(session);
+    if (!session.chunkTimer) {
+      session.chunkTimer = setInterval(() => {
+        if (session.active) flushChunk(session).catch((err) => olog("flush error:", String(err)));
+      }, CHUNK_SEC * 1000);
+    }
+    return;
+  }
+  if (session.chunkTimer) {
+    clearInterval(session.chunkTimer);
+    session.chunkTimer = null;
+  }
+  // Losing the key sends this session back to the realtime socket; reconnect if
+  // cached mode had closed it, otherwise there is nowhere for audio to go.
+  if (!session.ws && session.active) {
+    connectWS(session).catch((err) => olog("reconnect after cache-key loss failed:", String(err)));
+  }
+  startHeartbeat(session);
 }
 
 const sessions: Record<number, Session> = {};
@@ -167,6 +230,10 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, send
         // Drop any buffered audio from the previous episode so nothing is
         // uploaded under the old key.
         resetAudioBuffer(session);
+        // A key arriving (or disappearing) switches which pipeline — and which
+        // meter — this session runs on. Without this the timers stayed on the
+        // old mode.
+        applyCacheMode(session);
         olog("cache key updated for tab", msg.tabId, "→", newKey || "(none)");
       }
     }
@@ -341,16 +408,13 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
 
   if (useCache) {
     olog("using shared transcript cache for", cacheKey);
-    session.chunkTimer = setInterval(() => {
-      if (session.active) flushChunk(session).catch((err) => olog("flush error:", String(err)));
-    }, CHUNK_SEC * 1000);
-    startHeartbeat(session);
+    applyCacheMode(session);
     return;
   }
 
   olog("audio graph ready (src rate", session.srcRate + "Hz), connecting realtime WS");
   await connectWS(session);
-  startHeartbeat(session);
+  applyCacheMode(session);
 }
 
 async function connectWS(session: Session): Promise<void> {

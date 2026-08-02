@@ -31,6 +31,8 @@
   };
   function startHeartbeat(session) {
     if (session.auth.kind !== "cloud") return;
+    if (session.useCache) return;
+    if (session.heartbeat) return;
     const { backendUrl, syncToken } = session.auth;
     session.heartbeat = setInterval(async () => {
       if (!session.active || session.playbackPaused) return;
@@ -49,6 +51,43 @@
         olog("heartbeat failed (will retry):", String(err));
       }
     }, 5 * 60 * 1e3);
+  }
+  function closeRealtimeSocket(session) {
+    const ws = session.ws;
+    if (!ws) return;
+    session.ws = null;
+    session.ready = false;
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.onclose = null;
+    try {
+      if (ws.readyState <= 1) ws.close();
+    } catch {
+    }
+  }
+  function applyCacheMode(session) {
+    if (session.useCache) {
+      if (session.heartbeat) {
+        clearInterval(session.heartbeat);
+        session.heartbeat = null;
+      }
+      closeRealtimeSocket(session);
+      if (!session.chunkTimer) {
+        session.chunkTimer = setInterval(() => {
+          if (session.active) flushChunk(session).catch((err) => olog("flush error:", String(err)));
+        }, CHUNK_SEC * 1e3);
+      }
+      return;
+    }
+    if (session.chunkTimer) {
+      clearInterval(session.chunkTimer);
+      session.chunkTimer = null;
+    }
+    if (!session.ws && session.active) {
+      connectWS(session).catch((err) => olog("reconnect after cache-key loss failed:", String(err)));
+    }
+    startHeartbeat(session);
   }
   var sessions = {};
   function olog(...args) {
@@ -98,6 +137,7 @@
           session.cacheKey = newKey;
           session.useCache = session.auth.kind === "cloud" && !!newKey;
           resetAudioBuffer(session);
+          applyCacheMode(session);
           olog("cache key updated for tab", msg.tabId, "\u2192", newKey || "(none)");
         }
       }
@@ -267,15 +307,12 @@
     };
     if (useCache) {
       olog("using shared transcript cache for", cacheKey);
-      session.chunkTimer = setInterval(() => {
-        if (session.active) flushChunk(session).catch((err) => olog("flush error:", String(err)));
-      }, CHUNK_SEC * 1e3);
-      startHeartbeat(session);
+      applyCacheMode(session);
       return;
     }
     olog("audio graph ready (src rate", session.srcRate + "Hz), connecting realtime WS");
     await connectWS(session);
-    startHeartbeat(session);
+    applyCacheMode(session);
   }
   async function connectWS(session) {
     const wsKey = await getWsKey(session);

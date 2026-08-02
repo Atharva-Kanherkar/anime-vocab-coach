@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { resolveProfile, resolvePlan } from "@/lib/auth";
-import { isOwnerEmail, OWNER_AI_LIMIT } from "@/lib/entitlements";
-import { aiLimitForPlan, type Tier } from "@/lib/ai-coach";
-import { getCoachConfig, getOpenAiKey, getUsage, currentMonth, getCachedResult } from "@/lib/ai-store";
+import { isOwnerEmail } from "@/lib/entitlements";
+import { type Tier } from "@/lib/ai-coach";
+import { getCoachConfig, getOpenAiKey, getUsage, currentMonth, getCachedResult, quotaFor } from "@/lib/ai-store";
 import {
   extractCacheKey,
   extractWordsCached,
@@ -36,9 +36,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
   }
 
-  const { model, freeLimit, proLimit, maxLimit } = await getCoachConfig();
+  // "auto" bucket — the content script extracts words per subtitle line on its
+  // own, so this is not spent against the advertised coach allowance.
+  const { model } = await getCoachConfig();
   const tier: Tier = user.plan;
-  const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit, maxLimit);
+  const limit = await quotaFor(user.plan, "auto", owner);
   const month = currentMonth();
 
   const cacheKey = await extractCacheKey(extractReq);
@@ -46,30 +48,30 @@ export async function POST(req: Request) {
   if (cached && typeof cached === "object" && cached !== null && "words" in cached) {
     const words = (cached as ExtractWordsResult).words;
     if (Array.isArray(words) && words.length) {
-      const used = await getUsage(user.id, month);
+      const used = await getUsage(user.id, month, "auto");
       return NextResponse.json({
         result: { words },
         cached: true,
-        usage: { used, limit, plan: tier },
+        usage: { used, limit, plan: tier, bucket: "auto" },
       });
     }
   }
 
-  const used = await getUsage(user.id, month);
+  const used = await getUsage(user.id, month, "auto");
   if (used >= limit) {
     return NextResponse.json(
-      { error: "ai_quota_exhausted", usage: { used, limit, plan: tier } },
+      { error: "auto_quota_exhausted", usage: { used, limit, plan: tier, bucket: "auto" } },
       { status: 429 }
     );
   }
 
   try {
     const { result } = await extractWordsCached(apiKey, model, extractReq, user.id);
-    const newUsed = await getUsage(user.id, month);
+    const newUsed = await getUsage(user.id, month, "auto");
     return NextResponse.json({
       result,
       cached: false,
-      usage: { used: newUsed, limit, plan: tier },
+      usage: { used: newUsed, limit, plan: tier, bucket: "auto" },
     });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "extract_failed";

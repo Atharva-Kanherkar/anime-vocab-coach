@@ -196,7 +196,9 @@ export async function pickWordCached(
     console.warn("[word-picker] cache write failed", err);
   }
   try {
-    await incrementUsage(_userId, currentMonth());
+    // "auto": the extension picks a word per subtitle line on its own. This
+    // must not eat the coach allowance the pricing page advertises.
+    await incrementUsage(_userId, currentMonth(), "auto");
   } catch (err) {
     console.warn("[word-picker] usage meter write failed", err);
   }

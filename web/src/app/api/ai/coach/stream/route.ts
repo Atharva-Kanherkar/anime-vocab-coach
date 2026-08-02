@@ -53,7 +53,12 @@ export async function POST(req: Request) {
 
   const used = await getUsage(user.id, month);
   if (used >= limit) {
-    return new Response(JSON.stringify({ error: "ai_quota_exhausted" }), { status: 429 });
+    // Same shape as the non-streaming coach route: the client shouldn't have to
+    // special-case which endpoint refused it to know where the learner stands.
+    return new Response(
+      JSON.stringify({ error: "ai_quota_exhausted", usage: { used, limit, plan: tier } }),
+      { status: 429, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   const encoder = new TextEncoder();

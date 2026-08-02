@@ -97,6 +97,9 @@ async function speakAsync(raw: string): Promise<void> {
   const text = (raw || "").trim();
   if (!text) return;
 
+  // A quota rejection is reported by the background worker (which owns the
+  // fetch and knows the tab) — importing the panel here would make romaji and
+  // agent-panel circular. Playback still falls through to the browser voice.
   const cloud = await speakText(text);
   if (cloud.ok) return;
 

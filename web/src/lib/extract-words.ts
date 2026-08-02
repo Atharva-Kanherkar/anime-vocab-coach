@@ -153,7 +153,8 @@ export async function extractWordsCached(
     console.warn("[extract-words] cache write failed", err);
   }
   try {
-    await incrementUsage(userId, currentMonth());
+    // "auto": fired per subtitle line by the content script, not asked for.
+    await incrementUsage(userId, currentMonth(), "auto");
   } catch (err) {
     console.warn("[extract-words] usage meter write failed", err);
   }

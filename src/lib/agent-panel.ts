@@ -13,6 +13,7 @@ import {
   normalizeDirection,
   type LearningDirection,
 } from "./direction";
+import type { Meter, TierOffer, UsageSnapshot } from "./usage-client";
 import type { DictEntry, DisplayScript, Judgment, PauseMode, Target, Token } from "../types";
 
 export type InteractionMode = "ambient" | "focus";
@@ -530,9 +531,111 @@ const STYLES = `
     font-size: 9px; color: rgba(236, 234, 228, 0.22);
     text-align: center; letter-spacing: 0.03em;
   }
+
+  /* ── Limit-reached sheet ───────────────────────────────────────────────
+     Centered over the video rather than tucked in the sidebar: hitting a cap
+     is the one moment the learner has to be told something, and the sidebar
+     is transparent until hovered. Backdrop takes clicks so the page can't be
+     driven behind it, but Escape / the backdrop / "Not now" all dismiss. */
+  .avc-agent-paywall {
+    position: fixed; inset: 0; z-index: 12;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; pointer-events: auto;
+    background: rgba(6, 5, 8, 0.62);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    opacity: 0; transition: opacity 200ms ease;
+  }
+  .avc-agent-paywall.avc-visible { opacity: 1; }
+  .avc-agent-paywall-card {
+    width: min(440px, 100%); max-height: 100%; overflow-y: auto;
+    padding: 26px 26px 22px; border-radius: 16px;
+    background: rgba(14, 12, 17, 0.97);
+    border: 1px solid rgba(227, 186, 99, 0.18);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.6);
+    color: rgba(240, 238, 232, 0.92);
+    transform: translateY(8px) scale(0.985);
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  .avc-agent-paywall.avc-visible .avc-agent-paywall-card {
+    transform: translateY(0) scale(1);
+  }
+  .avc-agent-paywall-kicker {
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(227, 186, 99, 0.7);
+  }
+  .avc-agent-paywall-title {
+    margin-top: 8px; font-size: 19px; line-height: 1.3; font-weight: 600;
+  }
+  .avc-agent-paywall-body {
+    margin-top: 8px; font-size: 13px; line-height: 1.55;
+    color: rgba(236, 234, 228, 0.62);
+  }
+  .avc-agent-meter { margin-top: 16px; }
+  .avc-agent-meter + .avc-agent-meter { margin-top: 10px; }
+  .avc-agent-meter-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 8px; font-size: 11px; letter-spacing: 0.03em;
+    color: rgba(236, 234, 228, 0.5);
+  }
+  .avc-agent-meter-val { color: rgba(236, 234, 228, 0.8); font-variant-numeric: tabular-nums; }
+  .avc-agent-meter-track {
+    margin-top: 6px; height: 5px; border-radius: 3px; overflow: hidden;
+    background: rgba(255, 255, 255, 0.07);
+  }
+  .avc-agent-meter-fill {
+    height: 100%; border-radius: 3px; background: rgba(227, 186, 99, 0.75);
+    transition: width 320ms ease;
+  }
+  .avc-agent-meter-fill.avc-meter-full { background: rgba(201, 106, 90, 0.85); }
+  .avc-agent-plans { margin-top: 20px; display: flex; flex-direction: column; gap: 9px; }
+  .avc-agent-plan {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; width: 100%; text-align: left;
+    padding: 12px 14px; border-radius: 10px; cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: inherit; font-family: inherit;
+    transition: border-color 140ms, background 140ms, transform 140ms;
+  }
+  .avc-agent-plan:hover { background: rgba(255, 255, 255, 0.06); transform: translateY(-1px); }
+  .avc-agent-plan:focus-visible { outline: 2px solid rgba(227, 186, 99, 0.6); outline-offset: 2px; }
+  .avc-agent-plan.avc-plan-featured {
+    border-color: rgba(227, 186, 99, 0.42);
+    background: rgba(227, 186, 99, 0.09);
+  }
+  .avc-agent-plan-name { font-size: 13px; font-weight: 600; }
+  .avc-agent-plan-perk {
+    margin-top: 2px; font-size: 11px; line-height: 1.45;
+    color: rgba(236, 234, 228, 0.55);
+  }
+  .avc-agent-plan-price {
+    flex-shrink: 0; font-size: 13px; font-weight: 600;
+    color: rgba(227, 186, 99, 0.92); white-space: nowrap;
+  }
+  .avc-agent-paywall-foot {
+    margin-top: 16px; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px;
+  }
+  .avc-agent-paywall-note {
+    font-size: 10.5px; line-height: 1.45; color: rgba(236, 234, 228, 0.35);
+  }
+  .avc-agent-paywall-dismiss {
+    flex-shrink: 0; padding: 7px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.12); background: transparent;
+    color: rgba(236, 234, 228, 0.62); font-size: 12px; font-family: inherit;
+    transition: background 140ms, color 140ms;
+  }
+  .avc-agent-paywall-dismiss:hover {
+    background: rgba(255, 255, 255, 0.06); color: rgba(240, 238, 232, 0.9);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .avc-agent-ambient { transition: none; }
     .avc-agent-chat-msg.avc-streaming::after { animation: none; }
+    .avc-agent-paywall,
+    .avc-agent-paywall-card,
+    .avc-agent-meter-fill { transition: none; }
   }
 `;
 
@@ -719,12 +822,29 @@ function buildSentence(
   return el;
 }
 
+/** Quota errors from any AI surface, mapped to the meter they exhausted. */
+function limitKindFromError(error: string | undefined): LimitKind | null {
+  if (error === "quota_exceeded" || error === "ai_quota_exhausted") return "ai";
+  if (error === "auto_quota_exhausted") return "auto";
+  return null;
+}
+
 function coachErrorText(resp: CoachResp | undefined): string {
   if (!resp || resp.ok) return "";
   if (resp.error === "not_linked" || resp.error === "unauthorized") return "Sign in at animevocab.com to use AI.";
   if (resp.error === "quota_exceeded" || resp.error === "ai_quota_exhausted") return "Monthly AI limit reached.";
+  if (resp.error === "auto_quota_exhausted") return "Monthly word-picking limit reached.";
   if (resp.error === "ai_not_configured") return "AI is not configured on the server yet.";
   return "AI unavailable. Try again.";
+}
+
+/** Raise the limit sheet if this response was a quota rejection. The inline
+ * text stays as a record of what happened; the sheet is what the learner
+ * actually notices on a panel that's transparent until hovered. */
+function surfaceQuotaError(resp: CoachResp | undefined): void {
+  if (!resp || resp.ok) return;
+  const kind = limitKindFromError(resp.error);
+  if (kind) void reportLimitReached(kind);
 }
 
 function appendAiLine(out: HTMLElement, label: string, body: string): void {
@@ -932,6 +1052,7 @@ async function submitChat(): Promise<void> {
     } else {
       const msg = err instanceof Error ? err.message : "network";
       finishStreamBubble(streamBubble, coachErrorText({ ok: false, error: msg }) || "Network error.");
+      surfaceQuotaError({ ok: false, error: msg });
     }
   } finally {
     shell.chatSend.disabled = false;
@@ -954,6 +1075,7 @@ async function askCoach(mode: "explain" | "hooks"): Promise<void> {
       payload: payloadFromCtx(wordCtx),
     })) as CoachResp | undefined;
     renderCoachOut(shell.aiOut, mode, resp);
+    surfaceQuotaError(resp);
   } catch {
     shell.aiOut.textContent = "AI unavailable.";
     shell.aiOut.classList.add("avc-visible");
@@ -1305,6 +1427,242 @@ export function showToast(text: string, kind: "error" | "info" = "info"): void {
   };
   toast.addEventListener("click", remove);
   setTimeout(remove, 6500);
+}
+
+// ── Limit-reached sheet ────────────────────────────────────────────────────
+// Before this existed, running out was invisible: Listening Mode stopped with a
+// 6-second toast, the coach printed "Monthly AI limit reached." into a panel
+// that is transparent until hovered, and word picking silently downgraded to
+// the offline heuristic. None of them said what to do next.
+
+export type LimitKind = "ai" | "auto" | "listening";
+
+/** One sheet per kind per page — a learner watching an episode should be told
+ * once, not on every subsequent subtitle line that hits the same wall. */
+const limitShown = new Set<LimitKind>();
+let paywallEl: HTMLElement | null = null;
+let paywallKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+
+function planLabel(plan: string): string {
+  if (plan === "max") return "Max";
+  if (plan === "pro") return "Pro";
+  return "Free";
+}
+
+function hoursLabel(minutes: number): string {
+  const hours = minutes / 60;
+  return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+}
+
+function buildMeter(label: string, used: number, limit: number, unit: "calls" | "minutes"): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "avc-agent-meter";
+
+  const row = document.createElement("div");
+  row.className = "avc-agent-meter-row";
+  const name = document.createElement("span");
+  name.textContent = label;
+  const val = document.createElement("span");
+  val.className = "avc-agent-meter-val";
+  val.textContent =
+    unit === "minutes"
+      ? `${hoursLabel(Math.min(used, limit))} / ${hoursLabel(limit)}`
+      : `${Math.min(used, limit).toLocaleString()} / ${limit.toLocaleString()}`;
+  row.appendChild(name);
+  row.appendChild(val);
+
+  const track = document.createElement("div");
+  track.className = "avc-agent-meter-track";
+  const fill = document.createElement("div");
+  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  fill.className = pct >= 100 ? "avc-agent-meter-fill avc-meter-full" : "avc-agent-meter-fill";
+  fill.style.width = `${pct}%`;
+  track.appendChild(fill);
+
+  wrap.appendChild(row);
+  wrap.appendChild(track);
+  return wrap;
+}
+
+function limitCopy(kind: LimitKind, usage: UsageSnapshot | null): { title: string; body: string } {
+  const plan = planLabel(usage?.plan || "free");
+  if (kind === "listening") {
+    const hours = usage?.listening ? hoursLabel(usage.listening.limit) : "this month's";
+    return {
+      title: "Listening Mode is out of hours",
+      body: `You've used all ${hours} of Listening Mode on ${plan} this month. Subtitle capture, reviews and your saved words all keep working — only live audio transcription is paused.`,
+    };
+  }
+  if (kind === "auto") {
+    return {
+      title: "Smart word picking is paused",
+      body: `You've used this month's ${plan} allowance for automatic word picking and pronunciation audio. AnimeVocab falls back to its offline picker and your browser's voice, so cards keep coming — they're just less finely chosen.`,
+    };
+  }
+  const limit = usage?.ai ? usage.ai.limit.toLocaleString() : "this month's";
+  return {
+    title: "You're out of AI messages",
+    body: `That's all ${limit} coach explanations, memory hooks and chat replies on ${plan} for this month. Everything else — cards, reviews, Listening Mode — keeps working.`,
+  };
+}
+
+function buildPlanButton(tier: TierOffer, featured: boolean): HTMLElement | null {
+  if (!tier.checkoutUrl) return null;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = featured ? "avc-agent-plan avc-plan-featured" : "avc-agent-plan";
+
+  const left = document.createElement("div");
+  const name = document.createElement("div");
+  name.className = "avc-agent-plan-name";
+  name.textContent = tier.name;
+  const perk = document.createElement("div");
+  perk.className = "avc-agent-plan-perk";
+  perk.textContent = `${tier.aiCallsPerMonth.toLocaleString()} AI messages · ${hoursLabel(tier.listeningMinutes)} Listening`;
+  left.appendChild(name);
+  left.appendChild(perk);
+
+  const price = document.createElement("div");
+  price.className = "avc-agent-plan-price";
+  price.textContent = tier.priceLabel;
+
+  btn.appendChild(left);
+  btn.appendChild(price);
+  btn.addEventListener("click", () => {
+    chrome.runtime.sendMessage({ type: "avc-open-url", url: tier.checkoutUrl }).catch(() => {});
+    dismissLimitSheet();
+  });
+  return btn;
+}
+
+export function dismissLimitSheet(): void {
+  if (paywallKeyHandler) {
+    window.removeEventListener("keydown", paywallKeyHandler, true);
+    paywallKeyHandler = null;
+  }
+  const el = paywallEl;
+  if (!el) return;
+  paywallEl = null;
+  el.classList.remove("avc-visible");
+  setTimeout(() => el.remove(), 220);
+}
+
+/**
+ * Explain a cap that was just hit and offer the way out. `usage` is optional:
+ * without it the sheet still explains what stopped, it just can't draw meters.
+ */
+export function showLimitSheet(kind: LimitKind, usage: UsageSnapshot | null): void {
+  const root = mountHost();
+  if (!root.querySelector("style")) root.innerHTML = `<style>${STYLES}</style>`;
+  dismissLimitSheet();
+
+  const overlay = document.createElement("div");
+  overlay.className = "avc-agent-paywall";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Monthly limit reached");
+
+  const card = document.createElement("div");
+  card.className = "avc-agent-paywall-card";
+  // Clicks inside the card must not reach the backdrop's dismiss handler.
+  card.addEventListener("click", (e) => e.stopPropagation());
+
+  const kicker = document.createElement("div");
+  kicker.className = "avc-agent-paywall-kicker";
+  kicker.textContent = `${planLabel(usage?.plan || "free")} plan · monthly limit`;
+
+  const copy = limitCopy(kind, usage);
+  const title = document.createElement("div");
+  title.className = "avc-agent-paywall-title";
+  title.textContent = copy.title;
+  const body = document.createElement("div");
+  body.className = "avc-agent-paywall-body";
+  body.textContent = copy.body;
+
+  card.appendChild(kicker);
+  card.appendChild(title);
+  card.appendChild(body);
+
+  if (usage) {
+    const meters: [string, Meter | null, "calls" | "minutes"][] = [
+      ["AI messages", usage.ai.limit > 0 ? usage.ai : null, "calls"],
+      ["Listening Mode", usage.listening, "minutes"],
+    ];
+    for (const [label, m, unit] of meters) {
+      if (m && m.limit > 0) card.appendChild(buildMeter(label, m.used, m.limit, unit));
+    }
+  }
+
+  const upgrades: HTMLElement[] = [];
+  if (usage?.tiers) {
+    // Only offer a genuine step up: a Pro subscriber sees Max, not Pro again.
+    if (usage.plan === "free") {
+      const pro = buildPlanButton(usage.tiers.pro, true);
+      if (pro) upgrades.push(pro);
+    }
+    if (usage.plan === "free" || usage.plan === "pro") {
+      const max = buildPlanButton(usage.tiers.max, usage.plan === "pro");
+      if (max) upgrades.push(max);
+    }
+  }
+
+  if (upgrades.length) {
+    const plans = document.createElement("div");
+    plans.className = "avc-agent-plans";
+    for (const u of upgrades) plans.appendChild(u);
+    card.appendChild(plans);
+  }
+
+  const foot = document.createElement("div");
+  foot.className = "avc-agent-paywall-foot";
+  const note = document.createElement("div");
+  note.className = "avc-agent-paywall-note";
+  note.textContent = upgrades.length
+    ? "Cancel anytime. Your saved words stay yours either way."
+    : "Your allowance resets at the start of next month.";
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.className = "avc-agent-paywall-dismiss";
+  dismiss.textContent = "Not now";
+  dismiss.addEventListener("click", dismissLimitSheet);
+  foot.appendChild(note);
+  foot.appendChild(dismiss);
+  card.appendChild(foot);
+
+  overlay.appendChild(card);
+  overlay.addEventListener("click", dismissLimitSheet);
+  root.appendChild(overlay);
+  paywallEl = overlay;
+
+  paywallKeyHandler = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    dismissLimitSheet();
+  };
+  window.addEventListener("keydown", paywallKeyHandler, true);
+
+  requestAnimationFrame(() => overlay.classList.add("avc-visible"));
+  dismiss.focus();
+}
+
+/** Show the sheet the first time each kind of cap is hit on this page. Returns
+ * true if it opened. Fetching usage goes through the background worker — a
+ * content script's fetch is bound by the page's CORS, not ours. */
+export async function reportLimitReached(kind: LimitKind): Promise<boolean> {
+  if (limitShown.has(kind)) return false;
+  limitShown.add(kind);
+  let usage: UsageSnapshot | null = null;
+  try {
+    const res = (await chrome.runtime.sendMessage({ type: "avc-usage" })) as
+      | { ok?: boolean; usage?: UsageSnapshot }
+      | undefined;
+    if (res?.ok && res.usage) usage = res.usage;
+  } catch {
+    /* background asleep or offline — the sheet still explains what stopped */
+  }
+  showLimitSheet(kind, usage);
+  return true;
 }
 
 export function isAgentMounted(): boolean {

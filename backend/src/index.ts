@@ -104,6 +104,26 @@ export default {
         });
       }
 
+      // Read-only listening meter. The extension needs this to show a "how much
+      // is left" bar before the cap is hit — /v1/session only answers when a
+      // listening session is actually starting, and the heartbeat only answers
+      // mid-session, so there was no way to ask ahead of time.
+      if (path === "/v1/usage" && req.method === "GET") {
+        const auth = await requireAuth(env.AVC_KV, req, json);
+        if (!auth.ok) return auth.response;
+
+        const plan = effectivePlanFromProfile(auth.profile);
+        const cap = capMinutesForPlan(env, plan);
+        const used = await getUsage(env, auth.userId);
+        return json(req, {
+          plan,
+          usedMinutes: Math.floor(used),
+          capMinutes: cap,
+          leftMinutes: Math.max(0, Math.floor(cap - used)),
+          overCap: used >= cap
+        });
+      }
+
       if (path === "/v1/usage/heartbeat" && req.method === "POST") {
         const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;

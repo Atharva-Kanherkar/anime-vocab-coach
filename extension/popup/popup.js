@@ -406,6 +406,44 @@
     const who = profile?.email || profile?.name || "your account";
     el.innerHTML = `<div class="av-account-row"><span class="av-dot"></span><div><b>Cloud sync on</b><span class="av-account-sub">Synced as ${esc(who)}</span></div></div>`;
   }
+  function meterMarkup(label, used, limit, unit) {
+    if (!limit) return "";
+    const pct = Math.min(100, Math.round(used / limit * 100));
+    const cls = pct >= 100 ? "av-meter-fill av-meter-full" : pct >= 85 ? "av-meter-fill av-meter-low" : "av-meter-fill";
+    const fmt = (n) => unit === "minutes" ? `${Number.isInteger(n / 60) ? n / 60 : (n / 60).toFixed(1)}h` : n.toLocaleString();
+    return `<div class="av-meter"><div class="av-meter-row"><span>${esc(label)}</span><span class="av-meter-val">${esc(fmt(Math.min(used, limit)))} / ${esc(fmt(limit))}</span></div><div class="av-meter-track"><div class="${cls}" style="width:${pct}%"></div></div></div>`;
+  }
+  async function renderUsage() {
+    const el = byId("usage");
+    const token = await getSyncToken();
+    if (!token) {
+      el.hidden = true;
+      return;
+    }
+    let usage = null;
+    try {
+      const res = await chrome.runtime.sendMessage({ type: "avc-usage" });
+      if (res?.ok && res.usage) usage = res.usage;
+    } catch {
+    }
+    if (!usage) {
+      el.hidden = true;
+      return;
+    }
+    const planName = usage.plan === "max" ? "Max" : usage.plan === "pro" ? "Pro" : "Free";
+    const meters = usage.unlimited ? `<p class="av-usage-note">No caps on this account.</p>` : meterMarkup("AI messages", usage.ai.used, usage.ai.limit, "calls") + (usage.listening ? meterMarkup("Listening Mode", usage.listening.used, usage.listening.limit, "minutes") : "");
+    const aiLow = !usage.unlimited && usage.ai.limit > 0 && usage.ai.used / usage.ai.limit >= 0.8;
+    const listenLow = !usage.unlimited && !!usage.listening && usage.listening.limit > 0 && usage.listening.used / usage.listening.limit >= 0.8;
+    const offer = usage.plan === "free" ? usage.tiers?.pro : usage.plan === "pro" ? usage.tiers?.max : null;
+    const cta = (aiLow || listenLow) && offer?.checkoutUrl ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">Upgrade to ${esc(offer.name)} \u2014 ${esc(offer.priceLabel)}</button>` : "";
+    el.innerHTML = `<div class="av-usage-head"><span class="av-usage-title">This month</span><span class="av-usage-plan">${esc(planName)}</span></div>` + meters + cta;
+    el.hidden = false;
+    if (cta && offer?.checkoutUrl) {
+      byId("usage-upgrade").addEventListener("click", () => {
+        chrome.tabs.create({ url: offer.checkoutUrl });
+      });
+    }
+  }
   async function render() {
     const vocab = await getVocab();
     const stats = await getStats();
@@ -459,9 +497,13 @@
     initTheme();
     void render();
     void renderAccount();
+    void renderUsage();
     void initCopilotToggle();
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded)) void renderAccount();
+      if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded)) {
+        void renderAccount();
+        void renderUsage();
+      }
     });
     byId("cloud-link").addEventListener("click", (e) => {
       e.preventDefault();

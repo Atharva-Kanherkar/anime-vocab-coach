@@ -23,7 +23,37 @@ function sessionKey(line: string, direction: LearningDirection, level: number): 
   return `${direction}:${level}:${line}`;
 }
 
-/** Ask the cloud AI to gloss vocabulary from a line (used heavily for ja→en). */
+export interface ExtractWordsRequest {
+  line: string;
+  direction: LearningDirection;
+  learnerLevel: number;
+  title?: string | null;
+}
+
+/**
+ * Content-side entry. Same CORS constraint as word picking and anime context:
+ * the web API sends no Access-Control-Allow-Origin, so a direct fetch from a
+ * streaming tab fails its preflight and the ja→en glossing that depends on it
+ * quietly produces nothing. Hand the request to the background worker instead.
+ */
+export async function requestExtractWords(opts: ExtractWordsRequest): Promise<ExtractWordsResponse> {
+  const key = sessionKey(opts.line, opts.direction, opts.learnerLevel);
+  const hit = sessionCache.get(key);
+  if (hit) return { ok: true, words: hit, cached: true };
+  try {
+    const res = (await chrome.runtime.sendMessage({
+      type: "avc-extract-words",
+      payload: opts,
+    })) as ExtractWordsResponse | undefined;
+    if (!res) return { ok: false, error: "no_response" };
+    if (res.ok && res.words?.length) sessionCache.set(key, res.words);
+    return res;
+  } catch {
+    return { ok: false, error: "network" };
+  }
+}
+
+/** Background-side: the real network call. */
 export async function fetchExtractWords(opts: {
   line: string;
   direction: LearningDirection;

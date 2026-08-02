@@ -139,6 +139,90 @@ body.av {
   background: #f0a637;
 }
 
+/* ── Monthly usage ─────────────────────────────────────────────────────────
+   The popup used to show account state but never how much of the plan was
+   left, so a learner's first hint of a cap was a feature quietly stopping. */
+.av-usage {
+  margin-top: 10px;
+  padding: 10px 11px 11px;
+  border: 1.5px solid var(--av-line);
+  border-radius: 10px;
+  background: var(--av-panel);
+}
+
+.av-usage-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.av-usage-title {
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--av-ink-3);
+}
+
+.av-usage-plan {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  color: var(--av-accent);
+}
+
+.av-meter + .av-meter {
+  margin-top: 8px;
+}
+
+.av-meter-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10.5px;
+  color: var(--av-ink-2);
+}
+
+.av-meter-val {
+  font-variant-numeric: tabular-nums;
+  color: var(--av-ink);
+}
+
+.av-meter-track {
+  margin-top: 4px;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--av-field);
+  border: 1px solid var(--av-line);
+}
+
+.av-meter-fill {
+  height: 100%;
+  background: var(--av-accent);
+}
+
+.av-meter-fill.av-meter-low {
+  background: #f0a637;
+}
+
+.av-meter-fill.av-meter-full {
+  background: var(--av-danger);
+}
+
+.av-usage-cta {
+  margin-top: 10px;
+}
+
+.av-usage-note {
+  margin-top: 7px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--av-ink-3);
+}
+
 .av-review-prompt-host {
   margin-top: 12px;
 }

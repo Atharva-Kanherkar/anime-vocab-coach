@@ -82,6 +82,24 @@ export const DEFAULT_FREE_LIMIT = TIERS.free.aiCallsPerMonth;
 export const DEFAULT_PRO_LIMIT = TIERS.pro.aiCallsPerMonth;
 export const DEFAULT_MAX_LIMIT = TIERS.max.aiCallsPerMonth;
 
+// Second meter, for AI the learner never explicitly asked for.
+export const DEFAULT_FREE_AUTO_LIMIT = TIERS.free.autoCallsPerMonth;
+export const DEFAULT_PRO_AUTO_LIMIT = TIERS.pro.autoCallsPerMonth;
+export const DEFAULT_MAX_AUTO_LIMIT = TIERS.max.autoCallsPerMonth;
+
+/**
+ * Which meter a call is charged to.
+ *
+ * `ai`   — the learner asked for it: explain, hooks, chat, notebook summaries.
+ *          This is the allowance the pricing page advertises.
+ * `auto` — the extension fired it in the background: smart word picking and
+ *          pronunciation audio. Cheap, cached, and invisible to the learner,
+ *          so it gets its own far larger bucket. Charging these to `ai` is what
+ *          made the advertised allowance evaporate without the learner ever
+ *          opening the coach.
+ */
+export type UsageBucket = "ai" | "auto";
+
 // Bounds keep the prompt small (cost + the "never send more than needed" constraint).
 export const MAX_WORD_LEN = 80;
 export const MAX_LINE_LEN = 400;
