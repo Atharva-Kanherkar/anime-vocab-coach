@@ -60,6 +60,14 @@ describe("middleware matcher", () => {
     expect(covered("/__clerk/v1/client")).toBe(true);
   });
 
+  it("covers the owner-only admin routes", () => {
+    // These gate on currentUser() and are the only thing standing between a
+    // stranger and a mass email / mass entitlement rewrite. Outside the matcher
+    // currentUser() throws, which would 500 instead of returning 403.
+    expect(covered("/api/admin/feedback-email")).toBe(true);
+    expect(covered("/api/admin/max-gift")).toBe(true);
+  });
+
   it("skips Clerk on anonymous funnel beacons", () => {
     // Still matched by /(api|trpc)(.*), but BEACON_ROUTES exits before Clerk.
     for (const path of ["/api/extension/track", "/api/ending/track"]) {
