@@ -38,6 +38,10 @@ interface Session {
   transcribing: boolean;
   chunkTimer: ReturnType<typeof setInterval> | null;
   useCache: boolean;
+  /** Segments already forwarded to the tab. Warm-cache hits return a window
+   * wider than one chunk, so consecutive 6s chunks overlap — without this the
+   * same line is fanned out (and carded) more than once. */
+  sentCues: Set<string>;
   /** Start of the current unpaused stretch on the realtime path, or null while
    * paused/stopped. */
   billedFromMs: number | null;
@@ -391,7 +395,7 @@ async function flushChunk(session: Session): Promise<void> {
     });
     const data = (await res.json().catch(() => ({}))) as {
       hit?: boolean;
-      segments?: { text: string }[];
+      segments?: { start?: number; text: string }[];
       error?: string;
     };
     if (res.status === 429) {
@@ -406,6 +410,10 @@ async function flushChunk(session: Session): Promise<void> {
         ? /[A-Za-z]{2,}/.test(t)
         : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
       if (t && langOk) {
+        const cue = `${seg.start ?? "?"}:${t}`;
+        if (session.sentCues.has(cue)) continue;
+        session.sentCues.add(cue);
+        if (session.sentCues.size > 2000) session.sentCues.clear();
         olog(data.hit ? "cache hit:" : "transcribed:", t);
         chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
       }
@@ -463,6 +471,7 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
     transcribing: false,
     chunkTimer: null,
     useCache,
+    sentCues: new Set(),
     billedFromMs: null,
     pendingBillMs: 0,
     modeGeneration: 0

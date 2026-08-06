@@ -3252,7 +3252,8 @@
     let lineInFlight = false;
     let queuedLine = null;
     let cachePollTimer = null;
-    let lastCacheCueKey = "";
+    const emittedCueKeys = /* @__PURE__ */ new Set();
+    let cachePollInFlight = false;
     let playbackRelayTimer = null;
     function pickAdapter() {
       if (adapter) return adapter;
@@ -3305,21 +3306,24 @@
       }
     }
     async function pollCacheHit() {
-      if (!listeningActive || !cacheKey2) return;
+      if (!listeningActive || !cacheKey2 || cachePollInFlight) return;
       const a = pickAdapter();
       const video = a?.getVideo();
       if (!video || video.paused) return;
-      settings = await getSettings();
-      const syncToken = await getSyncToken();
-      if (!syncToken) return;
-      const t = video.currentTime;
+      cachePollInFlight = true;
       try {
-        const result = await lookupTranscript(syncToken, cacheKey2, t);
+        settings = await getSettings();
+        const syncToken = await getSyncToken();
+        if (!syncToken) return;
+        const t = video.currentTime;
+        const result = await lookupTranscript(syncToken, cacheKey2, t, 2);
         if (!result.hit || !result.segments.length) return;
         for (const seg of result.segments) {
+          if (seg.start > t) continue;
           const key = `${seg.start}:${seg.text}`;
-          if (key === lastCacheCueKey) continue;
-          lastCacheCueKey = key;
+          if (emittedCueKeys.has(key)) continue;
+          emittedCueKeys.add(key);
+          if (emittedCueKeys.size > 2e3) emittedCueKeys.clear();
           const lang = studyLang();
           if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
           if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
@@ -3328,6 +3332,8 @@
         }
       } catch (err) {
         warn("cache poll failed:", err);
+      } finally {
+        cachePollInFlight = false;
       }
     }
     function startCachePolling() {
@@ -3340,7 +3346,7 @@
     function stopCachePolling() {
       if (cachePollTimer) clearInterval(cachePollTimer);
       cachePollTimer = null;
-      lastCacheCueKey = "";
+      emittedCueKeys.clear();
     }
     function startPlaybackRelay() {
       if (playbackRelayTimer) return;
@@ -3618,7 +3624,7 @@
         lastSessionId = sid;
         targetedThisSession.clear();
         lastLine = "";
-        lastCacheCueKey = "";
+        emittedCueKeys.clear();
         lastContextTitle = "";
         refreshCacheKey();
         log("session reset for new video:", sid);
