@@ -58,5 +58,7 @@ describe("CueLedger", () => {
     expect(content).toMatch(/await onLine[\s\S]{0,100}?if \(stale\(\)\) return/);
     expect(offscreen).toContain("session.cacheKey !== requestKey");
     expect(offscreen).toContain("session.modeGeneration !== generation");
+    expect(offscreen).toContain("session.transcribingGeneration === session.modeGeneration");
+    expect(offscreen).toContain("if (session.transcribingGeneration === generation) session.transcribingGeneration = null");
   });
 });

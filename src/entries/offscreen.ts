@@ -37,7 +37,8 @@ interface Session {
   pcmBuffer: Int16Array[];
   chunkStartSec: number;
   chunkStarted: boolean;
-  transcribing: boolean;
+  /** Generation that owns the active cache transcription, or null. */
+  transcribingGeneration: number | null;
   chunkTimer: ReturnType<typeof setInterval> | null;
   useCache: boolean;
   /** Segments already forwarded to the tab. Warm-cache hits return a window
@@ -379,7 +380,7 @@ function pcmSampleCount(chunks: Int16Array[]): number {
 }
 
 async function flushChunk(session: Session): Promise<void> {
-  if (session.transcribing || !session.cacheKey || session.auth.kind !== "cloud") return;
+  if (session.transcribingGeneration === session.modeGeneration || !session.cacheKey || session.auth.kind !== "cloud") return;
   if (session.playbackPaused) return;
   if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
 
@@ -388,7 +389,7 @@ async function flushChunk(session: Session): Promise<void> {
   const startSec = session.chunkStartSec;
   const requestKey = session.cacheKey;
   const generation = session.modeGeneration;
-  session.transcribing = true;
+  session.transcribingGeneration = generation;
 
   try {
     olog("transcribing chunk at playback", startSec, "samples", pcm.length);
@@ -429,7 +430,8 @@ async function flushChunk(session: Session): Promise<void> {
   } catch (err) {
     olog("chunk transcribe failed:", String(err));
   } finally {
-    session.transcribing = false;
+    // An obsolete request must never unlock the replacement generation's poll.
+    if (session.transcribingGeneration === generation) session.transcribingGeneration = null;
   }
 }
 
@@ -476,7 +478,7 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
     pcmBuffer: [],
     chunkStartSec: 0,
     chunkStarted: false,
-    transcribing: false,
+    transcribingGeneration: null,
     chunkTimer: null,
     useCache,
     sentCues: new CueLedger(),

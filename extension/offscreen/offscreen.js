@@ -267,7 +267,7 @@
     return chunks.reduce((n, c) => n + c.length, 0);
   }
   async function flushChunk(session) {
-    if (session.transcribing || !session.cacheKey || session.auth.kind !== "cloud") return;
+    if (session.transcribingGeneration === session.modeGeneration || !session.cacheKey || session.auth.kind !== "cloud") return;
     if (session.playbackPaused) return;
     if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
     const pcm = concatPcm(session.pcmBuffer);
@@ -275,7 +275,7 @@
     const startSec = session.chunkStartSec;
     const requestKey = session.cacheKey;
     const generation = session.modeGeneration;
-    session.transcribing = true;
+    session.transcribingGeneration = generation;
     try {
       olog("transcribing chunk at playback", startSec, "samples", pcm.length);
       const res = await fetch(session.auth.backendUrl + "/v1/transcript/transcribe", {
@@ -308,7 +308,7 @@
     } catch (err) {
       olog("chunk transcribe failed:", String(err));
     } finally {
-      session.transcribing = false;
+      if (session.transcribingGeneration === generation) session.transcribingGeneration = null;
     }
   }
   async function start({ streamId, tabId, auth, model, language, cacheKey }) {
@@ -362,7 +362,7 @@
       pcmBuffer: [],
       chunkStartSec: 0,
       chunkStarted: false,
-      transcribing: false,
+      transcribingGeneration: null,
       chunkTimer: null,
       useCache,
       sentCues: new CueLedger(),
