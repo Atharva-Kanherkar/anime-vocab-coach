@@ -7,6 +7,7 @@
 - Transcript cues are emitted once across overlapping cache polling and offscreen cache delivery.
 - A bounded cue ledger evicts only its oldest cue when full; reaching the cap never clears all dedupe history.
 - Transcript responses that finish after an episode/cache-key change or listening stop/restart are discarded instead of emitting stale cues or repopulating the reset ledger.
+- A slow obsolete cache lookup cannot retain the in-flight lock or block polling in the replacement listening generation.
 - Dictionary entries honor JMdict reading restrictions (`re_restr`) and sense restrictions (`stagk` / `stagr`). For example, `撮る` means “take a photograph”, while `録る` means “record”.
 - The generated extension bundles and dictionary stay reproducible from their sources.
 

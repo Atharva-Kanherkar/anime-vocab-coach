@@ -51,6 +51,8 @@ describe("CueLedger", () => {
     expect(content).toMatch(/if \(next !== cacheKey\)[\s\S]{0,260}?emittedCueKeys\.clear\(\)/);
     expect(offscreen).toContain("session.sentCues.clear()");
     expect(content).toContain("cachePollGeneration !== generation");
+    expect(content).toContain("if (cachePollInFlight === generation) return");
+    expect(content).toContain("if (cachePollInFlight === generation) cachePollInFlight = null");
     expect(content).toMatch(/settings = await storage\.getSettings\(\);\s+if \(stale\(\)\) return/);
     expect(content).toMatch(/await lookupTranscript[\s\S]{0,300}?if \(stale\(\)\) return/);
     expect(content).toMatch(/await onLine[\s\S]{0,100}?if \(stale\(\)\) return/);

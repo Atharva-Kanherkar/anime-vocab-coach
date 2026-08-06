@@ -59,8 +59,9 @@ declare global {
    * poll returning [A,B,C] left the slot at C, and the next poll re-emitted A. */
   const emittedCueKeys = new CueLedger();
   /** pollCacheHit awaits the card's whole lifetime; without this, 800ms ticks
-   * stack overlapping runs. */
-  let cachePollInFlight = false;
+   * stack overlapping runs. Scoped to a generation so a hung obsolete lookup
+   * cannot block polling forever after Listening restarts. */
+  let cachePollInFlight: number | null = null;
   /** Invalidates async polls across stop/restart and episode-key transitions,
    * including K -> other -> K cycles that a key-only check cannot detect. */
   let cachePollGeneration = 0;
@@ -129,15 +130,16 @@ declare global {
   }
 
   async function pollCacheHit(): Promise<void> {
-    if (!listeningActive || !cacheKey || cachePollInFlight) return;
+    if (!listeningActive || !cacheKey) return;
     const a = pickAdapter();
     const video = a?.getVideo();
     if (!video || video.paused) return;
     const requestedKey = cacheKey;
     const generation = cachePollGeneration;
+    if (cachePollInFlight === generation) return;
     const stale = (): boolean =>
       !listeningActive || cachePollGeneration !== generation || cacheKey !== requestedKey;
-    cachePollInFlight = true;
+    cachePollInFlight = generation;
     try {
       settings = await storage.getSettings();
       if (stale()) return;
@@ -167,7 +169,8 @@ declare global {
     } catch (err) {
       warn("cache poll failed:", err);
     } finally {
-      cachePollInFlight = false;
+      // A stale request must never unlock a newer generation's active poll.
+      if (cachePollInFlight === generation) cachePollInFlight = null;
     }
   }
 

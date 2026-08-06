@@ -3290,7 +3290,7 @@
     let queuedLine = null;
     let cachePollTimer = null;
     const emittedCueKeys = new CueLedger();
-    let cachePollInFlight = false;
+    let cachePollInFlight = null;
     let cachePollGeneration = 0;
     let playbackRelayTimer = null;
     function pickAdapter() {
@@ -3346,14 +3346,15 @@
       }
     }
     async function pollCacheHit() {
-      if (!listeningActive || !cacheKey2 || cachePollInFlight) return;
+      if (!listeningActive || !cacheKey2) return;
       const a = pickAdapter();
       const video = a?.getVideo();
       if (!video || video.paused) return;
       const requestedKey = cacheKey2;
       const generation = cachePollGeneration;
+      if (cachePollInFlight === generation) return;
       const stale = () => !listeningActive || cachePollGeneration !== generation || cacheKey2 !== requestedKey;
-      cachePollInFlight = true;
+      cachePollInFlight = generation;
       try {
         settings = await getSettings();
         if (stale()) return;
@@ -3378,7 +3379,7 @@
       } catch (err) {
         warn("cache poll failed:", err);
       } finally {
-        cachePollInFlight = false;
+        if (cachePollInFlight === generation) cachePollInFlight = null;
       }
     }
     function startCachePolling() {
