@@ -138,7 +138,9 @@ export function completionTuning(
   // lower efforts stay deliberately tighter for latency-sensitive background
   // calls.
   const headroom =
-    effort === "none"
+    !opts.effort
+      ? 25_000
+      : effort === "none"
       ? 0
       : effort === "minimal"
         ? 1_000
@@ -153,6 +155,33 @@ export function completionTuning(
     ...(opts.effort ? { reasoning_effort: effort } : {}),
     max_completion_tokens: opts.maxTokens + headroom,
   };
+}
+
+async function openAiHttpError(res: Response, operation: string): Promise<Error> {
+  let providerError: Record<string, string> = {};
+  try {
+    const payload = (await res.json()) as {
+      error?: { message?: unknown; type?: unknown; param?: unknown; code?: unknown };
+    };
+    const error = payload.error;
+    const copy = (key: "message" | "type" | "param" | "code", max = 500) => {
+      const value = error?.[key];
+      if (typeof value === "string" && value) providerError[key] = value.slice(0, max);
+    };
+    copy("message");
+    copy("type", 100);
+    copy("param", 100);
+    copy("code", 100);
+  } catch {
+    providerError = { message: "unreadable_error_body" };
+  }
+  console.error("[ai-coach] OpenAI request failed", {
+    operation,
+    status: res.status,
+    requestId: res.headers?.get("x-request-id") || undefined,
+    providerError,
+  });
+  return new Error(`openai_${res.status}`);
 }
 // Enforced monthly caps derive from the advertised tiers in site.ts, so the
 // number a user is billed against is the same number the pricing UI shows.
@@ -369,9 +398,7 @@ export async function runCoach(
     }),
   });
 
-  if (!res.ok) {
-    throw new Error(`openai_${res.status}`);
-  }
+  if (!res.ok) throw await openAiHttpError(res, req.mode);
 
   const data = (await res.json()) as {
     choices?: { message?: { content?: string } }[];
@@ -450,7 +477,7 @@ async function runChatCoach(
     }),
   });
 
-  if (!res.ok) throw new Error(`openai_${res.status}`);
+  if (!res.ok) throw await openAiHttpError(res, "chat");
 
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const reply = (data.choices?.[0]?.message?.content || "").trim();
@@ -480,7 +507,7 @@ export async function* streamChatCoach(
     }),
   });
 
-  if (!res.ok) throw new Error(`openai_${res.status}`);
+  if (!res.ok) throw await openAiHttpError(res, "chat_stream");
   if (!res.body) throw new Error("openai_no_body");
 
   const reader = res.body.getReader();

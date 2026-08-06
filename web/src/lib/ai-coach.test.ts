@@ -22,6 +22,22 @@ function mockOpenAi(content: string, ok = true, status = 200) {
   } as unknown as Response);
 }
 
+function mockOpenAiError(message: string, status = 400) {
+  return vi.fn().mockResolvedValue({
+    ok: false,
+    status,
+    headers: new Headers({ "x-request-id": "req-test" }),
+    json: async () => ({
+      error: {
+        message,
+        type: "invalid_request_error",
+        param: "reasoning_effort",
+        code: "unsupported_value",
+      },
+    }),
+  } as unknown as Response);
+}
+
 function mockOpenAiStream(content: string) {
   const body = new ReadableStream({
     start(controller) {
@@ -101,8 +117,18 @@ describe("runCoach", () => {
   });
 
   it("throws on an OpenAI HTTP error", async () => {
-    vi.stubGlobal("fetch", mockOpenAi("", false, 429));
-    await expect(runCoach("sk-test", "gpt-4.1-nano", baseReq)).rejects.toThrow("openai_429");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", mockOpenAiError("Unsupported value", 400));
+    await expect(runCoach("sk-test", "gpt-4.1-nano", baseReq)).rejects.toThrow("openai_400");
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[ai-coach] OpenAI request failed",
+      expect.objectContaining({
+        operation: "explain",
+        status: 400,
+        requestId: "req-test",
+        providerError: expect.objectContaining({ param: "reasoning_effort" }),
+      })
+    );
   });
 
   it("throws when the model returns no usable content", async () => {
@@ -186,7 +212,7 @@ describe("reasoning model tuning", () => {
     const none = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "none" });
     const low = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "low" });
     const max = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "max" });
-    expect(omitted).toEqual({ max_completion_tokens: 4400 });
+    expect(omitted).toEqual({ max_completion_tokens: 25400 });
     expect(none.max_completion_tokens).toBe(400);
     expect(low.max_completion_tokens).toBe(2400);
     expect(max.max_completion_tokens).toBe(25400);

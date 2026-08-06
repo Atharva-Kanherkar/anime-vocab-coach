@@ -69,6 +69,24 @@ describe("reasoning-model callers", () => {
     expect(body).not.toHaveProperty("max_tokens");
   });
 
+  it("omits the default notebook effort while retaining reasoning headroom", async () => {
+    const fetchMock = mockOpenAi({ weakSpots: ["verbs"], reviewPrompts: ["Use 見る in a sentence."] });
+    vi.stubGlobal("fetch", fetchMock);
+    const notebook: Notebook = {
+      id: "n2",
+      name: "Episode two",
+      createdAt: "2026-08-06T00:00:00Z",
+      updatedAt: "2026-08-06T00:00:00Z",
+      entries: [],
+    };
+
+    await runNotebookSummary("sk-test", "gpt-5.6-luna", notebook);
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).not.toHaveProperty("reasoning_effort");
+    expect(body.max_completion_tokens).toBe(25_600);
+  });
+
   it("preserves classic sampling fields for a non-reasoning override", async () => {
     const fetchMock = mockOpenAi({ word: "見る" });
     vi.stubGlobal("fetch", fetchMock);
