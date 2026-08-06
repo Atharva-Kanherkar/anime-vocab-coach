@@ -18,6 +18,18 @@ import {
   targetLangName,
   type LearningDirection,
 } from "@/lib/direction";
+import { EMPTY_USAGE, parseUsage, type TokenUsage } from "@/lib/llm-pricing";
+
+/**
+ * Called with the provider's token accounting once a call finishes.
+ *
+ * A callback rather than a richer return type because streamChatCoach is a
+ * generator: `for await` discards a generator's return value, so usage that
+ * only arrives in the final SSE chunk would be unobservable. Keeping this a
+ * plain function also keeps this module free of Cloudflare imports, so it
+ * stays unit-testable without a Workers runtime.
+ */
+export type UsageSink = (usage: TokenUsage, latencyMs: number) => void;
 
 export type CoachMode = "explain" | "hooks" | "chat";
 export type Plan = "free" | "pro" | "max";
@@ -373,12 +385,14 @@ export async function runCoach(
   apiKey: string,
   model: string,
   req: CoachRequest,
-  effort?: ReasoningEffort
+  effort?: ReasoningEffort,
+  onUsage?: UsageSink
 ): Promise<CoachResult> {
   if (req.mode === "chat") {
-    return runChatCoach(apiKey, model, req, effort);
+    return runChatCoach(apiKey, model, req, effort, onUsage);
   }
 
+  const startedAt = Date.now();
   const { system, user } = buildPrompt(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -402,7 +416,9 @@ export async function runCoach(
 
   const data = (await res.json()) as {
     choices?: { message?: { content?: string } }[];
+    usage?: unknown;
   };
+  onUsage?.(parseUsage(data.usage), Date.now() - startedAt);
   const content = data.choices?.[0]?.message?.content ?? "{}";
   let parsed: Record<string, unknown>;
   try {
@@ -460,11 +476,13 @@ async function runChatCoach(
   apiKey: string,
   model: string,
   req: CoachRequest,
-  effort?: ReasoningEffort
+  effort?: ReasoningEffort,
+  onUsage?: UsageSink
 ): Promise<ChatResult> {
   const message = (req.message || "").trim();
   if (!message) throw new Error("missing_message");
 
+  const startedAt = Date.now();
   const messages = buildChatMessages(req);
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -479,7 +497,11 @@ async function runChatCoach(
 
   if (!res.ok) throw await openAiHttpError(res, "chat");
 
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+    usage?: unknown;
+  };
+  onUsage?.(parseUsage(data.usage), Date.now() - startedAt);
   const reply = (data.choices?.[0]?.message?.content || "").trim();
   if (!reply) throw new Error("openai_empty");
   return { mode: "chat", reply };
@@ -490,11 +512,13 @@ export async function* streamChatCoach(
   apiKey: string,
   model: string,
   req: CoachRequest,
-  effort?: ReasoningEffort
+  effort?: ReasoningEffort,
+  onUsage?: UsageSink
 ): AsyncGenerator<string, void, unknown> {
   const message = (req.message || "").trim();
   if (!message) throw new Error("missing_message");
 
+  const startedAt = Date.now();
   const messages = buildChatMessages(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -504,6 +528,10 @@ export async function* streamChatCoach(
       messages,
       ...completionTuning(model, { temperature: 0.55, maxTokens: 400, effort }),
       stream: true,
+      // Without this a streamed call reports no token usage at all, which on a
+      // reasoning model means its (largest) cost line is invisible. The final
+      // chunk carries usage and has an empty choices array.
+      stream_options: { include_usage: true },
     }),
   });
 
@@ -513,25 +541,42 @@ export async function* streamChatCoach(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let usage = EMPTY_USAGE;
+  let reported = false;
+  // Reported in `finally` so an aborted read (learner closes the panel) still
+  // books the tokens OpenAI already generated and will bill us for.
+  const report = () => {
+    if (reported) return;
+    reported = true;
+    onUsage?.(usage, Date.now() - startedAt);
+  };
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data: ")) continue;
-      const data = trimmed.slice(6);
-      if (data === "[DONE]") return;
-      try {
-        const json = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] };
-        const delta = json.choices?.[0]?.delta?.content;
-        if (typeof delta === "string" && delta) yield delta;
-      } catch {
-        /* skip malformed chunk */
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data: ")) continue;
+        const data = trimmed.slice(6);
+        if (data === "[DONE]") return;
+        try {
+          const json = JSON.parse(data) as {
+            choices?: { delta?: { content?: string } }[];
+            usage?: unknown;
+          };
+          if (json.usage) usage = parseUsage(json.usage);
+          const delta = json.choices?.[0]?.delta?.content;
+          if (typeof delta === "string" && delta) yield delta;
+        } catch {
+          /* skip malformed chunk */
+        }
       }
     }
+  } finally {
+    report();
   }
 }

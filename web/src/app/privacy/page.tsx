@@ -86,6 +86,30 @@ export default function PrivacyPage() {
             </li>
           </ul>
 
+          <h2>Website and service analytics</h2>
+          <ul>
+            <li>
+              On <code>animevocab.com</code> we record which pages are viewed and which AI
+              features are used, together with the approximate location (country and city)
+              that Cloudflare derives from the connection, a coarse device type
+              (mobile/desktop/tablet/bot), and the referring site&apos;s domain. If you are
+              signed in, these are associated with your account id so we can support you and
+              spot abuse.
+            </li>
+            <li>
+              For every AI request we record the model used, the operation (explain, hooks,
+              chat, and so on), token counts, cost, latency, and whether it succeeded. This is
+              how we keep the service affordable and catch failures. Your prompts, the
+              subtitle lines you look up, and the AI&apos;s replies are <b>not</b> stored in
+              analytics.
+            </li>
+            <li>
+              We store no analytics cookie and no advertising identifier, we do not store your
+              raw IP address in analytics, and this data is retained for about 90 days. It is
+              visible only to the site owner and is never sold or shared.
+            </li>
+          </ul>
+
           <h2>What it never does</h2>
           <ul>
             <li>No advertising, no selling of data, and no profiles built from your vocab.</li>

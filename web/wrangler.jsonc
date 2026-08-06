@@ -26,6 +26,18 @@
     {
       "binding": "EXTENSION_AE",
       "dataset": "extension_funnel"
+    },
+    // Observability for /owner (see src/lib/telemetry-schema.ts for the column
+    // layout — blob positions are load-bearing and append-only). Writes are
+    // free-tier friendly and fire-and-forget; READS need an API token, set as
+    // secrets: CF_ACCOUNT_ID and CF_ANALYTICS_API_TOKEN.
+    {
+      "binding": "LLM_AE",
+      "dataset": "avc_llm"
+    },
+    {
+      "binding": "EVENTS_AE",
+      "dataset": "avc_events"
     }
   ],
   // AI coach (issue #13). OPENAI_API_KEY is a Worker secret, not a var:

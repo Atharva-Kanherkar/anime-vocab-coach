@@ -21,6 +21,10 @@ const isBeaconRoute = createRouteMatcher(BEACON_ROUTES);
 const CLERK_ROUTES = [
   "/app(.*)",
   "/studio",
+  // The owner dashboard gates on currentUser() and 404s for everyone else;
+  // outside the matcher currentUser() throws, which would turn the gate into
+  // a 500 that confirms the route exists.
+  "/owner(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/(api|trpc)(.*)",

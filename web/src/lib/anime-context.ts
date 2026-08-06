@@ -1,5 +1,7 @@
 import { getOpenAiKey, getCachedResult, putCachedResult } from "./ai-store";
 import { completionTuning, DEFAULT_COACH_MODEL } from "./ai-coach";
+import { parseUsage } from "./llm-pricing";
+import { recordLlmCall, type LlmContext } from "./telemetry";
 
 export const MAX_ANIME_TITLE_LEN = 120;
 export const MAX_ANIME_CONTEXT_LEN = 600;
@@ -35,7 +37,10 @@ export async function getAnimeContext(title: string): Promise<AnimeContextResult
   return null;
 }
 
-export async function generateAnimeContext(title: string): Promise<AnimeContextResult> {
+export async function generateAnimeContext(
+  title: string,
+  ctx?: LlmContext
+): Promise<AnimeContextResult> {
   const clean = normalizeTitle(title);
   if (!clean) throw new Error("missing_title");
 
@@ -46,6 +51,8 @@ export async function generateAnimeContext(title: string): Promise<AnimeContextR
   if (!apiKey) throw new Error("ai_not_configured");
 
   const model = process.env.AI_COACH_MODEL || DEFAULT_COACH_MODEL;
+  const startedAt = Date.now();
+  const base = { ...ctx, model, operation: "anime_context", effort: "low" as const };
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -67,8 +74,25 @@ export async function generateAnimeContext(title: string): Promise<AnimeContextR
     }),
   });
 
-  if (!res.ok) throw new Error(`openai_${res.status}`);
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  if (!res.ok) {
+    await recordLlmCall({
+      ...base,
+      status: "error",
+      errorCode: `openai_${res.status}`,
+      latencyMs: Date.now() - startedAt,
+    });
+    throw new Error(`openai_${res.status}`);
+  }
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+    usage?: unknown;
+  };
+  await recordLlmCall({
+    ...base,
+    status: "ok",
+    usage: parseUsage(data.usage),
+    latencyMs: Date.now() - startedAt,
+  });
   const context = (data.choices?.[0]?.message?.content || "").trim().slice(0, MAX_ANIME_CONTEXT_LEN);
   if (!context) throw new Error("openai_empty");
 

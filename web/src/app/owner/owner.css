@@ -1,0 +1,311 @@
+/* /owner internal dashboard.
+ *
+ * Every selector is `.ow-` prefixed and this sheet is imported only by the
+ * owner layout, so nothing here can leak into the marketing site or the app.
+ * Plain CSS on purpose: globals.css ships an unlayered `*` reset that fights
+ * layered utility frameworks (see the app.css cascade incident). */
+
+.ow-page {
+  --ow-line: rgba(224, 232, 255, 0.13);
+  --ow-panel: rgba(255, 255, 255, 0.026);
+  --ow-dim: rgba(238, 242, 252, 0.55);
+  --ow-good: #6ddba6;
+  --ow-warn: #e3ba63;
+  --ow-bad: #f0776a;
+  font-family: var(--sans);
+  color: var(--ink);
+  padding: 28px clamp(16px, 4vw, 40px) 96px;
+  max-width: 1440px;
+  margin: 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.ow-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ow-page h1 {
+  font-family: var(--serif);
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 500;
+  margin: 0;
+}
+
+.ow-sub {
+  color: var(--ow-dim);
+  font-size: 0.85rem;
+  margin: 0 0 22px;
+}
+
+.ow-windows {
+  display: flex;
+  gap: 6px;
+}
+
+.ow-windows a {
+  display: inline-block;
+  padding: 5px 13px;
+  border: 1px solid var(--ow-line);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  text-decoration: none;
+  color: var(--ow-dim);
+}
+
+.ow-windows a.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #14100a;
+  font-weight: 600;
+}
+
+.ow-note {
+  border: 1px solid var(--ow-line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  background: var(--ow-panel);
+  font-size: 0.87rem;
+  line-height: 1.6;
+}
+
+.ow-note.is-bad {
+  border-left-color: var(--ow-bad);
+}
+
+.ow-note code {
+  font-size: 0.82em;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.ow-note ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.ow-note li {
+  margin-bottom: 4px;
+}
+
+/* Stat tiles */
+.ow-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.ow-stat {
+  border: 1px solid var(--ow-line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  background: var(--ow-panel);
+}
+
+.ow-stat-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ow-dim);
+  margin-bottom: 7px;
+}
+
+.ow-stat-value {
+  font-size: 1.5rem;
+  font-family: var(--serif);
+  line-height: 1.1;
+}
+
+.ow-stat-foot {
+  font-size: 0.75rem;
+  color: var(--ow-dim);
+  margin-top: 5px;
+}
+
+.ow-good { color: var(--ow-good); }
+.ow-warn { color: var(--ow-warn); }
+.ow-bad { color: var(--ow-bad); }
+
+/* Panels */
+.ow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ow-panel {
+  border: 1px solid var(--ow-line);
+  border-radius: var(--radius);
+  background: var(--ow-panel);
+  padding: 16px 18px 18px;
+  min-width: 0;
+}
+
+.ow-panel.is-wide {
+  grid-column: 1 / -1;
+}
+
+.ow-panel h2 {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ow-dim);
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.ow-empty {
+  color: var(--ow-dim);
+  font-size: 0.85rem;
+  padding: 10px 0;
+}
+
+/* Tables */
+.ow-scroll {
+  overflow-x: auto;
+}
+
+.ow-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+}
+
+.ow-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ow-dim);
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0 10px 7px 0;
+  border-bottom: 1px solid var(--ow-line);
+  white-space: nowrap;
+}
+
+.ow-table td {
+  padding: 7px 10px 7px 0;
+  border-bottom: 1px solid rgba(224, 232, 255, 0.055);
+  white-space: nowrap;
+}
+
+.ow-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ow-table .ow-num {
+  text-align: right;
+  padding-right: 0;
+}
+
+.ow-table th.ow-num {
+  text-align: right;
+  padding-right: 0;
+}
+
+.ow-table .ow-label {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ow-table a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.ow-table a:hover {
+  text-decoration: underline;
+}
+
+.ow-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+.ow-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--ow-line);
+  font-size: 0.72rem;
+  color: var(--ow-dim);
+}
+
+/* Inline bar for ranked lists */
+.ow-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ow-bar-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.83rem;
+}
+
+.ow-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to right,
+    rgba(227, 186, 99, 0.19) var(--ow-pct, 0%),
+    transparent var(--ow-pct, 0%)
+  );
+}
+
+.ow-bar-value {
+  color: var(--ow-dim);
+  font-size: 0.79rem;
+}
+
+/* Time series */
+.ow-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 120px;
+  margin-top: 4px;
+}
+
+.ow-chart-col {
+  flex: 1 1 0;
+  min-width: 2px;
+  background: linear-gradient(to top, var(--accent-d), var(--accent));
+  border-radius: 2px 2px 0 0;
+  min-height: 1px;
+  opacity: 0.85;
+}
+
+.ow-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--ow-dim);
+  margin-top: 6px;
+}
+
+.ow-back {
+  display: inline-block;
+  margin-bottom: 14px;
+  font-size: 0.84rem;
+  color: var(--accent);
+  text-decoration: none;
+}
