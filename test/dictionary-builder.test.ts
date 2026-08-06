@@ -70,4 +70,23 @@ describe("dictionary builder", () => {
     expect(build(common + rare)["いる"].g).toEqual(["to exist"]);
     expect(build(rare + common)["いる"].g).toEqual(["to exist"]);
   });
+
+  it.each([
+    ["うん", "運", "yes", "fortune"],
+    ["おい", "甥", "hey!", "nephew"],
+    ["はい", "肺", "yes", "lung"],
+  ])("prefers the kana-only spoken meaning for %s", (reading, written, spoken, homophone) => {
+    const kanaOnly = entry(`
+      <r_ele><reb>${reading}</reb><re_pri>spec1</re_pri></r_ele>
+      <sense><pos>&int;</pos><gloss>${spoken}</gloss></sense>
+    `);
+    const writtenEntry = entry(`
+      <k_ele><keb>${written}</keb><ke_pri>ichi1</ke_pri></k_ele>
+      <r_ele><reb>${reading}</reb><re_pri>ichi1</re_pri><re_pri>news1</re_pri></r_ele>
+      <sense><gloss>${homophone}</gloss></sense>
+    `);
+
+    expect(build(kanaOnly + writtenEntry)[reading].g).toEqual([spoken]);
+    expect(build(writtenEntry + kanaOnly)[reading].g).toEqual([spoken]);
+  });
 });

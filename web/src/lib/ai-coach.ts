@@ -92,13 +92,12 @@ export function normalizeReasoningEffort(value: unknown): ReasoningEffort | null
   return REASONING_EFFORTS.includes(value as ReasoningEffort) ? (value as ReasoningEffort) : null;
 }
 
-/** GPT-5.6 documents the full effort range. For model overrides, stay on the
- * broadly supported low/medium/high subset instead of sending an advanced value
- * the selected model may reject. */
+/** GPT-5.6 is the only model for which this app chooses `max` by default.
+ * Explicit operator overrides are preserved: silently changing `none`, `xhigh`,
+ * or `max` changes latency, cost, and quality, and model capabilities evolve. */
 export function reasoningEffortForModel(model: string, requested?: ReasoningEffort): ReasoningEffort {
-  const effort = requested ?? DEFAULT_COACH_REASONING_EFFORT;
-  if (/^gpt-5\.6(?:-|$)/.test(model)) return effort;
-  return effort === "low" || effort === "medium" || effort === "high" ? effort : "medium";
+  if (requested) return requested;
+  return /^gpt-5\.6(?:-|$)/.test(model) ? DEFAULT_COACH_REASONING_EFFORT : "medium";
 }
 
 /** GPT-5.x and o-series models take reasoning params and reject the classic

@@ -143,9 +143,12 @@ describe("reasoning model tuning", () => {
     expect(max.reasoning_effort).toBe("max");
   });
 
-  it("uses a safe effort when the model override does not document max", () => {
-    expect(reasoningEffortForModel("gpt-5.4-mini", "max")).toBe("medium");
-    expect(reasoningEffortForModel("o3-mini", "xhigh")).toBe("medium");
+  it("uses conservative defaults but preserves explicit model overrides", () => {
+    expect(reasoningEffortForModel("gpt-5.4-mini")).toBe("medium");
+    expect(reasoningEffortForModel("gpt-5.4-mini", "none")).toBe("none");
+    expect(reasoningEffortForModel("gpt-5.4-mini", "xhigh")).toBe("xhigh");
+    expect(reasoningEffortForModel("gpt-5.5", "max")).toBe("max");
+    expect(reasoningEffortForModel("o3-mini", "xhigh")).toBe("xhigh");
     expect(reasoningEffortForModel("o3-mini", "low")).toBe("low");
   });
 

@@ -108,7 +108,7 @@ export function buildDictionary(xml) {
     const prev = claims.get(key);
     const order =
       claim.kind === "kana"
-        ? (c) => [c.uk ? 0 : 1, ...c.rank, -c.priCount]
+        ? (c) => [c.spokenKana ? 0 : 1, c.uk ? 0 : 1, ...c.rank, -c.priCount]
         : (c) => [...c.rank, c.uk ? 0 : 1, -c.priCount];
     let wins = !prev;
     if (prev) {
@@ -223,7 +223,15 @@ export function buildDictionary(xml) {
       put(
         r.reb,
         { r: kataToHira(r.reb), g: glosses, l: levelFromFreq(f), f },
-        { kind: "kana", rank: claimRankFromPris(r.pris), uk, priCount }
+        {
+          kind: "kana",
+          rank: claimRankFromPris(r.pris),
+          uk,
+          // In subtitle/audio input, a kana-only interjection such as はい or
+          // おい is much more likely than a same-reading written noun (肺/甥).
+          spokenKana: kEles.length === 0 && e.includes("&int;"),
+          priCount,
+        }
       );
       keptAny = true;
     }
@@ -274,6 +282,9 @@ function main(xml, useJlpt) {
     ["しる", /to know/i],
     ["こと", /thing|matter/i],
     ["もの", /thing|object/i],
+    ["うん", /yes|yeah/i],
+    ["おい", /hey|come on/i],
+    ["はい", /yes|correct|understood/i],
     ["撮る", /photograph/i],
     ["録る", /to record/i],
     ["空ける", /to empty|make space|make room/i],

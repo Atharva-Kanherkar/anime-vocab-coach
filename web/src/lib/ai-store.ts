@@ -9,8 +9,8 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import {
   DEFAULT_COACH_MODEL,
-  DEFAULT_COACH_REASONING_EFFORT,
   normalizeReasoningEffort,
+  reasoningEffortForModel,
   type ReasoningEffort,
   DEFAULT_FREE_AUTO_LIMIT,
   DEFAULT_FREE_LIMIT,
@@ -79,16 +79,17 @@ export async function getCoachConfig(): Promise<{
   maxAutoLimit: number;
 }> {
   const env = await cfEnv();
+  const model = process.env.AI_COACH_MODEL || env.AI_COACH_MODEL || DEFAULT_COACH_MODEL;
+  const configuredEffort = normalizeReasoningEffort(
+    process.env.AI_COACH_REASONING_EFFORT || env.AI_COACH_REASONING_EFFORT
+  );
   const num = (v: string | undefined, fallback: number) => {
     const n = v ? Number(v) : NaN;
     return Number.isFinite(n) && n >= 0 ? n : fallback;
   };
   return {
-    model: process.env.AI_COACH_MODEL || env.AI_COACH_MODEL || DEFAULT_COACH_MODEL,
-    reasoningEffort:
-      normalizeReasoningEffort(
-        process.env.AI_COACH_REASONING_EFFORT || env.AI_COACH_REASONING_EFFORT
-      ) ?? DEFAULT_COACH_REASONING_EFFORT,
+    model,
+    reasoningEffort: reasoningEffortForModel(model, configuredEffort ?? undefined),
     freeLimit: num(process.env.FREE_AI_CALLS_PER_MONTH || env.FREE_AI_CALLS_PER_MONTH, DEFAULT_FREE_LIMIT),
     proLimit: num(process.env.PRO_AI_CALLS_PER_MONTH || env.PRO_AI_CALLS_PER_MONTH, DEFAULT_PRO_LIMIT),
     maxLimit: num(process.env.MAX_AI_CALLS_PER_MONTH || env.MAX_AI_CALLS_PER_MONTH, DEFAULT_MAX_LIMIT),
