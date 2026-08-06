@@ -140,16 +140,20 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
       {!data.configured ? (
         <div className="ow-note">
           <strong>Analytics reads are not configured.</strong> Events are still being written to
-          Analytics Engine — this page just cannot query them yet. To enable:
+          Analytics Engine — this page just cannot query them back yet. To enable:
           <ol>
             <li>
-              Create an API token with <code>Account Analytics: Read</code>.
+              At <code>dash.cloudflare.com/profile/api-tokens</code> → Create Token → Custom
+              token, add the permission <code>Account · Account Analytics · Read</code> and
+              scope it to this account.
             </li>
             <li>
-              Set <code>CF_ACCOUNT_ID</code> and <code>CF_ANALYTICS_API_TOKEN</code> as Worker
-              secrets: <code>npx wrangler secret put CF_ANALYTICS_API_TOKEN</code>
+              <code>npx wrangler secret put CF_ANALYTICS_API_TOKEN</code> from{" "}
+              <code>web/</code>, then paste the token.
             </li>
           </ol>
+          <code>CF_ACCOUNT_ID</code> is already set as a var in{" "}
+          <code>web/wrangler.jsonc</code>.
         </div>
       ) : null}
 

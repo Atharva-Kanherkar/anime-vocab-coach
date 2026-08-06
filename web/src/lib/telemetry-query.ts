@@ -35,9 +35,31 @@ export type QueryOutcome<T> =
 
 const SQL_API = "https://api.cloudflare.com/client/v4/accounts";
 
-export function analyticsCredentials(): AnalyticsCredentials | null {
-  const accountId = process.env.CF_ACCOUNT_ID?.trim();
-  const apiToken = process.env.CF_ANALYTICS_API_TOKEN?.trim();
+/**
+ * Read the SQL-API credentials from either source.
+ *
+ * OpenNext copies string bindings (vars and secrets) into `process.env` when
+ * the Worker boots, so that alone covers production. It does NOT cover local
+ * `next dev`, where bindings exist only on the Cloudflare context — the same
+ * reason getOpenAiKey() checks both.
+ */
+export async function analyticsCredentials(): Promise<AnalyticsCredentials | null> {
+  let accountId = process.env.CF_ACCOUNT_ID?.trim();
+  let apiToken = process.env.CF_ANALYTICS_API_TOKEN?.trim();
+
+  if (!accountId || !apiToken) {
+    try {
+      const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+      const { env } = (await getCloudflareContext({ async: true })) as {
+        env: { CF_ACCOUNT_ID?: string; CF_ANALYTICS_API_TOKEN?: string };
+      };
+      accountId = accountId || env.CF_ACCOUNT_ID?.trim();
+      apiToken = apiToken || env.CF_ANALYTICS_API_TOKEN?.trim();
+    } catch {
+      // Not on Cloudflare (unit tests, plain node) — process.env is all there is.
+    }
+  }
+
   if (!accountId || !apiToken) return null;
   return { accountId, apiToken };
 }
@@ -58,13 +80,16 @@ export function sqlHours(hours: number): number {
 
 export async function runQuery<T>(
   sql: string,
-  creds = analyticsCredentials()
+  creds?: AnalyticsCredentials | null
 ): Promise<QueryOutcome<T>> {
-  if (!creds) return { ok: false, reason: "not_configured" };
+  // `undefined` means "resolve them"; an explicit `null` means "there are
+  // none" and must not trigger a lookup (tests rely on this).
+  const resolved = creds === undefined ? await analyticsCredentials() : creds;
+  if (!resolved) return { ok: false, reason: "not_configured" };
   try {
-    const res = await fetch(`${SQL_API}/${creds.accountId}/analytics_engine/sql`, {
+    const res = await fetch(`${SQL_API}/${resolved.accountId}/analytics_engine/sql`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${creds.apiToken}` },
+      headers: { Authorization: `Bearer ${resolved.apiToken}` },
       body: sql,
     });
     if (!res.ok) {
