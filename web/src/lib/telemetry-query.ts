@@ -183,6 +183,20 @@ const CALLS = "SUM(_sample_interval) AS calls";
 const weighted = (field: string, alias: string) =>
   `SUM(${field} * _sample_interval) AS ${alias}`;
 
+/**
+ * Carry a string column through a GROUP BY, taking the value from the group's
+ * most recent row.
+ *
+ * `max()` cannot be used here at all: Analytics Engine rejects a String
+ * argument outright ("cannot use the String type as argument 1 in max").
+ * argMax is also the right answer semantically — a lexicographic max over
+ * {free, max, pro} returns "pro", so a Max-tier user would have been
+ * mislabelled even if max() had been accepted. This reports the value as of
+ * the user's latest activity, which is what the column means.
+ */
+const latest = (field: string, alias: string) =>
+  `argMax(${field}, timestamp) AS ${alias}`;
+
 // ------------------------------------------------------------------ LLM SQL
 
 export interface LlmTotals {
@@ -306,7 +320,7 @@ export interface LlmUserRow {
 export function llmByUserSql(hours: number, limit = 50): string {
   return `SELECT
     ${llmColumn("userId")} AS userId,
-    MAX(${llmColumn("plan")}) AS plan,
+    ${latest(llmColumn("plan"), "plan")},
     ${CALLS},
     ${weighted(llmColumn("costUsd"), "cost")},
     ${weighted(llmColumn("outputTokens"), "outputTokens")},
@@ -403,10 +417,10 @@ export interface EventUserRow {
 export function eventsByUserSql(hours: number, limit = 50): string {
   return `SELECT
     ${eventColumn("userId")} AS userId,
-    MAX(${eventColumn("plan")}) AS plan,
+    ${latest(eventColumn("plan"), "plan")},
     SUM(_sample_interval) AS events,
-    MAX(${eventColumn("country")}) AS country,
-    MAX(${eventColumn("device")}) AS device,
+    ${latest(eventColumn("country"), "country")},
+    ${latest(eventColumn("device"), "device")},
     MAX(timestamp) AS lastSeen
   FROM ${EVENT_DATASET}
   WHERE ${since(hours)}

@@ -26,6 +26,14 @@ import {
   llmColumn,
 } from "./telemetry-schema";
 import {
+  apiRoutesSql,
+  eventGroupSql,
+  eventsByUserSql,
+  extensionFunnelSql,
+  llmByUserSql,
+  llmErrorsSql,
+  llmFacetsSql,
+  llmSeriesSql,
   mapLimit,
   type LlmFacetRow,
   llmGroupSql,
@@ -627,5 +635,63 @@ describe("faceted LLM rollup", () => {
   it("flags a model with no known rate", () => {
     const f = foldFacets([row({ model: "gpt-9-unknown", calls: 1 })]);
     expect(f.byModel[0]!.unpricedModel).toBe(true);
+  });
+});
+
+describe("generated SQL matches the Analytics Engine dialect", () => {
+  // Every query the dashboard can issue. Anything added must be listed here.
+  const allQueries = (): { label: string; sql: string }[] => [
+    { label: "facets", sql: llmFacetsSql(24) },
+    { label: "facets/user", sql: llmFacetsSql(24, "u_1") },
+    { label: "series", sql: llmSeriesSql(24) },
+    { label: "series/long", sql: llmSeriesSql(24 * 30) },
+    { label: "errors", sql: llmErrorsSql(24) },
+    { label: "byUser", sql: llmByUserSql(24) },
+    { label: "group", sql: llmGroupSql("model", 24) },
+    { label: "events", sql: eventGroupSql("name", 24, "pageview") },
+    { label: "apiRoutes", sql: apiRoutesSql(24) },
+    { label: "eventUsers", sql: eventsByUserSql(24) },
+    { label: "funnel", sql: extensionFunnelSql(24) },
+  ];
+
+  it("never calls min/max on a blob (String) column", () => {
+    // AE rejects this outright: "cannot use the String type as argument 1 in
+    // max". argMax(blobN, timestamp) is the supported way to carry a string
+    // through a GROUP BY.
+    for (const { label, sql } of allQueries()) {
+      expect(sql, `${label} must not min/max a blob`).not.toMatch(/\b(?:max|min)\s*\(\s*blob\d+/i);
+    }
+  });
+
+  it("uses argMax against timestamp when carrying a string through a group", () => {
+    expect(llmByUserSql(24)).toMatch(/argMax\(blob\d+, timestamp\) AS plan/);
+    const ev = eventsByUserSql(24);
+    expect(ev).toMatch(/argMax\(blob\d+, timestamp\) AS plan/);
+    expect(ev).toMatch(/argMax\(blob\d+, timestamp\) AS country/);
+    expect(ev).toMatch(/argMax\(blob\d+, timestamp\) AS device/);
+  });
+
+  it("only uses aggregate functions AE actually supports", () => {
+    const supported = new Set([
+      "count", "sum", "avg", "min", "max", "quantileexactweighted",
+      "argmax", "argmin", "first_value", "last_value", "topk",
+      "topkweighted", "countif", "sumif", "avgif",
+      // non-aggregate helpers used in SELECT/GROUP BY
+      "if", "tostartofhour", "todate", "interval", "now",
+    ]);
+    for (const { label, sql } of allQueries()) {
+      for (const m of sql.matchAll(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g)) {
+        expect(supported, `${label} uses unsupported function ${m[1]}()`).toContain(
+          m[1]!.toLowerCase()
+        );
+      }
+    }
+  });
+
+  it("still weights every aggregate by the sample interval", () => {
+    for (const { label, sql } of allQueries()) {
+      if (!/SUM\(/i.test(sql)) continue;
+      expect(sql, `${label} must weight counts`).toContain("_sample_interval");
+    }
   });
 });
