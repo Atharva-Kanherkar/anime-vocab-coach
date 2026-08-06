@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: "ai_not_configured" }), { status: 503 });
   }
 
-  const { model, freeLimit, proLimit, maxLimit } = await getCoachConfig();
+  const { model, reasoningEffort, freeLimit, proLimit, maxLimit } = await getCoachConfig();
   const tier: Tier = user.plan;
   const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       let streamed = false;
       try {
         let full = "";
-        for await (const delta of streamChatCoach(apiKey, model, coachReq)) {
+        for await (const delta of streamChatCoach(apiKey, model, coachReq, reasoningEffort)) {
           full += delta;
           if (delta) streamed = true;
           send({ delta });

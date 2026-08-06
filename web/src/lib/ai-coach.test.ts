@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   aiLimitForPlan,
   coachCacheKey,
+  completionTuning,
+  DEFAULT_COACH_MODEL,
+  DEFAULT_COACH_REASONING_EFFORT,
+  isReasoningModel,
   normalizeCoachRequest,
+  normalizeReasoningEffort,
   runCoach,
   type CoachRequest,
 } from "./ai-coach";
@@ -91,5 +96,55 @@ describe("runCoach", () => {
   it("throws when the model returns no usable content", async () => {
     vi.stubGlobal("fetch", mockOpenAi(JSON.stringify({ meaning: "" })));
     await expect(runCoach("sk-test", "gpt-4.1-nano", baseReq)).rejects.toThrow("openai_empty");
+  });
+
+  it("sends reasoning params (not temperature/max_tokens) for the luna default model", async () => {
+    const fetchMock = mockOpenAi(JSON.stringify({ meaning: "to see", nuance: "casual" }));
+    vi.stubGlobal("fetch", fetchMock);
+    await runCoach("sk-test", DEFAULT_COACH_MODEL, baseReq);
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.model).toBe("gpt-5.6-luna");
+    expect(body.reasoning_effort).toBe("max");
+    expect(body.max_completion_tokens).toBeGreaterThan(400);
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+});
+
+describe("reasoning model tuning", () => {
+  it("defaults the coach to gpt-5.6-luna at max effort", () => {
+    expect(DEFAULT_COACH_MODEL).toBe("gpt-5.6-luna");
+    expect(DEFAULT_COACH_REASONING_EFFORT).toBe("max");
+  });
+
+  it("classifies model families", () => {
+    expect(isReasoningModel("gpt-5.6-luna")).toBe(true);
+    expect(isReasoningModel("o3-mini")).toBe(true);
+    expect(isReasoningModel("gpt-4.1-nano")).toBe(false);
+    expect(isReasoningModel("gpt-4o")).toBe(false);
+  });
+
+  it("keeps the classic contract for non-reasoning models", () => {
+    expect(completionTuning("gpt-4.1-nano", { temperature: 0.4, maxTokens: 400 })).toEqual({
+      temperature: 0.4,
+      max_tokens: 400,
+    });
+  });
+
+  it("gives reasoning tokens headroom scaled by effort", () => {
+    const none = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "none" });
+    const low = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "low" });
+    const max = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "max" });
+    expect(none.max_completion_tokens).toBe(400);
+    expect(low.max_completion_tokens).toBe(2400);
+    expect(max.max_completion_tokens).toBe(16400);
+    expect(max.reasoning_effort).toBe("max");
+  });
+
+  it("normalizes effort strings and rejects junk", () => {
+    expect(normalizeReasoningEffort("xhigh")).toBe("xhigh");
+    expect(normalizeReasoningEffort("MAX")).toBeNull();
+    expect(normalizeReasoningEffort("")).toBeNull();
+    expect(normalizeReasoningEffort(undefined)).toBeNull();
   });
 });
