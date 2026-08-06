@@ -7,11 +7,14 @@ import {
   type Tier,
 } from "@/lib/ai-coach";
 import { currentMonth, getCoachConfig, getOpenAiKey, reserveUsage } from "@/lib/ai-store";
+import { EMPTY_USAGE, type TokenUsage } from "@/lib/llm-pricing";
+import { recordLlmCall, requestFacts, surfaceOf } from "@/lib/telemetry";
+import { withApiTelemetry } from "@/lib/api-telemetry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const profile = await resolveProfile(req);
   if (!profile) {
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
@@ -60,6 +63,18 @@ export async function POST(req: Request) {
     );
   }
 
+  const facts = requestFacts(req);
+  const telemetryBase = {
+    model,
+    operation: "chat_stream",
+    userId: user.id,
+    plan: owner ? "owner" : tier,
+    effort: reasoningEffort,
+    country: facts.country,
+    surface: surfaceOf(req),
+    direction: coachReq.direction,
+  };
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -67,21 +82,43 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
       };
       let streamed = false;
+      let tokens: TokenUsage = EMPTY_USAGE;
+      let latencyMs = 0;
+      const onUsage = (u: TokenUsage, ms: number) => {
+        tokens = u;
+        latencyMs = ms;
+      };
       try {
         let full = "";
-        for await (const delta of streamChatCoach(apiKey, model, coachReq, reasoningEffort)) {
+        for await (const delta of streamChatCoach(
+          apiKey,
+          model,
+          coachReq,
+          reasoningEffort,
+          onUsage
+        )) {
           full += delta;
           if (delta) streamed = true;
           send({ delta });
         }
         if (!full.trim()) throw new Error("openai_empty");
         send({ done: true });
+        await recordLlmCall({ ...telemetryBase, status: "ok", usage: tokens, latencyMs });
       } catch (err) {
         // Nothing usable came back, so the learner shouldn't be charged. If
         // tokens DID stream before the failure the call really happened, so the
         // reservation stands — the client keeps the partial answer either way.
         if (!streamed) await reservation.refund();
         const detail = err instanceof Error ? err.message : "ai_failed";
+        // Tokens generated before the failure are still billed by OpenAI, so
+        // they are recorded against the error rather than dropped.
+        await recordLlmCall({
+          ...telemetryBase,
+          status: "error",
+          errorCode: detail,
+          usage: tokens,
+          latencyMs,
+        });
         send({ error: detail });
       } finally {
         controller.close();
@@ -97,3 +134,5 @@ export async function POST(req: Request) {
     },
   });
 }
+
+export const POST = withApiTelemetry("/api/ai/coach/stream", handlePOST);

@@ -26,6 +26,17 @@
     {
       "binding": "EXTENSION_AE",
       "dataset": "extension_funnel"
+    },
+    // Observability for /owner (see src/lib/telemetry-schema.ts for the column
+    // layout — blob positions are load-bearing and append-only). Writes need
+    // no credentials; READS need the CF_ANALYTICS_API_TOKEN secret.
+    {
+      "binding": "LLM_AE",
+      "dataset": "avc_llm"
+    },
+    {
+      "binding": "EVENTS_AE",
+      "dataset": "avc_events"
     }
   ],
   // AI coach (issue #13). OPENAI_API_KEY is a Worker secret, not a var:
@@ -36,6 +47,10 @@
   // use low effort. Limits are per Clerk user per month,
   // gated by plan (free/pro/max) from Clerk publicMetadata — see resolvePlan.
   "vars": {
+    // Account id is not a secret (it is already plaintext in
+    // .github/workflows/deploy.yml), so only the read token needs
+    // `wrangler secret put CF_ANALYTICS_API_TOKEN`.
+    "CF_ACCOUNT_ID": "68b4f7e6d89fd7ac4cbf3243fe190b5f",
     "AI_COACH_MODEL": "gpt-5.6-luna",
     // Two meters. *_AI_CALLS_PER_MONTH is what the pricing page advertises and
     // covers only AI the learner asks for (explain / hooks / chat / notebook

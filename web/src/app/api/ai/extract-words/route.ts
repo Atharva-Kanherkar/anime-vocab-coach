@@ -17,10 +17,12 @@ import {
   normalizeExtractRequest,
   type ExtractWordsResult,
 } from "@/lib/extract-words";
+import { requestFacts, surfaceOf } from "@/lib/telemetry";
+import { withApiTelemetry } from "@/lib/api-telemetry";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const profile = await resolveProfile(req);
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const owner = isOwnerEmail(profile.email);
@@ -77,7 +79,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { result } = await extractWordsCached(apiKey, model, extractReq);
+    const { result } = await extractWordsCached(apiKey, model, extractReq, {
+      userId: user.id,
+      plan: owner ? "owner" : tier,
+      country: requestFacts(req).country,
+      surface: surfaceOf(req),
+      direction: extractReq.direction,
+    });
     return NextResponse.json({
       result,
       cached: false,
@@ -89,3 +97,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: detail }, { status: 502 });
   }
 }
+
+export const POST = withApiTelemetry("/api/ai/extract-words", handlePOST);

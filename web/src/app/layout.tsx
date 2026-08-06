@@ -6,6 +6,7 @@ import { ExtensionSignoutBridge } from "@/components/extension-signout-bridge";
 import { FxAudioPrimer } from "@/components/fx-audio-primer";
 import { LocaleProvider } from "@/components/locale-provider";
 import { MetaPixel } from "@/components/meta-pixel";
+import { PageviewTracker } from "@/components/pageview-tracker";
 import { ScrollEffects } from "@/components/site-chrome";
 import {
   SEO_KEYWORDS,
@@ -130,6 +131,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       {children}
       <FxAudioPrimer />
       <ScrollEffects />
+      <PageviewTracker />
     </LocaleProvider>
   );
 

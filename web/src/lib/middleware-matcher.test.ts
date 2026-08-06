@@ -60,6 +60,14 @@ describe("middleware matcher", () => {
     expect(covered("/__clerk/v1/client")).toBe(true);
   });
 
+  it("covers the owner dashboard", () => {
+    // /owner gates on currentUser() + isOwnerEmail and notFound()s otherwise.
+    // Outside the matcher currentUser() throws before the gate runs, so the
+    // page would 500 — which itself tells a stranger the route exists.
+    expect(covered("/owner")).toBe(true);
+    expect(covered("/owner?h=168")).toBe(true);
+  });
+
   it("covers the owner-only admin routes", () => {
     // These gate on currentUser() and are the only thing standing between a
     // stranger and a mass email / mass entitlement rewrite. Outside the matcher

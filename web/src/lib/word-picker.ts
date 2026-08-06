@@ -5,6 +5,8 @@ import {
   targetLangName,
   type LearningDirection,
 } from "./direction";
+import { parseUsage } from "./llm-pricing";
+import { recordLlmCall, type LlmContext } from "./telemetry";
 
 export const MAX_PICK_LINE_LEN = 400;
 export const MAX_PICK_CANDIDATES = 12;
@@ -148,9 +150,16 @@ function buildPickPrompt(req: WordPickRequest): { system: string; user: string }
   };
 }
 
-export async function runWordPick(apiKey: string, model: string, req: WordPickRequest): Promise<WordPickResult> {
+export async function runWordPick(
+  apiKey: string,
+  model: string,
+  req: WordPickRequest,
+  ctx?: LlmContext
+): Promise<WordPickResult> {
   const allowed = new Set(req.candidates.map((c) => c.word));
   const { system, user } = buildPickPrompt(req);
+  const startedAt = Date.now();
+  const base = { ...ctx, model, operation: "pick_word", effort: "low" as const };
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -162,13 +171,33 @@ export async function runWordPick(apiKey: string, model: string, req: WordPickRe
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
+      // Background auto-meter call on the shared coach model. Raw
+      // temperature/max_tokens would be rejected outright by a reasoning
+      // model, and 40 tokens leaves one no room to think before answering.
       ...completionTuning(model, { temperature: 0.2, maxTokens: 40, effort: "low" }),
     }),
   });
 
-  if (!res.ok) throw new Error(`openai_${res.status}`);
+  if (!res.ok) {
+    await recordLlmCall({
+      ...base,
+      status: "error",
+      errorCode: `openai_${res.status}`,
+      latencyMs: Date.now() - startedAt,
+    });
+    throw new Error(`openai_${res.status}`);
+  }
 
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+    usage?: unknown;
+  };
+  await recordLlmCall({
+    ...base,
+    status: "ok",
+    usage: parseUsage(data.usage),
+    latencyMs: Date.now() - startedAt,
+  });
   const content = data.choices?.[0]?.message?.content ?? "{}";
   let parsed: Record<string, unknown>;
   try {
@@ -188,9 +217,10 @@ export async function runWordPick(apiKey: string, model: string, req: WordPickRe
 export async function pickWordCached(
   apiKey: string,
   model: string,
-  req: WordPickRequest
+  req: WordPickRequest,
+  ctx?: LlmContext
 ): Promise<{ result: WordPickResult }> {
-  const result = await runWordPick(apiKey, model, req);
+  const result = await runWordPick(apiKey, model, req, ctx);
   try {
     const cacheKey = await wordPickCacheKey(req);
     await putCachedResult(cacheKey, result);

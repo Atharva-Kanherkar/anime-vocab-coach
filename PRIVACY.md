@@ -42,6 +42,23 @@ There is no separate opt-out toggle for these counters; dismissing the prompt
 rate-limits by IP and only accepts requests that present as our Chrome extension
 (a public id in the Origin / header, not a secret credential).
 
+## Website and service analytics
+
+On `animevocab.com` we record which pages are viewed and which AI features are
+used, along with the approximate location (country and city) Cloudflare derives
+from the connection, a coarse device type, and the referring site's domain. When
+you are signed in these are associated with your account id, so we can support
+you and spot abuse.
+
+For every AI request we also record the model, the operation (explain, hooks,
+chat, and so on), token counts, cost, latency, and whether it succeeded — this is
+how the service is kept affordable and failures get caught. Your prompts, the
+subtitle lines you look up, and the AI's replies are **not** stored in analytics.
+
+There is no analytics cookie and no advertising identifier, raw IP addresses are
+not stored in analytics, and the data is retained for about 90 days. It is
+visible only to the site owner and is never sold or shared.
+
 ## What it never does
 
 - No advertising, no selling of data, and no profiles built from your vocab.

@@ -17,10 +17,13 @@ import {
   putCachedResult,
   reserveUsage,
 } from "@/lib/ai-store";
+import { EMPTY_USAGE, type TokenUsage } from "@/lib/llm-pricing";
+import { recordLlmCall, requestFacts, surfaceOf } from "@/lib/telemetry";
+import { withApiTelemetry } from "@/lib/api-telemetry";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   // Accept a signed-in web session, the dev bypass, OR the extension's sync
   // token (Authorization: Bearer) — so the overlay card can call the coach.
   const profile = await resolveProfile(req);
@@ -53,12 +56,27 @@ export async function POST(req: Request) {
   const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
 
+  const facts = requestFacts(req);
+  const telemetryBase = {
+    model,
+    operation: coachReq.mode,
+    userId: user.id,
+    plan: owner ? "owner" : tier,
+    effort: reasoningEffort,
+    country: facts.country,
+    surface: surfaceOf(req),
+    direction: coachReq.direction,
+  };
+
   // Cache hit: free to serve, does not consume quota. Chat is never cached.
   if (coachReq.mode !== "chat") {
     const cacheKey = await coachCacheKey(coachReq);
     const cached = await getCachedResult(cacheKey);
     if (cached) {
       const used = await getUsage(user.id, month);
+      // Logged too: the cache hit rate is what keeps the OpenAI bill down, so
+      // it has to be visible next to the calls that actually cost money.
+      await recordLlmCall({ ...telemetryBase, status: "cached", costUsd: 0 });
       return NextResponse.json({
         result: cached,
         cached: true,
@@ -79,13 +97,28 @@ export async function POST(req: Request) {
   }
 
   let result;
+  let tokens: TokenUsage = EMPTY_USAGE;
+  let latencyMs = 0;
+  const onUsage = (u: TokenUsage, ms: number) => {
+    tokens = u;
+    latencyMs = ms;
+  };
   try {
-    result = await runCoach(apiKey, model, coachReq, reasoningEffort);
+    result = await runCoach(apiKey, model, coachReq, reasoningEffort, onUsage);
   } catch (err) {
     await reservation.refund();
     const detail = err instanceof Error ? err.message : "ai_failed";
+    await recordLlmCall({
+      ...telemetryBase,
+      status: "error",
+      errorCode: detail,
+      usage: tokens,
+      latencyMs,
+    });
     return NextResponse.json({ error: detail }, { status: 502 });
   }
+
+  await recordLlmCall({ ...telemetryBase, status: "ok", usage: tokens, latencyMs });
 
   if (coachReq.mode !== "chat") {
     const cacheKey = await coachCacheKey(coachReq);
@@ -102,3 +135,5 @@ export async function POST(req: Request) {
     usage: { used: reservation.used, limit, plan: tier },
   });
 }
+
+export const POST = withApiTelemetry("/api/ai/coach", handlePOST);

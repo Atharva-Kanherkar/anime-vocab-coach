@@ -1,4 +1,6 @@
 import { completionTuning, DEFAULT_COACH_MODEL } from "./ai-coach";
+import { parseUsage } from "./llm-pricing";
+import { recordLlmCall, type LlmContext } from "./telemetry";
 import { putCachedResult } from "./ai-store";
 import {
   explainLangName,
@@ -90,8 +92,11 @@ function buildExtractPrompt(req: ExtractWordsRequest): { system: string; user: s
 export async function runExtractWords(
   apiKey: string,
   model: string,
-  req: ExtractWordsRequest
+  req: ExtractWordsRequest,
+  ctx?: LlmContext
 ): Promise<ExtractWordsResult> {
+  const startedAt = Date.now();
+  const base = { ...ctx, model, operation: "extract_words", effort: "low" as const };
   const { system, user } = buildExtractPrompt(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -109,9 +114,26 @@ export async function runExtractWords(
     }),
   });
 
-  if (!res.ok) throw new Error(`openai_${res.status}`);
+  if (!res.ok) {
+    await recordLlmCall({
+      ...base,
+      status: "error",
+      errorCode: `openai_${res.status}`,
+      latencyMs: Date.now() - startedAt,
+    });
+    throw new Error(`openai_${res.status}`);
+  }
 
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+    usage?: unknown;
+  };
+  await recordLlmCall({
+    ...base,
+    status: "ok",
+    usage: parseUsage(data.usage),
+    latencyMs: Date.now() - startedAt,
+  });
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(data.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
@@ -145,9 +167,10 @@ export async function runExtractWords(
 export async function extractWordsCached(
   apiKey: string,
   model: string,
-  req: ExtractWordsRequest
+  req: ExtractWordsRequest,
+  ctx?: LlmContext
 ): Promise<{ result: ExtractWordsResult }> {
-  const result = await runExtractWords(apiKey, model, req);
+  const result = await runExtractWords(apiKey, model, req, ctx);
   try {
     const cacheKey = await extractCacheKey(req);
     await putCachedResult(cacheKey, result);
