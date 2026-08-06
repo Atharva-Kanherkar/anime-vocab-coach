@@ -21,7 +21,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC_GZ = join(ROOT, "JMdict_e.gz");
@@ -91,7 +91,7 @@ function claimRankFromPris(pris) {
   return [tier, nf];
 }
 
-function main(xml, useJlpt) {
+export function buildDictionary(xml) {
   const dict = {};
   // Per-key claim strength, so homographs are resolved by evidence instead of
   // JMdict file order.
@@ -151,18 +151,40 @@ function main(xml, useJlpt) {
       .filter((r) => r.reb);
     if (rEles.length === 0) continue;
 
-    // Glosses come from the FIRST sense only — that's the dominant sense by
-    // JMdict convention. Flattening all senses put "koto (13-stringed zither)"
-    // on こと. Skip expl/lit/fig glosses.
-    let glosses = [];
-    for (const sm of e.matchAll(/<sense>([\s\S]*?)<\/sense>/g)) {
-      glosses = [...sm[1].matchAll(/<gloss([^>]*)>([^<]+)<\/gloss>/g)]
-        .filter((m) => !m[1].includes("g_type"))
-        .map((m) => decodeEntities(m[2]))
-        .slice(0, 4);
-      if (glosses.length > 0) break;
-    }
-    if (glosses.length === 0) continue;
+    // Keep senses separate. JMdict can restrict a sense to particular written
+    // forms/readings; flattening one entry-wide gloss made 録る mean "take a
+    // photograph" (a sense explicitly restricted to 撮る).
+    const senses = [...e.matchAll(/<sense>([\s\S]*?)<\/sense>/g)]
+      .map((sm) => ({
+        glosses: [...sm[1].matchAll(/<gloss([^>]*)>([^<]+)<\/gloss>/g)]
+          .filter((m) => !m[1].includes("g_type"))
+          .map((m) => decodeEntities(m[2]))
+          .slice(0, 4),
+        stagk: [...sm[1].matchAll(/<stagk>([^<]+)<\/stagk>/g)].map((m) => m[1]),
+        stagr: [...sm[1].matchAll(/<stagr>([^<]+)<\/stagr>/g)].map((m) => m[1]),
+        info: [...sm[1].matchAll(/<s_inf>([^<]+)<\/s_inf>/g)].map((m) => decodeEntities(m[1])),
+      }))
+      .filter((sense) => sense.glosses.length > 0);
+    if (senses.length === 0) continue;
+
+    const glossesFor = (keb, reb) => {
+      const readingApplicable = senses.filter(
+        (sense) => sense.stagr.length === 0 || sense.stagr.includes(reb)
+      );
+      // A kana token cannot reveal which written form the speaker meant. Keep
+      // JMdict's first reading-applicable sense as the neutral/default meaning;
+      // spelling restrictions are only useful when a written form is known.
+      if (keb === null) return (readingApplicable[0] ?? senses[0]).glosses;
+
+      const applicable = readingApplicable.find((sense) => {
+        if (sense.stagk.length > 0) return keb !== null && sense.stagk.includes(keb);
+        const hintedKebs = kEles
+          .map((k) => k.keb)
+          .filter((candidate) => sense.info.some((info) => info.includes(candidate)));
+        return hintedKebs.length === 0 || (keb !== null && hintedKebs.includes(keb));
+      });
+      return (applicable ?? readingApplicable[0] ?? senses[0]).glosses;
+    };
 
     // "usually written using kana alone" — the strongest signal that a kana
     // key belongs to this entry.
@@ -173,14 +195,16 @@ function main(xml, useJlpt) {
     // The reading shown for a written form must actually apply to it
     // (<re_restr> honored) — 入る was shipping with reading いる.
     const readingFor = (keb) =>
-      rEles.find((r) => !r.noKanji && (r.restr.length === 0 || r.restr.includes(keb))) ?? rEles[0];
+      rEles.find((r) => !r.noKanji && (r.restr.length === 0 || r.restr.includes(keb)));
 
     let keptAny = false;
     for (const k of kEles) {
       const r = readingFor(k.keb);
+      if (!r) continue;
       const pris = [...k.pris, ...r.pris];
       const f = freqFromPris(pris);
       if (f === null) continue;
+      const glosses = glossesFor(k.keb, r.reb);
       put(
         k.keb,
         { r: kataToHira(r.reb), g: glosses, l: levelFromFreq(f), f },
@@ -195,6 +219,7 @@ function main(xml, useJlpt) {
       if (kEles.length > 0 && r.pris.length === 0) continue;
       const f = freqFromPris(r.pris);
       if (f === null) continue;
+      const glosses = glossesFor(null, r.reb);
       put(
         r.reb,
         { r: kataToHira(r.reb), g: glosses, l: levelFromFreq(f), f },
@@ -204,6 +229,12 @@ function main(xml, useJlpt) {
     }
     if (keptAny) kept++;
   }
+
+  return { dict, entries, kept };
+}
+
+function main(xml, useJlpt) {
+  const { dict, entries, kept } = buildDictionary(xml);
 
   if (useJlpt) {
     let overlaid = 0;
@@ -243,6 +274,10 @@ function main(xml, useJlpt) {
     ["しる", /to know/i],
     ["こと", /thing|matter/i],
     ["もの", /thing|object/i],
+    ["撮る", /photograph/i],
+    ["録る", /to record/i],
+    ["空ける", /to empty|make space|make room/i],
+    ["明ける", /to dawn|grow light|to end/i],
   ];
   for (const [w, re] of mustMean) {
     const entry = dict[w];
@@ -264,5 +299,7 @@ function main(xml, useJlpt) {
   console.log(`Sanity check OK (${mustHave.join(", ")} present; ${mustMean.length + mustRead.length} homograph checks). Example:`, JSON.stringify(dict["食べる"]));
 }
 
-const xml = await getXml();
-main(xml, process.argv.includes("--jlpt"));
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const xml = await getXml();
+  main(xml, process.argv.includes("--jlpt"));
+}
