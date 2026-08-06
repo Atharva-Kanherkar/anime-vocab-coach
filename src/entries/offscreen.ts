@@ -3,6 +3,8 @@
 // BYO key: streams audio to OpenAI Realtime WebSocket.
 // Cloud (signed in): shared transcript cache — lookup first, transcribe on miss.
 
+import { CueLedger } from "../lib/cue-ledger";
+
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
 const CHUNK_SEC = 6;
@@ -41,7 +43,7 @@ interface Session {
   /** Segments already forwarded to the tab. Warm-cache hits return a window
    * wider than one chunk, so consecutive 6s chunks overlap — without this the
    * same line is fanned out (and carded) more than once. */
-  sentCues: Set<string>;
+  sentCues: CueLedger;
   /** Start of the current unpaused stretch on the realtime path, or null while
    * paused/stopped. */
   billedFromMs: number | null;
@@ -411,11 +413,9 @@ async function flushChunk(session: Session): Promise<void> {
         : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
       if (t && langOk) {
         const cue = `${seg.start ?? "?"}:${t}`;
-        if (session.sentCues.has(cue)) continue;
-        session.sentCues.add(cue);
-        if (session.sentCues.size > 2000) session.sentCues.clear();
+        if (!session.sentCues.remember(cue)) continue;
         olog(data.hit ? "cache hit:" : "transcribed:", t);
-        chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
+        chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: seg.start }).catch(() => {});
       }
     }
   } catch (err) {
@@ -471,7 +471,7 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
     transcribing: false,
     chunkTimer: null,
     useCache,
-    sentCues: new Set(),
+    sentCues: new CueLedger(),
     billedFromMs: null,
     pendingBillMs: 0,
     modeGeneration: 0

@@ -3228,6 +3228,43 @@
     return res.json();
   }
 
+  // src/lib/cue-ledger.ts
+  var MAX_TRACKED_CUES = 2e3;
+  var CueLedger = class {
+    constructor(capacity = MAX_TRACKED_CUES) {
+      this.capacity = capacity;
+      this.seen = /* @__PURE__ */ new Set();
+      this.order = [];
+      this.head = 0;
+      if (!Number.isInteger(capacity) || capacity < 1) {
+        throw new Error("cue ledger capacity must be a positive integer");
+      }
+    }
+    /** Returns true only the first time a cue is remembered while retained. */
+    remember(key) {
+      if (this.seen.has(key)) return false;
+      this.seen.add(key);
+      this.order.push(key);
+      if (this.seen.size > this.capacity) {
+        const oldest = this.order[this.head++];
+        this.seen.delete(oldest);
+        if (this.head >= 1024 && this.head * 2 >= this.order.length) {
+          this.order = this.order.slice(this.head);
+          this.head = 0;
+        }
+      }
+      return true;
+    }
+    clear() {
+      this.seen.clear();
+      this.order = [];
+      this.head = 0;
+    }
+    get size() {
+      return this.seen.size;
+    }
+  };
+
   // src/entries/content.ts
   (function main() {
     if (window.__avcMainLoaded) {
@@ -3252,7 +3289,7 @@
     let lineInFlight = false;
     let queuedLine = null;
     let cachePollTimer = null;
-    const emittedCueKeys = /* @__PURE__ */ new Set();
+    const emittedCueKeys = new CueLedger();
     let cachePollInFlight = false;
     let playbackRelayTimer = null;
     function pickAdapter() {
@@ -3321,9 +3358,7 @@
         for (const seg of result.segments) {
           if (seg.start > t) continue;
           const key = `${seg.start}:${seg.text}`;
-          if (emittedCueKeys.has(key)) continue;
-          emittedCueKeys.add(key);
-          if (emittedCueKeys.size > 2e3) emittedCueKeys.clear();
+          if (!emittedCueKeys.remember(key)) continue;
           const lang = studyLang();
           if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
           if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
@@ -3604,9 +3639,13 @@
         return;
       }
       log("transcript received:", msg.text);
+      const rawTranscript = (msg.text || "").trim();
+      if (typeof msg.start === "number" && !emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)) {
+        return;
+      }
       const en = a.getVisibleText();
       const direction = normalizeDirection(settings?.learningDirection);
-      const segments = (msg.text || "").split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
+      const segments = rawTranscript.split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
       (async () => {
         for (const seg of segments) {
           await onLine(seg, { en, fromAudio: true });

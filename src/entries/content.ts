@@ -16,6 +16,7 @@ import { audioLang, normalizeDirection } from "../lib/direction";
 import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-client";
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
+import { CueLedger } from "../lib/cue-ledger";
 import type { DictEntry, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
 
 declare global {
@@ -56,7 +57,7 @@ declare global {
   /** Cues already fed to onLine, so overlapping polls can never re-card a
    * line. The old single-slot "last cue" only blocked immediate repeats: a
    * poll returning [A,B,C] left the slot at C, and the next poll re-emitted A. */
-  const emittedCueKeys = new Set<string>();
+  const emittedCueKeys = new CueLedger();
   /** pollCacheHit awaits the card's whole lifetime; without this, 800ms ticks
    * stack overlapping runs. */
   let cachePollInFlight = false;
@@ -139,11 +140,7 @@ declare global {
       for (const seg of result.segments) {
         if (seg.start > t) continue; // still in the future \u2014 don't spoil it
         const key = `${seg.start}:${seg.text}`;
-        if (emittedCueKeys.has(key)) continue;
-        emittedCueKeys.add(key);
-        // An episode is a few hundred cues; cap far above that so a marathon
-        // session can't grow unbounded.
-        if (emittedCueKeys.size > 2000) emittedCueKeys.clear();
+        if (!emittedCueKeys.remember(key)) continue;
         const lang = studyLang();
         if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
         if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
@@ -437,7 +434,7 @@ declare global {
   // Listening mode: the offscreen document transcribes this tab's audio and the
   // background forwards Japanese text here. Only the frame that owns the video
   // handles it (matters on sites whose player lives in an iframe).
-  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; active?: boolean; kind?: string }, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; start?: number; active?: boolean; kind?: string }, _sender, sendResponse) => {
     if (msg.type === "avc-toast") {
       overlay.showToast(msg.text || "", msg.kind === "error" ? "error" : "info");
       return;
@@ -481,9 +478,13 @@ declare global {
     if (!a) { warn("transcript arrived but no adapter matched this frame"); return; }
     if (!a.getVideo()) { log("transcript ignored (no video in this frame)"); return; }
     log("transcript received:", msg.text);
+    const rawTranscript = (msg.text || "").trim();
+    if (typeof msg.start === "number" && !emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)) {
+      return;
+    }
     const en = a.getVisibleText();
     const direction = normalizeDirection(settings?.learningDirection);
-    const segments = (msg.text || "")
+    const segments = rawTranscript
       .split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/)
       .map((s) => s.trim())
       .filter(Boolean);

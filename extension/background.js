@@ -528,8 +528,8 @@
       return false;
     }
   }
-  async function deliverTranscript(tabId, text) {
-    const payload = { type: "avc-transcript", text };
+  async function deliverTranscript(tabId, text, start) {
+    const payload = { type: "avc-transcript", text, ...typeof start === "number" ? { start } : {} };
     let delivered = false;
     try {
       const frames = await chrome.webNavigation.getAllFrames({ tabId });
@@ -757,7 +757,7 @@
     }
     if (msg.type === "avc-transcript") {
       console.log("[AVC] relaying transcript to tab", msg.tabId, "\u2192", msg.text);
-      void deliverTranscript(msg.tabId, msg.text);
+      void deliverTranscript(msg.tabId, msg.text, msg.start);
       return;
     }
     if (msg.type === "avc-update-cache-key" && sender.tab?.id != null) {

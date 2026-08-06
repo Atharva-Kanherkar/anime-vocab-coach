@@ -1,5 +1,42 @@
 "use strict";
 (() => {
+  // src/lib/cue-ledger.ts
+  var MAX_TRACKED_CUES = 2e3;
+  var CueLedger = class {
+    constructor(capacity = MAX_TRACKED_CUES) {
+      this.capacity = capacity;
+      this.seen = /* @__PURE__ */ new Set();
+      this.order = [];
+      this.head = 0;
+      if (!Number.isInteger(capacity) || capacity < 1) {
+        throw new Error("cue ledger capacity must be a positive integer");
+      }
+    }
+    /** Returns true only the first time a cue is remembered while retained. */
+    remember(key) {
+      if (this.seen.has(key)) return false;
+      this.seen.add(key);
+      this.order.push(key);
+      if (this.seen.size > this.capacity) {
+        const oldest = this.order[this.head++];
+        this.seen.delete(oldest);
+        if (this.head >= 1024 && this.head * 2 >= this.order.length) {
+          this.order = this.order.slice(this.head);
+          this.head = 0;
+        }
+      }
+      return true;
+    }
+    clear() {
+      this.seen.clear();
+      this.order = [];
+      this.head = 0;
+    }
+    get size() {
+      return this.seen.size;
+    }
+  };
+
   // src/entries/offscreen.ts
   var RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
   var OUT_RATE = 24e3;
@@ -258,11 +295,9 @@
         const langOk = session.language === "en" ? /[A-Za-z]{2,}/.test(t) : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
         if (t && langOk) {
           const cue = `${seg.start ?? "?"}:${t}`;
-          if (session.sentCues.has(cue)) continue;
-          session.sentCues.add(cue);
-          if (session.sentCues.size > 2e3) session.sentCues.clear();
+          if (!session.sentCues.remember(cue)) continue;
           olog(data.hit ? "cache hit:" : "transcribed:", t);
-          chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {
+          chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: seg.start }).catch(() => {
           });
         }
       }
@@ -326,7 +361,7 @@
       transcribing: false,
       chunkTimer: null,
       useCache,
-      sentCues: /* @__PURE__ */ new Set(),
+      sentCues: new CueLedger(),
       billedFromMs: null,
       pendingBillMs: 0,
       modeGeneration: 0

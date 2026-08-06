@@ -136,8 +136,8 @@ async function tabNeedsAllFrames(tabId: number): Promise<boolean> {
   }
 }
 
-async function deliverTranscript(tabId: number, text: string): Promise<void> {
-  const payload = { type: "avc-transcript", text };
+async function deliverTranscript(tabId: number, text: string, start?: number): Promise<void> {
+  const payload = { type: "avc-transcript", text, ...(typeof start === "number" ? { start } : {}) };
   let delivered = false;
   try {
     const frames = await chrome.webNavigation.getAllFrames({ tabId });
@@ -281,6 +281,7 @@ interface RuntimeMsg {
   code?: string;
   detail?: string;
   time?: number;
+  start?: number;
   paused?: boolean;
   mode?: "explain" | "hooks";
   message?: string;
@@ -441,7 +442,7 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
 
   if (msg.type === "avc-transcript") {
     console.log("[AVC] relaying transcript to tab", msg.tabId, "→", msg.text);
-    void deliverTranscript(msg.tabId!, msg.text!);
+    void deliverTranscript(msg.tabId!, msg.text!, msg.start);
     return;
   }
 
