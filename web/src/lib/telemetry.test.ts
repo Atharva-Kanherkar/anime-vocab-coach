@@ -26,6 +26,8 @@ import {
   llmColumn,
 } from "./telemetry-schema";
 import {
+  mapLimit,
+  type LlmFacetRow,
   llmGroupSql,
   llmTotalsSql,
   sqlHours,
@@ -34,7 +36,7 @@ import {
 } from "./telemetry-query";
 import { isTrackableEvent, normalizeTrackPath } from "./track-events";
 import { withApiTelemetry } from "./api-telemetry";
-import { loadOwnerDashboard } from "./owner-dashboard";
+import { foldFacets, loadOwnerDashboard, summarizeFailures } from "./owner-dashboard";
 
 function sink() {
   const writes: { blobs?: string[]; doubles?: number[]; indexes?: string[] }[] = [];
@@ -413,18 +415,38 @@ describe("telemetry query builders", () => {
     expect(out).toEqual({ ok: false, reason: "not_configured" });
   });
 
-  it("surfaces an API failure as query_failed", async () => {
+  it("classifies 403 as an auth problem, not a generic failure", async () => {
+    // The distinction drives the UI: a rejected token needs different
+    // instructions from a dataset that does not exist yet.
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: false,
         status: 403,
+        headers: new Headers(),
         text: async () => "forbidden",
       } as unknown as Response)
     );
     const out = await runQuery("SELECT 1", { accountId: "a", apiToken: "t" });
     expect(out.ok).toBe(false);
-    if (!out.ok) expect(out.reason).toBe("query_failed");
+    if (!out.ok) expect(out.reason).toBe("unauthorized");
+  });
+
+  it("still reports an unknown dataset as query_failed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        headers: new Headers(),
+        text: async () => "table avc_llm not found",
+      } as unknown as Response)
+    );
+    const out = await runQuery("SELECT 1", { accountId: "a", apiToken: "t" });
+    if (!out.ok) {
+      expect(out.reason).toBe("query_failed");
+      expect(out.detail).toContain("not found");
+    }
   });
 });
 
@@ -476,5 +498,134 @@ describe("running in production with no analytics read token", () => {
     await expect(
       wrapped(new Request("https://animevocab.com/api/x", { method: "POST" }))
     ).rejects.toThrow("handler_exploded");
+  });
+});
+
+describe("SQL API throttling and failure classification", () => {
+  it("caps concurrency so the dashboard cannot self-DoS the SQL API", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const items = Array.from({ length: 11 }, (_, i) => i);
+    const out = await mapLimit(items, 2, async (n) => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 1));
+      inFlight--;
+      return n * 2;
+    });
+    expect(peak).toBeLessThanOrEqual(2);
+    // Order must survive the pool, since callers index results positionally.
+    expect(out).toEqual(items.map((n) => n * 2));
+  });
+
+  it("retries a 429 and succeeds", async () => {
+    let calls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => {
+        calls++;
+        if (calls === 1) {
+          return { ok: false, status: 429, headers: new Headers(), text: async () => "limited" } as unknown as Response;
+        }
+        return { ok: true, status: 200, headers: new Headers(), json: async () => ({ data: [{ x: 1 }] }) } as unknown as Response;
+      })
+    );
+    const out = await runQuery<{ x: number }>("SELECT 1", { accountId: "a", apiToken: "t" });
+    expect(out.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it("does NOT retry a 401 — the token is wrong, retrying burns quota", async () => {
+    const f = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      headers: new Headers(),
+      text: async () => '{"errors":[{"code":10000}]}',
+    } as unknown as Response);
+    vi.stubGlobal("fetch", f);
+    const out = await runQuery("SELECT 1", { accountId: "a", apiToken: "bad" });
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.reason).toBe("unauthorized");
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports rate_limited only after exhausting retries", async () => {
+    const f = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers(),
+      text: async () => "limited",
+    } as unknown as Response);
+    vi.stubGlobal("fetch", f);
+    const out = await runQuery("SELECT 1", { accountId: "a", apiToken: "t" });
+    if (!out.ok) expect(out.reason).toBe("rate_limited");
+    expect(f).toHaveBeenCalledTimes(3);
+  });
+
+  it("groups identical failures instead of repeating them per panel", () => {
+    const summary = summarizeFailures([
+      { label: "totals", reason: "unauthorized" },
+      { label: "by model", reason: "unauthorized" },
+      { label: "series", reason: "rate_limited" },
+    ]);
+    expect(summary).toContain("unauthorized (2: totals, by model)");
+    expect(summary).toContain("rate_limited (1: series)");
+    expect(summarizeFailures([])).toBeNull();
+  });
+});
+
+describe("faceted LLM rollup", () => {
+  const row = (over: Partial<LlmFacetRow>): LlmFacetRow => ({
+    model: "gpt-5.6-luna",
+    operation: "explain",
+    surface: "web",
+    effort: "max",
+    status: "ok",
+    calls: 0,
+    cost: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    reasoningTokens: 0,
+    cachedInputTokens: 0,
+    latencySum: 0,
+    ...over,
+  });
+
+  it("folds one query into totals and four breakdowns", () => {
+    const f = foldFacets([
+      row({ calls: 10, cost: 0.02, outputTokens: 1000, reasoningTokens: 800, latencySum: 20000 }),
+      row({ operation: "hooks", calls: 5, cost: 0.01, outputTokens: 500, latencySum: 10000 }),
+      row({ surface: "extension", model: "gpt-4.1-nano", calls: 2, cost: 0.001, latencySum: 400 }),
+    ]);
+    expect(f.totals.calls).toBe(17);
+    expect(f.totals.cost).toBeCloseTo(0.031, 6);
+    expect(f.byOperation.map((r) => r.label).sort()).toEqual(["explain", "hooks"]);
+    expect(f.byModel.find((r) => r.label === "gpt-4.1-nano")?.calls).toBe(2);
+    expect(f.bySurface.find((r) => r.label === "extension")?.calls).toBe(2);
+    expect(f.byEffort[0]!.label).toBe("max");
+  });
+
+  it("excludes cached hits from average latency", () => {
+    const f = foldFacets([
+      row({ status: "ok", calls: 1, latencySum: 4000 }),
+      row({ status: "cached", calls: 9, latencySum: 0 }),
+    ]);
+    // 4000ms over the single provider call, not spread across all ten.
+    expect(f.totals.avgLatencyMs).toBe(4000);
+    expect(f.totals.cacheHitRate).toBeCloseTo(0.9, 6);
+  });
+
+  it("derives error rate from status rows", () => {
+    const f = foldFacets([
+      row({ status: "ok", calls: 8 }),
+      row({ status: "error", calls: 2 }),
+    ]);
+    expect(f.totals.errors).toBe(2);
+    expect(f.totals.errorRate).toBeCloseTo(0.2, 6);
+  });
+
+  it("flags a model with no known rate", () => {
+    const f = foldFacets([row({ model: "gpt-9-unknown", calls: 1 })]);
+    expect(f.byModel[0]!.unpricedModel).toBe(true);
   });
 });

@@ -157,7 +157,41 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         </div>
       ) : null}
 
-      {data.queryError ? (
+      {data.authFailed ? (
+        <div className="ow-note is-bad">
+          <strong>Cloudflare rejected the analytics token (401).</strong> The secret is set, so
+          this is the token itself, not a missing config. Check, in order:
+          <ol>
+            <li>
+              The token has <code>Account · Account Analytics · Read</code>. A Global API Key
+              will not work here — it must be a scoped API token.
+            </li>
+            <li>
+              Its <b>Account Resources</b> include the account this Worker runs in
+              (<code>68b4f7e6…90b5f</code>).
+            </li>
+            <li>
+              The value stored is the token itself, not its ID, and has no stray newline. Verify
+              it independently:
+              <br />
+              <code>
+                curl -X POST
+                &quot;https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/analytics_engine/sql&quot;
+                -H &quot;Authorization: Bearer $TOKEN&quot; --data &quot;SHOW TABLES&quot;
+              </code>
+            </li>
+          </ol>
+        </div>
+      ) : null}
+
+      {data.rateLimited && !data.authFailed ? (
+        <div className="ow-note is-bad">
+          <strong>Rate limited by the Analytics SQL API.</strong> Queries are already throttled
+          and retried with backoff; if this persists, widen the window or reload in a minute.
+        </div>
+      ) : null}
+
+      {data.queryError && !data.authFailed && !data.rateLimited ? (
         <div className="ow-note is-bad">
           <strong>Some panels failed to load.</strong> A dataset that has never been written to
           does not exist yet, which is expected right after deploy.

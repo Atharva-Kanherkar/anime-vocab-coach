@@ -29,9 +29,42 @@ export interface AnalyticsCredentials {
   apiToken: string;
 }
 
+export type QueryFailure = "not_configured" | "unauthorized" | "rate_limited" | "query_failed";
+
 export type QueryOutcome<T> =
   | { ok: true; rows: T[] }
-  | { ok: false; reason: "not_configured" | "query_failed"; detail?: string };
+  | { ok: false; reason: QueryFailure; detail?: string };
+
+/**
+ * Concurrency cap for dashboard queries.
+ *
+ * The SQL API rate-limits per account, and one dashboard render used to fan
+ * out every panel at once — which tripped 429 on most of them and produced a
+ * page of errors instead of data. Panels are worth more sequentially than
+ * simultaneously and wrong.
+ */
+export const QUERY_CONCURRENCY = 2;
+
+/** Run tasks with a bounded number in flight, preserving input order. */
+export async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i]!, i);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const SQL_API = "https://api.cloudflare.com/client/v4/accounts";
 
@@ -86,24 +119,53 @@ export async function runQuery<T>(
   // none" and must not trigger a lookup (tests rely on this).
   const resolved = creds === undefined ? await analyticsCredentials() : creds;
   if (!resolved) return { ok: false, reason: "not_configured" };
-  try {
-    const res = await fetch(`${SQL_API}/${resolved.accountId}/analytics_engine/sql`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resolved.apiToken}` },
-      body: sql,
-    });
-    if (!res.ok) {
-      const detail = (await res.text().catch(() => "")).slice(0, 300);
-      return { ok: false, reason: "query_failed", detail: `HTTP ${res.status} ${detail}` };
+
+  // 429 and 5xx are worth another go; 401/403 mean the token is wrong and
+  // retrying just burns quota against an endpoint that is already limiting us.
+  const backoffMs = [300, 900];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(`${SQL_API}/${resolved.accountId}/analytics_engine/sql`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resolved.apiToken}` },
+        body: sql,
+      });
+
+      if (res.ok) {
+        const json = (await res.json()) as { data?: T[] };
+        return { ok: true, rows: json.data ?? [] };
+      }
+
+      const retryable = res.status === 429 || res.status >= 500;
+      if (retryable && attempt < backoffMs.length) {
+        const retryAfter = Number(res.headers.get("retry-after"));
+        await sleep(
+          Number.isFinite(retryAfter) && retryAfter > 0
+            ? Math.min(retryAfter * 1000, 3000)
+            : backoffMs[attempt]!
+        );
+        continue;
+      }
+
+      const body = (await res.text().catch(() => "")).slice(0, 200);
+      if (res.status === 401 || res.status === 403) {
+        return { ok: false, reason: "unauthorized", detail: `HTTP ${res.status}` };
+      }
+      if (res.status === 429) {
+        return { ok: false, reason: "rate_limited", detail: "HTTP 429" };
+      }
+      return { ok: false, reason: "query_failed", detail: `HTTP ${res.status} ${body}` };
+    } catch (err) {
+      if (attempt < backoffMs.length) {
+        await sleep(backoffMs[attempt]!);
+        continue;
+      }
+      return {
+        ok: false,
+        reason: "query_failed",
+        detail: err instanceof Error ? err.message : "unknown error",
+      };
     }
-    const json = (await res.json()) as { data?: T[] };
-    return { ok: true, rows: json.data ?? [] };
-  } catch (err) {
-    return {
-      ok: false,
-      reason: "query_failed",
-      detail: err instanceof Error ? err.message : "unknown error",
-    };
   }
 }
 
@@ -151,6 +213,50 @@ export function llmTotalsSql(hours: number, userId?: string): string {
     COUNT(DISTINCT ${llmColumn("userId")}) AS users
   FROM ${LLM_DATASET}
   WHERE ${since(hours)}${userId ? ` AND ${llmColumn("userId")} = ${sqlString(userId)}` : ""}`;
+}
+
+export interface LlmFacetRow {
+  model: string;
+  operation: string;
+  surface: string;
+  effort: string;
+  status: string;
+  calls: number;
+  cost: number;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cachedInputTokens: number;
+  latencySum: number;
+}
+
+/**
+ * One query that answers five panels.
+ *
+ * Totals and the model / operation / surface / effort breakdowns used to be
+ * five separate round trips. Grouping by all four dimensions at once and
+ * folding them in JS costs one query instead, which is what keeps the
+ * dashboard under the SQL API's rate limit. The grouping key is small by
+ * construction (a couple of models × ~8 operations × 2 surfaces × a few
+ * efforts × 3 statuses), so the row count stays in the low hundreds.
+ */
+export function llmFacetsSql(hours: number, userId?: string): string {
+  const cols = ["model", "operation", "surface", "effort", "status"] as const;
+  const select = cols.map((c) => `${llmColumn(c)} AS ${c}`).join(", ");
+  return `SELECT
+    ${select},
+    ${CALLS},
+    ${weighted(llmColumn("costUsd"), "cost")},
+    ${weighted(llmColumn("inputTokens"), "inputTokens")},
+    ${weighted(llmColumn("outputTokens"), "outputTokens")},
+    ${weighted(llmColumn("reasoningTokens"), "reasoningTokens")},
+    ${weighted(llmColumn("cachedInputTokens"), "cachedInputTokens")},
+    ${weighted(llmColumn("latencyMs"), "latencySum")}
+  FROM ${LLM_DATASET}
+  WHERE ${since(hours)}${userId ? ` AND ${llmColumn("userId")} = ${sqlString(userId)}` : ""}
+  GROUP BY ${cols.join(", ")}
+  ORDER BY calls DESC
+  LIMIT 1000`;
 }
 
 export interface LlmGroupRow {
