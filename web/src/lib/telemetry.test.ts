@@ -33,6 +33,8 @@ import {
   runQuery,
 } from "./telemetry-query";
 import { isTrackableEvent, normalizeTrackPath } from "./track-events";
+import { withApiTelemetry } from "./api-telemetry";
+import { loadOwnerDashboard } from "./owner-dashboard";
 
 function sink() {
   const writes: { blobs?: string[]; doubles?: number[]; indexes?: string[] }[] = [];
@@ -423,5 +425,56 @@ describe("telemetry query builders", () => {
     const out = await runQuery("SELECT 1", { accountId: "a", apiToken: "t" });
     expect(out.ok).toBe(false);
     if (!out.ok) expect(out.reason).toBe("query_failed");
+  });
+});
+
+describe("running in production with no analytics read token", () => {
+  // The token only enables the dashboard's READS. Merging without it must
+  // leave the site completely unaffected, and /owner must explain itself
+  // rather than error.
+
+  it("dashboard reports not-configured instead of throwing", async () => {
+    delete process.env.CF_ACCOUNT_ID;
+    delete process.env.CF_ANALYTICS_API_TOKEN;
+    const data = await loadOwnerDashboard(24);
+    expect(data.configured).toBe(false);
+    expect(data.queryError).toBeNull();
+    expect(data.totals.calls).toBe(0);
+    expect(data.byModel).toEqual([]);
+  });
+
+  it("makes no network call when unconfigured", async () => {
+    const f = vi.fn();
+    vi.stubGlobal("fetch", f);
+    await loadOwnerDashboard(24);
+    expect(f).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("wrapped route still returns the handler's response", async () => {
+    const wrapped = withApiTelemetry("/api/x", async () => new Response("ok", { status: 200 }));
+    const res = await wrapped(new Request("https://animevocab.com/api/x", { method: "POST" }));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("ok");
+  });
+
+  it("a throw while gathering facts cannot swallow the response", async () => {
+    // Simulate the finally block's inputs blowing up.
+    const hostile = new Request("https://animevocab.com/api/x", { method: "POST" });
+    Object.defineProperty(hostile, "headers", {
+      get() { throw new Error("boom"); },
+    });
+    const wrapped = withApiTelemetry("/api/x", async () => new Response("ok", { status: 201 }));
+    const res = await wrapped(hostile);
+    expect(res.status).toBe(201);
+  });
+
+  it("still rethrows a handler error unchanged", async () => {
+    const wrapped = withApiTelemetry("/api/x", async () => {
+      throw new Error("handler_exploded");
+    });
+    await expect(
+      wrapped(new Request("https://animevocab.com/api/x", { method: "POST" }))
+    ).rejects.toThrow("handler_exploded");
   });
 });

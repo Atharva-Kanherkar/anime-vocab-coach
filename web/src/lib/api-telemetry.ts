@@ -24,20 +24,29 @@ export function withApiTelemetry(route: string, handler: Handler): Handler {
       status = 500;
       throw err;
     } finally {
-      const facts = requestFacts(req);
-      // For a streaming response this measures time-to-first-byte, since the
-      // Response returns before the body is produced.
-      await recordUserEvent({
-        kind: "api",
-        name: route,
-        country: facts.country,
-        city: facts.city,
-        referrerHost: facts.referrerHost,
-        device: facts.device,
-        authKind: authKindOf(req),
-        status,
-        durationMs: Date.now() - startedAt,
-      });
+      // Everything here is inside its own try/catch because a throw from a
+      // `finally` REPLACES the handler's return value — an exception while
+      // gathering request facts would turn a perfectly good coach response
+      // into a 500. recordUserEvent already swallows its own errors; this
+      // guards the two calls around it.
+      try {
+        const facts = requestFacts(req);
+        // For a streaming response this measures time-to-first-byte, since
+        // the Response returns before the body is produced.
+        await recordUserEvent({
+          kind: "api",
+          name: route,
+          country: facts.country,
+          city: facts.city,
+          referrerHost: facts.referrerHost,
+          device: facts.device,
+          authKind: authKindOf(req),
+          status,
+          durationMs: Date.now() - startedAt,
+        });
+      } catch {
+        // Observability is never worth a failed request.
+      }
     }
   };
 }
