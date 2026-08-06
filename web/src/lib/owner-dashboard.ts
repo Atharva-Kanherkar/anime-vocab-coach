@@ -7,8 +7,14 @@
 // empty panel is rendered instead of failing the whole page.
 
 import {
+  QUERY_CONCURRENCY,
+  analyticsCredentials,
   apiRoutesSql,
   eventGroupSql,
+  llmFacetsSql,
+  mapLimit,
+  type LlmFacetRow,
+  type QueryFailure,
   eventsByUserSql,
   extensionFunnelSql,
   llmByUserSql,
@@ -78,6 +84,90 @@ const EMPTY_TOTALS: Totals = {
   cacheHitRate: 0,
   errorRate: 0,
 };
+
+/** Fold the faceted rows into the totals + one breakdown per dimension. */
+export function foldFacets(rows: LlmFacetRow[]): {
+  totals: Totals;
+  byModel: GroupRow[];
+  byOperation: GroupRow[];
+  bySurface: GroupRow[];
+  byEffort: GroupRow[];
+} {
+  const totals = { ...EMPTY_TOTALS };
+  let latencySum = 0;
+  let providerCalls = 0;
+
+  type Acc = { calls: number; cost: number; out: number; reasoning: number; lat: number; errors: number };
+  const dims: Record<string, Map<string, Acc>> = {
+    model: new Map(),
+    operation: new Map(),
+    surface: new Map(),
+    effort: new Map(),
+  };
+
+  for (const r of rows) {
+    const calls = num(r.calls);
+    const isError = r.status === "error";
+    const isCached = r.status === "cached";
+
+    totals.calls += calls;
+    totals.cost += num(r.cost);
+    totals.inputTokens += num(r.inputTokens);
+    totals.outputTokens += num(r.outputTokens);
+    totals.reasoningTokens += num(r.reasoningTokens);
+    totals.cachedInputTokens += num(r.cachedInputTokens);
+    if (isError) totals.errors += calls;
+    if (isCached) totals.cachedHits += calls;
+    // Cached hits never reach the provider, so they must not dilute latency.
+    if (!isCached) {
+      latencySum += num(r.latencySum);
+      providerCalls += calls;
+    }
+
+    for (const [dim, key] of [
+      ["model", r.model],
+      ["operation", r.operation],
+      ["surface", r.surface],
+      ["effort", r.effort],
+    ] as const) {
+      const label = key || "(none)";
+      const acc = dims[dim]!.get(label) ?? { calls: 0, cost: 0, out: 0, reasoning: 0, lat: 0, errors: 0 };
+      acc.calls += calls;
+      acc.cost += num(r.cost);
+      acc.out += num(r.outputTokens);
+      acc.reasoning += num(r.reasoningTokens);
+      acc.lat += num(r.latencySum);
+      if (isError) acc.errors += calls;
+      dims[dim]!.set(label, acc);
+    }
+  }
+
+  totals.avgLatencyMs = providerCalls > 0 ? latencySum / providerCalls : 0;
+  totals.cacheHitRate = totals.calls > 0 ? totals.cachedHits / totals.calls : 0;
+  totals.errorRate = totals.calls > 0 ? totals.errors / totals.calls : 0;
+
+  const toRows = (dim: string, isModel = false): GroupRow[] =>
+    [...dims[dim]!.entries()]
+      .map(([label, a]) => ({
+        label,
+        calls: a.calls,
+        cost: a.cost,
+        outputTokens: a.out,
+        reasoningTokens: a.reasoning,
+        avgLatencyMs: a.calls > 0 ? a.lat / a.calls : 0,
+        errors: a.errors,
+        unpricedModel: isModel && label !== "(none)" && !isKnownModel(label),
+      }))
+      .sort((x, y) => y.calls - x.calls);
+
+  return {
+    totals,
+    byModel: toRows("model", true),
+    byOperation: toRows("operation"),
+    bySurface: toRows("surface"),
+    byEffort: toRows("effort"),
+  };
+}
 
 function toTotals(row: LlmTotals | undefined): Totals {
   if (!row) return EMPTY_TOTALS;
@@ -153,10 +243,35 @@ export interface SimpleRow {
   secondary?: number;
 }
 
+/**
+ * Collapse per-panel failures into one line.
+ *
+ * Fifteen panels failing the same way used to print the same JSON error
+ * fifteen times, which buried the one fact that mattered. Identical reasons
+ * are grouped and the panel names listed once.
+ */
+export function summarizeFailures(
+  failures: { label: string; reason: QueryFailure; detail?: string }[]
+): string | null {
+  if (!failures.length) return null;
+  const byReason = new Map<string, string[]>();
+  for (const f of failures) {
+    const key = f.reason === "query_failed" ? `${f.reason}: ${f.detail ?? ""}` : f.reason;
+    byReason.set(key, [...(byReason.get(key) ?? []), f.label]);
+  }
+  return [...byReason.entries()]
+    .map(([reason, labels]) => `${reason} (${labels.length}: ${labels.join(", ")})`)
+    .join(" · ");
+}
+
 export interface OwnerDashboardData {
   configured: boolean;
   /** Present when the SQL API rejected a query — surfaced, never swallowed. */
   queryError: string | null;
+  /** The token exists but was rejected: a different problem from "no token". */
+  authFailed: boolean;
+  /** Hit the SQL API's per-account limit even after retries. */
+  rateLimited: boolean;
   totals: Totals;
   byModel: GroupRow[];
   byOperation: GroupRow[];
@@ -174,6 +289,30 @@ export interface OwnerDashboardData {
   extensionFunnel: SimpleRow[];
 }
 
+/** What the page renders when there is no read token: every panel empty, and
+ * `configured: false` so the UI shows setup steps rather than an error. */
+const UNCONFIGURED: OwnerDashboardData = {
+  configured: false,
+  queryError: null,
+  authFailed: false,
+  rateLimited: false,
+  totals: EMPTY_TOTALS,
+  byModel: [],
+  byOperation: [],
+  bySurface: [],
+  byEffort: [],
+  errors: [],
+  series: [],
+  topUsers: [],
+  pages: [],
+  countries: [],
+  referrers: [],
+  devices: [],
+  apiRoutes: [],
+  eventUsers: [],
+  extensionFunnel: [],
+};
+
 const simple = (rows: EventGroupRow[]): SimpleRow[] =>
   rows.map((r) => ({ label: r.label || "(none)", value: num(r.events), secondary: num(r.users) }));
 
@@ -181,60 +320,63 @@ export async function loadOwnerDashboard(
   hours: number,
   userId?: string
 ): Promise<OwnerDashboardData> {
-  const errors: string[] = [];
-  // Each query resolves independently; a failure contributes an empty panel
-  // and one line to the error banner.
-  async function q<T>(sql: string, label: string): Promise<T[]> {
-    const out = await runQuery<T>(sql);
-    if (out.ok) return out.rows;
-    if (out.reason === "not_configured") throw new Error("not_configured");
-    errors.push(`${label}: ${out.detail ?? "failed"}`);
-    return [];
-  }
+  const failures: { label: string; reason: QueryFailure; detail?: string }[] = [];
 
-  try {
-    const [
-      totalsRows,
-      modelRows,
-      operationRows,
-      surfaceRows,
-      effortRows,
-      errorRows,
-      seriesRows,
-      userRows,
-      pageRows,
-      countryRows,
-      referrerRows,
-      deviceRows,
-      apiRows,
-      eventUserRows,
-      funnelRows,
-    ] = await Promise.all([
-      q<LlmTotals>(llmTotalsSql(hours, userId), "totals"),
-      q<LlmGroupRow>(llmGroupSql("model", hours, 20, userId), "by model"),
-      q<LlmGroupRow>(llmGroupSql("operation", hours, 20, userId), "by operation"),
-      q<LlmGroupRow>(llmGroupSql("surface", hours, 10, userId), "by surface"),
-      q<LlmGroupRow>(llmGroupSql("effort", hours, 10, userId), "by effort"),
-      q<LlmErrorRow>(llmErrorsSql(hours), "errors"),
-      q<TimeBucketRow>(llmSeriesSql(hours, userId), "series"),
-      q<LlmUserRow>(llmByUserSql(hours), "top users"),
-      q<EventGroupRow>(eventGroupSql("name", hours, "pageview", 25, userId), "pages"),
-      q<EventGroupRow>(eventGroupSql("country", hours, undefined, 20, userId), "countries"),
-      q<EventGroupRow>(eventGroupSql("referrerHost", hours, "pageview", 15, userId), "referrers"),
-      q<EventGroupRow>(eventGroupSql("device", hours, undefined, 6, userId), "devices"),
-      q<ApiRouteRow>(apiRoutesSql(hours), "api routes"),
-      q<EventUserRow>(eventsByUserSql(hours), "event users"),
-      q<ExtensionFunnelRow>(extensionFunnelSql(hours), "extension funnel"),
-    ]);
+  // Resolved once, not per panel: eleven identical credential lookups is
+  // waste, and "no token" is a property of the page, not of one query.
+  const creds = await analyticsCredentials();
+  if (!creds) return UNCONFIGURED;
+
+  // Queries are throttled rather than fanned out: the SQL API rate-limits per
+  // account, and firing every panel at once turned most of them into 429s.
+  const specs: { label: string; sql: string }[] = [
+    { label: "llm facets", sql: llmFacetsSql(hours, userId) },
+    { label: "series", sql: llmSeriesSql(hours, userId) },
+    { label: "errors", sql: llmErrorsSql(hours) },
+    { label: "top users", sql: llmByUserSql(hours) },
+    { label: "pages", sql: eventGroupSql("name", hours, "pageview", 25, userId) },
+    { label: "countries", sql: eventGroupSql("country", hours, undefined, 20, userId) },
+    { label: "referrers", sql: eventGroupSql("referrerHost", hours, "pageview", 15, userId) },
+    { label: "devices", sql: eventGroupSql("device", hours, undefined, 6, userId) },
+    { label: "api routes", sql: apiRoutesSql(hours) },
+    { label: "event users", sql: eventsByUserSql(hours) },
+    { label: "extension funnel", sql: extensionFunnelSql(hours) },
+  ];
+
+  const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {
+    const out = await runQuery<Record<string, unknown>>(spec.sql, creds);
+    if (!out.ok) {
+      failures.push({ label: spec.label, reason: out.reason, detail: out.detail });
+      return [];
+    }
+    return out.rows;
+  });
+
+  const at = <T>(i: number): T[] => (outcomes[i] ?? []) as T[];
+
+  {
+    const facets = foldFacets(at<LlmFacetRow>(0));
+    const errorRows = at<LlmErrorRow>(2);
+    const seriesRows = at<TimeBucketRow>(1);
+    const userRows = at<LlmUserRow>(3);
+    const pageRows = at<EventGroupRow>(4);
+    const countryRows = at<EventGroupRow>(5);
+    const referrerRows = at<EventGroupRow>(6);
+    const deviceRows = at<EventGroupRow>(7);
+    const apiRows = at<ApiRouteRow>(8);
+    const eventUserRows = at<EventUserRow>(9);
+    const funnelRows = at<ExtensionFunnelRow>(10);
 
     return {
       configured: true,
-      queryError: errors.length ? errors.join(" · ") : null,
-      totals: toTotals(totalsRows[0]),
-      byModel: toGroupRows(modelRows, true),
-      byOperation: toGroupRows(operationRows),
-      bySurface: toGroupRows(surfaceRows),
-      byEffort: toGroupRows(effortRows),
+      queryError: summarizeFailures(failures),
+      authFailed: failures.some((f) => f.reason === "unauthorized"),
+      rateLimited: failures.some((f) => f.reason === "rate_limited"),
+      totals: facets.totals,
+      byModel: facets.byModel,
+      byOperation: facets.byOperation,
+      bySurface: facets.bySurface,
+      byEffort: facets.byEffort,
       errors: errorRows.map((r) => ({
         errorCode: r.errorCode || "(none)",
         model: r.model,
@@ -279,29 +421,6 @@ export async function loadOwnerDashboard(
       })),
       extensionFunnel: funnelRows.map((r) => ({ label: r.label, value: num(r.events) })),
     };
-  } catch (err) {
-    if (err instanceof Error && err.message === "not_configured") {
-      return {
-        configured: false,
-        queryError: null,
-        totals: EMPTY_TOTALS,
-        byModel: [],
-        byOperation: [],
-        bySurface: [],
-        byEffort: [],
-        errors: [],
-        series: [],
-        topUsers: [],
-        pages: [],
-        countries: [],
-        referrers: [],
-        devices: [],
-        apiRoutes: [],
-        eventUsers: [],
-        extensionFunnel: [],
-      };
-    }
-    throw err;
   }
 }
 
