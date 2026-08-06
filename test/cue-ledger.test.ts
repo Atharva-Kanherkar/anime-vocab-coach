@@ -48,9 +48,12 @@ describe("CueLedger", () => {
     expect(offscreen).toMatch(/type:\s*"avc-transcript"[\s\S]{0,100}?start:\s*seg\.start/);
     expect(background).toContain("deliverTranscript(msg.tabId!, msg.text!, msg.start)");
     expect(content).toContain('emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)');
-    expect(content).toMatch(/if \(next !== cacheKey\)[\s\S]{0,180}?emittedCueKeys\.clear\(\)/);
+    expect(content).toMatch(/if \(next !== cacheKey\)[\s\S]{0,260}?emittedCueKeys\.clear\(\)/);
     expect(offscreen).toContain("session.sentCues.clear()");
-    expect(content).toContain("if (cacheKey !== requestedKey) return");
+    expect(content).toContain("cachePollGeneration !== generation");
+    expect(content).toMatch(/settings = await storage\.getSettings\(\);\s+if \(stale\(\)\) return/);
+    expect(content).toMatch(/await lookupTranscript[\s\S]{0,300}?if \(stale\(\)\) return/);
+    expect(content).toMatch(/await onLine[\s\S]{0,100}?if \(stale\(\)\) return/);
     expect(offscreen).toContain("session.cacheKey !== requestKey");
     expect(offscreen).toContain("session.modeGeneration !== generation");
   });

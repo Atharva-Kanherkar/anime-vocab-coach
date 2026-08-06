@@ -3291,6 +3291,7 @@
     let cachePollTimer = null;
     const emittedCueKeys = new CueLedger();
     let cachePollInFlight = false;
+    let cachePollGeneration = 0;
     let playbackRelayTimer = null;
     function pickAdapter() {
       if (adapter) return adapter;
@@ -3337,6 +3338,7 @@
       const result = deriveCacheKey(platformForAdapter(a), video, preferred);
       const next = result && result.audioLang === preferred ? result.key : "";
       if (next !== cacheKey2) {
+        cachePollGeneration += 1;
         emittedCueKeys.clear();
         cacheKey2 = next;
         chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey2 }).catch(() => {
@@ -3348,17 +3350,21 @@
       const a = pickAdapter();
       const video = a?.getVideo();
       if (!video || video.paused) return;
+      const requestedKey = cacheKey2;
+      const generation = cachePollGeneration;
+      const stale = () => !listeningActive || cachePollGeneration !== generation || cacheKey2 !== requestedKey;
       cachePollInFlight = true;
       try {
         settings = await getSettings();
+        if (stale()) return;
         const syncToken = await getSyncToken();
-        if (!syncToken) return;
+        if (!syncToken || stale()) return;
         const t = video.currentTime;
-        const requestedKey = cacheKey2;
         const result = await lookupTranscript(syncToken, requestedKey, t, 2);
-        if (cacheKey2 !== requestedKey) return;
+        if (stale()) return;
         if (!result.hit || !result.segments.length) return;
         for (const seg of result.segments) {
+          if (stale()) return;
           if (seg.start > t) continue;
           const key = `${seg.start}:${seg.text}`;
           if (!emittedCueKeys.remember(key)) continue;
@@ -3367,6 +3373,7 @@
           if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
           const en = a?.getVisibleText() || "";
           await onLine(seg.text, { en, fromAudio: true });
+          if (stale()) return;
         }
       } catch (err) {
         warn("cache poll failed:", err);
@@ -3376,12 +3383,14 @@
     }
     function startCachePolling() {
       if (cachePollTimer) return;
+      cachePollGeneration += 1;
       refreshCacheKey();
       cachePollTimer = setInterval(() => {
         pollCacheHit().catch((err) => warn("cache poll error:", err));
       }, 800);
     }
     function stopCachePolling() {
+      cachePollGeneration += 1;
       if (cachePollTimer) clearInterval(cachePollTimer);
       cachePollTimer = null;
       emittedCueKeys.clear();

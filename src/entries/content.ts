@@ -61,6 +61,9 @@ declare global {
   /** pollCacheHit awaits the card's whole lifetime; without this, 800ms ticks
    * stack overlapping runs. */
   let cachePollInFlight = false;
+  /** Invalidates async polls across stop/restart and episode-key transitions,
+   * including K -> other -> K cycles that a key-only check cannot detect. */
+  let cachePollGeneration = 0;
   let playbackRelayTimer: ReturnType<typeof setInterval> | null = null;
 
   // Adapters can start matching late (e.g. Crunchyroll's player iframe creates
@@ -118,6 +121,7 @@ declare global {
     if (next !== cacheKey) {
       // Timestamp/text pairs repeat from zero across episodes. Clear before
       // publishing the new key so an opening cue cannot hit the old ledger.
+      cachePollGeneration += 1;
       emittedCueKeys.clear();
       cacheKey = next;
       chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey }).catch(() => {});
@@ -129,22 +133,27 @@ declare global {
     const a = pickAdapter();
     const video = a?.getVideo();
     if (!video || video.paused) return;
+    const requestedKey = cacheKey;
+    const generation = cachePollGeneration;
+    const stale = (): boolean =>
+      !listeningActive || cachePollGeneration !== generation || cacheKey !== requestedKey;
     cachePollInFlight = true;
     try {
       settings = await storage.getSettings();
+      if (stale()) return;
       const syncToken = await storage.getSyncToken();
-      if (!syncToken) return;
+      if (!syncToken || stale()) return;
 
       const t = video.currentTime;
-      const requestedKey = cacheKey;
       // Narrow window: the default 8s window returned the NEXT eight seconds
       // of dialogue, so cards popped for lines the learner hadn't heard yet.
       const result = await lookupTranscript(syncToken, requestedKey, t, 2);
-      // An episode switch clears the cue ledger while this request is in flight.
-      // Never let the old response refill it or emit dialogue into the new page.
-      if (cacheKey !== requestedKey) return;
+      // A key change or stop/restart clears the cue ledger while this request is
+      // in flight. Never let the old response refill it or emit stale dialogue.
+      if (stale()) return;
       if (!result.hit || !result.segments.length) return;
       for (const seg of result.segments) {
+        if (stale()) return;
         if (seg.start > t) continue; // still in the future \u2014 don't spoil it
         const key = `${seg.start}:${seg.text}`;
         if (!emittedCueKeys.remember(key)) continue;
@@ -153,6 +162,7 @@ declare global {
         if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
         const en = a?.getVisibleText() || "";
         await onLine(seg.text, { en, fromAudio: true });
+        if (stale()) return;
       }
     } catch (err) {
       warn("cache poll failed:", err);
@@ -163,6 +173,7 @@ declare global {
 
   function startCachePolling(): void {
     if (cachePollTimer) return;
+    cachePollGeneration += 1;
     refreshCacheKey();
     cachePollTimer = setInterval(() => {
       pollCacheHit().catch((err) => warn("cache poll error:", err));
@@ -170,6 +181,7 @@ declare global {
   }
 
   function stopCachePolling(): void {
+    cachePollGeneration += 1;
     if (cachePollTimer) clearInterval(cachePollTimer);
     cachePollTimer = null;
     emittedCueKeys.clear();
