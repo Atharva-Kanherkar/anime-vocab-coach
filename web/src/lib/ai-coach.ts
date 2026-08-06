@@ -79,14 +79,14 @@ export type CoachResult = ExplainResult | HooksResult | ChatResult;
 // AI_COACH_REASONING_EFFORT env.
 export const DEFAULT_COACH_MODEL = "gpt-5.6-luna";
 
-export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 // "Max mode": the highest reasoning effort Luna offers. The coach is a
 // user-facing quality surface (the whole reason we left gpt-4.1-nano), so it
 // defaults to max; background callers pass something cheaper.
 export const DEFAULT_COACH_REASONING_EFFORT: ReasoningEffort = "max";
 
-const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "low", "medium", "high", "xhigh", "max"];
+const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 export function normalizeReasoningEffort(value: unknown): ReasoningEffort | null {
   return REASONING_EFFORTS.includes(value as ReasoningEffort) ? (value as ReasoningEffort) : null;
@@ -96,8 +96,22 @@ export function normalizeReasoningEffort(value: unknown): ReasoningEffort | null
  * Explicit operator overrides are preserved: silently changing `none`, `xhigh`,
  * or `max` changes latency, cost, and quality, and model capabilities evolve. */
 export function reasoningEffortForModel(model: string, requested?: ReasoningEffort): ReasoningEffort {
+  if (requested && isReasoningModel(model)) {
+    const supported = supportedReasoningEfforts(model);
+    if (supported && !supported.includes(requested)) {
+      throw new Error(`unsupported_reasoning_effort:${model}:${requested}`);
+    }
+  }
   if (requested) return requested;
   return /^gpt-5\.6(?:-|$)/.test(model) ? DEFAULT_COACH_REASONING_EFFORT : "medium";
+}
+
+function supportedReasoningEfforts(model: string): readonly ReasoningEffort[] | null {
+  if (/^gpt-5\.[56](?:-|$)/.test(model)) return REASONING_EFFORTS;
+  if (/^gpt-5\.4(?:-|$)/.test(model)) return ["none", "low", "medium", "high", "xhigh"];
+  if (/^gpt-5(?:-|$)/.test(model)) return ["minimal", "low", "medium", "high"];
+  if (/^o\d/.test(model)) return ["low", "medium", "high"];
+  return null;
 }
 
 /** GPT-5.x and o-series models take reasoning params and reject the classic
@@ -130,6 +144,8 @@ export function completionTuning(
   const headroom =
     effort === "none"
       ? 0
+      : effort === "minimal"
+        ? 1_000
       : effort === "low"
         ? 2_000
         : effort === "medium"

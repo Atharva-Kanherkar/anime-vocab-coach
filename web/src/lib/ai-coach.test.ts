@@ -148,8 +148,16 @@ describe("reasoning model tuning", () => {
     expect(reasoningEffortForModel("gpt-5.4-mini", "none")).toBe("none");
     expect(reasoningEffortForModel("gpt-5.4-mini", "xhigh")).toBe("xhigh");
     expect(reasoningEffortForModel("gpt-5.5", "max")).toBe("max");
-    expect(reasoningEffortForModel("o3-mini", "xhigh")).toBe("xhigh");
     expect(reasoningEffortForModel("o3-mini", "low")).toBe("low");
+    expect(() => reasoningEffortForModel("gpt-5", "max")).toThrow(
+      "unsupported_reasoning_effort:gpt-5:max"
+    );
+    expect(() => reasoningEffortForModel("gpt-5.4-mini", "max")).toThrow(
+      "unsupported_reasoning_effort:gpt-5.4-mini:max"
+    );
+    expect(() => reasoningEffortForModel("o3-mini", "xhigh")).toThrow(
+      "unsupported_reasoning_effort:o3-mini:xhigh"
+    );
   });
 
   it("normalizes effort strings and rejects junk", () => {

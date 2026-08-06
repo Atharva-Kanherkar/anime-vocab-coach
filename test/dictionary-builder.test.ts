@@ -89,4 +89,24 @@ describe("dictionary builder", () => {
     expect(build(kanaOnly + writtenEntry)[reading].g).toEqual([spoken]);
     expect(build(writtenEntry + kanaOnly)[reading].g).toEqual([spoken]);
   });
+
+  it("retains unprioritized spelling aliases for a prioritized kana-only entry", () => {
+    const dict = build(entry(`
+      <r_ele><reb>ズキズキ</reb></r_ele>
+      <r_ele><reb>ずきずき</reb><re_pri>ichi1</re_pri></r_ele>
+      <sense><gloss>throbbingly</gloss></sense>
+    `));
+
+    expect(dict["ズキズキ"].g).toEqual(["throbbingly"]);
+    expect(dict["ずきずき"].g).toEqual(["throbbingly"]);
+  });
+
+  it("keeps a typed gloss when it is the only definition", () => {
+    const dict = build(entry(`
+      <r_ele><reb>ぞ</reb><re_pri>spec1</re_pri></r_ele>
+      <sense><gloss g_type="expl">adds force or indicates command</gloss></sense>
+    `));
+
+    expect(dict["ぞ"].g).toEqual(["adds force or indicates command"]);
+  });
 });

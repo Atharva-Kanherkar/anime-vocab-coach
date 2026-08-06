@@ -209,6 +209,7 @@
         if (newKey !== session.cacheKey) {
           session.cacheKey = newKey;
           session.useCache = session.auth.kind === "cloud" && !!newKey;
+          session.sentCues.clear();
           resetAudioBuffer(session);
           applyCacheMode(session);
           olog("cache key updated for tab", msg.tabId, "\u2192", newKey || "(none)");

@@ -108,7 +108,7 @@ export function buildDictionary(xml) {
     const prev = claims.get(key);
     const order =
       claim.kind === "kana"
-        ? (c) => [c.spokenKana ? 0 : 1, c.uk ? 0 : 1, ...c.rank, -c.priCount]
+        ? (c) => [c.alias ? 1 : 0, c.spokenKana ? 0 : 1, c.uk ? 0 : 1, ...c.rank, -c.priCount]
         : (c) => [...c.rank, c.uk ? 0 : 1, -c.priCount];
     let wins = !prev;
     if (prev) {
@@ -155,15 +155,19 @@ export function buildDictionary(xml) {
     // forms/readings; flattening one entry-wide gloss made 録る mean "take a
     // photograph" (a sense explicitly restricted to 撮る).
     const senses = [...e.matchAll(/<sense>([\s\S]*?)<\/sense>/g)]
-      .map((sm) => ({
-        glosses: [...sm[1].matchAll(/<gloss([^>]*)>([^<]+)<\/gloss>/g)]
-          .filter((m) => !m[1].includes("g_type"))
-          .map((m) => decodeEntities(m[2]))
-          .slice(0, 4),
-        stagk: [...sm[1].matchAll(/<stagk>([^<]+)<\/stagk>/g)].map((m) => m[1]),
-        stagr: [...sm[1].matchAll(/<stagr>([^<]+)<\/stagr>/g)].map((m) => m[1]),
-        info: [...sm[1].matchAll(/<s_inf>([^<]+)<\/s_inf>/g)].map((m) => decodeEntities(m[1])),
-      }))
+      .map((sm) => {
+        const allGlosses = [...sm[1].matchAll(/<gloss([^>]*)>([^<]+)<\/gloss>/g)];
+        const plainGlosses = allGlosses.filter((m) => !m[1].includes("g_type"));
+        // Prefer ordinary glosses, but keep explanation/figurative glosses when
+        // they are the only English definition (e.g. the common particle ぞ).
+        const selectedGlosses = plainGlosses.length > 0 ? plainGlosses : allGlosses;
+        return {
+          glosses: selectedGlosses.map((m) => decodeEntities(m[2])).slice(0, 4),
+          stagk: [...sm[1].matchAll(/<stagk>([^<]+)<\/stagk>/g)].map((m) => m[1]),
+          stagr: [...sm[1].matchAll(/<stagr>([^<]+)<\/stagr>/g)].map((m) => m[1]),
+          info: [...sm[1].matchAll(/<s_inf>([^<]+)<\/s_inf>/g)].map((m) => decodeEntities(m[1])),
+        };
+      })
       .filter((sense) => sense.glosses.length > 0);
     if (senses.length === 0) continue;
 
@@ -213,11 +217,15 @@ export function buildDictionary(xml) {
       keptAny = true;
     }
 
-    // Kana key only when the reading is itself common (carries its own
-    // priority tag), scored by the READING's frequency — e.g. きれい, いる.
+    // A prioritized kana-only entry is common as a whole, so retain its
+    // unprioritized spelling variants too (ズキズキ alongside ずきずき). Mark
+    // those variants as aliases so an independently prioritized homophone wins.
+    const entryReadingPris = rEles.flatMap((r) => r.pris);
     for (const r of rEles) {
       if (kEles.length > 0 && r.pris.length === 0) continue;
-      const f = freqFromPris(r.pris);
+      const alias = r.pris.length === 0;
+      const pris = alias ? entryReadingPris : r.pris;
+      const f = freqFromPris(pris);
       if (f === null) continue;
       const glosses = glossesFor(null, r.reb);
       put(
@@ -225,7 +233,8 @@ export function buildDictionary(xml) {
         { r: kataToHira(r.reb), g: glosses, l: levelFromFreq(f), f },
         {
           kind: "kana",
-          rank: claimRankFromPris(r.pris),
+          rank: claimRankFromPris(pris),
+          alias,
           uk,
           // In subtitle/audio input, a kana-only interjection such as はい or
           // おい is much more likely than a same-reading written noun (肺/甥).
@@ -285,6 +294,8 @@ function main(xml, useJlpt) {
     ["うん", /yes|yeah/i],
     ["おい", /hey|come on/i],
     ["はい", /yes|correct|understood/i],
+    ["ぞ", /force|command/i],
+    ["ズキズキ", /throbb/i],
     ["撮る", /photograph/i],
     ["録る", /to record/i],
     ["空ける", /to empty|make space|make room/i],

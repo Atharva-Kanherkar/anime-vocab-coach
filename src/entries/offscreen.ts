@@ -312,6 +312,9 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, send
       if (newKey !== session.cacheKey) {
         session.cacheKey = newKey;
         session.useCache = session.auth.kind === "cloud" && !!newKey;
+        // Cue timestamps repeat from zero in every episode. Retaining the old
+        // episode's ledger can suppress an identical opening line in the next.
+        session.sentCues.clear();
         // Drop any buffered audio from the previous episode so nothing is
         // uploaded under the old key.
         resetAudioBuffer(session);
