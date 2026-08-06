@@ -70,7 +70,7 @@ export async function getOpenAiKey(): Promise<string | null> {
 
 export async function getCoachConfig(): Promise<{
   model: string;
-  reasoningEffort: ReasoningEffort;
+  reasoningEffort?: ReasoningEffort;
   freeLimit: number;
   proLimit: number;
   maxLimit: number;
@@ -89,7 +89,9 @@ export async function getCoachConfig(): Promise<{
   };
   return {
     model,
-    reasoningEffort: reasoningEffortForModel(model, configuredEffort ?? undefined),
+    reasoningEffort: configuredEffort
+      ? reasoningEffortForModel(model, configuredEffort)
+      : undefined,
     freeLimit: num(process.env.FREE_AI_CALLS_PER_MONTH || env.FREE_AI_CALLS_PER_MONTH, DEFAULT_FREE_LIMIT),
     proLimit: num(process.env.PRO_AI_CALLS_PER_MONTH || env.PRO_AI_CALLS_PER_MONTH, DEFAULT_PRO_LIMIT),
     maxLimit: num(process.env.MAX_AI_CALLS_PER_MONTH || env.MAX_AI_CALLS_PER_MONTH, DEFAULT_MAX_LIMIT),

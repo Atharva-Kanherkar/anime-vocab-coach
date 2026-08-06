@@ -4,7 +4,6 @@ import {
   coachCacheKey,
   completionTuning,
   DEFAULT_COACH_MODEL,
-  DEFAULT_COACH_REASONING_EFFORT,
   isReasoningModel,
   normalizeCoachRequest,
   normalizeReasoningEffort,
@@ -99,13 +98,13 @@ describe("runCoach", () => {
     await expect(runCoach("sk-test", "gpt-4.1-nano", baseReq)).rejects.toThrow("openai_empty");
   });
 
-  it("sends reasoning params (not temperature/max_tokens) for the luna default model", async () => {
+  it("uses Luna's documented default effort without sending the rejected flag", async () => {
     const fetchMock = mockOpenAi(JSON.stringify({ meaning: "to see", nuance: "casual" }));
     vi.stubGlobal("fetch", fetchMock);
     await runCoach("sk-test", DEFAULT_COACH_MODEL, baseReq);
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body.model).toBe("gpt-5.6-luna");
-    expect(body.reasoning_effort).toBe("max");
+    expect(body).not.toHaveProperty("reasoning_effort");
     expect(body.max_completion_tokens).toBeGreaterThan(400);
     expect(body).not.toHaveProperty("temperature");
     expect(body).not.toHaveProperty("max_tokens");
@@ -113,9 +112,9 @@ describe("runCoach", () => {
 });
 
 describe("reasoning model tuning", () => {
-  it("defaults the coach to gpt-5.6-luna at max effort", () => {
+  it("defaults the coach to gpt-5.6-luna and OpenAI's medium effort", () => {
     expect(DEFAULT_COACH_MODEL).toBe("gpt-5.6-luna");
-    expect(DEFAULT_COACH_REASONING_EFFORT).toBe("max");
+    expect(reasoningEffortForModel(DEFAULT_COACH_MODEL)).toBe("medium");
   });
 
   it("classifies model families", () => {
@@ -133,14 +132,17 @@ describe("reasoning model tuning", () => {
   });
 
   it("gives reasoning tokens headroom scaled by effort", () => {
+    const omitted = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400 });
     const none = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "none" });
     const low = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "low" });
     const max = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "max" });
+    expect(omitted).toEqual({ max_completion_tokens: 4400 });
     expect(none.max_completion_tokens).toBe(400);
     expect(low.max_completion_tokens).toBe(2400);
     expect(max.max_completion_tokens).toBe(25400);
     expect(max.max_completion_tokens).toBeGreaterThanOrEqual(25_000);
     expect(max.reasoning_effort).toBe("max");
+    expect(low.reasoning_effort).toBe("low");
   });
 
   it("uses conservative defaults but preserves explicit model overrides", () => {

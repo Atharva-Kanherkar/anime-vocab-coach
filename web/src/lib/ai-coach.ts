@@ -73,18 +73,13 @@ export type CoachResult = ExplainResult | HooksResult | ChatResult;
 
 // Verified August 2026: gpt-5.6-luna (released 2026-07-09) is $0.20 / 1M input,
 // $1.20 / 1M output, $0.02 / 1M cached input. It is a reasoning model; at the
-// "max" effort we run the coach on, reasoning tokens are billed as output. The
-// actual cost is workload-dependent and can exceed the backend's $0.002/call
-// assumption, so usage must be monitored. Overridable via AI_COACH_MODEL /
-// AI_COACH_REASONING_EFFORT env.
+// reasoning tokens are billed as output. The actual cost is workload-dependent
+// and can exceed the backend's $0.002/call assumption, so usage must be
+// monitored. The model is overridable via AI_COACH_MODEL; reasoning effort is
+// optional and otherwise uses OpenAI's documented default.
 export const DEFAULT_COACH_MODEL = "gpt-5.6-luna";
 
 export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
-
-// "Max mode": the highest reasoning effort Luna offers. The coach is a
-// user-facing quality surface (the whole reason we left gpt-4.1-nano), so it
-// defaults to max; background callers pass something cheaper.
-export const DEFAULT_COACH_REASONING_EFFORT: ReasoningEffort = "max";
 
 const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
 const GPT_56_EFFORTS: readonly ReasoningEffort[] = ["none", "low", "medium", "high", "xhigh", "max"];
@@ -93,9 +88,9 @@ export function normalizeReasoningEffort(value: unknown): ReasoningEffort | null
   return REASONING_EFFORTS.includes(value as ReasoningEffort) ? (value as ReasoningEffort) : null;
 }
 
-/** GPT-5.6 is the only model for which this app chooses `max` by default.
- * Explicit operator overrides are preserved: silently changing `none`, `xhigh`,
- * or `max` changes latency, cost, and quality, and model capabilities evolve. */
+/** Resolve the effective effort used for token-budget headroom. OpenAI documents
+ * `medium` as GPT-5.6's default when the request omits `reasoning_effort`.
+ * Explicit operator overrides are preserved after model validation. */
 export function reasoningEffortForModel(model: string, requested?: ReasoningEffort): ReasoningEffort {
   if (requested && isReasoningModel(model)) {
     const supported = supportedReasoningEfforts(model);
@@ -104,7 +99,7 @@ export function reasoningEffortForModel(model: string, requested?: ReasoningEffo
     }
   }
   if (requested) return requested;
-  return /^gpt-5\.6(?:-|$)/.test(model) ? DEFAULT_COACH_REASONING_EFFORT : "medium";
+  return "medium";
 }
 
 function supportedReasoningEfforts(model: string): readonly ReasoningEffort[] | null {
@@ -155,7 +150,7 @@ export function completionTuning(
             ? 25_000
             : 16_000;
   return {
-    reasoning_effort: effort,
+    ...(opts.effort ? { reasoning_effort: effort } : {}),
     max_completion_tokens: opts.maxTokens + headroom,
   };
 }

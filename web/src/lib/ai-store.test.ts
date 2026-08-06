@@ -9,7 +9,7 @@ vi.mock("@opennextjs/cloudflare", () => ({
   },
 }));
 
-const { currentMonth, getUsage, incrementUsage, quotaFor, refundUsage, reserveUsage } =
+const { currentMonth, getCoachConfig, getUsage, incrementUsage, quotaFor, refundUsage, reserveUsage } =
   await import("./ai-store");
 
 const MONTH = "2026-08";
@@ -70,6 +70,19 @@ describe("quotaFor", () => {
   it("gives owners an effectively unlimited cap on both meters", async () => {
     expect(await quotaFor("free", "ai", true)).toBeGreaterThan(100_000);
     expect(await quotaFor("free", "auto", true)).toBeGreaterThan(100_000);
+  });
+});
+
+describe("getCoachConfig", () => {
+  it("omits explicit reasoning effort by default", async () => {
+    const config = await getCoachConfig();
+    expect(config.model).toBe("gpt-5.6-luna");
+    expect(config.reasoningEffort).toBeUndefined();
+  });
+
+  it("preserves an explicit supported operator override", async () => {
+    vi.stubEnv("AI_COACH_REASONING_EFFORT", "low");
+    expect((await getCoachConfig()).reasoningEffort).toBe("low");
   });
 });
 
