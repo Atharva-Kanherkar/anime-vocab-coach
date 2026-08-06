@@ -3354,7 +3354,9 @@
         const syncToken = await getSyncToken();
         if (!syncToken) return;
         const t = video.currentTime;
-        const result = await lookupTranscript(syncToken, cacheKey2, t, 2);
+        const requestedKey = cacheKey2;
+        const result = await lookupTranscript(syncToken, requestedKey, t, 2);
+        if (cacheKey2 !== requestedKey) return;
         if (!result.hit || !result.segments.length) return;
         for (const seg of result.segments) {
           if (seg.start > t) continue;

@@ -273,6 +273,8 @@
     const pcm = concatPcm(session.pcmBuffer);
     resetAudioBuffer(session);
     const startSec = session.chunkStartSec;
+    const requestKey = session.cacheKey;
+    const generation = session.modeGeneration;
     session.transcribing = true;
     try {
       olog("transcribing chunk at playback", startSec, "samples", pcm.length);
@@ -282,9 +284,10 @@
           "Content-Type": "application/json",
           Authorization: "Bearer " + session.auth.syncToken
         },
-        body: JSON.stringify({ key: session.cacheKey, startSec, audio: base64Int16(pcm) })
+        body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) })
       });
       const data = await res.json().catch(() => ({}));
+      if (!session.active || session.cacheKey !== requestKey || session.modeGeneration !== generation) return;
       if (res.status === 429) {
         report(session.tabId, "quota-exceeded", data.error || "monthly listening hours used up");
         stop(session.tabId);

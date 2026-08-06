@@ -136,9 +136,13 @@ declare global {
       if (!syncToken) return;
 
       const t = video.currentTime;
+      const requestedKey = cacheKey;
       // Narrow window: the default 8s window returned the NEXT eight seconds
       // of dialogue, so cards popped for lines the learner hadn't heard yet.
-      const result = await lookupTranscript(syncToken, cacheKey, t, 2);
+      const result = await lookupTranscript(syncToken, requestedKey, t, 2);
+      // An episode switch clears the cue ledger while this request is in flight.
+      // Never let the old response refill it or emit dialogue into the new page.
+      if (cacheKey !== requestedKey) return;
       if (!result.hit || !result.segments.length) return;
       for (const seg of result.segments) {
         if (seg.start > t) continue; // still in the future \u2014 don't spoil it

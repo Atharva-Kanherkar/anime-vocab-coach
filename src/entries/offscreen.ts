@@ -386,6 +386,8 @@ async function flushChunk(session: Session): Promise<void> {
   const pcm = concatPcm(session.pcmBuffer);
   resetAudioBuffer(session);
   const startSec = session.chunkStartSec;
+  const requestKey = session.cacheKey;
+  const generation = session.modeGeneration;
   session.transcribing = true;
 
   try {
@@ -396,13 +398,16 @@ async function flushChunk(session: Session): Promise<void> {
         "Content-Type": "application/json",
         Authorization: "Bearer " + session.auth.syncToken
       },
-      body: JSON.stringify({ key: session.cacheKey, startSec, audio: base64Int16(pcm) })
+      body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) })
     });
     const data = (await res.json().catch(() => ({}))) as {
       hit?: boolean;
       segments?: { start?: number; text: string }[];
       error?: string;
     };
+    // A cache-key or mode change clears sentCues. Discard the old response so it
+    // cannot refill that ledger, emit stale dialogue, or stop the new session.
+    if (!session.active || session.cacheKey !== requestKey || session.modeGeneration !== generation) return;
     if (res.status === 429) {
       report(session.tabId, "quota-exceeded", data.error || "monthly listening hours used up");
       stop(session.tabId);

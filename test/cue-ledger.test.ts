@@ -50,5 +50,8 @@ describe("CueLedger", () => {
     expect(content).toContain('emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)');
     expect(content).toMatch(/if \(next !== cacheKey\)[\s\S]{0,180}?emittedCueKeys\.clear\(\)/);
     expect(offscreen).toContain("session.sentCues.clear()");
+    expect(content).toContain("if (cacheKey !== requestedKey) return");
+    expect(offscreen).toContain("session.cacheKey !== requestKey");
+    expect(offscreen).toContain("session.modeGeneration !== generation");
   });
 });
