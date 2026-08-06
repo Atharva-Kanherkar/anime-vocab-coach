@@ -14,11 +14,11 @@ const { currentMonth, getCoachConfig, getUsage, incrementUsage, quotaFor, refund
 
 const MONTH = "2026-08";
 
-describe("usage buckets", () => {
-  beforeEach(() => {
-    vi.unstubAllEnvs();
-  });
+beforeEach(() => {
+  vi.unstubAllEnvs();
+});
 
+describe("usage buckets", () => {
   // The bug this pins: pronunciation audio and smart word picking were metered
   // against the same counter as the coach, so a learner could exhaust the
   // advertised "AI messages" allowance without ever opening the coach.

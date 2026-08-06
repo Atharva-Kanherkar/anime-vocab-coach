@@ -72,7 +72,7 @@ export interface ChatResult {
 export type CoachResult = ExplainResult | HooksResult | ChatResult;
 
 // Verified August 2026: gpt-5.6-luna (released 2026-07-09) is $0.20 / 1M input,
-// $1.20 / 1M output, $0.02 / 1M cached input. It is a reasoning model; at the
+// $1.20 / 1M output, $0.02 / 1M cached input. It is a reasoning model, so
 // reasoning tokens are billed as output. The actual cost is workload-dependent
 // and can exceed the backend's $0.002/call assumption, so usage must be
 // monitored. The model is overridable via AI_COACH_MODEL; reasoning effort is

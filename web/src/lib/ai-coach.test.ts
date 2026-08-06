@@ -9,6 +9,7 @@ import {
   normalizeReasoningEffort,
   reasoningEffortForModel,
   runCoach,
+  streamChatCoach,
   type CoachRequest,
 } from "./ai-coach";
 
@@ -19,6 +20,17 @@ function mockOpenAi(content: string, ok = true, status = 200) {
     json: async () => ({ choices: [{ message: { content } }] }),
     text: async () => content,
   } as unknown as Response);
+}
+
+function mockOpenAiStream(content: string) {
+  const body = new ReadableStream({
+    start(controller) {
+      const payload = JSON.stringify({ choices: [{ delta: { content } }] });
+      controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\ndata: [DONE]\n\n`));
+      controller.close();
+    },
+  });
+  return vi.fn().mockResolvedValue({ ok: true, status: 200, body } as unknown as Response);
 }
 
 const baseReq: CoachRequest = {
@@ -108,6 +120,44 @@ describe("runCoach", () => {
     expect(body.max_completion_tokens).toBeGreaterThan(400);
     expect(body).not.toHaveProperty("temperature");
     expect(body).not.toHaveProperty("max_tokens");
+  });
+});
+
+describe("streamChatCoach", () => {
+  const chatReq: CoachRequest = {
+    ...baseReq,
+    mode: "chat",
+    message: "What does this mean?",
+  };
+
+  it("omits reasoning_effort from the default Luna streaming request", async () => {
+    const fetchMock = mockOpenAiStream("It means to look.");
+    vi.stubGlobal("fetch", fetchMock);
+
+    const chunks: string[] = [];
+    for await (const chunk of streamChatCoach("sk-test", DEFAULT_COACH_MODEL, chatReq)) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(["It means to look."]);
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ model: "gpt-5.6-luna", stream: true });
+    expect(body.max_completion_tokens).toBeGreaterThan(400);
+    expect(body).not.toHaveProperty("reasoning_effort");
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+
+  it("preserves an explicit supported streaming effort", async () => {
+    const fetchMock = mockOpenAiStream("It means to look.");
+    vi.stubGlobal("fetch", fetchMock);
+
+    for await (const chunk of streamChatCoach("sk-test", DEFAULT_COACH_MODEL, chatReq, "low")) {
+      expect(chunk).toBe("It means to look.");
+    }
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.reasoning_effort).toBe("low");
   });
 });
 
