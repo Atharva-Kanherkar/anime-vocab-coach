@@ -73,10 +73,9 @@ export type CoachResult = ExplainResult | HooksResult | ChatResult;
 
 // Verified August 2026: gpt-5.6-luna (released 2026-07-09) is $0.20 / 1M input,
 // $1.20 / 1M output, $0.02 / 1M cached input. It is a reasoning model; at the
-// "max" effort we run the coach on, reasoning tokens are billed as output, so a
-// coach call (~350 input + up to a few thousand reasoning + ~250 visible output
-// tokens) costs roughly $0.002-0.004 — at, not under, the $0.002/call assumption
-// in the backend economics model. Overridable via AI_COACH_MODEL /
+// "max" effort we run the coach on, reasoning tokens are billed as output. The
+// actual cost is workload-dependent and can exceed the backend's $0.002/call
+// assumption, so usage must be monitored. Overridable via AI_COACH_MODEL /
 // AI_COACH_REASONING_EFFORT env.
 export const DEFAULT_COACH_MODEL = "gpt-5.6-luna";
 
@@ -91,6 +90,15 @@ const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "low", "medium", 
 
 export function normalizeReasoningEffort(value: unknown): ReasoningEffort | null {
   return REASONING_EFFORTS.includes(value as ReasoningEffort) ? (value as ReasoningEffort) : null;
+}
+
+/** GPT-5.6 documents the full effort range. For model overrides, stay on the
+ * broadly supported low/medium/high subset instead of sending an advanced value
+ * the selected model may reject. */
+export function reasoningEffortForModel(model: string, requested?: ReasoningEffort): ReasoningEffort {
+  const effort = requested ?? DEFAULT_COACH_REASONING_EFFORT;
+  if (/^gpt-5\.6(?:-|$)/.test(model)) return effort;
+  return effort === "low" || effort === "medium" || effort === "high" ? effort : "medium";
 }
 
 /** GPT-5.x and o-series models take reasoning params and reject the classic
@@ -115,9 +123,21 @@ export function completionTuning(
   if (!isReasoningModel(model)) {
     return { temperature: opts.temperature, max_tokens: opts.maxTokens };
   }
-  const effort = opts.effort ?? DEFAULT_COACH_REASONING_EFFORT;
+  const effort = reasoningEffortForModel(model, opts.effort);
+  // OpenAI recommends reserving at least 25k generated tokens when first using
+  // reasoning models. Max effort is the path most likely to consume that much;
+  // lower efforts stay deliberately tighter for latency-sensitive background
+  // calls.
   const headroom =
-    effort === "none" ? 0 : effort === "low" ? 2_000 : effort === "medium" ? 4_000 : 16_000;
+    effort === "none"
+      ? 0
+      : effort === "low"
+        ? 2_000
+        : effort === "medium"
+          ? 4_000
+          : effort === "max"
+            ? 25_000
+            : 16_000;
   return {
     reasoning_effort: effort,
     max_completion_tokens: opts.maxTokens + headroom,

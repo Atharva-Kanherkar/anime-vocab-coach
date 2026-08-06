@@ -31,8 +31,8 @@
   // AI coach (issue #13). OPENAI_API_KEY is a Worker secret, not a var:
   //   npx wrangler secret put OPENAI_API_KEY
   // gpt-5.6-luna at max reasoning effort ($0.20/$1.20 per 1M tokens as of
-  // Aug 2026; reasoning tokens bill as output): a coach call costs roughly
-  // $0.002-0.004. Background auto calls (word extraction, anime context) run
+  // Aug 2026; reasoning tokens bill as output). Actual cost varies by task and
+  // must be monitored. Background auto calls (word extraction, anime context) run
   // the same model at low effort. Limits are per Clerk user per month,
   // gated by plan (free/pro/max) from Clerk publicMetadata — see resolvePlan.
   "vars": {

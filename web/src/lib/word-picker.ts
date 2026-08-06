@@ -1,4 +1,5 @@
 import { putCachedResult } from "./ai-store";
+import { completionTuning } from "./ai-coach";
 import {
   normalizeDirection,
   targetLangName,
@@ -161,8 +162,7 @@ export async function runWordPick(apiKey: string, model: string, req: WordPickRe
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.2,
-      max_tokens: 40,
+      ...completionTuning(model, { temperature: 0.2, maxTokens: 40, effort: "low" }),
     }),
   });
 

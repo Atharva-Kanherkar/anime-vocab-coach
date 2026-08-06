@@ -8,6 +8,7 @@ import {
   isReasoningModel,
   normalizeCoachRequest,
   normalizeReasoningEffort,
+  reasoningEffortForModel,
   runCoach,
   type CoachRequest,
 } from "./ai-coach";
@@ -137,8 +138,15 @@ describe("reasoning model tuning", () => {
     const max = completionTuning("gpt-5.6-luna", { temperature: 0.4, maxTokens: 400, effort: "max" });
     expect(none.max_completion_tokens).toBe(400);
     expect(low.max_completion_tokens).toBe(2400);
-    expect(max.max_completion_tokens).toBe(16400);
+    expect(max.max_completion_tokens).toBe(25400);
+    expect(max.max_completion_tokens).toBeGreaterThanOrEqual(25_000);
     expect(max.reasoning_effort).toBe("max");
+  });
+
+  it("uses a safe effort when the model override does not document max", () => {
+    expect(reasoningEffortForModel("gpt-5.4-mini", "max")).toBe("medium");
+    expect(reasoningEffortForModel("o3-mini", "xhigh")).toBe("medium");
+    expect(reasoningEffortForModel("o3-mini", "low")).toBe("low");
   });
 
   it("normalizes effort strings and rejects junk", () => {

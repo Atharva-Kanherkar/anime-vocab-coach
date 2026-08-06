@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: Params) {
   if (!apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
 
   // AI cap is per tier (free/pro/max); owners are effectively unlimited.
-  const { model, freeLimit, proLimit, maxLimit } = await getCoachConfig();
+  const { model, reasoningEffort, freeLimit, proLimit, maxLimit } = await getCoachConfig();
   const plan = resolvePlan(profile);
   const limit = isOwnerEmail(profile.email) ? OWNER_AI_LIMIT : aiLimitForPlan(plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
@@ -43,7 +43,7 @@ export async function POST(req: Request, { params }: Params) {
 
   let summary;
   try {
-    summary = await runNotebookSummary(apiKey, model, notebook);
+    summary = await runNotebookSummary(apiKey, model, notebook, reasoningEffort);
   } catch (err) {
     await reservation.refund();
     return NextResponse.json(
