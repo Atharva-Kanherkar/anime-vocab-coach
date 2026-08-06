@@ -48,6 +48,7 @@ describe("CueLedger", () => {
     expect(offscreen).toMatch(/type:\s*"avc-transcript"[\s\S]{0,100}?start:\s*seg\.start/);
     expect(background).toContain("deliverTranscript(msg.tabId!, msg.text!, msg.start)");
     expect(content).toContain('emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)');
+    expect(content).toMatch(/if \(next !== cacheKey\)[\s\S]{0,180}?emittedCueKeys\.clear\(\)/);
     expect(offscreen).toContain("session.sentCues.clear()");
   });
 });

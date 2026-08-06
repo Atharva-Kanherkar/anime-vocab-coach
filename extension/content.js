@@ -3337,6 +3337,7 @@
       const result = deriveCacheKey(platformForAdapter(a), video, preferred);
       const next = result && result.audioLang === preferred ? result.key : "";
       if (next !== cacheKey2) {
+        emittedCueKeys.clear();
         cacheKey2 = next;
         chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey2 }).catch(() => {
         });

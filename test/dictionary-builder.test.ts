@@ -90,9 +90,10 @@ describe("dictionary builder", () => {
     expect(build(writtenEntry + kanaOnly)[reading].g).toEqual([spoken]);
   });
 
-  it("retains unprioritized spelling aliases for a prioritized kana-only entry", () => {
+  it("retains unprioritized reading aliases for a prioritized entry", () => {
     const dict = build(entry(`
-      <r_ele><reb>ズキズキ</reb></r_ele>
+      <k_ele><keb>疼き疼き</keb><ke_pri>ichi1</ke_pri></k_ele>
+      <r_ele><reb>ズキズキ</reb><re_nokanji/></r_ele>
       <r_ele><reb>ずきずき</reb><re_pri>ichi1</re_pri></r_ele>
       <sense><gloss>throbbingly</gloss></sense>
     `));

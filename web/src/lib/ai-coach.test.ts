@@ -158,6 +158,9 @@ describe("reasoning model tuning", () => {
     expect(() => reasoningEffortForModel("o3-mini", "xhigh")).toThrow(
       "unsupported_reasoning_effort:o3-mini:xhigh"
     );
+    expect(() => reasoningEffortForModel("gpt-5.6-luna", "minimal")).toThrow(
+      "unsupported_reasoning_effort:gpt-5.6-luna:minimal"
+    );
   });
 
   it("normalizes effort strings and rejects junk", () => {

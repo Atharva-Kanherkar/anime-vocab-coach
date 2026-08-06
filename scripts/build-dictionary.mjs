@@ -217,13 +217,13 @@ export function buildDictionary(xml) {
       keptAny = true;
     }
 
-    // A prioritized kana-only entry is common as a whole, so retain its
-    // unprioritized spelling variants too (ズキズキ alongside ずきずき). Mark
-    // those variants as aliases so an independently prioritized homophone wins.
+    // A prioritized entry is common as a whole, so retain its unprioritized
+    // reading/spelling variants too (ズキズキ alongside ずきずき). Mark those
+    // variants as aliases so an independently prioritized homophone wins.
     const entryReadingPris = rEles.flatMap((r) => r.pris);
     for (const r of rEles) {
-      if (kEles.length > 0 && r.pris.length === 0) continue;
       const alias = r.pris.length === 0;
+      if (alias && entryReadingPris.length === 0) continue;
       const pris = alias ? entryReadingPris : r.pris;
       const f = freqFromPris(pris);
       if (f === null) continue;

@@ -116,6 +116,9 @@ declare global {
     // Shared cache for the language we're studying (JA or EN).
     const next = result && result.audioLang === preferred ? result.key : "";
     if (next !== cacheKey) {
+      // Timestamp/text pairs repeat from zero across episodes. Clear before
+      // publishing the new key so an opening cue cannot hit the old ledger.
+      emittedCueKeys.clear();
       cacheKey = next;
       chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey }).catch(() => {});
     }
