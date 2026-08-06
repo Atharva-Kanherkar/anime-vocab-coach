@@ -1,4 +1,5 @@
 import type { Notebook } from "./notebooks";
+import { completionTuning, type ReasoningEffort } from "./ai-coach";
 
 export interface NotebookSummaryResult {
   weakSpots: string[];
@@ -26,7 +27,8 @@ function entriesBlock(nb: Notebook): string {
 export async function runNotebookSummary(
   apiKey: string,
   model: string,
-  nb: Notebook
+  nb: Notebook,
+  effort?: ReasoningEffort
 ): Promise<NotebookSummaryResult> {
   const system =
     "You are an anime immersion study coach (Japanese↔English). Given a learner's notebook of saved words, lines, and notes, " +
@@ -47,8 +49,7 @@ export async function runNotebookSummary(
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.5,
-      max_tokens: 600,
+      ...completionTuning(model, { temperature: 0.5, maxTokens: 600, effort }),
     }),
   });
 

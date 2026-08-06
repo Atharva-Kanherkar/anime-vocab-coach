@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
   // AI cap is per tier (free/pro/max), read from the buyer's Clerk plan; owners
   // are effectively unlimited.
-  const { model, freeLimit, proLimit, maxLimit } = await getCoachConfig();
+  const { model, reasoningEffort, freeLimit, proLimit, maxLimit } = await getCoachConfig();
   const tier: Tier = user.plan;
   const limit = owner ? OWNER_AI_LIMIT : aiLimitForPlan(user.plan, freeLimit, proLimit, maxLimit);
   const month = currentMonth();
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
 
   let result;
   try {
-    result = await runCoach(apiKey, model, coachReq);
+    result = await runCoach(apiKey, model, coachReq, reasoningEffort);
   } catch (err) {
     await reservation.refund();
     const detail = err instanceof Error ? err.message : "ai_failed";

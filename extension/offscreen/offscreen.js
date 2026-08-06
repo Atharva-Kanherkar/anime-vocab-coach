@@ -1,5 +1,42 @@
 "use strict";
 (() => {
+  // src/lib/cue-ledger.ts
+  var MAX_TRACKED_CUES = 2e3;
+  var CueLedger = class {
+    constructor(capacity = MAX_TRACKED_CUES) {
+      this.capacity = capacity;
+      this.seen = /* @__PURE__ */ new Set();
+      this.order = [];
+      this.head = 0;
+      if (!Number.isInteger(capacity) || capacity < 1) {
+        throw new Error("cue ledger capacity must be a positive integer");
+      }
+    }
+    /** Returns true only the first time a cue is remembered while retained. */
+    remember(key) {
+      if (this.seen.has(key)) return false;
+      this.seen.add(key);
+      this.order.push(key);
+      if (this.seen.size > this.capacity) {
+        const oldest = this.order[this.head++];
+        this.seen.delete(oldest);
+        if (this.head >= 1024 && this.head * 2 >= this.order.length) {
+          this.order = this.order.slice(this.head);
+          this.head = 0;
+        }
+      }
+      return true;
+    }
+    clear() {
+      this.seen.clear();
+      this.order = [];
+      this.head = 0;
+    }
+    get size() {
+      return this.seen.size;
+    }
+  };
+
   // src/entries/offscreen.ts
   var RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
   var OUT_RATE = 24e3;
@@ -172,6 +209,7 @@
         if (newKey !== session.cacheKey) {
           session.cacheKey = newKey;
           session.useCache = session.auth.kind === "cloud" && !!newKey;
+          session.sentCues.clear();
           resetAudioBuffer(session);
           applyCacheMode(session);
           olog("cache key updated for tab", msg.tabId, "\u2192", newKey || "(none)");
@@ -229,13 +267,15 @@
     return chunks.reduce((n, c) => n + c.length, 0);
   }
   async function flushChunk(session) {
-    if (session.transcribing || !session.cacheKey || session.auth.kind !== "cloud") return;
+    if (session.transcribingGeneration === session.modeGeneration || !session.cacheKey || session.auth.kind !== "cloud") return;
     if (session.playbackPaused) return;
     if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
     const pcm = concatPcm(session.pcmBuffer);
     resetAudioBuffer(session);
     const startSec = session.chunkStartSec;
-    session.transcribing = true;
+    const requestKey = session.cacheKey;
+    const generation = session.modeGeneration;
+    session.transcribingGeneration = generation;
     try {
       olog("transcribing chunk at playback", startSec, "samples", pcm.length);
       const res = await fetch(session.auth.backendUrl + "/v1/transcript/transcribe", {
@@ -244,9 +284,10 @@
           "Content-Type": "application/json",
           Authorization: "Bearer " + session.auth.syncToken
         },
-        body: JSON.stringify({ key: session.cacheKey, startSec, audio: base64Int16(pcm) })
+        body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) })
       });
       const data = await res.json().catch(() => ({}));
+      if (!session.active || session.cacheKey !== requestKey || session.modeGeneration !== generation) return;
       if (res.status === 429) {
         report(session.tabId, "quota-exceeded", data.error || "monthly listening hours used up");
         stop(session.tabId);
@@ -257,15 +298,17 @@
         const t = (seg.text || "").trim();
         const langOk = session.language === "en" ? /[A-Za-z]{2,}/.test(t) : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
         if (t && langOk) {
+          const cue = `${seg.start ?? "?"}:${t}`;
+          if (!session.sentCues.remember(cue)) continue;
           olog(data.hit ? "cache hit:" : "transcribed:", t);
-          chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {
+          chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: seg.start }).catch(() => {
           });
         }
       }
     } catch (err) {
       olog("chunk transcribe failed:", String(err));
     } finally {
-      session.transcribing = false;
+      if (session.transcribingGeneration === generation) session.transcribingGeneration = null;
     }
   }
   async function start({ streamId, tabId, auth, model, language, cacheKey }) {
@@ -319,9 +362,10 @@
       pcmBuffer: [],
       chunkStartSec: 0,
       chunkStarted: false,
-      transcribing: false,
+      transcribingGeneration: null,
       chunkTimer: null,
       useCache,
+      sentCues: new CueLedger(),
       billedFromMs: null,
       pendingBillMs: 0,
       modeGeneration: 0

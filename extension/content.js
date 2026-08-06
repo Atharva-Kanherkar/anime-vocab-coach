@@ -3228,6 +3228,43 @@
     return res.json();
   }
 
+  // src/lib/cue-ledger.ts
+  var MAX_TRACKED_CUES = 2e3;
+  var CueLedger = class {
+    constructor(capacity = MAX_TRACKED_CUES) {
+      this.capacity = capacity;
+      this.seen = /* @__PURE__ */ new Set();
+      this.order = [];
+      this.head = 0;
+      if (!Number.isInteger(capacity) || capacity < 1) {
+        throw new Error("cue ledger capacity must be a positive integer");
+      }
+    }
+    /** Returns true only the first time a cue is remembered while retained. */
+    remember(key) {
+      if (this.seen.has(key)) return false;
+      this.seen.add(key);
+      this.order.push(key);
+      if (this.seen.size > this.capacity) {
+        const oldest = this.order[this.head++];
+        this.seen.delete(oldest);
+        if (this.head >= 1024 && this.head * 2 >= this.order.length) {
+          this.order = this.order.slice(this.head);
+          this.head = 0;
+        }
+      }
+      return true;
+    }
+    clear() {
+      this.seen.clear();
+      this.order = [];
+      this.head = 0;
+    }
+    get size() {
+      return this.seen.size;
+    }
+  };
+
   // src/entries/content.ts
   (function main() {
     if (window.__avcMainLoaded) {
@@ -3252,7 +3289,9 @@
     let lineInFlight = false;
     let queuedLine = null;
     let cachePollTimer = null;
-    let lastCacheCueKey = "";
+    const emittedCueKeys = new CueLedger();
+    let cachePollInFlight = null;
+    let cachePollGeneration = 0;
     let playbackRelayTimer = null;
     function pickAdapter() {
       if (adapter) return adapter;
@@ -3299,6 +3338,8 @@
       const result = deriveCacheKey(platformForAdapter(a), video, preferred);
       const next = result && result.audioLang === preferred ? result.key : "";
       if (next !== cacheKey2) {
+        cachePollGeneration += 1;
+        emittedCueKeys.clear();
         cacheKey2 = next;
         chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey2 }).catch(() => {
         });
@@ -3309,38 +3350,51 @@
       const a = pickAdapter();
       const video = a?.getVideo();
       if (!video || video.paused) return;
-      settings = await getSettings();
-      const syncToken = await getSyncToken();
-      if (!syncToken) return;
-      const t = video.currentTime;
+      const requestedKey = cacheKey2;
+      const generation = cachePollGeneration;
+      if (cachePollInFlight === generation) return;
+      const stale = () => !listeningActive || cachePollGeneration !== generation || cacheKey2 !== requestedKey;
+      cachePollInFlight = generation;
       try {
-        const result = await lookupTranscript(syncToken, cacheKey2, t);
+        settings = await getSettings();
+        if (stale()) return;
+        const syncToken = await getSyncToken();
+        if (!syncToken || stale()) return;
+        const t = video.currentTime;
+        const result = await lookupTranscript(syncToken, requestedKey, t, 2);
+        if (stale()) return;
         if (!result.hit || !result.segments.length) return;
         for (const seg of result.segments) {
+          if (stale()) return;
+          if (seg.start > t) continue;
           const key = `${seg.start}:${seg.text}`;
-          if (key === lastCacheCueKey) continue;
-          lastCacheCueKey = key;
+          if (!emittedCueKeys.remember(key)) continue;
           const lang = studyLang();
           if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
           if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
           const en = a?.getVisibleText() || "";
           await onLine(seg.text, { en, fromAudio: true });
+          if (stale()) return;
         }
       } catch (err) {
         warn("cache poll failed:", err);
+      } finally {
+        if (cachePollInFlight === generation) cachePollInFlight = null;
       }
     }
     function startCachePolling() {
       if (cachePollTimer) return;
+      cachePollGeneration += 1;
       refreshCacheKey();
       cachePollTimer = setInterval(() => {
         pollCacheHit().catch((err) => warn("cache poll error:", err));
       }, 800);
     }
     function stopCachePolling() {
+      cachePollGeneration += 1;
       if (cachePollTimer) clearInterval(cachePollTimer);
       cachePollTimer = null;
-      lastCacheCueKey = "";
+      emittedCueKeys.clear();
     }
     function startPlaybackRelay() {
       if (playbackRelayTimer) return;
@@ -3598,9 +3652,13 @@
         return;
       }
       log("transcript received:", msg.text);
+      const rawTranscript = (msg.text || "").trim();
+      if (typeof msg.start === "number" && !emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)) {
+        return;
+      }
       const en = a.getVisibleText();
       const direction = normalizeDirection(settings?.learningDirection);
-      const segments = (msg.text || "").split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
+      const segments = rawTranscript.split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
       (async () => {
         for (const seg of segments) {
           await onLine(seg, { en, fromAudio: true });
@@ -3618,7 +3676,7 @@
         lastSessionId = sid;
         targetedThisSession.clear();
         lastLine = "";
-        lastCacheCueKey = "";
+        emittedCueKeys.clear();
         lastContextTitle = "";
         refreshCacheKey();
         log("session reset for new video:", sid);

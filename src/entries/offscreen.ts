@@ -3,6 +3,8 @@
 // BYO key: streams audio to OpenAI Realtime WebSocket.
 // Cloud (signed in): shared transcript cache — lookup first, transcribe on miss.
 
+import { CueLedger } from "../lib/cue-ledger";
+
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
 const CHUNK_SEC = 6;
@@ -35,9 +37,14 @@ interface Session {
   pcmBuffer: Int16Array[];
   chunkStartSec: number;
   chunkStarted: boolean;
-  transcribing: boolean;
+  /** Generation that owns the active cache transcription, or null. */
+  transcribingGeneration: number | null;
   chunkTimer: ReturnType<typeof setInterval> | null;
   useCache: boolean;
+  /** Segments already forwarded to the tab. Warm-cache hits return a window
+   * wider than one chunk, so consecutive 6s chunks overlap — without this the
+   * same line is fanned out (and carded) more than once. */
+  sentCues: CueLedger;
   /** Start of the current unpaused stretch on the realtime path, or null while
    * paused/stopped. */
   billedFromMs: number | null;
@@ -306,6 +313,9 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, send
       if (newKey !== session.cacheKey) {
         session.cacheKey = newKey;
         session.useCache = session.auth.kind === "cloud" && !!newKey;
+        // Cue timestamps repeat from zero in every episode. Retaining the old
+        // episode's ledger can suppress an identical opening line in the next.
+        session.sentCues.clear();
         // Drop any buffered audio from the previous episode so nothing is
         // uploaded under the old key.
         resetAudioBuffer(session);
@@ -370,14 +380,16 @@ function pcmSampleCount(chunks: Int16Array[]): number {
 }
 
 async function flushChunk(session: Session): Promise<void> {
-  if (session.transcribing || !session.cacheKey || session.auth.kind !== "cloud") return;
+  if (session.transcribingGeneration === session.modeGeneration || !session.cacheKey || session.auth.kind !== "cloud") return;
   if (session.playbackPaused) return;
   if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
 
   const pcm = concatPcm(session.pcmBuffer);
   resetAudioBuffer(session);
   const startSec = session.chunkStartSec;
-  session.transcribing = true;
+  const requestKey = session.cacheKey;
+  const generation = session.modeGeneration;
+  session.transcribingGeneration = generation;
 
   try {
     olog("transcribing chunk at playback", startSec, "samples", pcm.length);
@@ -387,13 +399,16 @@ async function flushChunk(session: Session): Promise<void> {
         "Content-Type": "application/json",
         Authorization: "Bearer " + session.auth.syncToken
       },
-      body: JSON.stringify({ key: session.cacheKey, startSec, audio: base64Int16(pcm) })
+      body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) })
     });
     const data = (await res.json().catch(() => ({}))) as {
       hit?: boolean;
-      segments?: { text: string }[];
+      segments?: { start?: number; text: string }[];
       error?: string;
     };
+    // A cache-key or mode change clears sentCues. Discard the old response so it
+    // cannot refill that ledger, emit stale dialogue, or stop the new session.
+    if (!session.active || session.cacheKey !== requestKey || session.modeGeneration !== generation) return;
     if (res.status === 429) {
       report(session.tabId, "quota-exceeded", data.error || "monthly listening hours used up");
       stop(session.tabId);
@@ -406,14 +421,17 @@ async function flushChunk(session: Session): Promise<void> {
         ? /[A-Za-z]{2,}/.test(t)
         : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
       if (t && langOk) {
+        const cue = `${seg.start ?? "?"}:${t}`;
+        if (!session.sentCues.remember(cue)) continue;
         olog(data.hit ? "cache hit:" : "transcribed:", t);
-        chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
+        chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: seg.start }).catch(() => {});
       }
     }
   } catch (err) {
     olog("chunk transcribe failed:", String(err));
   } finally {
-    session.transcribing = false;
+    // An obsolete request must never unlock the replacement generation's poll.
+    if (session.transcribingGeneration === generation) session.transcribingGeneration = null;
   }
 }
 
@@ -460,9 +478,10 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
     pcmBuffer: [],
     chunkStartSec: 0,
     chunkStarted: false,
-    transcribing: false,
+    transcribingGeneration: null,
     chunkTimer: null,
     useCache,
+    sentCues: new CueLedger(),
     billedFromMs: null,
     pendingBillMs: 0,
     modeGeneration: 0

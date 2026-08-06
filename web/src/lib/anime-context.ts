@@ -1,5 +1,5 @@
 import { getOpenAiKey, getCachedResult, putCachedResult } from "./ai-store";
-import { DEFAULT_COACH_MODEL } from "./ai-coach";
+import { completionTuning, DEFAULT_COACH_MODEL } from "./ai-coach";
 
 export const MAX_ANIME_TITLE_LEN = 120;
 export const MAX_ANIME_CONTEXT_LEN = 600;
@@ -62,8 +62,8 @@ export async function generateAnimeContext(title: string): Promise<AnimeContextR
         },
         { role: "user", content: `Anime title: ${clean}` },
       ],
-      temperature: 0.35,
-      max_tokens: 180,
+      // Cached-for-60-days background call: low effort is plenty for study notes.
+      ...completionTuning(model, { temperature: 0.35, maxTokens: 180, effort: "low" }),
     }),
   });
 

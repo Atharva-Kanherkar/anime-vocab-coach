@@ -71,10 +71,94 @@ export interface ChatResult {
 
 export type CoachResult = ExplainResult | HooksResult | ChatResult;
 
-// Verified July 2026: gpt-4.1-nano is $0.10 / 1M input, $0.40 / 1M output. A coach
-// call (~350 input + ~250 output tokens) costs about $0.00014 — roughly 15x under
-// the $0.002/call assumption in the backend economics model. Overridable via env.
-export const DEFAULT_COACH_MODEL = "gpt-4.1-nano";
+// Verified August 2026: gpt-5.6-luna (released 2026-07-09) is $0.20 / 1M input,
+// $1.20 / 1M output, $0.02 / 1M cached input. It is a reasoning model; at the
+// "max" effort we run the coach on, reasoning tokens are billed as output. The
+// actual cost is workload-dependent and can exceed the backend's $0.002/call
+// assumption, so usage must be monitored. Overridable via AI_COACH_MODEL /
+// AI_COACH_REASONING_EFFORT env.
+export const DEFAULT_COACH_MODEL = "gpt-5.6-luna";
+
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
+// "Max mode": the highest reasoning effort Luna offers. The coach is a
+// user-facing quality surface (the whole reason we left gpt-4.1-nano), so it
+// defaults to max; background callers pass something cheaper.
+export const DEFAULT_COACH_REASONING_EFFORT: ReasoningEffort = "max";
+
+const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+const GPT_56_EFFORTS: readonly ReasoningEffort[] = ["none", "low", "medium", "high", "xhigh", "max"];
+
+export function normalizeReasoningEffort(value: unknown): ReasoningEffort | null {
+  return REASONING_EFFORTS.includes(value as ReasoningEffort) ? (value as ReasoningEffort) : null;
+}
+
+/** GPT-5.6 is the only model for which this app chooses `max` by default.
+ * Explicit operator overrides are preserved: silently changing `none`, `xhigh`,
+ * or `max` changes latency, cost, and quality, and model capabilities evolve. */
+export function reasoningEffortForModel(model: string, requested?: ReasoningEffort): ReasoningEffort {
+  if (requested && isReasoningModel(model)) {
+    const supported = supportedReasoningEfforts(model);
+    if (supported && !supported.includes(requested)) {
+      throw new Error(`unsupported_reasoning_effort:${model}:${requested}`);
+    }
+  }
+  if (requested) return requested;
+  return /^gpt-5\.6(?:-|$)/.test(model) ? DEFAULT_COACH_REASONING_EFFORT : "medium";
+}
+
+function supportedReasoningEfforts(model: string): readonly ReasoningEffort[] | null {
+  if (/^gpt-5\.[56](?:-|$)/.test(model)) return GPT_56_EFFORTS;
+  if (/^gpt-5\.4(?:-|$)/.test(model)) return ["none", "low", "medium", "high", "xhigh"];
+  if (/^gpt-5(?:-|$)/.test(model)) return ["minimal", "low", "medium", "high"];
+  if (/^o\d/.test(model)) return ["low", "medium", "high"];
+  return null;
+}
+
+/** GPT-5.x and o-series models take reasoning params and reject the classic
+ * sampling ones; everything else (gpt-4.x) keeps the old contract. */
+export function isReasoningModel(model: string): boolean {
+  return /^(gpt-5|o\d)/.test(model);
+}
+
+/**
+ * The per-request params that differ between model families.
+ *
+ * Reasoning models reject `temperature` (only the default is allowed) and
+ * `max_tokens` (must be `max_completion_tokens`), and their reasoning tokens
+ * count against that budget — so the cap gets headroom on top of the visible
+ * answer, sized by effort. Too small a cap means the model spends the whole
+ * budget thinking and returns empty content.
+ */
+export function completionTuning(
+  model: string,
+  opts: { temperature: number; maxTokens: number; effort?: ReasoningEffort }
+): Record<string, unknown> {
+  if (!isReasoningModel(model)) {
+    return { temperature: opts.temperature, max_tokens: opts.maxTokens };
+  }
+  const effort = reasoningEffortForModel(model, opts.effort);
+  // OpenAI recommends reserving at least 25k generated tokens when first using
+  // reasoning models. Max effort is the path most likely to consume that much;
+  // lower efforts stay deliberately tighter for latency-sensitive background
+  // calls.
+  const headroom =
+    effort === "none"
+      ? 0
+      : effort === "minimal"
+        ? 1_000
+      : effort === "low"
+        ? 2_000
+        : effort === "medium"
+          ? 4_000
+          : effort === "max"
+            ? 25_000
+            : 16_000;
+  return {
+    reasoning_effort: effort,
+    max_completion_tokens: opts.maxTokens + headroom,
+  };
+}
 // Enforced monthly caps derive from the advertised tiers in site.ts, so the
 // number a user is billed against is the same number the pricing UI shows.
 // Overridable via FREE_/PRO_/MAX_AI_CALLS_PER_MONTH env.
@@ -264,10 +348,11 @@ function buildPrompt(req: CoachRequest): { system: string; user: string } {
 export async function runCoach(
   apiKey: string,
   model: string,
-  req: CoachRequest
+  req: CoachRequest,
+  effort?: ReasoningEffort
 ): Promise<CoachResult> {
   if (req.mode === "chat") {
-    return runChatCoach(apiKey, model, req);
+    return runChatCoach(apiKey, model, req, effort);
   }
 
   const { system, user } = buildPrompt(req);
@@ -281,8 +366,11 @@ export async function runCoach(
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      temperature: req.mode === "hooks" ? 0.8 : 0.4,
-      max_tokens: 400,
+      ...completionTuning(model, {
+        temperature: req.mode === "hooks" ? 0.8 : 0.4,
+        maxTokens: 400,
+        effort,
+      }),
     }),
   });
 
@@ -346,7 +434,12 @@ function buildChatMessages(req: CoachRequest): { role: "system" | "user" | "assi
   return messages;
 }
 
-async function runChatCoach(apiKey: string, model: string, req: CoachRequest): Promise<ChatResult> {
+async function runChatCoach(
+  apiKey: string,
+  model: string,
+  req: CoachRequest,
+  effort?: ReasoningEffort
+): Promise<ChatResult> {
   const message = (req.message || "").trim();
   if (!message) throw new Error("missing_message");
 
@@ -358,8 +451,7 @@ async function runChatCoach(apiKey: string, model: string, req: CoachRequest): P
     body: JSON.stringify({
       model,
       messages,
-      temperature: 0.55,
-      max_tokens: 320,
+      ...completionTuning(model, { temperature: 0.55, maxTokens: 320, effort }),
     }),
   });
 
@@ -375,7 +467,8 @@ async function runChatCoach(apiKey: string, model: string, req: CoachRequest): P
 export async function* streamChatCoach(
   apiKey: string,
   model: string,
-  req: CoachRequest
+  req: CoachRequest,
+  effort?: ReasoningEffort
 ): AsyncGenerator<string, void, unknown> {
   const message = (req.message || "").trim();
   if (!message) throw new Error("missing_message");
@@ -387,8 +480,7 @@ export async function* streamChatCoach(
     body: JSON.stringify({
       model,
       messages,
-      temperature: 0.55,
-      max_tokens: 400,
+      ...completionTuning(model, { temperature: 0.55, maxTokens: 400, effort }),
       stream: true,
     }),
   });

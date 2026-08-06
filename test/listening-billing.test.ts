@@ -120,7 +120,7 @@ describe("listening meters", () => {
     const body = functionBody("applyCacheMode");
     expect(body).toContain("clearInterval(session.heartbeat)");
     expect(body).toContain("chunkTimer");
-    expect(source).toMatch(/session\.useCache\s*=\s*session\.auth\.kind[\s\S]{0,400}?applyCacheMode\(session\)/);
+    expect(source).toMatch(/session\.useCache\s*=\s*session\.auth\.kind[\s\S]{0,700}?applyCacheMode\(session\)/);
   });
 
   it("routes both start paths through applyCacheMode", () => {

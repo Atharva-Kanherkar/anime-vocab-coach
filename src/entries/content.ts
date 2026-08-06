@@ -16,6 +16,7 @@ import { audioLang, normalizeDirection } from "../lib/direction";
 import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-client";
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
+import { CueLedger } from "../lib/cue-ledger";
 import type { DictEntry, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
 
 declare global {
@@ -53,7 +54,17 @@ declare global {
   let lineInFlight = false;
   let queuedLine: { text: string; context?: LineContext } | null = null;
   let cachePollTimer: ReturnType<typeof setInterval> | null = null;
-  let lastCacheCueKey = "";
+  /** Cues already fed to onLine, so overlapping polls can never re-card a
+   * line. The old single-slot "last cue" only blocked immediate repeats: a
+   * poll returning [A,B,C] left the slot at C, and the next poll re-emitted A. */
+  const emittedCueKeys = new CueLedger();
+  /** pollCacheHit awaits the card's whole lifetime; without this, 800ms ticks
+   * stack overlapping runs. Scoped to a generation so a hung obsolete lookup
+   * cannot block polling forever after Listening restarts. */
+  let cachePollInFlight: number | null = null;
+  /** Invalidates async polls across stop/restart and episode-key transitions,
+   * including K -> other -> K cycles that a key-only check cannot detect. */
+  let cachePollGeneration = 0;
   let playbackRelayTimer: ReturnType<typeof setInterval> | null = null;
 
   // Adapters can start matching late (e.g. Crunchyroll's player iframe creates
@@ -109,6 +120,10 @@ declare global {
     // Shared cache for the language we're studying (JA or EN).
     const next = result && result.audioLang === preferred ? result.key : "";
     if (next !== cacheKey) {
+      // Timestamp/text pairs repeat from zero across episodes. Clear before
+      // publishing the new key so an opening cue cannot hit the old ledger.
+      cachePollGeneration += 1;
+      emittedCueKeys.clear();
       cacheKey = next;
       chrome.runtime.sendMessage({ type: "avc-update-cache-key", key: cacheKey }).catch(() => {});
     }
@@ -119,31 +134,49 @@ declare global {
     const a = pickAdapter();
     const video = a?.getVideo();
     if (!video || video.paused) return;
-    settings = await storage.getSettings();
-    const syncToken = await storage.getSyncToken();
-    if (!syncToken) return;
-
-    const t = video.currentTime;
+    const requestedKey = cacheKey;
+    const generation = cachePollGeneration;
+    if (cachePollInFlight === generation) return;
+    const stale = (): boolean =>
+      !listeningActive || cachePollGeneration !== generation || cacheKey !== requestedKey;
+    cachePollInFlight = generation;
     try {
-      const result = await lookupTranscript(syncToken, cacheKey, t);
+      settings = await storage.getSettings();
+      if (stale()) return;
+      const syncToken = await storage.getSyncToken();
+      if (!syncToken || stale()) return;
+
+      const t = video.currentTime;
+      // Narrow window: the default 8s window returned the NEXT eight seconds
+      // of dialogue, so cards popped for lines the learner hadn't heard yet.
+      const result = await lookupTranscript(syncToken, requestedKey, t, 2);
+      // A key change or stop/restart clears the cue ledger while this request is
+      // in flight. Never let the old response refill it or emit stale dialogue.
+      if (stale()) return;
       if (!result.hit || !result.segments.length) return;
       for (const seg of result.segments) {
+        if (stale()) return;
+        if (seg.start > t) continue; // still in the future \u2014 don't spoil it
         const key = `${seg.start}:${seg.text}`;
-        if (key === lastCacheCueKey) continue;
-        lastCacheCueKey = key;
+        if (!emittedCueKeys.remember(key)) continue;
         const lang = studyLang();
         if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
         if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
         const en = a?.getVisibleText() || "";
         await onLine(seg.text, { en, fromAudio: true });
+        if (stale()) return;
       }
     } catch (err) {
       warn("cache poll failed:", err);
+    } finally {
+      // A stale request must never unlock a newer generation's active poll.
+      if (cachePollInFlight === generation) cachePollInFlight = null;
     }
   }
 
   function startCachePolling(): void {
     if (cachePollTimer) return;
+    cachePollGeneration += 1;
     refreshCacheKey();
     cachePollTimer = setInterval(() => {
       pollCacheHit().catch((err) => warn("cache poll error:", err));
@@ -151,9 +184,10 @@ declare global {
   }
 
   function stopCachePolling(): void {
+    cachePollGeneration += 1;
     if (cachePollTimer) clearInterval(cachePollTimer);
     cachePollTimer = null;
-    lastCacheCueKey = "";
+    emittedCueKeys.clear();
   }
 
   function startPlaybackRelay(): void {
@@ -422,7 +456,7 @@ declare global {
   // Listening mode: the offscreen document transcribes this tab's audio and the
   // background forwards Japanese text here. Only the frame that owns the video
   // handles it (matters on sites whose player lives in an iframe).
-  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; active?: boolean; kind?: string }, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; start?: number; active?: boolean; kind?: string }, _sender, sendResponse) => {
     if (msg.type === "avc-toast") {
       overlay.showToast(msg.text || "", msg.kind === "error" ? "error" : "info");
       return;
@@ -466,9 +500,13 @@ declare global {
     if (!a) { warn("transcript arrived but no adapter matched this frame"); return; }
     if (!a.getVideo()) { log("transcript ignored (no video in this frame)"); return; }
     log("transcript received:", msg.text);
+    const rawTranscript = (msg.text || "").trim();
+    if (typeof msg.start === "number" && !emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)) {
+      return;
+    }
     const en = a.getVisibleText();
     const direction = normalizeDirection(settings?.learningDirection);
-    const segments = (msg.text || "")
+    const segments = rawTranscript
       .split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/)
       .map((s) => s.trim())
       .filter(Boolean);
@@ -491,7 +529,7 @@ declare global {
       lastSessionId = sid;
       targetedThisSession.clear();
       lastLine = "";
-      lastCacheCueKey = "";
+      emittedCueKeys.clear();
       lastContextTitle = "";
       refreshCacheKey();
       log("session reset for new video:", sid);

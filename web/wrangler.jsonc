@@ -30,11 +30,14 @@
   ],
   // AI coach (issue #13). OPENAI_API_KEY is a Worker secret, not a var:
   //   npx wrangler secret put OPENAI_API_KEY
-  // gpt-4.1-nano is the cheapest capable model ($0.10/$0.40 per 1M tokens as of
-  // Jul 2026): a coach call costs ~$0.00014. Limits are per Clerk user per month,
+  // gpt-5.6-luna at max reasoning effort ($0.20/$1.20 per 1M tokens as of
+  // Aug 2026; reasoning tokens bill as output). Actual cost varies by task and
+  // must be monitored. Background auto calls (word extraction, anime context) run
+  // the same model at low effort. Limits are per Clerk user per month,
   // gated by plan (free/pro/max) from Clerk publicMetadata — see resolvePlan.
   "vars": {
-    "AI_COACH_MODEL": "gpt-4.1-nano",
+    "AI_COACH_MODEL": "gpt-5.6-luna",
+    "AI_COACH_REASONING_EFFORT": "max",
     // Two meters. *_AI_CALLS_PER_MONTH is what the pricing page advertises and
     // covers only AI the learner asks for (explain / hooks / chat / notebook
     // summaries). *_AUTO_AI_CALLS_PER_MONTH covers what the extension fires by

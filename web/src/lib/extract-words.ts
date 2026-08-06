@@ -1,4 +1,4 @@
-import { DEFAULT_COACH_MODEL } from "./ai-coach";
+import { completionTuning, DEFAULT_COACH_MODEL } from "./ai-coach";
 import { putCachedResult } from "./ai-store";
 import {
   explainLangName,
@@ -103,8 +103,9 @@ export async function runExtractWords(
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.2,
-      max_tokens: 500,
+      // Background auto-meter call: word extraction is trivial, so keep effort
+      // low even when the coach model is a reasoning model running at max.
+      ...completionTuning(model, { temperature: 0.2, maxTokens: 500, effort: "low" }),
     }),
   });
 
