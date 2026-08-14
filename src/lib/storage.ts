@@ -343,7 +343,7 @@ export function setSyncToken(token: string): Promise<void> {
     } else {
       // Unlinking (sign-out / expired token): drop the profile too so the
       // popup doesn't keep claiming "Synced as <email>".
-      await chrome.storage.local.set({ syncToken: "", syncProfile: null });
+      await chrome.storage.local.set({ syncToken: "", syncProfile: null, syncStatus: { ...EMPTY_SYNC_STATUS } });
     }
   });
 }
@@ -385,12 +385,51 @@ export interface SyncProfile {
   name: string | null;
 }
 
+export interface SyncStatus {
+  state: "idle" | "syncing" | "ok" | "error";
+  lastAttemptAt: number | null;
+  lastSuccessAt: number | null;
+  error: string | null;
+}
+
+const EMPTY_SYNC_STATUS: SyncStatus = {
+  state: "idle",
+  lastAttemptAt: null,
+  lastSuccessAt: null,
+  error: null,
+};
+
 export function getSyncProfile(): Promise<SyncProfile | null> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["syncProfile"], (r) => {
       const p = r.syncProfile as SyncProfile | null | undefined;
       resolve(p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null } : null);
     });
+  });
+}
+
+export function getSyncStatus(): Promise<SyncStatus> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["syncStatus"], (r) => {
+      const s = r.syncStatus as Partial<SyncStatus> | null | undefined;
+      if (!s || typeof s !== "object") {
+        resolve({ ...EMPTY_SYNC_STATUS });
+        return;
+      }
+      const state = s.state === "syncing" || s.state === "ok" || s.state === "error" ? s.state : "idle";
+      resolve({
+        state,
+        lastAttemptAt: Number.isFinite(s.lastAttemptAt) ? Number(s.lastAttemptAt) : null,
+        lastSuccessAt: Number.isFinite(s.lastSuccessAt) ? Number(s.lastSuccessAt) : null,
+        error: typeof s.error === "string" ? s.error : null,
+      });
+    });
+  });
+}
+
+export function setSyncStatus(next: SyncStatus): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ syncStatus: next }, () => resolve());
   });
 }
 

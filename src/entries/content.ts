@@ -351,10 +351,19 @@ declare global {
 
     settings = await storage.getSettings();
 
-    if (settings.pauseMode === "off") return;
-
     const siteKey = adapter ? adapter.name : "generic";
-    if (settings.sites && settings.sites[siteKey] === false) return;
+    if (settings.sites && settings.sites[siteKey] === false) {
+      hideLens();
+      return;
+    }
+
+    const direction = normalizeDirection(settings.learningDirection);
+    setAdapterDirection(direction);
+    const lensEnabled = direction === "en-ja" && settings.subLens !== false;
+    if (!lensEnabled) hideLens();
+    // Subtitle Lens is independent of automatic cards. Turning auto cards off
+    // must not silently disable the interactive subtitle mode too.
+    if (settings.pauseMode === "off" && !lensEnabled) return;
 
     await ensureInit();
     if (!initialized) return;
@@ -362,9 +371,6 @@ declare global {
     const normalized = text.replace(/\s+/g, " ").trim();
     if (normalized === lastLine) return;
     lastLine = normalized;
-
-    const direction = normalizeDirection(settings.learningDirection);
-    setAdapterDirection(direction);
 
     let tokens: Token[];
     let dictOverlay: Record<string, DictEntry> | null = null;
@@ -401,7 +407,7 @@ declare global {
 
     // Subtitle Lens: user-initiated hover/click cards, independent of the
     // auto-card pipeline below (no cooldown, no hourly cap, no AI quota).
-    if (direction === "en-ja" && settings.subLens !== false && tokens.length) {
+    if (lensEnabled && tokens.length) {
       try {
         showLensLine(normalized, context?.en || "", tokens, wordStates, {
           peekPause: settings.subLensPeek !== false,
@@ -423,6 +429,7 @@ declare global {
     await storage.recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
     wordStates = await storage.getVocab();
     if (lensJudged) return;
+    if (settings.pauseMode === "off") return;
 
     if (overlay.isOpen()) {
       log("skipped line (word card still open):", normalized.slice(0, 40));

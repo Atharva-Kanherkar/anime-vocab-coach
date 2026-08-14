@@ -147,6 +147,13 @@
     }
     return merged;
   }
+  function getSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["settings"], (r) => {
+        resolve(withDefaults(r.settings || {}));
+      });
+    });
+  }
   function getVocab() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["vocab"], (r) => resolve(r.vocab || {}));
@@ -183,11 +190,35 @@
       chrome.storage.local.get(["relinkNeeded"], (r) => resolve(!!r.relinkNeeded));
     });
   }
+  var EMPTY_SYNC_STATUS = {
+    state: "idle",
+    lastAttemptAt: null,
+    lastSuccessAt: null,
+    error: null
+  };
   function getSyncProfile() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["syncProfile"], (r) => {
         const p = r.syncProfile;
         resolve(p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null } : null);
+      });
+    });
+  }
+  function getSyncStatus() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncStatus"], (r) => {
+        const s = r.syncStatus;
+        if (!s || typeof s !== "object") {
+          resolve({ ...EMPTY_SYNC_STATUS });
+          return;
+        }
+        const state = s.state === "syncing" || s.state === "ok" || s.state === "error" ? s.state : "idle";
+        resolve({
+          state,
+          lastAttemptAt: Number.isFinite(s.lastAttemptAt) ? Number(s.lastAttemptAt) : null,
+          lastSuccessAt: Number.isFinite(s.lastSuccessAt) ? Number(s.lastSuccessAt) : null,
+          error: typeof s.error === "string" ? s.error : null
+        });
       });
     });
   }
@@ -378,8 +409,14 @@
         btn.title = "Switch to dark mode";
       }
     };
-    const current = document.documentElement.getAttribute("data-theme");
-    apply(current === "light" ? "light" : "dark");
+    let current;
+    try {
+      const saved = localStorage.getItem("av-theme");
+      current = saved === "light" || saved === "dark" ? saved : window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    } catch {
+      current = "dark";
+    }
+    apply(current);
     btn.addEventListener("click", () => {
       const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
       apply(next);
@@ -394,19 +431,37 @@
     const token = await getSyncToken();
     if (!token) {
       const relink = await getRelinkNeeded();
-      const title = relink ? "Sign-in expired" : "Not signed in";
-      const sub = relink ? "Re-link to resume cloud sync" : "Progress stays on this device only";
+      const title2 = relink ? "Sign-in expired" : "Not signed in";
+      const sub2 = relink ? "Re-link to resume cloud sync" : "Progress stays on this device only";
       const cta = relink ? "Re-link \u2014 animevocab.com" : "Sign in to sync \u2014 animevocab.com";
-      const dot = relink ? "av-dot av-dot-warn" : "av-dot av-dot-off";
-      el.innerHTML = `<div class="av-account-row"><span class="${dot}"></span><div><b>${title}</b><span class="av-account-sub">${sub}</span></div></div><button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">${cta}</button>`;
+      const dot2 = relink ? "av-dot av-dot-warn" : "av-dot av-dot-off";
+      el.innerHTML = `<div class="av-account-row"><span class="${dot2}"></span><div><b>${title2}</b><span class="av-account-sub">${sub2}</span></div></div><button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">${cta}</button>`;
       byId("signin-btn").addEventListener("click", () => {
         chrome.tabs.create({ url: `${WEB_URL}/app` });
       });
       return;
     }
     const profile = await getSyncProfile();
+    const sync = await getSyncStatus();
     const who = profile?.email || profile?.name || "your account";
-    el.innerHTML = `<div class="av-account-row"><span class="av-dot"></span><div><b>Cloud sync on</b><span class="av-account-sub">Synced as ${esc(who)}</span></div></div>`;
+    const staleSync = sync.state === "syncing" && !!sync.lastAttemptAt && Date.now() - sync.lastAttemptAt > 2 * 6e4;
+    const lastGood = sync.lastSuccessAt ? relativeTime(sync.lastSuccessAt) : "not backed up yet";
+    const title = staleSync || sync.state === "error" ? "Cloud sync issue" : sync.state === "syncing" ? "Syncing now\u2026" : "Cloud sync on";
+    const sub = staleSync ? `Previous sync was interrupted \xB7 last good sync ${lastGood}` : sync.state === "error" ? `${sync.error || "Couldn't reach cloud."} \xB7 last good sync ${lastGood}` : sync.state === "ok" ? `Synced as ${who} \xB7 ${lastGood}` : `Connected as ${who} \xB7 waiting for first backup`;
+    const dot = staleSync || sync.state === "error" ? "av-dot av-dot-warn" : "av-dot";
+    el.innerHTML = `<div class="av-account-row"><span class="${dot}"></span><div><b>${title}</b><span class="av-account-sub">${esc(sub)}</span></div></div>` + (staleSync || sync.state === "error" ? `<button id="sync-retry" class="av-btn av-btn-ghost av-btn-block" type="button">Retry cloud sync</button>` : "");
+    document.getElementById("sync-retry")?.addEventListener("click", () => {
+      void chrome.runtime.sendMessage({ type: "avc-sync-now" });
+    });
+  }
+  function relativeTime(timestamp) {
+    const elapsed = Math.max(0, Date.now() - timestamp);
+    if (elapsed < 15e3) return "just now";
+    const minutes = Math.floor(elapsed / 6e4);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   }
   function meterMarkup(label, used, limit, unit) {
     if (!limit) return "";
@@ -468,45 +523,112 @@
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     return tab?.id ?? null;
   }
-  async function initCopilotToggle() {
-    const btn = byId("copilot-btn");
+  function runtimeMessage(message) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve(void 0);
+          return;
+        }
+        resolve(response);
+      });
+    });
+  }
+  function setModeRow(id, status, detail, state) {
+    byId(`${id}-status`).textContent = status;
+    const detailEl = document.getElementById(`${id}-detail`);
+    if (detailEl) detailEl.textContent = detail;
+    const dot = byId(`${id}-dot`);
+    dot.className = `av-mode-dot${state === "on" ? " on" : state === "warn" ? " warn" : ""}`;
+  }
+  async function initModeControls() {
+    const copilotBtn = byId("copilot-btn");
+    const listeningBtn = byId("listening-btn");
+    const sessionBtn = byId("study-session-btn");
     const errEl = byId("listen-error");
     const tabId = await activeTabId();
     if (tabId == null) {
-      btn.disabled = true;
-      btn.textContent = "Open Copilot (no active tab)";
+      copilotBtn.disabled = true;
+      listeningBtn.disabled = true;
+      sessionBtn.disabled = true;
+      sessionBtn.textContent = "No active tab";
       return;
     }
-    const refresh = () => {
-      chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
-        const on = !!res?.visible;
-        btn.textContent = on ? "Stop Copilot & Listening" : "Open Copilot on this tab";
-        btn.classList.toggle("active", on);
-      });
+    let modeState = null;
+    const refresh = async () => {
+      const [settings, agent, listening] = await Promise.all([
+        getSettings(),
+        runtimeMessage({ type: "avc-agent-status", tabId }),
+        runtimeMessage({ type: "avc-listen-status", tabId })
+      ]);
+      modeState = { settings, copilot: !!agent?.visible, listening: !!listening?.listening };
+      const lensConfigured = settings.subLens !== false;
+      const lensSupported = settings.learningDirection === "en-ja";
+      setModeRow(
+        "mode-lens",
+        lensConfigured && lensSupported ? "On" : "Off",
+        !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Hover or click subtitle words" : "Enable in Settings",
+        lensConfigured && lensSupported ? "on" : lensConfigured ? "warn" : "off"
+      );
+      const cardStatus = settings.pauseMode === "pause" ? "Focus" : settings.pauseMode === "copilot" ? "Ambient" : "Off";
+      const cardDetail = settings.pauseMode === "pause" ? "Pauses for each automatic card" : settings.pauseMode === "copilot" ? "Shows automatic cards without pausing" : "Subtitle Lens can still run";
+      setModeRow("mode-cards", cardStatus, cardDetail, settings.pauseMode === "off" ? "off" : "on");
+      setModeRow("mode-listen", modeState.listening ? "Live" : "Off", "", modeState.listening ? "on" : "off");
+      setModeRow("mode-copilot", modeState.copilot ? "Open" : "Closed", "", modeState.copilot ? "on" : "off");
+      listeningBtn.textContent = modeState.listening ? "Stop Listening" : "Start Listening";
+      listeningBtn.classList.toggle("active", modeState.listening);
+      copilotBtn.textContent = modeState.copilot ? "Close Copilot" : "Open Copilot";
+      copilotBtn.classList.toggle("active", modeState.copilot);
+      sessionBtn.textContent = modeState.listening && modeState.copilot ? "Stop Listening + Copilot" : "Start Listening + Copilot";
     };
-    btn.addEventListener("click", () => {
+    const setListening = async (active) => {
       errEl.hidden = true;
-      chrome.runtime.sendMessage({ type: "avc-agent-status", tabId }, (res) => {
-        const type = res?.visible ? "avc-agent-hide" : "avc-agent-show";
-        chrome.runtime.sendMessage({ type, tabId }, (r) => {
-          if (r && r.ok === false && r.error) {
-            errEl.textContent = r.error;
-            errEl.hidden = false;
-          }
-          refresh();
-        });
+      const res = await runtimeMessage({
+        type: active ? "avc-listen-start" : "avc-listen-stop",
+        tabId
       });
+      if (res?.ok === false && res.error) {
+        errEl.textContent = res.error;
+        errEl.hidden = false;
+      }
+    };
+    const setCopilot = async (active) => {
+      await runtimeMessage({ type: active ? "avc-agent-show" : "avc-agent-hide", tabId });
+    };
+    listeningBtn.addEventListener("click", () => {
+      void (async () => {
+        await setListening(!modeState?.listening);
+        await refresh();
+      })();
     });
-    refresh();
+    copilotBtn.addEventListener("click", () => {
+      void (async () => {
+        await setCopilot(!modeState?.copilot);
+        await refresh();
+      })();
+    });
+    sessionBtn.addEventListener("click", () => {
+      void (async () => {
+        const stopBoth = !!modeState?.listening && !!modeState?.copilot;
+        if (stopBoth) {
+          await Promise.all([setListening(false), setCopilot(false)]);
+        } else {
+          await setCopilot(true);
+          await setListening(true);
+        }
+        await refresh();
+      })();
+    });
+    await refresh();
   }
   document.addEventListener("DOMContentLoaded", () => {
     initTheme();
     void render();
     void renderAccount();
     void renderUsage();
-    void initCopilotToggle();
+    void initModeControls();
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded)) {
+      if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded || changes.syncStatus)) {
         void renderAccount();
         void renderUsage();
       }

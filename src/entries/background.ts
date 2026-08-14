@@ -36,6 +36,25 @@ const STREAMING_TAB_PATTERNS = [
   "*://*.crunchyroll.com/*"
 ];
 
+const APP_TAB_PATTERNS = ["https://animevocab.com/*", "https://www.animevocab.com/*"];
+
+async function ensureSyncBridgeInOpenTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({ url: APP_TAB_PATTERNS });
+  await Promise.all(tabs.map(async (tab) => {
+    if (tab.id == null) return;
+    try {
+      const probe = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => !!(window as Window & { __avcSyncBridgeLoaded?: boolean }).__avcSyncBridgeLoaded,
+      });
+      if (probe.some((r) => r.result)) return;
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["sync-bridge.js"] });
+    } catch (err) {
+      console.warn("[AVC] could not attach account bridge to tab", tab.id, String(err));
+    }
+  }));
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
   chrome.storage.local.get(["settings"], (result) => {
     const raw = (result.settings || {}) as Record<string, unknown>;
@@ -55,7 +74,13 @@ chrome.runtime.onInstalled.addListener((details) => {
       }
     });
   }
+  void ensureSyncBridgeInOpenTabs();
 });
+
+// Loading an unpacked build or waking a recycled service worker can happen
+// while the account page is already open. Probe existing tabs so linking does
+// not depend on the user guessing that a hard refresh is required.
+void ensureSyncBridgeInOpenTabs();
 
 // --- Background cloud sync -------------------------------------------------
 // When linked to an account (a sync token is present), push local progress to
@@ -322,8 +347,10 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   }
 
   if (msg.type === "avc-sync-now") {
-    syncWithCloud().catch(() => {});
-    return;
+    syncWithCloud()
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
   }
 
   // Overlay card AI: content scripts can't call the hosted API cross-origin, so
@@ -418,22 +445,6 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
             return;
           }
           sendResponse(res ?? { ok: true });
-
-          // The copilot is the single control now — there is no separate
-          // Listening Mode button. Opening it always starts Listening for the
-          // tab; closing it stops. Best-effort: a listening failure (not linked
-          // / capture) must not block the copilot from opening — surface it as
-          // a toast instead.
-          if (outType === "avc-agent-show") {
-            void getListening().then((tabs) => {
-              if (tabs[tabId]) return; // already listening — don't restart
-              return startListening(tabId).then((ack) => {
-                if (ack && ack.ok === false && ack.error) toastTab(tabId, ack.error, "error");
-              });
-            }).catch(() => {});
-          } else if (outType === "avc-agent-hide") {
-            void stopListening(tabId).catch(() => {});
-          }
         });
       })
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));

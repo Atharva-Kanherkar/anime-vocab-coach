@@ -1,6 +1,11 @@
 // Content script on the hosted web app (animevocab.com). The signed-in page
 // broadcasts a sync token via postMessage; we store it and ask the background
 // to push. Kept dependency-free so it stays a tiny bundle on the site.
+(function initSyncBridge() {
+const bridgeWindow = window as Window & { __avcSyncBridgeLoaded?: boolean };
+if (bridgeWindow.__avcSyncBridgeLoaded) return;
+bridgeWindow.__avcSyncBridgeLoaded = true;
+
 const ALLOWED_ORIGINS = new Set(["https://animevocab.com", "https://www.animevocab.com"]);
 
 function pageOrigin(): string {
@@ -44,6 +49,8 @@ window.addEventListener("message", (event) => {
         : undefined;
     const update: Record<string, unknown> = { syncToken: token };
     if (syncProfile !== undefined) update.syncProfile = syncProfile;
+    update.relinkNeeded = false;
+    update.syncAuthFailures = 0;
     chrome.storage.local.set(update, () => {
       chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
     });
@@ -63,9 +70,11 @@ window.addEventListener("message", (event) => {
       syncProfile: null,
       relinkNeeded: false,
       syncAuthFailures: 0,
+      syncStatus: { state: "idle", lastAttemptAt: null, lastSuccessAt: null, error: null },
     });
   }
 });
 
 // React may mount after this script; the page will ping us back.
 announceExtension();
+})();

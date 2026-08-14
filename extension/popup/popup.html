@@ -5,19 +5,6 @@
   <meta name="viewport" content="width=320">
   <title>AnimeVocab</title>
   <link rel="stylesheet" href="popup.css">
-  <script>
-    (function () {
-      try {
-        var t = localStorage.getItem("av-theme");
-        if (t !== "light" && t !== "dark") {
-          t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-        }
-        document.documentElement.setAttribute("data-theme", t);
-      } catch (e) {
-        document.documentElement.setAttribute("data-theme", "dark");
-      }
-    })();
-  </script>
 </head>
 <body class="av">
   <div class="shell">
@@ -42,10 +29,44 @@
 
     <section class="av-review-prompt-host" id="review-prompt" hidden></section>
 
+    <section class="av-modes" aria-labelledby="modes-title">
+      <div class="av-modes-head">
+        <b id="modes-title">Modes on this tab</b>
+        <span>Mix any of them</span>
+      </div>
+      <div class="av-mode-row">
+        <span class="av-mode-dot" id="mode-lens-dot"></span>
+        <div><b>Subtitle Lens</b><span id="mode-lens-detail">Checking…</span></div>
+        <strong id="mode-lens-status">—</strong>
+      </div>
+      <div class="av-mode-row">
+        <span class="av-mode-dot" id="mode-cards-dot"></span>
+        <div><b>Auto cards</b><span id="mode-cards-detail">Checking…</span></div>
+        <strong id="mode-cards-status">—</strong>
+      </div>
+      <div class="av-mode-row">
+        <span class="av-mode-dot" id="mode-listen-dot"></span>
+        <div><b>Listening</b><span>Transcribes spoken audio</span></div>
+        <strong id="mode-listen-status">—</strong>
+      </div>
+      <div class="av-mode-row">
+        <span class="av-mode-dot" id="mode-copilot-dot"></span>
+        <div><b>Copilot</b><span>Explains words and scenes</span></div>
+        <strong id="mode-copilot-status">—</strong>
+      </div>
+      <details class="av-mode-help">
+        <summary>How the modes work together</summary>
+        <p>Subtitle Lens and Auto cards read subtitle tracks. Listening adds words from spoken audio. Copilot explains either kind of card. Start both Listening and Copilot for the full study session, or run each separately.</p>
+      </details>
+    </section>
+
     <section class="av-actions">
       <button id="review-due" class="av-btn av-btn-primary av-btn-block" type="button" hidden></button>
-      <button id="copilot-btn" type="button" class="av-btn av-btn-ghost av-btn-block">Open Copilot on this tab</button>
-      <p class="av-hint" id="copilot-hint">Opening the copilot turns on Listening Mode — it reads the tab's Japanese audio for live vocab.</p>
+      <button id="study-session-btn" type="button" class="av-btn av-btn-primary av-btn-block">Start Listening + Copilot</button>
+      <div class="av-mode-actions">
+        <button id="listening-btn" type="button" class="av-btn av-btn-ghost">Start Listening</button>
+        <button id="copilot-btn" type="button" class="av-btn av-btn-ghost">Open Copilot</button>
+      </div>
       <p class="av-error" id="listen-error" hidden></p>
     </section>
 

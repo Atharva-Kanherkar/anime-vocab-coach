@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 type LinkState = "checking" | "installed" | "missing" | "error";
@@ -37,6 +38,7 @@ let controllerStarted = false;
 let pingTimer: number | null = null;
 let missingTimer: number | null = null;
 let tokenBroadcast = false;
+let lastSignedIn: boolean | undefined;
 
 function stopPinging(): void {
   if (pingTimer !== null) {
@@ -126,12 +128,28 @@ function startController(): void {
   }, 20 * 60 * 1000);
 }
 
+function observeAuthState(isSignedIn: boolean | undefined): void {
+  if (isSignedIn === undefined || isSignedIn === lastSignedIn) return;
+  lastSignedIn = isSignedIn;
+  if (!isSignedIn) return;
+
+  // Clerk can complete sign-in without a full page reload. If the first token
+  // request ran while signed out it returned 401, stopped the ping loop, and
+  // left this page stuck in "Could not link" forever. A signed-in transition
+  // is authoritative: reopen detection and allow exactly one fresh token POST.
+  tokenBroadcast = false;
+  setLinkState("checking");
+  startPinging();
+  scheduleMissingCheck();
+}
+
 /** Detects the Chrome extension and keeps its sync token fresh. */
 export function useExtensionLink(): {
   installed: boolean;
   state: LinkState;
   retry: () => void;
 } {
+  const { isSignedIn } = useAuth();
   const state = useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
@@ -147,6 +165,10 @@ export function useExtensionLink(): {
     // N-components → N-intervals → N-mints fan-out that caused the outages.
     startController();
   }, []);
+
+  useEffect(() => {
+    observeAuthState(isSignedIn);
+  }, [isSignedIn]);
 
   const retry = useCallback(() => {
     setLinkState("checking");

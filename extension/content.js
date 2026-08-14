@@ -3981,16 +3981,21 @@
     }
     async function processLine(text, context) {
       settings = await getSettings();
-      if (settings.pauseMode === "off") return;
       const siteKey = adapter ? adapter.name : "generic";
-      if (settings.sites && settings.sites[siteKey] === false) return;
+      if (settings.sites && settings.sites[siteKey] === false) {
+        hideLens();
+        return;
+      }
+      const direction = normalizeDirection(settings.learningDirection);
+      setAdapterDirection(direction);
+      const lensEnabled = direction === "en-ja" && settings.subLens !== false;
+      if (!lensEnabled) hideLens();
+      if (settings.pauseMode === "off" && !lensEnabled) return;
       await ensureInit();
       if (!initialized) return;
       const normalized = text.replace(/\s+/g, " ").trim();
       if (normalized === lastLine) return;
       lastLine = normalized;
-      const direction = normalizeDirection(settings.learningDirection);
-      setAdapterDirection(direction);
       let tokens;
       let dictOverlay = null;
       let lensJudged = false;
@@ -4022,7 +4027,7 @@
       } else {
         tokens = await tokenize(normalized);
       }
-      if (direction === "en-ja" && settings.subLens !== false && tokens.length) {
+      if (lensEnabled && tokens.length) {
         try {
           showLensLine(normalized, context?.en || "", tokens, wordStates, {
             peekPause: settings.subLensPeek !== false,
@@ -4043,6 +4048,7 @@
       await recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
       wordStates = await getVocab();
       if (lensJudged) return;
+      if (settings.pauseMode === "off") return;
       if (isOpen()) {
         log("skipped line (word card still open):", normalized.slice(0, 40));
         return;

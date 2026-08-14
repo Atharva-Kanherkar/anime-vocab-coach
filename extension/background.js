@@ -93,7 +93,7 @@
           syncAuthFailures: 0
         });
       } else {
-        await chrome.storage.local.set({ syncToken: "", syncProfile: null });
+        await chrome.storage.local.set({ syncToken: "", syncProfile: null, syncStatus: { ...EMPTY_SYNC_STATUS } });
       }
     });
   }
@@ -110,6 +110,35 @@
   function setRelinkNeeded(needed) {
     return new Promise((resolve) => {
       chrome.storage.local.set({ relinkNeeded: needed }, () => resolve());
+    });
+  }
+  var EMPTY_SYNC_STATUS = {
+    state: "idle",
+    lastAttemptAt: null,
+    lastSuccessAt: null,
+    error: null
+  };
+  function getSyncStatus() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncStatus"], (r) => {
+        const s = r.syncStatus;
+        if (!s || typeof s !== "object") {
+          resolve({ ...EMPTY_SYNC_STATUS });
+          return;
+        }
+        const state = s.state === "syncing" || s.state === "ok" || s.state === "error" ? s.state : "idle";
+        resolve({
+          state,
+          lastAttemptAt: Number.isFinite(s.lastAttemptAt) ? Number(s.lastAttemptAt) : null,
+          lastSuccessAt: Number.isFinite(s.lastSuccessAt) ? Number(s.lastSuccessAt) : null,
+          error: typeof s.error === "string" ? s.error : null
+        });
+      });
+    });
+  }
+  function setSyncStatus(next) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ syncStatus: next }, () => resolve());
     });
   }
 
@@ -147,6 +176,7 @@
     if (await getSyncAuthFailures() > 0) await setSyncAuthFailures(0);
   }
   var syncing = false;
+  var syncQueued = false;
   async function currentRevision(token) {
     try {
       const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
@@ -161,10 +191,27 @@
     await pushSnapshot();
   }
   async function pushSnapshot() {
-    if (syncing) return;
+    if (syncing) {
+      syncQueued = true;
+      return;
+    }
+    syncing = true;
+    try {
+      do {
+        syncQueued = false;
+        await pushSnapshotOnce();
+      } while (syncQueued);
+    } finally {
+      syncing = false;
+    }
+  }
+  async function pushSnapshotOnce() {
     const token = await getSyncToken();
     if (!token) return;
-    syncing = true;
+    const startedAt = Date.now();
+    const previousStatus = await getSyncStatus();
+    const lastSuccessAt = previousStatus.lastSuccessAt;
+    await setSyncStatus({ state: "syncing", lastAttemptAt: startedAt, lastSuccessAt, error: null });
     try {
       const exportData = await exportAll();
       const settingsNoKey = { ...exportData.settings };
@@ -184,21 +231,44 @@
         }
         if (res.status === 401) {
           await noteAuthFailure();
+          await setSyncStatus({
+            state: "error",
+            lastAttemptAt: startedAt,
+            lastSuccessAt,
+            error: "Account link was rejected. Open animevocab.com/app to reconnect."
+          });
           return;
         }
         if (!res.ok) {
           warn("cloud sync failed: HTTP", res.status);
+          await setSyncStatus({
+            state: "error",
+            lastAttemptAt: startedAt,
+            lastSuccessAt,
+            error: `Cloud returned HTTP ${res.status}.`
+          });
           return;
         }
         await noteSyncSuccess();
+        await setSyncStatus({ state: "ok", lastAttemptAt: startedAt, lastSuccessAt: Date.now(), error: null });
         log("cloud sync ok");
         return;
       }
       warn("cloud sync: gave up after revision conflict");
+      await setSyncStatus({
+        state: "error",
+        lastAttemptAt: startedAt,
+        lastSuccessAt,
+        error: "Cloud changed during sync. Retry to save the newest local snapshot."
+      });
     } catch (err) {
       warn("cloud sync error:", err);
-    } finally {
-      syncing = false;
+      await setSyncStatus({
+        state: "error",
+        lastAttemptAt: startedAt,
+        lastSuccessAt,
+        error: err instanceof Error ? err.message : "Network error while syncing."
+      });
     }
   }
 
@@ -458,6 +528,23 @@
     "*://*.netflix.com/*",
     "*://*.crunchyroll.com/*"
   ];
+  var APP_TAB_PATTERNS = ["https://animevocab.com/*", "https://www.animevocab.com/*"];
+  async function ensureSyncBridgeInOpenTabs() {
+    const tabs = await chrome.tabs.query({ url: APP_TAB_PATTERNS });
+    await Promise.all(tabs.map(async (tab) => {
+      if (tab.id == null) return;
+      try {
+        const probe = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => !!window.__avcSyncBridgeLoaded
+        });
+        if (probe.some((r) => r.result)) return;
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["sync-bridge.js"] });
+      } catch (err) {
+        console.warn("[AVC] could not attach account bridge to tab", tab.id, String(err));
+      }
+    }));
+  }
   chrome.runtime.onInstalled.addListener((details) => {
     chrome.storage.local.get(["settings"], (result) => {
       const raw = result.settings || {};
@@ -473,7 +560,9 @@
         }
       });
     }
+    void ensureSyncBridgeInOpenTabs();
   });
+  void ensureSyncBridgeInOpenTabs();
   var SYNC_ALARM = "avc-cloud-sync";
   var syncDebounce = null;
   function scheduleSync(delayMs = 8e3) {
@@ -676,9 +765,8 @@
       return;
     }
     if (msg.type === "avc-sync-now") {
-      syncWithCloud().catch(() => {
-      });
-      return;
+      syncWithCloud().then(() => sendResponse({ ok: true })).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
     }
     if (msg.type === "avc-coach") {
       fetchCoach(msg.mode, msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
@@ -741,18 +829,6 @@
             return;
           }
           sendResponse(res ?? { ok: true });
-          if (outType === "avc-agent-show") {
-            void getListening().then((tabs) => {
-              if (tabs[tabId]) return;
-              return startListening(tabId).then((ack) => {
-                if (ack && ack.ok === false && ack.error) toastTab(tabId, ack.error, "error");
-              });
-            }).catch(() => {
-            });
-          } else if (outType === "avc-agent-hide") {
-            void stopListening(tabId).catch(() => {
-            });
-          }
         });
       }).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
