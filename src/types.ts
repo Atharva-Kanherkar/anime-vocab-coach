@@ -15,6 +15,10 @@ export interface Settings {
   /** Which side of the bilingual pair you study. Default: learn Japanese. */
   learningDirection: LearningDirection;
   autoSpeak: boolean;
+  /** Interactive subtitle overlay: hover any word for lookup, click/Q to save. */
+  subLens: boolean;
+  /** Pause the video while a Subtitle Lens popup is open. */
+  subLensPeek: boolean;
   openaiKey: string;
   transcribeModel: string;
   sites: { youtube: boolean; netflix: boolean; generic: boolean };
@@ -120,6 +124,8 @@ export const DEFAULTS: Settings = {
   displayScript: "romaji",
   learningDirection: "en-ja",
   autoSpeak: true,
+  subLens: true,
+  subLensPeek: true,
   openaiKey: "",
   transcribeModel: "gpt-4o-mini-transcribe",
   sites: { youtube: true, netflix: true, generic: true }

@@ -126,6 +126,18 @@ function startController(): void {
   }, 20 * 60 * 1000);
 }
 
+export function notifyExtensionLinkSignedIn(): void {
+  // Clerk can complete sign-in without a full page reload. If the first token
+  // request ran while signed out it returned 401, stopped the ping loop, and
+  // left this page stuck in "Could not link" forever. A signed-in transition
+  // is authoritative: reopen detection and allow exactly one fresh token POST.
+  startController();
+  tokenBroadcast = false;
+  setLinkState("checking");
+  startPinging();
+  scheduleMissingCheck();
+}
+
 /** Detects the Chrome extension and keeps its sync token fresh. */
 export function useExtensionLink(): {
   installed: boolean;

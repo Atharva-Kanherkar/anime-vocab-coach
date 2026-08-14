@@ -8,10 +8,12 @@ import { type Settings } from "../types";
 import {
   exportAll,
   getSyncAuthFailures,
+  getSyncStatus,
   getSyncToken,
   setRelinkNeeded,
   setSettings,
   setSyncAuthFailures,
+  setSyncStatus,
   setSyncToken,
 } from "./storage";
 import { toastActiveTab } from "./notify";
@@ -57,6 +59,7 @@ interface ConflictResponse {
 }
 
 let syncing = false;
+let syncQueued = false;
 
 async function currentRevision(token: string): Promise<number | null> {
   try {
@@ -112,11 +115,32 @@ export async function syncWithCloud(): Promise<void> {
 }
 
 export async function pushSnapshot(): Promise<void> {
-  if (syncing) return;
-  const token = await getSyncToken();
-  if (!token) return; // not linked to an account
+  if (syncing) {
+    // Do not drop a save that arrives while a request is running. The active
+    // pass may already have captured its snapshot, so queue one fresh pass.
+    syncQueued = true;
+    return;
+  }
 
   syncing = true;
+  try {
+    do {
+      syncQueued = false;
+      await pushSnapshotOnce();
+    } while (syncQueued);
+  } finally {
+    syncing = false;
+  }
+}
+
+async function pushSnapshotOnce(): Promise<void> {
+  const token = await getSyncToken();
+  if (!token) return;
+
+  const startedAt = Date.now();
+  const previousStatus = await getSyncStatus();
+  const lastSuccessAt = previousStatus.lastSuccessAt;
+  await setSyncStatus({ state: "syncing", lastAttemptAt: startedAt, lastSuccessAt, error: null });
   try {
     const exportData = await exportAll();
     // Never upload the user's BYO OpenAI key. The web side strips it too, but
@@ -143,20 +167,43 @@ export async function pushSnapshot(): Promise<void> {
         // auth blip can't permanently unlink the extension (P1). noteAuthFailure
         // clears the token + flags re-link once the threshold is crossed.
         await noteAuthFailure();
+        await setSyncStatus({
+          state: "error",
+          lastAttemptAt: startedAt,
+          lastSuccessAt,
+          error: "Account link was rejected. Open animevocab.com/app to reconnect.",
+        });
         return;
       }
       if (!res.ok) {
         warn("cloud sync failed: HTTP", res.status);
+        await setSyncStatus({
+          state: "error",
+          lastAttemptAt: startedAt,
+          lastSuccessAt,
+          error: `Cloud returned HTTP ${res.status}.`,
+        });
         return;
       }
       await noteSyncSuccess();
+      await setSyncStatus({ state: "ok", lastAttemptAt: startedAt, lastSuccessAt: Date.now(), error: null });
       log("cloud sync ok");
       return;
     }
     warn("cloud sync: gave up after revision conflict");
+    await setSyncStatus({
+      state: "error",
+      lastAttemptAt: startedAt,
+      lastSuccessAt,
+      error: "Cloud changed during sync. Retry to save the newest local snapshot.",
+    });
   } catch (err) {
     warn("cloud sync error:", err);
-  } finally {
-    syncing = false;
+    await setSyncStatus({
+      state: "error",
+      lastAttemptAt: startedAt,
+      lastSuccessAt,
+      error: err instanceof Error ? err.message : "Network error while syncing.",
+    });
   }
 }
