@@ -18,27 +18,6 @@ import {
 } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
-import { IBM_Plex_Sans, Newsreader, Noto_Sans_JP } from "next/font/google";
-
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  variable: "--serif",
-  display: "swap",
-});
-
-const ibmPlex = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--sans",
-  display: "swap",
-});
-
-const notoJp = Noto_Sans_JP({
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  variable: "--jp",
-  display: "swap",
-});
 
 // Clerk core-2 variable names (themes 2.x): colorForeground / colorInput /
 // colorInputForeground / colorPrimaryForeground. The pre-2.x names (colorText,
@@ -136,11 +115,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   );
 
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${newsreader.variable} ${ibmPlex.variable} ${notoJp.variable}`}
-    >
+    <html lang="en" suppressHydrationWarning>
       <body>
         <MetaPixel />
         {DEV_NO_CLERK ? (
