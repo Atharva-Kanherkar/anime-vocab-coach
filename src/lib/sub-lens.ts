@@ -21,6 +21,8 @@ export interface SubLensOptions {
   peekPause: boolean;
   getVideo: () => HTMLVideoElement | null;
   getTitle: () => string | null;
+  /** Called synchronously when the user starts a judgment. */
+  onJudgeStart?: () => void;
   /** Called after a word is saved so the caller can refresh its vocab cache. */
   onJudged?: () => void;
 }
@@ -33,6 +35,7 @@ interface HoverContext {
 }
 
 const AUTO_HIDE_MS = 12_000;
+const POINTER_LEAVE_DELAY_MS = 150;
 const RESUME_DELAY_MS = 220;
 
 const STYLES = `
@@ -118,11 +121,13 @@ let opts: SubLensOptions | null = null;
 let vocabSnapshot: VocabMap = {};
 let hover: HoverContext | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
+let pointerLeaveTimer: ReturnType<typeof setTimeout> | null = null;
 let resumeTimer: ReturnType<typeof setTimeout> | null = null;
 let positionTimer: ReturnType<typeof setInterval> | null = null;
 let wePaused = false;
 let keysBound = false;
 let currentLine = "";
+const judgmentsInFlight = new Set<string>();
 
 function ensureMounted(): void {
   const parent = (document.fullscreenElement as HTMLElement | null) || document.body;
@@ -172,6 +177,7 @@ function armAutoHide(): void {
 }
 
 function onLensEnter(): void {
+  if (pointerLeaveTimer) { clearTimeout(pointerLeaveTimer); pointerLeaveTimer = null; }
   if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
   if (!opts?.peekPause) return;
   const video = opts.getVideo();
@@ -182,17 +188,24 @@ function onLensEnter(): void {
 }
 
 function onLensLeave(): void {
-  hideTip();
-  if (!wePaused) return;
-  if (resumeTimer) clearTimeout(resumeTimer);
-  resumeTimer = setTimeout(() => {
-    resumeTimer = null;
+  if (pointerLeaveTimer) clearTimeout(pointerLeaveTimer);
+  // The tooltip is a sibling of the subtitle line. Give the pointer enough
+  // time to cross the small gap between them; entering the tooltip cancels
+  // this timer through onLensEnter.
+  pointerLeaveTimer = setTimeout(() => {
+    pointerLeaveTimer = null;
+    hideTip();
     if (!wePaused) return;
-    wePaused = false;
-    const video = opts?.getVideo();
-    // Only resume a pause we caused, and only if the user hasn't taken over.
-    if (video && video.paused) video.play().catch(() => {});
-  }, RESUME_DELAY_MS);
+    if (resumeTimer) clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(() => {
+      resumeTimer = null;
+      if (!wePaused) return;
+      wePaused = false;
+      const video = opts?.getVideo();
+      // Only resume a pause we caused, and only if the user hasn't taken over.
+      if (video && video.paused) video.play().catch(() => {});
+    }, RESUME_DELAY_MS);
+  }, POINTER_LEAVE_DELAY_MS);
 }
 
 function stateLabel(base: string): string {
@@ -291,18 +304,24 @@ function showTip(ctx: HoverContext, linkedFrom?: string): void {
 
 async function judgeHovered(judgment: Judgment): Promise<void> {
   const ctx = hover;
-  if (!ctx) return;
+  if (!ctx || judgmentsInFlight.has(ctx.base)) return;
+  judgmentsInFlight.add(ctx.base);
   try {
+    opts?.onJudgeStart?.();
     await storage.judgeWord(ctx.base, judgment, ctx.meta, ctx.source);
     const state = judgment === "learn" ? "learning" : judgment === "know" ? "known" : "ignored";
     vocabSnapshot = { ...vocabSnapshot, [ctx.base]: { ...(vocabSnapshot[ctx.base] || {}), state } as VocabMap[string] };
     ctx.el.classList.remove("new", "learning");
     if (judgment === "learn") ctx.el.classList.add("saved");
-    showTip(ctx); // re-render as saved
+    // The subtitle may have changed while storage was writing. Do not revive a
+    // stale tooltip or move it to an element that is no longer on the page.
+    if (hover === ctx && ctx.el.isConnected) showTip(ctx);
     opts?.onJudged?.();
     log("sub-lens saved:", ctx.base, judgment);
   } catch (err) {
     warn("sub-lens save failed:", err);
+  } finally {
+    judgmentsInFlight.delete(ctx.base);
   }
 }
 
@@ -427,6 +446,8 @@ export function showLensLine(
 /** Hide the lens (session reset / feature toggled off). */
 export function hideLens(): void {
   currentLine = "";
+  if (pointerLeaveTimer) { clearTimeout(pointerLeaveTimer); pointerLeaveTimer = null; }
+  if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
   hideTip();
   lensEl?.classList.remove("on");
   if (wePaused) {

@@ -241,12 +241,17 @@ declare global {
     wordStates = await storage.getVocab();
   }
 
-  async function handleCard(target: Target, sentence: string, tokens: Token[], context?: LineContext): Promise<void> {
+  async function handleCard(
+    target: Target,
+    sentence: string,
+    tokens: Token[],
+    context?: LineContext,
+    shouldCancel?: () => boolean
+  ): Promise<void> {
     const video = adapter ? adapter.getVideo() : null;
-    targetedThisSession.add(target.token.base);
-    await storage.recordCardShown(target.token.base);
 
     settings = await storage.getSettings();
+    if (shouldCancel?.()) return;
     const rawMode = settings!.pauseMode as string;
     const mode: Settings["pauseMode"] = rawMode === "notify" ? "copilot" : settings!.pauseMode;
 
@@ -277,7 +282,14 @@ declare global {
       learningDirection: direction,
     };
 
-    const judgment = await overlay.showAgentPanel(target, sentence, video, cardOptions);
+    if (shouldCancel?.()) return;
+    targetedThisSession.add(target.token.base);
+    // Mount the card synchronously before recording it as shown. This closes
+    // the last cancellation window where a Lens click could prevent the card
+    // from appearing after its shown-count and cooldown timestamp were saved.
+    const judgmentPromise = overlay.showAgentPanel(target, sentence, video, cardOptions);
+    await storage.recordCardShown(target.token.base);
+    const judgment = await judgmentPromise;
 
     if (judgment && judgment !== "dismiss") {
       const source = {
@@ -356,6 +368,7 @@ declare global {
 
     let tokens: Token[];
     let dictOverlay: Record<string, DictEntry> | null = null;
+    let lensJudged = false;
 
     if (direction === "ja-en") {
       tokens = tokenizeEnglish(normalized);
@@ -394,6 +407,12 @@ declare global {
           peekPause: settings.subLensPeek !== false,
           getVideo: () => (adapter ? adapter.getVideo() : null),
           getTitle: currentTitle,
+          onJudgeStart: () => {
+            lensJudged = true;
+            // A deliberate Lens action wins over an automatic card for this
+            // subtitle, including one that opened while the user was hovering.
+            overlay.dismissAgent();
+          },
           onJudged: () => { void refreshState(); },
         });
       } catch (err) {
@@ -403,6 +422,7 @@ declare global {
 
     await storage.recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
     wordStates = await storage.getVocab();
+    if (lensJudged) return;
 
     if (overlay.isOpen()) {
       log("skipped line (word card still open):", normalized.slice(0, 40));
@@ -418,6 +438,7 @@ declare global {
       currentTitle(),
       dictOverlay
     );
+    if (lensJudged) return;
     if (!target) { log("no target word in:", normalized); return; }
 
     // pickTargetSmart just awaited a network round-trip; a card may have opened
@@ -429,6 +450,7 @@ declare global {
     }
 
     const stats = await storage.getStats();
+    if (lensJudged) return;
     const now = Date.now();
     const cardTimestamps = stats.cardTimestamps || [];
 
@@ -463,7 +485,7 @@ declare global {
     // up to the moment it mounts. Previously this was fire-and-forget, leaving a
     // window where the next line was already picking a word before the card had
     // rendered and `overlay.isOpen()` could see it.
-    await handleCard(target, normalized, tokens, context).catch((err) => {
+    await handleCard(target, normalized, tokens, context, () => lensJudged).catch((err) => {
       warn("handleCard failed:", err);
       overlay.dismissAgent();
     });

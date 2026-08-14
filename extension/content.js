@@ -2891,6 +2891,7 @@
 
   // src/lib/sub-lens.ts
   var AUTO_HIDE_MS = 12e3;
+  var POINTER_LEAVE_DELAY_MS = 150;
   var RESUME_DELAY_MS = 220;
   var STYLES2 = `
   :host { all: initial; }
@@ -2974,11 +2975,13 @@
   var vocabSnapshot = {};
   var hover = null;
   var hideTimer = null;
+  var pointerLeaveTimer = null;
   var resumeTimer = null;
   var positionTimer = null;
   var wePaused = false;
   var keysBound = false;
   var currentLine = "";
+  var judgmentsInFlight = /* @__PURE__ */ new Set();
   function ensureMounted() {
     const parent = document.fullscreenElement || document.body;
     if (host && host.parentElement === parent) return;
@@ -3026,6 +3029,10 @@
     }, AUTO_HIDE_MS);
   }
   function onLensEnter() {
+    if (pointerLeaveTimer) {
+      clearTimeout(pointerLeaveTimer);
+      pointerLeaveTimer = null;
+    }
     if (resumeTimer) {
       clearTimeout(resumeTimer);
       resumeTimer = null;
@@ -3038,17 +3045,21 @@
     }
   }
   function onLensLeave() {
-    hideTip();
-    if (!wePaused) return;
-    if (resumeTimer) clearTimeout(resumeTimer);
-    resumeTimer = setTimeout(() => {
-      resumeTimer = null;
+    if (pointerLeaveTimer) clearTimeout(pointerLeaveTimer);
+    pointerLeaveTimer = setTimeout(() => {
+      pointerLeaveTimer = null;
+      hideTip();
       if (!wePaused) return;
-      wePaused = false;
-      const video = opts?.getVideo();
-      if (video && video.paused) video.play().catch(() => {
-      });
-    }, RESUME_DELAY_MS);
+      if (resumeTimer) clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => {
+        resumeTimer = null;
+        if (!wePaused) return;
+        wePaused = false;
+        const video = opts?.getVideo();
+        if (video && video.paused) video.play().catch(() => {
+        });
+      }, RESUME_DELAY_MS);
+    }, POINTER_LEAVE_DELAY_MS);
   }
   function stateLabel(base) {
     const rec = vocabSnapshot[base];
@@ -3135,18 +3146,22 @@
   }
   async function judgeHovered(judgment) {
     const ctx = hover;
-    if (!ctx) return;
+    if (!ctx || judgmentsInFlight.has(ctx.base)) return;
+    judgmentsInFlight.add(ctx.base);
     try {
+      opts?.onJudgeStart?.();
       await judgeWord(ctx.base, judgment, ctx.meta, ctx.source);
       const state = judgment === "learn" ? "learning" : judgment === "know" ? "known" : "ignored";
       vocabSnapshot = { ...vocabSnapshot, [ctx.base]: { ...vocabSnapshot[ctx.base] || {}, state } };
       ctx.el.classList.remove("new", "learning");
       if (judgment === "learn") ctx.el.classList.add("saved");
-      showTip(ctx);
+      if (hover === ctx && ctx.el.isConnected) showTip(ctx);
       opts?.onJudged?.();
       log("sub-lens saved:", ctx.base, judgment);
     } catch (err) {
       warn("sub-lens save failed:", err);
+    } finally {
+      judgmentsInFlight.delete(ctx.base);
     }
   }
   function onKeyDown(e) {
@@ -3262,6 +3277,14 @@
   }
   function hideLens() {
     currentLine = "";
+    if (pointerLeaveTimer) {
+      clearTimeout(pointerLeaveTimer);
+      pointerLeaveTimer = null;
+    }
+    if (resumeTimer) {
+      clearTimeout(resumeTimer);
+      resumeTimer = null;
+    }
     hideTip();
     lensEl?.classList.remove("on");
     if (wePaused) {
@@ -3887,11 +3910,10 @@
       setAdapterDirection(normalizeDirection(settings.learningDirection));
       wordStates = await getVocab();
     }
-    async function handleCard(target, sentence, tokens, context) {
+    async function handleCard(target, sentence, tokens, context, shouldCancel) {
       const video = adapter ? adapter.getVideo() : null;
-      targetedThisSession.add(target.token.base);
-      await recordCardShown(target.token.base);
       settings = await getSettings();
+      if (shouldCancel?.()) return;
       const rawMode = settings.pauseMode;
       const mode = rawMode === "notify" ? "copilot" : settings.pauseMode;
       const meta = {
@@ -3918,7 +3940,11 @@
         wordsKnown: countProgress2(wordStates),
         learningDirection: direction
       };
-      const judgment = await showAgentPanel(target, sentence, video, cardOptions);
+      if (shouldCancel?.()) return;
+      targetedThisSession.add(target.token.base);
+      const judgmentPromise = showAgentPanel(target, sentence, video, cardOptions);
+      await recordCardShown(target.token.base);
+      const judgment = await judgmentPromise;
       if (judgment && judgment !== "dismiss") {
         const source = {
           title: currentTitle(),
@@ -3967,6 +3993,7 @@
       setAdapterDirection(direction);
       let tokens;
       let dictOverlay = null;
+      let lensJudged = false;
       if (direction === "ja-en") {
         tokens = tokenizeEnglish(normalized);
         const extracted = await requestExtractWords({
@@ -4001,6 +4028,10 @@
             peekPause: settings.subLensPeek !== false,
             getVideo: () => adapter ? adapter.getVideo() : null,
             getTitle: currentTitle,
+            onJudgeStart: () => {
+              lensJudged = true;
+              dismissAgent();
+            },
             onJudged: () => {
               void refreshState();
             }
@@ -4011,6 +4042,7 @@
       }
       await recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
       wordStates = await getVocab();
+      if (lensJudged) return;
       if (isOpen()) {
         log("skipped line (word card still open):", normalized.slice(0, 40));
         return;
@@ -4024,6 +4056,7 @@
         currentTitle(),
         dictOverlay
       );
+      if (lensJudged) return;
       if (!target) {
         log("no target word in:", normalized);
         return;
@@ -4033,6 +4066,7 @@
         return;
       }
       const stats = await getStats();
+      if (lensJudged) return;
       const now = Date.now();
       const cardTimestamps = stats.cardTimestamps || [];
       if (!target.isReview) {
@@ -4058,7 +4092,7 @@
         }
       }
       log("showing card for:", target.token.base);
-      await handleCard(target, normalized, tokens, context).catch((err) => {
+      await handleCard(target, normalized, tokens, context, () => lensJudged).catch((err) => {
         warn("handleCard failed:", err);
         dismissAgent();
       });
