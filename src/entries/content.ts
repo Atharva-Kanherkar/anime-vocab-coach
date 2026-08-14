@@ -7,6 +7,7 @@ import * as tokenizer from "../lib/tokenizer";
 import { tokenizeEnglish } from "../lib/english-tokenize";
 import { pickTargetSmart } from "../lib/pick-target";
 import * as overlay from "../lib/overlay";
+import { showLensLine, hideLens } from "../lib/sub-lens";
 import { requestAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
@@ -385,6 +386,21 @@ declare global {
       tokens = await tokenizer.tokenize(normalized);
     }
 
+    // Subtitle Lens: user-initiated hover/click cards, independent of the
+    // auto-card pipeline below (no cooldown, no hourly cap, no AI quota).
+    if (direction === "en-ja" && settings.subLens !== false && tokens.length) {
+      try {
+        showLensLine(normalized, context?.en || "", tokens, wordStates, {
+          peekPause: settings.subLensPeek !== false,
+          getVideo: () => (adapter ? adapter.getVideo() : null),
+          getTitle: currentTitle,
+          onJudged: () => { void refreshState(); },
+        });
+      } catch (err) {
+        warn("sub-lens render failed:", err);
+      }
+    }
+
     await storage.recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
     wordStates = await storage.getVocab();
 
@@ -529,6 +545,7 @@ declare global {
       lastSessionId = sid;
       targetedThisSession.clear();
       lastLine = "";
+      hideLens();
       emittedCueKeys.clear();
       lastContextTitle = "";
       refreshCacheKey();

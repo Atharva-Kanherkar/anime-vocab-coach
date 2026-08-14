@@ -62,6 +62,8 @@ async function loadSettingsForm(): Promise<void> {
   byId<HTMLSelectElement>("displayScript").value = s.displayScript || "romaji";
   byId<HTMLSelectElement>("learningDirection").value = s.learningDirection || "en-ja";
   byId<HTMLInputElement>("autoSpeak").checked = s.autoSpeak !== false;
+  byId<HTMLInputElement>("subLens").checked = s.subLens !== false;
+  byId<HTMLInputElement>("subLensPeek").checked = s.subLensPeek !== false;
   byId<HTMLInputElement>("openaiKey").value = s.openaiKey || "";
   byId<HTMLSelectElement>("transcribeModel").value = s.transcribeModel || "gpt-4o-mini-transcribe";
 }
@@ -166,6 +168,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   byId("displayScript").addEventListener("change", (e) => {
     savePartial({ displayScript: (e.target as HTMLSelectElement).value as DisplayScript });
+  });
+
+  byId("subLens").addEventListener("change", (e) => {
+    savePartial({ subLens: (e.target as HTMLInputElement).checked });
+  });
+
+  byId("subLensPeek").addEventListener("change", (e) => {
+    savePartial({ subLensPeek: (e.target as HTMLInputElement).checked });
   });
 
   byId("autoSpeak").addEventListener("change", (e) => {

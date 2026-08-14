@@ -10,6 +10,8 @@
     displayScript: "romaji",
     learningDirection: "en-ja",
     autoSpeak: true,
+    subLens: true,
+    subLensPeek: true,
     openaiKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }

@@ -27,6 +27,8 @@
     displayScript: "romaji",
     learningDirection: "en-ja",
     autoSpeak: true,
+    subLens: true,
+    subLensPeek: true,
     openaiKey: "",
     transcribeModel: "gpt-4o-mini-transcribe",
     sites: { youtube: true, netflix: true, generic: true }
@@ -157,6 +159,8 @@
     byId("displayScript").value = s.displayScript || "romaji";
     byId("learningDirection").value = s.learningDirection || "en-ja";
     byId("autoSpeak").checked = s.autoSpeak !== false;
+    byId("subLens").checked = s.subLens !== false;
+    byId("subLensPeek").checked = s.subLensPeek !== false;
     byId("openaiKey").value = s.openaiKey || "";
     byId("transcribeModel").value = s.transcribeModel || "gpt-4o-mini-transcribe";
   }
@@ -235,6 +239,12 @@
     });
     byId("displayScript").addEventListener("change", (e) => {
       savePartial({ displayScript: e.target.value });
+    });
+    byId("subLens").addEventListener("change", (e) => {
+      savePartial({ subLens: e.target.checked });
+    });
+    byId("subLensPeek").addEventListener("change", (e) => {
+      savePartial({ subLensPeek: e.target.checked });
     });
     byId("autoSpeak").addEventListener("change", (e) => {
       savePartial({ autoSpeak: e.target.checked });
