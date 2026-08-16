@@ -207,7 +207,7 @@ export async function sendEmailBatch(
 
 /** Bump when starting a new feedback wave. Used in the idempotency key so a
  * re-run of the same wave cannot double-send, while a new wave can. */
-export const FEEDBACK_CAMPAIGN = "feedback-2026-08";
+export const FEEDBACK_CAMPAIGN = "whats-new-2026-08-16";
 
 /**
  * Headers every bulk (non-transactional) send should carry.
@@ -236,32 +236,34 @@ export function feedbackEmailCopy(opts: {
   const first = opts.name?.trim().split(/\s+/)[0] || null;
   const hello = first ? `Hey ${first},` : "Hey,";
 
-  const subject = "What would make AnimeVocab better?";
+  const subject = "Subtitle Lens lands this weekend, and dinner on me in Tokyo";
 
   const text = `${hello}
 
-You signed up for AnimeVocab to learn Japanese from the anime you already watch. I want to know how that has actually gone for you.
+Quick update from AnimeVocab. The last two weeks were the busiest stretch of building since launch, and the best part arrives this weekend.
 
-I build this on my own, so there is no research team here. Your reply is the research.
+Coming this weekend: Subtitle Lens. Hover any word in the subtitles while you watch and the extension shows its reading and meaning right there. One click turns it into a flashcard. No pausing, no side trip to a dictionary. Chrome is doing its final review of the update now, and it will reach your extension automatically the moment it clears. Nothing to install.
+
+Already live for you today:
+
+* A sharper coach. Luna now thinks at full strength on every question, so grammar explanations and example sentences got noticeably better.
+* Listening Mode reliability. Fixed the bug where the wrong word could get carded during live playback, along with duplicate lines and old episodes bleeding into a new session.
+* More accurate dictionary entries. Meanings that only apply to one spelling or reading now show up the way they should.
+* Smoother extension sign-in. Your account syncs automatically and stays synced.
 
 If you have two minutes, hit reply and tell me any of these:
 
-1. What made you stop using it, if you did?
-2. What is the one thing you wish it did?
+1. When Subtitle Lens reaches you this weekend, will you try it on the first episode you watch and tell me if it feels instant?
+2. What is the one thing you still wish the app did?
 3. Did anything feel broken, slow, or confusing?
 
-One line is plenty. "Listening Mode never worked for me" is far more useful to me than silence.
+One line is plenty. I build this on my own, so replies like yours decide what gets built next.
 
-A few things changed recently, in case it has been a while:
+One more thing, and this is a real offer. I live in Tokyo. If you ever make it here, dinner is on me. Learning Japanese from anime deserves at least one meal in Japan with someone to practice on. Just reply to this email when you know your dates and we will pick a place.
 
-* Free now includes 10 hours of Listening Mode and 300 AI messages a month, roughly a 7x increase
-* Automatic word picking and pronunciation audio no longer eat into your AI messages
-* When you do hit a limit, the app now tells you instead of quietly stopping
-* Fixed a bug where listening time was being counted twice, so your hours now last as long as they claim
+Thank you for using AnimeVocab, genuinely. Watching people learn real Japanese from the shows they already love is the whole reason this exists.
 
 ${SITE_URL}
-
-Thanks for trying it, honestly. Even the harsh replies help.
 
 Atharva
 AnimeVocab, ${SITE_URL}
@@ -270,24 +272,25 @@ Do not want emails like this? Reply with "stop" and I will take you off the list
 `;
 
   const html = `<p>${escapeHtml(hello)}</p>
-<p>You signed up for AnimeVocab to learn Japanese from the anime you already watch. I want to know how that has actually gone for you.</p>
-<p>I build this on my own, so there is no research team here. Your reply is the research.</p>
+<p>Quick update from AnimeVocab. The last two weeks were the busiest stretch of building since launch, and the best part arrives this weekend.</p>
+<p><strong>Coming this weekend: Subtitle Lens.</strong> Hover any word in the subtitles while you watch and the extension shows its reading and meaning right there. One click turns it into a flashcard. No pausing, no side trip to a dictionary. Chrome is doing its final review of the update now, and it will reach your extension automatically the moment it clears. Nothing to install.</p>
+<p>Already live for you today:</p>
+<ul>
+<li><strong>A sharper coach.</strong> Luna now thinks at full strength on every question, so grammar explanations and example sentences got noticeably better.</li>
+<li><strong>Listening Mode reliability.</strong> Fixed the bug where the wrong word could get carded during live playback, along with duplicate lines and old episodes bleeding into a new session.</li>
+<li><strong>More accurate dictionary entries.</strong> Meanings that only apply to one spelling or reading now show up the way they should.</li>
+<li><strong>Smoother extension sign-in.</strong> Your account syncs automatically and stays synced.</li>
+</ul>
 <p>If you have two minutes, hit reply and tell me any of these:</p>
 <ol>
-<li>What made you stop using it, if you did?</li>
-<li>What is the one thing you wish it did?</li>
+<li>When Subtitle Lens reaches you this weekend, will you try it on the first episode you watch and tell me if it feels instant?</li>
+<li>What is the one thing you still wish the app did?</li>
 <li>Did anything feel broken, slow, or confusing?</li>
 </ol>
-<p>One line is plenty. "Listening Mode never worked for me" is far more useful to me than silence.</p>
-<p>A few things changed recently, in case it has been a while:</p>
-<ul>
-<li>Free now includes 10 hours of Listening Mode and 300 AI messages a month, roughly a 7x increase</li>
-<li>Automatic word picking and pronunciation audio no longer eat into your AI messages</li>
-<li>When you do hit a limit, the app now tells you instead of quietly stopping</li>
-<li>Fixed a bug where listening time was being counted twice, so your hours now last as long as they claim</li>
-</ul>
+<p>One line is plenty. I build this on my own, so replies like yours decide what gets built next.</p>
+<p><strong>One more thing, and this is a real offer.</strong> I live in Tokyo. If you ever make it here, dinner is on me. Learning Japanese from anime deserves at least one meal in Japan with someone to practice on. Just reply to this email when you know your dates and we will pick a place.</p>
+<p>Thank you for using AnimeVocab, genuinely. Watching people learn real Japanese from the shows they already love is the whole reason this exists.</p>
 <p><a href="${SITE_URL}">${SITE_URL}</a></p>
-<p>Thanks for trying it, honestly. Even the harsh replies help.</p>
 <p>Atharva<br>
 AnimeVocab, <a href="${SITE_URL}">animevocab.com</a></p>
 <p style="color:#888;font-size:12px">Do not want emails like this? Reply with "stop" and I will take you off the list.</p>`;
