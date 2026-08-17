@@ -153,6 +153,43 @@ describe("sendEmailBatch", () => {
     for (const k of keys) expect(k.length).toBeLessThanOrEqual(256);
   });
 
+  it("gives a targeted top-up a different key than the full wave", async () => {
+    batchSend.mockImplementation(async (payload: unknown[]) => ({
+      data: { data: payload.map(() => ({ id: "x" })), errors: [] },
+      error: null,
+    }));
+
+    await sendEmailBatch(
+      [mail("a@x.com"), mail("b@x.com"), mail("c@x.com")],
+      { idempotencyKeyPrefix: "wave" }
+    );
+    await sendEmailBatch([mail("late-signup@x.com")], { idempotencyKeyPrefix: "wave" });
+
+    const keys = batchSend.mock.calls.map(
+      (c) => (c[1] as { idempotencyKey: string }).idempotencyKey
+    );
+    // Same campaign, different recipients: the keys must differ, otherwise
+    // Resend 409s the top-up as a payload mismatch inside the 24h window.
+    expect(new Set(keys).size).toBe(2);
+  });
+
+  it("keys a retry of the same recipients identically regardless of input order", async () => {
+    batchSend.mockImplementation(async (payload: unknown[]) => ({
+      data: { data: payload.map(() => ({ id: "x" })), errors: [] },
+      error: null,
+    }));
+
+    await sendEmailBatch([mail("b@x.com"), mail("a@x.com")], { idempotencyKeyPrefix: "wave" });
+    await sendEmailBatch([mail("a@x.com"), mail("b@x.com")], { idempotencyKeyPrefix: "wave" });
+
+    const keys = batchSend.mock.calls.map(
+      (c) => (c[1] as { idempotencyKey: string }).idempotencyKey
+    );
+    // Clerk enumeration order is not stable across retries; the key must be,
+    // or a retried wave would double-send instead of deduping.
+    expect(keys[0]).toBe(keys[1]);
+  });
+
   it("marks the whole chunk failed on an API-level error", async () => {
     batchSend.mockResolvedValue({ data: null, error: { message: "rate_limit_exceeded" } });
     const results = await sendEmailBatch([mail("a@x.com"), mail("b@x.com")]);
