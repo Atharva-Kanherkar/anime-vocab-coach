@@ -11,6 +11,8 @@ import {
   type PlanId,
 } from "@/lib/site";
 import type { BillingInterval } from "@/lib/plans";
+import { hasLocalizedPricing, localizedMonthlyLabel } from "@/lib/localized-pricing";
+import { useVisitorCountry } from "@/lib/use-visitor-country";
 
 export type BillingPanelProps = {
   plan: PlanId;
@@ -47,6 +49,12 @@ export function BillingPanel({
   email,
 }: BillingPanelProps) {
   const [interval, setInterval] = useState<CheckoutInterval>("yearly");
+  const country = useVisitorCountry();
+  // Dodo has monthly localized rules only: for these countries the yearly
+  // toggle is hidden (USD yearly costs more than 12 localized months) and the
+  // upgrade cards show the regional monthly price Dodo will charge at checkout.
+  const localized = hasLocalizedPricing(country);
+  const effectiveInterval: CheckoutInterval = localized ? "monthly" : interval;
   const giftUntil = giftLabel(planExpiresAt);
   const isGift = plan !== "free" && !!planExpiresAt;
   const isPaid = plan !== "free" && !planExpiresAt;
@@ -100,35 +108,44 @@ export function BillingPanel({
         <div className="mt-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="av-eyebrow mb-0">Upgrade</h3>
-            <div className="billing-toggle billing-toggle--app" role="group" aria-label="Billing interval">
-              <button
-                type="button"
-                className={interval === "monthly" ? "is-active" : ""}
-                aria-pressed={interval === "monthly"}
-                onClick={() => setInterval("monthly")}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                className={interval === "yearly" ? "is-active" : ""}
-                aria-pressed={interval === "yearly"}
-                onClick={() => setInterval("yearly")}
-              >
-                Yearly <span className="billing-toggle__save">save ~38%</span>
-              </button>
-            </div>
+            {localized ? (
+              <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-ink2">
+                Regional pricing
+              </span>
+            ) : (
+              <div className="billing-toggle billing-toggle--app" role="group" aria-label="Billing interval">
+                <button
+                  type="button"
+                  className={interval === "monthly" ? "is-active" : ""}
+                  aria-pressed={interval === "monthly"}
+                  onClick={() => setInterval("monthly")}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  className={interval === "yearly" ? "is-active" : ""}
+                  aria-pressed={interval === "yearly"}
+                  onClick={() => setInterval("yearly")}
+                >
+                  Yearly <span className="billing-toggle__save">save ~38%</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {upgradeTargets.map((id) => {
               const tier = TIERS[id];
-              const base = checkoutFor(id, interval);
+              const base = checkoutFor(id, effectiveInterval);
               const href = base
                 ? checkoutWithContext(base, { email, redirectUrl })
                 : null;
               const price =
-                interval === "yearly" && tier.yearlyLabel ? tier.yearlyLabel : tier.priceLabel;
+                localizedMonthlyLabel(id, country) ??
+                (effectiveInterval === "yearly" && tier.yearlyLabel
+                  ? tier.yearlyLabel
+                  : tier.priceLabel);
               return (
                 <div key={id} className="border-2 border-ink bg-panel p-4">
                   <div className="flex items-baseline justify-between gap-2">
