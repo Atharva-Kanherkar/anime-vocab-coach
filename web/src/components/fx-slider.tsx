@@ -13,6 +13,8 @@ import {
   type PlanId,
 } from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
+import { hasLocalizedPricing, localizedMonthlyLabel } from "@/lib/localized-pricing";
+import { useVisitorCountry } from "@/lib/use-visitor-country";
 import { AuthControls } from "@/components/site-chrome";
 
 function slideBgStyle(image?: string, tone?: string): CSSProperties {
@@ -33,6 +35,11 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
   const wrapRef = useRef<HTMLElement>(null);
   const [index, setIndex] = useState(0);
   const [billingInterval, setBillingInterval] = useState<CheckoutInterval>("monthly");
+  const country = useVisitorCountry();
+  // Dodo has monthly rules only for these countries, so yearly (which would be
+  // the USD price, worse than 12 localized months) is hidden, not advertised.
+  const localized = hasLocalizedPricing(country);
+  const effectiveInterval: CheckoutInterval = localized ? "monthly" : billingInterval;
   const indexRef = useRef(0);
   const rafRef = useRef(0);
 
@@ -169,39 +176,48 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
           <div className="hero__center hero__center--wide hero__center--pricing" key={active.id}>
             <h2 className="hero__title">{active.title}</h2>
             <p className="hero__body">{active.body}</p>
-            <div className="billing-toggle" role="group" aria-label="Billing interval">
-              <button
-                type="button"
-                className={billingInterval === "monthly" ? "is-active" : ""}
-                aria-pressed={billingInterval === "monthly"}
-                onClick={() => setBillingInterval("monthly")}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                className={billingInterval === "yearly" ? "is-active" : ""}
-                aria-pressed={billingInterval === "yearly"}
-                onClick={() => setBillingInterval("yearly")}
-              >
-                Yearly <span className="billing-toggle__save">save ~38%</span>
-              </button>
-            </div>
+            {localized ? (
+              <p className="hero__body" style={{ fontSize: "0.85em", opacity: 0.85 }}>
+                Prices shown for your region. You&apos;ll see the same price at checkout.
+              </p>
+            ) : (
+              <div className="billing-toggle" role="group" aria-label="Billing interval">
+                <button
+                  type="button"
+                  className={billingInterval === "monthly" ? "is-active" : ""}
+                  aria-pressed={billingInterval === "monthly"}
+                  onClick={() => setBillingInterval("monthly")}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  className={billingInterval === "yearly" ? "is-active" : ""}
+                  aria-pressed={billingInterval === "yearly"}
+                  onClick={() => setBillingInterval("yearly")}
+                >
+                  Yearly <span className="billing-toggle__save">save ~38%</span>
+                </button>
+              </div>
+            )}
             <div className="price-grid price-grid--three hero__pricing">
               {(["free", "pro", "max"] as PlanId[]).map((id) => {
                 const t = TIERS[id];
                 const isPro = id === "pro";
-                const url = id === "free" ? null : checkoutFor(id, billingInterval);
+                const url = id === "free" ? null : checkoutFor(id, effectiveInterval);
+                const regional = localizedMonthlyLabel(id, country);
                 const amount =
                   id === "free"
                     ? t.priceLabel
-                    : billingInterval === "yearly" && t.yearlyLabel
-                      ? t.yearlyLabel
-                      : t.priceLabel;
+                    : localized && regional
+                      ? regional
+                      : effectiveInterval === "yearly" && t.yearlyLabel
+                        ? t.yearlyLabel
+                        : t.priceLabel;
                 const sub =
-                  id === "free"
+                  id === "free" || localized
                     ? null
-                    : billingInterval === "yearly"
+                    : effectiveInterval === "yearly"
                       ? t.priceLabel
                       : t.yearlyLabel ?? null;
                 return (
