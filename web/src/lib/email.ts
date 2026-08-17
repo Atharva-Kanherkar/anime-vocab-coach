@@ -125,6 +125,23 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+/** FNV-1a over the chunk's recipient addresses. Not cryptographic and does not
+ * need to be: it only has to make "same campaign, different recipients" produce
+ * a different idempotency key, so a targeted top-up (one new signup) cannot
+ * collide with the main wave's key and get 409'd by Resend. */
+function recipientFingerprint(addresses: string[]): string {
+  let hash = 0x811c9dc5;
+  for (const address of addresses) {
+    for (let i = 0; i < address.length; i++) {
+      hash ^= address.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    hash ^= 0x0a; // separator, so ["ab","c"] and ["a","bc"] differ
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
 /**
  * Send many emails through the batch endpoint, chunked to BATCH_MAX.
  *
@@ -136,7 +153,11 @@ function chunk<T>(items: T[], size: number): T[][] {
  *
  * `idempotencyKeyPrefix` guards against double-sends on retry. Resend scopes an
  * idempotency key for 24 hours and caps it at 256 characters, so the key is
- * per-chunk (a whole-batch key would make chunk 2 a replay of chunk 1).
+ * per-chunk (a whole-batch key would make chunk 2 a replay of chunk 1) and
+ * carries a fingerprint of the chunk's recipients (a campaign-only key would
+ * 409 a targeted top-up send inside the main wave's 24h window). Recipients are
+ * sorted before chunking so a retry of the same set lands in the same chunks
+ * and dedupes, even if the caller enumerates them in a different order.
  */
 export async function sendEmailBatch(
   emails: BatchEmailInput[],
@@ -155,7 +176,8 @@ export async function sendEmailBatch(
   const replyTo = env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO;
   const results: BatchSendResult[] = [];
 
-  const chunks = chunk(emails, BATCH_MAX);
+  const ordered = [...emails].sort((a, b) => a.to.localeCompare(b.to));
+  const chunks = chunk(ordered, BATCH_MAX);
   for (const [chunkIndex, group] of chunks.entries()) {
     const payload = group.map((e) => ({
       from,
@@ -171,7 +193,11 @@ export async function sendEmailBatch(
       const { data, error } = await resend.batch.send(payload, {
         batchValidation: "permissive" as const,
         ...(opts?.idempotencyKeyPrefix
-          ? { idempotencyKey: `${opts.idempotencyKeyPrefix}/chunk-${chunkIndex}`.slice(0, 256) }
+          ? {
+              idempotencyKey: `${opts.idempotencyKeyPrefix}/${recipientFingerprint(
+                group.map((e) => e.to.toLowerCase())
+              )}/chunk-${chunkIndex}`.slice(0, 256),
+            }
           : {}),
       });
 
