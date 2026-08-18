@@ -560,8 +560,13 @@
         }
       });
     }
+    if (details.reason === "install") {
+      chrome.tabs.create({ url: `${WEB_URL}/app?src=extension_install` }).catch(() => {
+      });
+    }
     void ensureSyncBridgeInOpenTabs();
   });
+  chrome.runtime.setUninstallURL(`${WEB_URL}/uninstall`);
   void ensureSyncBridgeInOpenTabs();
   var SYNC_ALARM = "avc-cloud-sync";
   var syncDebounce = null;

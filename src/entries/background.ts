@@ -1,5 +1,5 @@
 import { DEFAULTS } from "../types";
-import { BACKEND_URL } from "../config";
+import { BACKEND_URL, WEB_URL } from "../config";
 import { syncWithCloud } from "../lib/cloud-sync";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
@@ -74,8 +74,27 @@ chrome.runtime.onInstalled.addListener((details) => {
       }
     });
   }
+
+  // Fresh install: the extension has no sign-up of its own — accounts (cloud
+  // sync, Listening mode) are created on animevocab.com via the sync-bridge
+  // token handoff. Without pointing installers there, a user who installs
+  // from the Web Store and never happens to click the toolbar icon has no
+  // path to ever discover sign-up exists (#89). `/app` is the same route the
+  // popup's "Sign in to sync" link already uses; visiting it signed-out
+  // resolves to sign-in/sign-up and triggers the existing token handoff on
+  // completion, so this reuses working infrastructure rather than a new page.
+  if (details.reason === "install") {
+    chrome.tabs.create({ url: `${WEB_URL}/app?src=extension_install` }).catch(() => {});
+  }
+
   void ensureSyncBridgeInOpenTabs();
 });
+
+// Report churn timing (before vs. after real use) so onboarding effort can be
+// prioritized correctly. Best-effort: the query string is transmitted as a
+// GET on browser-initiated navigation to this URL and is not guaranteed to
+// arrive, so this must never be the only signal something depends on.
+chrome.runtime.setUninstallURL(`${WEB_URL}/uninstall`);
 
 // Loading an unpacked build or waking a recycled service worker can happen
 // while the account page is already open. Probe existing tabs so linking does
