@@ -190,6 +190,46 @@ export async function recordUserEvent(record: UserEventRecord): Promise<void> {
   }
 }
 
+/** Our own hosts. A referrer on one of these is an internal navigation, which
+ *  is not acquisition data and must not be recorded as a referrer. */
+const OWN_HOSTS = new Set(["animevocab.com", "www.animevocab.com", "localhost"]);
+
+/**
+ * The external host that sent a visitor here, from a client-reported referrer.
+ *
+ * Returns "" for same-site navigations, unparseable input, and the empty
+ * referrer of a direct visit, so an empty value means "direct or unknown"
+ * rather than "our own domain".
+ *
+ * This exists because the obvious implementation is wrong: reading the
+ * `Referer` header of the /api/track beacon reports the page that fired the
+ * beacon, which is always ours. That made every pageview self-referred and
+ * left the product with no attribution at all.
+ *
+ * The value is attacker-controlled (any client can POST anything), so it is
+ * parsed with the URL parser and reduced to a hostname before storage. AE
+ * blobs are never rendered as HTML, but a bounded, structurally-valid hostname
+ * also keeps dashboard cardinality from being trivially poisoned.
+ */
+export function externalReferrerHost(referrer: string): string {
+  const raw = (referrer || "").trim();
+  if (!raw) return "";
+  let host: string;
+  try {
+    const url = new URL(raw);
+    // Only real web referrers. Anything else (data:, chrome-extension:, file:)
+    // is not an acquisition source.
+    if (url.protocol !== "https:" && url.protocol !== "http:") return "";
+    host = url.hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+  if (!host || OWN_HOSTS.has(host)) return "";
+  // Subdomains of our own site are still internal (e.g. a preview deploy).
+  if (host.endsWith(".animevocab.com")) return "";
+  return host.slice(0, 128);
+}
+
 // ------------------------------------------------------------ Request facts
 
 /** Cloudflare request geo/UA facts, safe to call off-Cloudflare (returns
@@ -211,15 +251,12 @@ export function requestFacts(req: Request): RequestFacts {
   const country = cf?.country || req.headers.get("cf-ipcountry") || "";
   const city = cf?.city || "";
 
-  let referrerHost = "";
-  const referrer = req.headers.get("referer");
-  if (referrer) {
-    try {
-      referrerHost = new URL(referrer).host;
-    } catch {
-      referrerHost = "";
-    }
-  }
+  // NOTE: for the /api/track beacon this is always our own domain, because the
+  // beacon is fired from our own pages. Pageview attribution therefore comes
+  // from the client-reported referrer via externalReferrerHost(), not from
+  // here. This stays for server-side API calls, where the header is the only
+  // signal available and a same-origin value is still meaningful.
+  const referrerHost = externalReferrerHost(req.headers.get("referer") || "");
 
   return { country, city, referrerHost, device: deviceClass(req.headers.get("user-agent")) };
 }

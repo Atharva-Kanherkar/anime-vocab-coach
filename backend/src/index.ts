@@ -11,11 +11,15 @@ import { lookupTranscript, transcribeAndStore } from "./transcript";
 import { getProviderMetrics, TranscriptionError } from "./transcribe/index";
 import { requireAuth } from "./sync-auth";
 import { capMinutesForPlan, effectivePlanFromProfile } from "./plan";
+import { countryOf, type AnalyticsEngineDataset } from "./telemetry";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
 export interface Env {
   AVC_KV: KVNamespace;
+  /** Listening Mode transcription observability (dataset avc_transcribe).
+   *  Optional: a missing binding degrades to no telemetry, never an error. */
+  TRANSCRIBE_AE?: AnalyticsEngineDataset;
   OPENAI_API_KEY: string;
   GROQ_API_KEY?: string;
   DEEPINFRA_API_KEY?: string;
@@ -207,7 +211,10 @@ export default {
         const audio = body.audio || "";
         if (!audio) return json(req, { error: "missing audio" }, 400);
 
-        const result = await transcribeAndStore(env, auth.userId, cacheKey, audio, startSec, cap);
+        const result = await transcribeAndStore(env, auth.userId, cacheKey, audio, startSec, cap, {
+          plan: effectivePlanFromProfile(auth.profile),
+          country: countryOf(req),
+        });
         return json(req, result);
       }
 

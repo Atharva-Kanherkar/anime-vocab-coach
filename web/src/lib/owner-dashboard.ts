@@ -34,6 +34,17 @@ import {
   type LlmTotals,
   type LlmUserRow,
   type TimeBucketRow,
+  eventDistinctUsersSql,
+  llmDistinctUsersSql,
+  transcribeByUserSql,
+  transcribeGroupSql,
+  transcribeSeriesSql,
+  transcribeTotalsSql,
+  type DistinctUsersRow,
+  type TranscribeGroupRow,
+  type TranscribeSeriesRow,
+  type TranscribeTotalsRow,
+  type TranscribeUserRow,
 } from "./telemetry-query";
 import { isKnownModel } from "./llm-pricing";
 
@@ -287,7 +298,63 @@ export interface OwnerDashboardData {
   apiRoutes: { label: string; events: number; avgLatencyMs: number; errors: number }[];
   eventUsers: { userId: string; plan: string; events: number; country: string; device: string; lastSeen: string }[];
   extensionFunnel: SimpleRow[];
+  /** Listening Mode transcription, from the avc-api Worker's own dataset. */
+  transcribe: TranscribeSummary;
+  /** Distinct identified users seen in the event stream in the window. */
+  eventUserCount: number;
 }
+
+/**
+ * Listening Mode roll-up.
+ *
+ * `minutes` is all audio that passed through Listening Mode; `providerMinutes`
+ * is the billable subset, i.e. what a cache miss actually sent to a provider.
+ * Keeping both is the difference between "how much are learners listening" and
+ * "how much did that cost", which are not the same question.
+ */
+export interface TranscribeSummary {
+  /** No rows at all: the dataset is not written yet (nothing to show, not an error). */
+  present: boolean;
+  calls: number;
+  users: number;
+  minutes: number;
+  providerMinutes: number;
+  providerCalls: number;
+  hits: number;
+  /** Share of transcription requests served from cache, 0..1. */
+  hitRate: number;
+  cost: number;
+  avgLatencyMs: number;
+  errors: number;
+  capHits: number;
+  byOutcome: SimpleRow[];
+  byProvider: SimpleRow[];
+  byLanguage: SimpleRow[];
+  byPlan: SimpleRow[];
+  series: { bucket: string; calls: number; minutes: number; cost: number }[];
+  topUsers: { userId: string; plan: string; calls: number; minutes: number; cost: number; peakMonthMinutes: number }[];
+}
+
+export const EMPTY_TRANSCRIBE: TranscribeSummary = {
+  present: false,
+  calls: 0,
+  users: 0,
+  minutes: 0,
+  providerMinutes: 0,
+  providerCalls: 0,
+  hits: 0,
+  hitRate: 0,
+  cost: 0,
+  avgLatencyMs: 0,
+  errors: 0,
+  capHits: 0,
+  byOutcome: [],
+  byProvider: [],
+  byLanguage: [],
+  byPlan: [],
+  series: [],
+  topUsers: [],
+};
 
 /** What the page renders when there is no read token: every panel empty, and
  * `configured: false` so the UI shows setup steps rather than an error. */
@@ -311,6 +378,8 @@ const UNCONFIGURED: OwnerDashboardData = {
   apiRoutes: [],
   eventUsers: [],
   extensionFunnel: [],
+  transcribe: EMPTY_TRANSCRIBE,
+  eventUserCount: 0,
 };
 
 const simple = (rows: EventGroupRow[]): SimpleRow[] =>
@@ -341,6 +410,20 @@ export async function loadOwnerDashboard(
     { label: "api routes", sql: apiRoutesSql(hours) },
     { label: "event users", sql: eventsByUserSql(hours) },
     { label: "extension funnel", sql: extensionFunnelSql(hours) },
+    // Listening Mode lives in a different Worker's dataset. Until it has been
+    // written once the dataset does not exist and the SQL API errors rather
+    // than returning zero rows, so these panels must fail independently.
+    { label: "transcribe totals", sql: transcribeTotalsSql(hours, userId) },
+    { label: "transcribe by outcome", sql: transcribeGroupSql("outcome", hours, 8) },
+    { label: "transcribe by provider", sql: transcribeGroupSql("provider", hours, 8) },
+    { label: "transcribe by language", sql: transcribeGroupSql("language", hours, 8) },
+    { label: "transcribe by plan", sql: transcribeGroupSql("plan", hours, 8) },
+    { label: "transcribe series", sql: transcribeSeriesSql(hours) },
+    { label: "transcribe users", sql: transcribeByUserSql(hours) },
+    // Distinct-user counts: separate ungrouped queries, because summing
+    // per-group DISTINCTs double-counts anyone present in two groups.
+    { label: "llm distinct users", sql: llmDistinctUsersSql(hours) },
+    { label: "event distinct users", sql: eventDistinctUsersSql(hours) },
   ];
 
   const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {
@@ -366,13 +449,73 @@ export async function loadOwnerDashboard(
     const apiRows = at<ApiRouteRow>(8);
     const eventUserRows = at<EventUserRow>(9);
     const funnelRows = at<ExtensionFunnelRow>(10);
+    const txTotals = at<TranscribeTotalsRow>(11)[0];
+    const txOutcome = at<TranscribeGroupRow>(12);
+    const txProvider = at<TranscribeGroupRow>(13);
+    const txLanguage = at<TranscribeGroupRow>(14);
+    const txPlan = at<TranscribeGroupRow>(15);
+    const txSeries = at<TranscribeSeriesRow>(16);
+    const txUsers = at<TranscribeUserRow>(17);
+    const llmUsers = at<DistinctUsersRow>(18)[0];
+    const eventUsersCount = at<DistinctUsersRow>(19)[0];
+
+    const txCalls = num(txTotals?.calls);
+    const txHits = num(txTotals?.hits);
+    const txGroup = (rows: TranscribeGroupRow[]): SimpleRow[] =>
+      rows
+        .filter((r) => r.label)
+        .map((r) => ({
+          label: r.label,
+          value: num(r.calls),
+          secondary: Math.round(num(r.audioMinutes)),
+        }));
+
+    const transcribe: TranscribeSummary = {
+      // A dataset that has never been written does not exist, and the SQL API
+      // errors on it. No rows means "nothing recorded yet", which the panel
+      // shows as a waiting state rather than a row of zeroes.
+      present: txCalls > 0,
+      calls: txCalls,
+      users: num(txTotals?.users),
+      minutes: num(txTotals?.audioMinutes),
+      providerMinutes: num(txTotals?.providerMinutes),
+      providerCalls: num(txTotals?.providerCalls),
+      hits: txHits,
+      hitRate: txCalls > 0 ? txHits / txCalls : 0,
+      cost: num(txTotals?.cost),
+      avgLatencyMs: txCalls > 0 ? num(txTotals?.latencySum) / txCalls : 0,
+      errors: num(txTotals?.errors),
+      capHits: num(txTotals?.capHits),
+      byOutcome: txGroup(txOutcome),
+      byProvider: txGroup(txProvider),
+      byLanguage: txGroup(txLanguage),
+      byPlan: txGroup(txPlan),
+      series: txSeries.map((r) => ({
+        bucket: String(r.bucket),
+        calls: num(r.calls),
+        minutes: num(r.audioMinutes),
+        cost: num(r.cost),
+      })),
+      topUsers: txUsers.map((r) => ({
+        userId: r.userId,
+        plan: r.plan,
+        calls: num(r.calls),
+        minutes: num(r.audioMinutes),
+        cost: num(r.cost),
+        peakMonthMinutes: num(r.peakMonthMinutes),
+      })),
+    };
+
+    // `Totals.users` was declared but never assigned, which is why the header
+    // read "0 distinct users" next to a four-figure call count.
+    const totals = { ...facets.totals, users: num(llmUsers?.users) };
 
     return {
       configured: true,
       queryError: summarizeFailures(failures),
       authFailed: failures.some((f) => f.reason === "unauthorized"),
       rateLimited: failures.some((f) => f.reason === "rate_limited"),
-      totals: facets.totals,
+      totals,
       byModel: facets.byModel,
       byOperation: facets.byOperation,
       bySurface: facets.bySurface,
@@ -420,6 +563,8 @@ export async function loadOwnerDashboard(
         lastSeen: String(r.lastSeen ?? ""),
       })),
       extensionFunnel: funnelRows.map((r) => ({ label: r.label, value: num(r.events) })),
+      transcribe,
+      eventUserCount: num(eventUsersCount?.users),
     };
   }
 }

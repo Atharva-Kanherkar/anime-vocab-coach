@@ -1,7 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
 import { isTrackableEvent, normalizeTrackPath } from "@/lib/track-events";
-import { recordUserEvent, requestFacts, authKindOf } from "@/lib/telemetry";
+import {
+  authKindOf,
+  externalReferrerHost,
+  recordUserEvent,
+  requestFacts,
+} from "@/lib/telemetry";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +29,9 @@ export async function POST(req: Request) {
     const text = await req.text();
     if (text.length > MAX_BODY_BYTES) return new Response(null, { status: 204 });
 
-    let body: { kind?: unknown; name?: unknown };
+    let body: { kind?: unknown; name?: unknown; referrer?: unknown };
     try {
-      body = JSON.parse(text) as { kind?: unknown; name?: unknown };
+      body = JSON.parse(text) as { kind?: unknown; name?: unknown; referrer?: unknown };
     } catch {
       return new Response(null, { status: 204 });
     }
@@ -50,6 +55,13 @@ export async function POST(req: Request) {
     }
 
     const facts = requestFacts(req);
+    // The client sends document.referrer, because this beacon's own `Referer`
+    // header is always a page on our own domain — reading that made every
+    // pageview look self-referred and destroyed acquisition attribution.
+    // An untrusted string, so it is parsed and host-only, never echoed raw.
+    const referrerHost = externalReferrerHost(
+      typeof body.referrer === "string" ? body.referrer : ""
+    );
     await recordUserEvent({
       kind,
       name,
@@ -60,7 +72,7 @@ export async function POST(req: Request) {
       plan: userId ? "signed_in" : "anon",
       country: facts.country,
       city: facts.city,
-      referrerHost: facts.referrerHost,
+      referrerHost,
       device: facts.device,
       authKind: authKindOf(req),
       status: "200",

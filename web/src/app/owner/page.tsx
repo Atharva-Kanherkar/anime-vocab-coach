@@ -13,8 +13,10 @@ import {
   loadOwnerDashboard,
   resolveWindow,
   type GroupRow,
+  type SimpleRow,
   type UserRow,
 } from "@/lib/owner-dashboard";
+import { fmtMinutes, loadOwnerHistory, type OwnerHistory } from "@/lib/owner-history";
 import { BarList, Chart, Panel, Stat } from "./ui";
 
 // Always fresh: a cached observability dashboard is a lying one.
@@ -89,6 +91,137 @@ function GroupTable({ rows, showCost = true }: { rows: GroupRow[]; showCost?: bo
   );
 }
 
+
+/**
+ * All-time view, from Clerk and KV rather than Analytics Engine.
+ *
+ * AE began on 2026-08-06 and has a retention horizon, so every panel above is
+ * a window. This section is the corrective: it is the only place on the page
+ * that can answer "how many users do we actually have" and "was this month
+ * better than last month".
+ */
+function HistorySection({ history }: { history: OwnerHistory }) {
+  const h = history;
+  if (!h.available) {
+    return (
+      <>
+        <h2 className="ow-section">All time</h2>
+        <div className="ow-note">
+          No historical source reachable. {h.notes.join(" ")}
+        </div>
+      </>
+    );
+  }
+
+  const signupRows: SimpleRow[] = h.signupsByMonth.map((p) => ({
+    label: p.month,
+    value: p.signups,
+  }));
+  const listeningRows: SimpleRow[] = h.listeningByMonth.map((m) => ({
+    label: m.month,
+    value: Math.round(m.minutes),
+    secondary: m.users,
+  }));
+
+  return (
+    <>
+      <h2 className="ow-section">All time</h2>
+      <p className="ow-sub">
+        From Clerk and KV, not Analytics Engine. The panels above start on 2026-08-06, when
+        telemetry shipped; these do not, which is why the two disagree.
+      </p>
+
+      {h.notes.length > 0 ? <div className="ow-note">{h.notes.join(" ")}</div> : null}
+
+      <div className="ow-stats">
+        <Stat
+          label="Total signups"
+          value={h.totalUsers === null ? "n/a" : fmtInt(h.totalUsers)}
+          foot="Clerk, all time"
+        />
+        <Stat
+          label="Linked extension"
+          value={h.linkedUsers === null ? "n/a" : fmtInt(h.linkedUsers)}
+          foot="live link, 30d sliding"
+        />
+        <Stat
+          label="Activation"
+          value={h.activationRate === null ? "n/a" : fmtPct(h.activationRate)}
+          foot="signups that linked"
+          tone={
+            h.activationRate === null
+              ? undefined
+              : h.activationRate >= 0.7
+                ? "good"
+                : h.activationRate >= 0.4
+                  ? "warn"
+                  : "bad"
+          }
+        />
+        <Stat
+          label="Active in 30d"
+          value={h.activeLast30 === null ? "n/a" : fmtInt(h.activeLast30)}
+          foot={
+            h.totalUsers && h.activeLast30 !== null
+              ? `${fmtPct(h.activeLast30 / h.totalUsers)} of all signups`
+              : undefined
+          }
+        />
+        <Stat
+          label="Never active"
+          value={h.neverActive === null ? "n/a" : fmtInt(h.neverActive)}
+          foot="signed up, never used"
+          tone={
+            h.neverActive !== null && h.totalUsers && h.neverActive / h.totalUsers > 0.3
+              ? "warn"
+              : undefined
+          }
+        />
+        <Stat
+          label="Listening, all time"
+          value={fmtMinutes(h.totalListeningMinutes)}
+          foot="KV meter, incl. pre-telemetry"
+        />
+      </div>
+
+      <div className="ow-grid">
+        <Panel title="Signups by month" empty={signupRows.length === 0}>
+          <BarList rows={signupRows} unit="signups" />
+        </Panel>
+        <Panel title="Listening minutes by month" empty={listeningRows.length === 0}>
+          <BarList rows={listeningRows} unit="min" />
+        </Panel>
+        <Panel title="Users by plan" empty={h.usersByPlan.length === 0}>
+          <BarList rows={h.usersByPlan} unit="users" />
+        </Panel>
+        <Panel title="Listening leaders (all time)" empty={h.topListeners.length === 0}>
+          <div className="ow-scroll">
+            <table className="ow-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th className="ow-num">Audio</th>
+                  <th className="ow-num">Months</th>
+                </tr>
+              </thead>
+              <tbody>
+                {h.topListeners.map((u) => (
+                  <tr key={u.userId}>
+                    <td className="ow-label">{u.email || u.userId}</td>
+                    <td className="ow-num">{fmtMinutes(u.minutes)}</td>
+                    {/* Months active is the retention signal the AE window cannot show. */}
+                    <td className="ow-num">{fmtInt(u.months)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
+    </>
+  );
+}
+
 export default async function OwnerPage({ searchParams }: { searchParams: SearchParams }) {
   // Gate first, before any query runs. notFound() rather than a 403 so the
   // route's existence is not confirmed to anyone who is not the owner.
@@ -101,8 +234,15 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
   const win = resolveWindow(one(params.h));
   const focusUser = one(params.user)?.trim() || undefined;
 
-  const data = await loadOwnerDashboard(win.hours, focusUser);
+  // History reads Clerk + KV, not Analytics Engine, so it is independent of the
+  // window and of the SQL API being reachable. Loaded in parallel; the panel
+  // degrades on its own if either source is unavailable.
+  const [data, history] = await Promise.all([
+    loadOwnerDashboard(win.hours, focusUser),
+    focusUser ? Promise.resolve(null) : loadOwnerHistory(),
+  ]);
   const t = data.totals;
+  const tx = data.transcribe;
   const topUsers = await withEmails(data.topUsers);
 
   const href = (h: number) =>
@@ -201,14 +341,20 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
       ) : null}
 
       <div className="ow-stats">
-        <Stat label="LLM calls" value={fmtInt(t.calls)} foot={`${fmtInt(t.users)} distinct users`} />
+        <Stat
+          label="LLM calls"
+          value={fmtInt(t.calls)}
+          foot={`${fmtInt(t.users)} distinct users${
+            data.eventUserCount > 0 ? ` · ${fmtInt(data.eventUserCount)} seen on site` : ""
+          }`}
+        />
         <Stat
           label="Spend"
           value={fmtUsd(t.cost)}
           foot={t.calls > 0 ? `${fmtUsd(t.cost / t.calls)} / call` : undefined}
         />
         <Stat
-          label="Cache hits"
+          label="Response cache"
           value={fmtPct(t.cacheHitRate)}
           foot={`${fmtInt(t.cachedHits)} served free`}
           tone={t.cacheHitRate >= 0.3 ? "good" : undefined}
@@ -417,6 +563,123 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
           </div>
         </Panel>
       </div>
+
+      <h2 className="ow-section">Listening Mode (transcription)</h2>
+      <p className="ow-sub">
+        Written by the avc-api Worker, which is a separate deploy from this app. Cache hits are
+        recorded too, so the hit rate has a real denominator.
+      </p>
+
+      {!tx.present ? (
+        <div className="ow-note">
+          No transcription recorded in this window. The <code>avc_transcribe</code> dataset is
+          created on first write, so this stays empty until avc-api has been deployed with the
+          <code> TRANSCRIBE_AE</code> binding and someone has run a Listening session.
+        </div>
+      ) : (
+        <>
+          <div className="ow-stats">
+            <Stat
+              label="Audio transcribed"
+              value={fmtMinutes(tx.minutes)}
+              foot={`${fmtInt(tx.calls)} chunks · ${fmtInt(tx.users)} users`}
+            />
+            <Stat
+              label="Billable audio"
+              value={fmtMinutes(tx.providerMinutes)}
+              foot={`${fmtInt(tx.providerCalls)} provider calls`}
+            />
+            <Stat
+              label="Transcription spend"
+              value={fmtUsd(tx.cost)}
+              foot={
+                tx.providerMinutes > 0
+                  ? `${fmtUsd(tx.cost / tx.providerMinutes)} / min`
+                  : undefined
+              }
+            />
+            <Stat
+              label="Cache hit rate"
+              value={fmtPct(tx.hitRate)}
+              foot={`${fmtInt(tx.hits)} chunks served free`}
+              tone={tx.hitRate >= 0.5 ? "good" : tx.hitRate >= 0.2 ? "warn" : "bad"}
+            />
+            <Stat label="Avg latency" value={fmtMs(tx.avgLatencyMs)} foot="per chunk" />
+            <Stat
+              label="Cap rejections"
+              value={fmtInt(tx.capHits)}
+              foot="hit their monthly limit"
+              tone={tx.capHits > 0 ? "warn" : "good"}
+            />
+            <Stat
+              label="Errors"
+              value={fmtInt(tx.errors)}
+              tone={tx.errors > 0 ? "bad" : "good"}
+            />
+          </div>
+
+          <div className="ow-grid">
+            <Panel title="Minutes transcribed over time" wide empty={tx.series.length === 0}>
+              <Chart points={tx.series} label="chunks" />
+            </Panel>
+          </div>
+
+          <div className="ow-grid">
+            <Panel title="By outcome" empty={tx.byOutcome.length === 0}>
+              <BarList rows={tx.byOutcome} unit="chunks" />
+            </Panel>
+            <Panel title="By provider" empty={tx.byProvider.length === 0}>
+              <BarList rows={tx.byProvider} unit="chunks" />
+            </Panel>
+            <Panel title="By language" empty={tx.byLanguage.length === 0}>
+              <BarList rows={tx.byLanguage} unit="chunks" />
+            </Panel>
+            <Panel title="By plan" empty={tx.byPlan.length === 0}>
+              <BarList rows={tx.byPlan} unit="chunks" />
+            </Panel>
+          </div>
+
+          <div className="ow-grid">
+            <Panel title="Heaviest listeners" wide empty={tx.topUsers.length === 0}>
+              <div className="ow-scroll">
+                <table className="ow-table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Plan</th>
+                      <th className="ow-num">Audio</th>
+                      <th className="ow-num">Chunks</th>
+                      <th className="ow-num">Cost</th>
+                      <th className="ow-num">Peak month</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tx.topUsers.map((u) => (
+                      <tr key={u.userId}>
+                        <td className="ow-label">
+                          <Link href={`/owner?h=${win.hours}&user=${encodeURIComponent(u.userId)}`}>
+                            {u.userId}
+                          </Link>
+                        </td>
+                        <td>
+                          <span className="ow-tag">{u.plan}</span>
+                        </td>
+                        <td className="ow-num">{fmtMinutes(u.minutes)}</td>
+                        <td className="ow-num">{fmtInt(u.calls)}</td>
+                        <td className="ow-num">{fmtUsd(u.cost)}</td>
+                        {/* How close this user got to their monthly ceiling. */}
+                        <td className="ow-num">{fmtMinutes(u.peakMonthMinutes)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          </div>
+        </>
+      )}
+
+      {history ? <HistorySection history={history} /> : null}
     </>
   );
 }
