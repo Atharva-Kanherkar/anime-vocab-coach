@@ -173,6 +173,7 @@ export function SettingsPanel() {
             disabled={settings.learningDirection === "ja-en"}
           >
             <option value="romaji">Romaji first</option>
+            <option value="romaji-kana">Romaji + kana together</option>
             <option value="kana">Kana first</option>
             <option value="kanji">Kanji first</option>
           </select>

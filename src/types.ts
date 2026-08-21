@@ -1,5 +1,7 @@
 export type PauseMode = "copilot" | "pause" | "off";
-export type DisplayScript = "romaji" | "kana" | "kanji";
+/** `romaji-kana` shows both scripts at full size: romaji to read now, kana
+ * directly under it to start recognising. The bridge between the two. */
+export type DisplayScript = "romaji" | "kana" | "kanji" | "romaji-kana";
 /** en-ja = English speakers learn Japanese; ja-en = Japanese speakers learn English. */
 export type LearningDirection = "en-ja" | "ja-en";
 export type WordState = "new" | "learning" | "known" | "ignored";

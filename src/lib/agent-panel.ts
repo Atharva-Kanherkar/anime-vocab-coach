@@ -297,6 +297,9 @@ const STYLES = `
       0 2px 10px rgba(0, 0, 0, 0.65),
       0 0 24px rgba(0, 0, 0, 0.4);
   }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-word-kana {
+    font-size: 16px;
+  }
   .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-reading {
     color: rgba(248, 244, 236, 0.82);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
@@ -369,6 +372,13 @@ const STYLES = `
     font-family: inherit;
   }
   .avc-agent-speak:hover { background: rgba(255, 255, 255, 0.1); color: rgba(248, 244, 236, 0.9); }
+  .avc-agent-word-kana {
+    font-size: 22px; font-weight: 500; line-height: 1.2;
+    color: rgba(227, 186, 99, 0.78);
+    margin: -2px 0 6px; letter-spacing: 0.02em;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  }
   .avc-agent-reading { font-size: 13px; color: rgba(236, 234, 228, 0.42); margin-bottom: 6px; }
   .avc-agent-gloss { font-size: 14px; line-height: 1.45; color: rgba(236, 234, 228, 0.62); margin-bottom: 12px; }
   .avc-agent-context, .avc-agent-sentence {
@@ -719,7 +729,7 @@ function wordDisplays(
   entry: { reading: string },
   displayScript: DisplayScript,
   direction: LearningDirection
-) {
+): { big: string; secondary: string; kana?: string } {
   if (normalizeDirection(direction) === "ja-en") {
     return {
       big: token.surface || token.base,
@@ -729,6 +739,16 @@ function wordDisplays(
   const roma = romaji.toRomaji(entry.reading);
   if (displayScript === "kana") return { big: entry.reading, secondary: `${roma} · ${token.surface}` };
   if (displayScript === "kanji") return { big: token.surface, secondary: `${entry.reading} · ${roma}` };
+  // Dual script: romaji to read, kana promoted to its own full-size line so the
+  // learner starts pairing shapes with sounds instead of skipping past them.
+  // The kanji surface stays in the small line — it is the third step, not this one.
+  if (displayScript === "romaji-kana") {
+    return {
+      big: roma,
+      kana: entry.reading,
+      secondary: token.surface === entry.reading ? "" : token.surface,
+    };
+  }
   const secondary = token.surface === entry.reading ? entry.reading : `${entry.reading} · ${token.surface}`;
   return { big: roma, secondary };
 }
@@ -786,7 +806,8 @@ function buildSentence(
   el.appendChild(label);
 
   if (tokens?.length) {
-    if (normalizeDirection(direction) === "en-ja" && displayScript === "romaji") {
+    const romajiSentence = displayScript === "romaji" || displayScript === "romaji-kana";
+    if (normalizeDirection(direction) === "en-ja" && romajiSentence) {
       const pieces = romaji.sentencePieces(tokens, targetIndex ?? -1);
       const romajiLine = document.createElement("div");
       romajiLine.className = "avc-agent-romaji-line";
@@ -1160,9 +1181,18 @@ function populateWordSection(ctx: WordContext): void {
   wordRow.appendChild(wordEl);
   wordRow.appendChild(speakBtn);
 
+  // Dual-script mode only: a full-size kana line under the romaji.
+  const kanaEl = displays.kana ? document.createElement("div") : null;
+  if (kanaEl) {
+    kanaEl.className = "avc-agent-word-kana";
+    kanaEl.textContent = displays.kana!;
+  }
+
   const readingEl = document.createElement("div");
   readingEl.className = "avc-agent-reading";
   readingEl.textContent = displays.secondary;
+  const hasSecondary = !!displays.secondary;
+  if (!hasSecondary) readingEl.style.display = "none";
 
   const glossEl = document.createElement("div");
   glossEl.className = "avc-agent-gloss";
@@ -1170,18 +1200,22 @@ function populateWordSection(ctx: WordContext): void {
 
   shell.wordActive.appendChild(chip);
   shell.wordActive.appendChild(wordRow);
+  if (kanaEl) shell.wordActive.appendChild(kanaEl);
 
   if (isReview) {
     readingEl.style.display = "none";
     glossEl.style.display = "none";
+    // The dual-script kana line is an answer too, not a prompt — withhold it.
+    if (kanaEl) kanaEl.style.display = "none";
     const showBtn = document.createElement("button");
     showBtn.className = "avc-agent-show-answer";
     showBtn.type = "button";
     showBtn.textContent = "Show answer";
     showBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      readingEl.style.display = "";
+      if (hasSecondary) readingEl.style.display = "";
       glossEl.style.display = "";
+      if (kanaEl) kanaEl.style.display = "";
       showBtn.remove();
     });
     shell.wordActive.appendChild(showBtn);

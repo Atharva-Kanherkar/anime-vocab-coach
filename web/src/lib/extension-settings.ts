@@ -3,7 +3,9 @@ import { resolveLearningDirection } from "./locale-direction";
 import type { SiteLocale } from "./locale";
 
 export type PauseMode = "copilot" | "pause" | "off";
-export type DisplayScript = "romaji" | "kana" | "kanji";
+/** Mirrors the extension's `DisplayScript` (src/types.ts) — separate builds,
+ * so both must be updated together. `romaji-kana` shows both scripts at once. */
+export type DisplayScript = "romaji" | "kana" | "kanji" | "romaji-kana";
 
 export interface ExtensionSettings {
   pauseMode: PauseMode;
@@ -16,6 +18,15 @@ export interface ExtensionSettings {
   autoSpeak: boolean;
   sites: { youtube: boolean; netflix: boolean; generic: boolean };
 }
+
+/** Every accepted `displayScript`. An unlisted value is silently reset to the
+ * default on sync, so a new script must be added here as well as to the type. */
+export const DISPLAY_SCRIPTS: readonly DisplayScript[] = [
+  "romaji",
+  "romaji-kana",
+  "kana",
+  "kanji",
+] as const;
 
 export const EXTENSION_SETTINGS_DEFAULTS: ExtensionSettings = {
   pauseMode: "copilot",
@@ -50,10 +61,9 @@ export function parseExtensionSettings(
     maxCardsPerHour: clampNum(raw?.maxCardsPerHour, 1, 60, d.maxCardsPerHour),
     targetLevel: clampNum(raw?.targetLevel, 1, 5, d.targetLevel),
     autoResumeSec: clampNum(raw?.autoResumeSec, 0, 120, d.autoResumeSec),
-    displayScript:
-      raw?.displayScript === "kana" || raw?.displayScript === "kanji" || raw?.displayScript === "romaji"
-        ? raw.displayScript
-        : d.displayScript,
+    displayScript: DISPLAY_SCRIPTS.includes(raw?.displayScript as DisplayScript)
+      ? (raw!.displayScript as DisplayScript)
+      : d.displayScript,
     learningDirection: hasExplicitDirection
       ? (raw!.learningDirection as LearningDirection)
       : resolveLearningDirection(undefined, locale),
