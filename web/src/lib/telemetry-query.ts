@@ -20,8 +20,10 @@ import {
   LLM_BLOBS,
   LLM_DATASET,
   LLM_DOUBLES,
+  TRANSCRIBE_DATASET,
   eventColumn,
   llmColumn,
+  transcribeColumn,
 } from "./telemetry-schema";
 
 export interface AnalyticsCredentials {
@@ -196,6 +198,25 @@ const weighted = (field: string, alias: string) =>
  */
 const latest = (field: string, alias: string) =>
   `argMax(${field}, timestamp) AS ${alias}`;
+/**
+ * Conditional aggregates.
+ *
+ * Analytics Engine's IF() requires both branches to have the SAME type, and it
+ * rejects the query outright rather than coercing:
+ *
+ *   the 2nd and 3rd arguments to IF() function must have the same type
+ *   but instead had Double and Integer
+ *
+ * So a counting branch (which returns the integer `_sample_interval`) needs the
+ * literal `0`, while a value branch (a double column times the weight) needs
+ * `0.0`. Getting it wrong does not under-report, it 422s the whole panel, so
+ * these two helpers exist to make the distinction impossible to mix up.
+ */
+const countIf = (cond: string, alias: string) =>
+  `SUM(IF(${cond}, _sample_interval, 0)) AS ${alias}`;
+
+const weightedIf = (cond: string, field: string, alias: string) =>
+  `SUM(IF(${cond}, ${field} * _sample_interval, 0.0)) AS ${alias}`;
 
 // ------------------------------------------------------------------ LLM SQL
 
@@ -476,3 +497,163 @@ export const LLM_FIELDS = LLM_BLOBS;
 export const LLM_METRICS = LLM_DOUBLES;
 export const EVENT_FIELDS = EVENT_BLOBS;
 export const EVENT_METRICS = EVENT_DOUBLES;
+
+
+// ------------------------------------------------------ Transcription (avc_transcribe)
+//
+// Written by the avc-api Worker (backend/src/telemetry.ts). Listening Mode was
+// previously invisible here: it runs in a different Worker that had no dataset,
+// so the dashboard's spend figures excluded the product's most expensive unit.
+
+export interface TranscribeTotalsRow {
+  calls: number;
+  audioMinutes: number;
+  cost: number;
+  latencySum: number;
+  segments: number;
+  providerCalls: number;
+  providerMinutes: number;
+  hits: number;
+  errors: number;
+  capHits: number;
+  users: number;
+}
+
+/**
+ * One row of totals for the window.
+ *
+ * `providerCalls` is the paid subset and `hits` is the cached subset, so the
+ * hit rate has a real denominator. Minutes are split the same way: total
+ * minutes is how much audio learners ran through Listening Mode, while
+ * `providerMinutes` is what was actually billable.
+ */
+export function transcribeTotalsSql(hours: number, userId?: string): string {
+  const outcome = transcribeColumn("outcome");
+  const status = transcribeColumn("status");
+  const provider = `${outcome} = 'provider_call'`;
+  const cached = `${outcome} IN ('cache_hit', 'peer_hit')`;
+  return `SELECT
+    ${CALLS},
+    ${weighted(transcribeColumn("audioMinutes"), "audioMinutes")},
+    ${weighted(transcribeColumn("costUsd"), "cost")},
+    ${weighted(transcribeColumn("latencyMs"), "latencySum")},
+    ${weighted(transcribeColumn("segments"), "segments")},
+    ${countIf(provider, "providerCalls")},
+    ${weightedIf(provider, transcribeColumn("audioMinutes"), "providerMinutes")},
+    ${countIf(cached, "hits")},
+    ${countIf(`${status} = 'error'`, "errors")},
+    ${countIf(`${outcome} = 'cap_exceeded'`, "capHits")},
+    COUNT(DISTINCT ${transcribeColumn("userId")}) AS users
+  FROM ${TRANSCRIBE_DATASET}
+  WHERE ${since(hours)}${userId ? ` AND ${transcribeColumn("userId")} = ${sqlString(userId)}` : ""}`;
+}
+
+export interface TranscribeGroupRow {
+  label: string;
+  calls: number;
+  audioMinutes: number;
+  cost: number;
+  latencySum: number;
+  errors: number;
+}
+
+/** Transcriptions grouped by any blob (outcome, provider, language, plan, …). */
+export function transcribeGroupSql(
+  field: Parameters<typeof transcribeColumn>[0],
+  hours: number,
+  limit = 20
+): string {
+  const col = transcribeColumn(field);
+  return `SELECT
+    ${col} AS label,
+    ${CALLS},
+    ${weighted(transcribeColumn("audioMinutes"), "audioMinutes")},
+    ${weighted(transcribeColumn("costUsd"), "cost")},
+    ${weighted(transcribeColumn("latencyMs"), "latencySum")},
+    ${countIf(`${transcribeColumn("status")} = 'error'`, "errors")}
+  FROM ${TRANSCRIBE_DATASET}
+  WHERE ${since(hours)}
+  GROUP BY label
+  ORDER BY calls DESC
+  LIMIT ${Math.max(1, Math.floor(limit))}`;
+}
+
+export interface TranscribeUserRow {
+  userId: string;
+  plan: string;
+  calls: number;
+  audioMinutes: number;
+  cost: number;
+  /** Highest running monthly total seen, i.e. how close to the plan cap. */
+  peakMonthMinutes: number;
+}
+
+/**
+ * Heaviest listeners, with how close each came to their monthly cap.
+ *
+ * `monthMinutesAfter` is the running total the writer stamped on each row, so
+ * MAX over the window is the closest that user got to the ceiling. That is the
+ * number that tells you whether a cap is about to cut off your best user.
+ */
+export function transcribeByUserSql(hours: number, limit = 25): string {
+  return `SELECT
+    ${transcribeColumn("userId")} AS userId,
+    ${latest(transcribeColumn("plan"), "plan")},
+    ${CALLS},
+    ${weighted(transcribeColumn("audioMinutes"), "audioMinutes")},
+    ${weighted(transcribeColumn("costUsd"), "cost")},
+    MAX(${transcribeColumn("monthMinutesAfter")}) AS peakMonthMinutes
+  FROM ${TRANSCRIBE_DATASET}
+  WHERE ${since(hours)}
+  GROUP BY userId
+  ORDER BY audioMinutes DESC
+  LIMIT ${Math.max(1, Math.floor(limit))}`;
+}
+
+export interface TranscribeSeriesRow {
+  bucket: string;
+  calls: number;
+  audioMinutes: number;
+  cost: number;
+}
+
+/** Daily transcription volume, for the trend chart. */
+export function transcribeSeriesSql(hours: number): string {
+  return `SELECT
+    toStartOfInterval(timestamp, INTERVAL '1' DAY) AS bucket,
+    ${CALLS},
+    ${weighted(transcribeColumn("audioMinutes"), "audioMinutes")},
+    ${weighted(transcribeColumn("costUsd"), "cost")}
+  FROM ${TRANSCRIBE_DATASET}
+  WHERE ${since(hours)}
+  GROUP BY bucket
+  ORDER BY bucket`;
+}
+
+// ---------------------------------------------------------- Distinct-user fixes
+//
+// `Totals.users` was declared but never populated, so the dashboard rendered
+// "0 distinct users" next to a five-figure call count. AE does support
+// COUNT(DISTINCT ...) — the bug was that the facets query (which is grouped)
+// never selected it, and summing per-group distinct counts would double-count
+// anyone who appears in two groups anyway. Hence a dedicated ungrouped query.
+
+/** Distinct users who made an LLM call in the window. */
+export function llmDistinctUsersSql(hours: number): string {
+  const col = llmColumn("userId");
+  return `SELECT COUNT(DISTINCT ${col}) AS users
+  FROM ${LLM_DATASET}
+  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'`;
+}
+
+/** Distinct identified users seen in the event stream in the window. */
+export function eventDistinctUsersSql(hours: number): string {
+  const col = eventColumn("userId");
+  return `SELECT COUNT(DISTINCT ${col}) AS users
+  FROM ${EVENT_DATASET}
+  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'`;
+}
+
+export interface DistinctUsersRow {
+  users: number;
+}

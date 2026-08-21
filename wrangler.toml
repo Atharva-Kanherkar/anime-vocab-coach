@@ -28,3 +28,10 @@ DEEPINFRA_WHISPER_MODEL = "openai/whisper-large-v3"
 TRANSCRIBE_PROVIDERS = "openai"
 TRANSCRIPT_MODEL_VERSION = "1"
 PROMO_END_UTC = "2026-08-03T23:59:59.000Z"
+
+# Listening Mode transcription observability. Dataset is created on first write
+# and needs no credentials; the /owner dashboard READS it over the Analytics
+# Engine SQL API. Column layout: backend/src/telemetry-schema.ts (append-only).
+[[analytics_engine_datasets]]
+binding = "TRANSCRIBE_AE"
+dataset = "avc_transcribe"

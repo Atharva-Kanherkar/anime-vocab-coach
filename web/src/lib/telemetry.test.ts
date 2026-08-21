@@ -10,6 +10,7 @@ import {
 import {
   authKindOf,
   deviceClass,
+  externalReferrerHost,
   recordLlmCall,
   recordUserEvent,
   requestFacts,
@@ -693,5 +694,69 @@ describe("generated SQL matches the Analytics Engine dialect", () => {
       if (!/SUM\(/i.test(sql)) continue;
       expect(sql, `${label} must weight counts`).toContain("_sample_interval");
     }
+  });
+});
+
+/**
+ * Attribution regression pin.
+ *
+ * Every pageview in the first two weeks of telemetry recorded
+ * `animevocab.com` as its own referrer (439 of 439), because the server read
+ * the `Referer` header of the /api/track beacon, and that header is always the
+ * page that fired the beacon. The product had no acquisition data at all and
+ * nothing failed to make that visible. These tests pin the two halves of the
+ * fix: our own hosts collapse to "", and a real external host survives.
+ */
+describe("externalReferrerHost", () => {
+  it("drops our own domain, so self-referral reads as unknown not as a source", () => {
+    expect(externalReferrerHost("https://animevocab.com/blog")).toBe("");
+    expect(externalReferrerHost("https://www.animevocab.com/")).toBe("");
+    expect(externalReferrerHost("http://localhost:3000/app")).toBe("");
+  });
+
+  it("drops our own subdomains, including preview deploys", () => {
+    expect(externalReferrerHost("https://preview.animevocab.com/x")).toBe("");
+  });
+
+  it("keeps a real external host", () => {
+    expect(externalReferrerHost("https://www.google.com/search?q=migaku+alternative")).toBe(
+      "www.google.com"
+    );
+    expect(externalReferrerHost("https://old.reddit.com/r/LearnJapanese/")).toBe("old.reddit.com");
+  });
+
+  it("lower-cases the host so one source is not split across rows", () => {
+    expect(externalReferrerHost("https://News.YCombinator.com/item?id=1")).toBe(
+      "news.ycombinator.com"
+    );
+  });
+
+  it("returns empty for a direct visit", () => {
+    expect(externalReferrerHost("")).toBe("");
+    expect(externalReferrerHost("   ")).toBe("");
+  });
+
+  it("rejects non-web schemes, which are not acquisition sources", () => {
+    expect(externalReferrerHost("chrome-extension://abcdef/popup.html")).toBe("");
+    expect(externalReferrerHost("data:text/html,<b>x</b>")).toBe("");
+    expect(externalReferrerHost("file:///Users/x/index.html")).toBe("");
+  });
+
+  it("survives hostile input without throwing, since any client can post it", () => {
+    for (const bad of [
+      "not a url",
+      "://",
+      "https://",
+      "'; DROP TABLE avc_events; --",
+      "<script>alert(1)</script>",
+    ]) {
+      expect(() => externalReferrerHost(bad)).not.toThrow();
+      expect(externalReferrerHost(bad)).toBe("");
+    }
+  });
+
+  it("bounds the stored host so dashboard cardinality cannot be flooded", () => {
+    const long = `https://${"a".repeat(500)}.com/`;
+    expect(externalReferrerHost(long).length).toBeLessThanOrEqual(128);
   });
 });

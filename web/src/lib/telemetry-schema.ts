@@ -80,3 +80,55 @@ export function columnFor(
 
 export const llmColumn = (f: LlmBlob | LlmDouble) => columnFor(f, LLM_BLOBS, LLM_DOUBLES);
 export const eventColumn = (f: EventBlob | EventDouble) => columnFor(f, EVENT_BLOBS, EVENT_DOUBLES);
+
+// ------------------------------------------- Transcription (avc-api Worker)
+//
+// MIRROR of backend/src/telemetry-schema.ts. The writer is the avc-api Worker
+// and the reader is this app's /owner dashboard; they are separate builds with
+// no shared module, so the two lists must be kept identical by hand. The root
+// test suite pins them (test/telemetry-schema-mirror.test.ts) because a
+// divergence does not fail a build, it silently mislabels dashboard columns.
+//
+// APPEND-ONLY, same as the datasets above.
+
+/** Dataset name as it appears in SQL FROM clauses (not the binding name). */
+export const TRANSCRIBE_DATASET = "avc_transcribe";
+
+export const TRANSCRIBE_BLOBS = [
+  "provider",
+  "model",
+  "userId",
+  "plan",
+  "status",
+  "errorCode",
+  "language",
+  "country",
+  "outcome",
+  "fallbackUsed",
+] as const;
+
+export const TRANSCRIBE_DOUBLES = [
+  "audioMinutes",
+  "costUsd",
+  "latencyMs",
+  "segments",
+  "monthMinutesAfter",
+] as const;
+
+export type TranscribeBlob = (typeof TRANSCRIBE_BLOBS)[number];
+export type TranscribeDouble = (typeof TRANSCRIBE_DOUBLES)[number];
+
+/** Why a transcription cost what it did. `cache_hit`/`peer_hit` are the rows
+ *  that used to be invisible, and they are the denominator of the hit rate. */
+export const TRANSCRIBE_OUTCOMES = [
+  "provider_call",
+  "cache_hit",
+  "peer_hit",
+  "cap_exceeded",
+  "provider_error",
+] as const;
+
+export type TranscribeOutcome = (typeof TRANSCRIBE_OUTCOMES)[number];
+
+export const transcribeColumn = (f: TranscribeBlob | TranscribeDouble) =>
+  columnFor(f, TRANSCRIBE_BLOBS, TRANSCRIBE_DOUBLES);
