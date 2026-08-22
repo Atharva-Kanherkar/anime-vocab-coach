@@ -90,7 +90,7 @@ Store submission: [PUBLISHING.md](PUBLISHING.md)
 
 ## Contributing
 
-Issues and PRs welcome — especially site adapters, tokenizer edge cases, and dictionary quality. Run `npm run typecheck && npm run build` before submitting.
+Not accepting outside issues or PRs right now due to business and bandwidth constraints. Thank you to everyone who has contributed so far, it's genuinely appreciated. Hoping to reopen this in the future.
 
 ## License
 
