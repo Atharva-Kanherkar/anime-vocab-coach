@@ -1432,6 +1432,9 @@
       0 2px 10px rgba(0, 0, 0, 0.65),
       0 0 24px rgba(0, 0, 0, 0.4);
   }
+  .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-word-kana {
+    font-size: 16px;
+  }
   .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-word-block.avc-active .avc-agent-reading {
     color: rgba(248, 244, 236, 0.82);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
@@ -1504,6 +1507,13 @@
     font-family: inherit;
   }
   .avc-agent-speak:hover { background: rgba(255, 255, 255, 0.1); color: rgba(248, 244, 236, 0.9); }
+  .avc-agent-word-kana {
+    font-size: 22px; font-weight: 500; line-height: 1.2;
+    color: rgba(227, 186, 99, 0.78);
+    margin: -2px 0 6px; letter-spacing: 0.02em;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  }
   .avc-agent-reading { font-size: 13px; color: rgba(236, 234, 228, 0.42); margin-bottom: 6px; }
   .avc-agent-gloss { font-size: 14px; line-height: 1.45; color: rgba(236, 234, 228, 0.62); margin-bottom: 12px; }
   .avc-agent-context, .avc-agent-sentence {
@@ -1849,6 +1859,13 @@
     const roma = toRomaji(entry.reading);
     if (displayScript === "kana") return { big: entry.reading, secondary: `${roma} \xB7 ${token.surface}` };
     if (displayScript === "kanji") return { big: token.surface, secondary: `${entry.reading} \xB7 ${roma}` };
+    if (displayScript === "romaji-kana") {
+      return {
+        big: roma,
+        kana: entry.reading,
+        secondary: token.surface === entry.reading ? "" : token.surface
+      };
+    }
     const secondary = token.surface === entry.reading ? entry.reading : `${entry.reading} \xB7 ${token.surface}`;
     return { big: roma, secondary };
   }
@@ -1898,7 +1915,8 @@
     label.textContent = tokens?.length ? "In this line" : "Line";
     el.appendChild(label);
     if (tokens?.length) {
-      if (normalizeDirection(direction) === "en-ja" && displayScript === "romaji") {
+      const romajiSentence = displayScript === "romaji" || displayScript === "romaji-kana";
+      if (normalizeDirection(direction) === "en-ja" && romajiSentence) {
         const pieces = sentencePieces(tokens, targetIndex ?? -1);
         const romajiLine = document.createElement("div");
         romajiLine.className = "avc-agent-romaji-line";
@@ -2239,25 +2257,35 @@
     });
     wordRow.appendChild(wordEl);
     wordRow.appendChild(speakBtn);
+    const kanaEl = displays.kana ? document.createElement("div") : null;
+    if (kanaEl) {
+      kanaEl.className = "avc-agent-word-kana";
+      kanaEl.textContent = displays.kana;
+    }
     const readingEl = document.createElement("div");
     readingEl.className = "avc-agent-reading";
     readingEl.textContent = displays.secondary;
+    const hasSecondary = !!displays.secondary;
+    if (!hasSecondary) readingEl.style.display = "none";
     const glossEl = document.createElement("div");
     glossEl.className = "avc-agent-gloss";
     glossEl.textContent = entry.glosses.join(" \xB7 ");
     shell.wordActive.appendChild(chip);
     shell.wordActive.appendChild(wordRow);
+    if (kanaEl) shell.wordActive.appendChild(kanaEl);
     if (isReview) {
       readingEl.style.display = "none";
       glossEl.style.display = "none";
+      if (kanaEl) kanaEl.style.display = "none";
       const showBtn = document.createElement("button");
       showBtn.className = "avc-agent-show-answer";
       showBtn.type = "button";
       showBtn.textContent = "Show answer";
       showBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        readingEl.style.display = "";
+        if (hasSecondary) readingEl.style.display = "";
         glossEl.style.display = "";
+        if (kanaEl) kanaEl.style.display = "";
         showBtn.remove();
       });
       shell.wordActive.appendChild(showBtn);
