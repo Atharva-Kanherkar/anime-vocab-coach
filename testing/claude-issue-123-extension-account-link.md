@@ -80,6 +80,16 @@ Two smaller defects fall out of the same area:
 - An older web build that sends no `plan` leaves the stored plan untouched rather
   than overwriting it with `null`.
 
+### Copy
+
+Standing house rule (it reads as an AI tell): no em dash or en dash in prose
+people read. Every user-facing string this change adds is free of both, and the
+account-status copy shared by the popup and the onboarding page lives in one
+exported constant so a test can pin it rather than trusting review.
+
+The popup's existing upgrade button carried one; it is corrected here because it
+sits in the same account surface.
+
 ## Unit Tests — `test/account-link.test.ts`
 
 - `shouldAttemptAutoLink` returns false when a token is already stored.
@@ -95,6 +105,10 @@ Two smaller defects fall out of the same area:
   storing it.
 - `normalizeSyncProfile` (storage) keeps a previously stored plan when the new
   payload omits `plan`, and clears it when the payload sends `null`.
+- No string in the shared `ACCOUNT_COPY` constant matches `/[—–]/`.
+- The onboarding page's HTML matches no `/[—–]/`.
+- `planLabel` names only tiers the account reported, and returns an empty label
+  for an unknown plan so the popup renders no badge.
 
 ## Integration / Functional Tests
 
