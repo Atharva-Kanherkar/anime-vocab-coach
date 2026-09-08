@@ -431,6 +431,21 @@
       }
     });
   }
+  function planLabel(plan) {
+    return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
+  }
+  async function requestAccountLink(force) {
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: "avc-account-link",
+        trigger: "popup",
+        force
+      });
+      return res?.linked === true;
+    } catch {
+      return false;
+    }
+  }
   async function renderAccount() {
     const el = byId("account");
     const token = await getSyncToken();
@@ -438,23 +453,36 @@
       const relink = await getRelinkNeeded();
       const title2 = relink ? "Sign-in expired" : "Not signed in";
       const sub2 = relink ? "Re-link to resume cloud sync" : "Progress stays on this device only";
-      const cta = relink ? "Re-link \u2014 animevocab.com" : "Sign in to sync \u2014 animevocab.com";
+      const cta = relink ? "Reconnect account" : "Connect account";
       const dot2 = relink ? "av-dot av-dot-warn" : "av-dot av-dot-off";
       el.innerHTML = `<div class="av-account-row"><span class="${dot2}"></span><div><b>${title2}</b><span class="av-account-sub">${sub2}</span></div></div><button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">${cta}</button>`;
       byId("signin-btn").addEventListener("click", () => {
-        chrome.tabs.create({ url: `${WEB_URL}/app` });
+        void (async () => {
+          const btn = byId("signin-btn");
+          btn.disabled = true;
+          btn.textContent = "Connecting\u2026";
+          if (await requestAccountLink(true)) {
+            await renderAccount();
+            void renderUsage();
+            return;
+          }
+          chrome.tabs.create({ url: `${WEB_URL}/app` });
+          btn.disabled = false;
+          btn.textContent = cta;
+        })();
       });
       return;
     }
     const profile = await getSyncProfile();
     const sync = await getSyncStatus();
     const who = profile?.email || profile?.name || "your account";
+    const plan = planLabel(profile?.plan);
     const staleSync = sync.state === "syncing" && !!sync.lastAttemptAt && Date.now() - sync.lastAttemptAt > 2 * 6e4;
     const lastGood = sync.lastSuccessAt ? relativeTime(sync.lastSuccessAt) : "not backed up yet";
     const title = staleSync || sync.state === "error" ? "Cloud sync issue" : sync.state === "syncing" ? "Syncing now\u2026" : "Cloud sync on";
     const sub = staleSync ? `Previous sync was interrupted \xB7 last good sync ${lastGood}` : sync.state === "error" ? `${sync.error || "Couldn't reach cloud."} \xB7 last good sync ${lastGood}` : sync.state === "ok" ? `Synced as ${who} \xB7 ${lastGood}` : `Connected as ${who} \xB7 waiting for first backup`;
     const dot = staleSync || sync.state === "error" ? "av-dot av-dot-warn" : "av-dot";
-    el.innerHTML = `<div class="av-account-row"><span class="${dot}"></span><div><b>${title}</b><span class="av-account-sub">${esc(sub)}</span></div></div>` + (staleSync || sync.state === "error" ? `<button id="sync-retry" class="av-btn av-btn-ghost av-btn-block" type="button">Retry cloud sync</button>` : "");
+    el.innerHTML = `<div class="av-account-row"><span class="${dot}"></span><div><b>${title}</b><span class="av-account-sub">${esc(sub)}</span></div>` + (plan ? `<span class="av-account-plan">${esc(plan)}</span>` : "") + `</div>` + (staleSync || sync.state === "error" ? `<button id="sync-retry" class="av-btn av-btn-ghost av-btn-block" type="button">Retry cloud sync</button>` : "");
     document.getElementById("sync-retry")?.addEventListener("click", () => {
       void chrome.runtime.sendMessage({ type: "avc-sync-now" });
     });
@@ -632,6 +660,10 @@
     void renderAccount();
     void renderUsage();
     void initModeControls();
+    void (async () => {
+      if (await getSyncToken()) return;
+      await requestAccountLink(false);
+    })();
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded || changes.syncStatus)) {
         void renderAccount();
