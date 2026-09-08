@@ -361,6 +361,33 @@
     return true;
   }
 
+  // src/lib/account-link.ts
+  var TOKEN_URL = WEB_URL + "/api/sync/token";
+  var AUTO_LINK_COOLDOWN_MS = 60 * 60 * 1e3;
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+  function planLabel(plan) {
+    return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
+  }
+  var ACCOUNT_COPY = {
+    checkingTitle: "Checking this browser\u2026",
+    checkingNote: "Looking for a signed-in animevocab.com session.",
+    linkedTitle: "Connected",
+    notLinkedTitle: "Not connected",
+    notLinkedNote: "Your words stay on this device only.",
+    connect: "Connect account",
+    connecting: "Connecting\u2026",
+    reconnect: "Reconnect account",
+    linkedNote: (who) => `Signed in as ${who}. Your words sync automatically.`,
+    /** Stand-in when the mint endpoint gave us neither an email nor a name. */
+    unnamedAccount: "your account",
+    openApp: "Open your cloud app",
+    /** Popup-only: it distinguishes a fresh install from an expired session. */
+    popupNotSignedIn: "Not signed in",
+    popupNotSignedInNote: "Progress stays on this device only",
+    popupExpired: "Sign-in expired",
+    popupExpiredNote: "Re-link to resume cloud sync"
+  };
+
   // src/entries/popup.ts
   var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   function todayKey() {
@@ -431,9 +458,6 @@
       }
     });
   }
-  function planLabel(plan) {
-    return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
-  }
   async function requestAccountLink(force) {
     try {
       const res = await chrome.runtime.sendMessage({
@@ -451,16 +475,16 @@
     const token = await getSyncToken();
     if (!token) {
       const relink = await getRelinkNeeded();
-      const title2 = relink ? "Sign-in expired" : "Not signed in";
-      const sub2 = relink ? "Re-link to resume cloud sync" : "Progress stays on this device only";
-      const cta = relink ? "Reconnect account" : "Connect account";
+      const title2 = relink ? ACCOUNT_COPY.popupExpired : ACCOUNT_COPY.popupNotSignedIn;
+      const sub2 = relink ? ACCOUNT_COPY.popupExpiredNote : ACCOUNT_COPY.popupNotSignedInNote;
+      const cta = relink ? ACCOUNT_COPY.reconnect : ACCOUNT_COPY.connect;
       const dot2 = relink ? "av-dot av-dot-warn" : "av-dot av-dot-off";
       el.innerHTML = `<div class="av-account-row"><span class="${dot2}"></span><div><b>${title2}</b><span class="av-account-sub">${sub2}</span></div></div><button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">${cta}</button>`;
       byId("signin-btn").addEventListener("click", () => {
         void (async () => {
           const btn = byId("signin-btn");
           btn.disabled = true;
-          btn.textContent = "Connecting\u2026";
+          btn.textContent = ACCOUNT_COPY.connecting;
           if (await requestAccountLink(true)) {
             await renderAccount();
             void renderUsage();
@@ -475,7 +499,7 @@
     }
     const profile = await getSyncProfile();
     const sync = await getSyncStatus();
-    const who = profile?.email || profile?.name || "your account";
+    const who = profile?.email || profile?.name || ACCOUNT_COPY.unnamedAccount;
     const plan = planLabel(profile?.plan);
     const staleSync = sync.state === "syncing" && !!sync.lastAttemptAt && Date.now() - sync.lastAttemptAt > 2 * 6e4;
     const lastGood = sync.lastSuccessAt ? relativeTime(sync.lastSuccessAt) : "not backed up yet";
@@ -529,7 +553,7 @@
     const aiLow = !usage.unlimited && meterLow(usage.ai);
     const listenLow = !usage.unlimited && meterLow(usage.listening);
     const offer = usage.plan === "free" ? usage.tiers?.pro : usage.plan === "pro" ? usage.tiers?.max : null;
-    const cta = (aiLow || listenLow) && offer?.checkoutUrl ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">Upgrade to ${esc(offer.name)} \u2014 ${esc(offer.priceLabel)}</button>` : "";
+    const cta = (aiLow || listenLow) && offer?.checkoutUrl ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">Upgrade to ${esc(offer.name)} \xB7 ${esc(offer.priceLabel)}</button>` : "";
     el.innerHTML = `<div class="av-usage-head"><span class="av-usage-title">This month</span><span class="av-usage-plan">${esc(planName)}</span></div>` + meters + cta;
     el.hidden = false;
     if (cta && offer?.checkoutUrl) {

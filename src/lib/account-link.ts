@@ -40,6 +40,38 @@ export const AUTO_LINK_COOLDOWN_MS = 60 * 60 * 1000;
  * out of, which reads as the extension ignoring them. */
 export const SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1000;
 
+/** Tier label for a linked account. Empty when the account did not report one:
+ * guessing "Free" at somebody paying for Max is worse than saying nothing. */
+export function planLabel(plan: SyncPlan | null | undefined): string {
+  return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
+}
+
+/**
+ * Account-status wording, shared by the popup row and the onboarding page so
+ * the two surfaces cannot drift into saying different things about the same
+ * state. Kept in one constant so the house style rule (no em or en dashes in
+ * anything people read) is pinned by a test instead of by review.
+ */
+export const ACCOUNT_COPY = {
+  checkingTitle: "Checking this browser…",
+  checkingNote: "Looking for a signed-in animevocab.com session.",
+  linkedTitle: "Connected",
+  notLinkedTitle: "Not connected",
+  notLinkedNote: "Your words stay on this device only.",
+  connect: "Connect account",
+  connecting: "Connecting…",
+  reconnect: "Reconnect account",
+  linkedNote: (who: string) => `Signed in as ${who}. Your words sync automatically.`,
+  /** Stand-in when the mint endpoint gave us neither an email nor a name. */
+  unnamedAccount: "your account",
+  openApp: "Open your cloud app",
+  /** Popup-only: it distinguishes a fresh install from an expired session. */
+  popupNotSignedIn: "Not signed in",
+  popupNotSignedInNote: "Progress stays on this device only",
+  popupExpired: "Sign-in expired",
+  popupExpiredNote: "Re-link to resume cloud sync",
+} as const;
+
 export interface AutoLinkGateInput {
   /** Already linked — there is nothing to mint. */
   hasToken: boolean;

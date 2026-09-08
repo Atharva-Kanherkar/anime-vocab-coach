@@ -73,9 +73,11 @@ async function broadcastToken(force = false): Promise<void> {
   try {
     const res = await fetch("/api/sync/token", { method: "POST" });
     if (!res.ok) throw new Error(`token HTTP ${res.status}`);
+    // plan rides along so the extension popup can name the tier; it has always
+    // been in the response, and the extension now stores it (#123).
     const { token, profile } = (await res.json()) as {
       token?: string;
-      profile?: { email?: string | null; name?: string | null };
+      profile?: { email?: string | null; name?: string | null; plan?: string | null };
     };
     if (!token) throw new Error("no token");
     window.postMessage(

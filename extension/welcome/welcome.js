@@ -30,15 +30,39 @@
     });
   }
 
+  // src/lib/account-link.ts
+  var TOKEN_URL = WEB_URL + "/api/sync/token";
+  var AUTO_LINK_COOLDOWN_MS = 60 * 60 * 1e3;
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+  function planLabel(plan) {
+    return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
+  }
+  var ACCOUNT_COPY = {
+    checkingTitle: "Checking this browser\u2026",
+    checkingNote: "Looking for a signed-in animevocab.com session.",
+    linkedTitle: "Connected",
+    notLinkedTitle: "Not connected",
+    notLinkedNote: "Your words stay on this device only.",
+    connect: "Connect account",
+    connecting: "Connecting\u2026",
+    reconnect: "Reconnect account",
+    linkedNote: (who) => `Signed in as ${who}. Your words sync automatically.`,
+    /** Stand-in when the mint endpoint gave us neither an email nor a name. */
+    unnamedAccount: "your account",
+    openApp: "Open your cloud app",
+    /** Popup-only: it distinguishes a fresh install from an expired session. */
+    popupNotSignedIn: "Not signed in",
+    popupNotSignedInNote: "Progress stays on this device only",
+    popupExpired: "Sign-in expired",
+    popupExpiredNote: "Re-link to resume cloud sync"
+  };
+
   // src/entries/welcome.ts
   function byId(id) {
     return document.getElementById(id);
   }
   function esc(s) {
     return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  }
-  function planLabel(plan) {
-    return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
   }
   async function requestLink(force) {
     try {
@@ -53,33 +77,33 @@
     }
   }
   function renderChecking() {
-    byId("account").innerHTML = `<div class="status"><span class="dot warn"></span><div><b>Checking this browser\u2026</b><span class="note">Looking for a signed-in animevocab.com session.</span></div></div>`;
+    byId("account").innerHTML = `<div class="status"><span class="dot warn"></span><div><b>${ACCOUNT_COPY.checkingTitle}</b><span class="note">${ACCOUNT_COPY.checkingNote}</span></div></div>`;
   }
   async function renderAccount() {
     const el = byId("account");
     const token = await getSyncToken();
     if (!token) {
-      el.innerHTML = `<div class="status"><span class="dot off"></span><div><b>Not connected</b><span class="note">Your words stay on this device only.</span></div></div><div class="row"><button type="button" class="btn btn-primary" id="connect">Connect account</button></div>`;
+      el.innerHTML = `<div class="status"><span class="dot off"></span><div><b>${ACCOUNT_COPY.notLinkedTitle}</b><span class="note">${ACCOUNT_COPY.notLinkedNote}</span></div></div><div class="row"><button type="button" class="btn btn-primary" id="connect">${ACCOUNT_COPY.connect}</button></div>`;
       byId("connect").addEventListener("click", () => {
         void (async () => {
           const button = byId("connect");
           button.disabled = true;
-          button.textContent = "Connecting\u2026";
+          button.textContent = ACCOUNT_COPY.connecting;
           if (await requestLink(true)) {
             await renderAccount();
             return;
           }
           await chrome.tabs.create({ url: `${WEB_URL}/app` });
           button.disabled = false;
-          button.textContent = "Connect account";
+          button.textContent = ACCOUNT_COPY.connect;
         })();
       });
       return;
     }
     const profile = await getSyncProfile();
-    const who = profile?.email || profile?.name || "your account";
+    const who = profile?.email || profile?.name || ACCOUNT_COPY.unnamedAccount;
     const plan = planLabel(profile?.plan ?? null);
-    el.innerHTML = `<div class="status"><span class="dot"></span><div><b>Connected${plan ? ` \xB7 ${esc(plan)}` : ""}</b><span class="note">Signed in as ${esc(who)}. Your words sync automatically.</span></div></div><div class="row"><button type="button" class="btn" id="open-app">Open your cloud app</button></div>`;
+    el.innerHTML = `<div class="status"><span class="dot"></span><div><b>${ACCOUNT_COPY.linkedTitle}${plan ? ` \xB7 ${esc(plan)}` : ""}</b><span class="note">${esc(ACCOUNT_COPY.linkedNote(who))}</span></div></div><div class="row"><button type="button" class="btn" id="open-app">${ACCOUNT_COPY.openApp}</button></div>`;
     byId("open-app").addEventListener("click", () => {
       void chrome.tabs.create({ url: `${WEB_URL}/app` });
     });

@@ -6,8 +6,8 @@
 // (#123). This page states the three things that have to happen and resolves
 // the third one itself where it can.
 import { WEB_URL } from "../config";
+import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
 import * as storage from "../lib/storage";
-import type { SyncPlan } from "../types";
 
 function byId<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -15,10 +15,6 @@ function byId<T extends HTMLElement>(id: string): T {
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
-}
-
-function planLabel(plan: SyncPlan | null): string {
-  return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
 }
 
 /** Ask the background worker to mint a token from this browser's animevocab.com
@@ -39,7 +35,7 @@ async function requestLink(force: boolean): Promise<boolean> {
 function renderChecking(): void {
   byId("account").innerHTML =
     `<div class="status"><span class="dot warn"></span>` +
-    `<div><b>Checking this browser…</b><span class="note">Looking for a signed-in animevocab.com session.</span></div></div>`;
+    `<div><b>${ACCOUNT_COPY.checkingTitle}</b><span class="note">${ACCOUNT_COPY.checkingNote}</span></div></div>`;
 }
 
 async function renderAccount(): Promise<void> {
@@ -49,13 +45,13 @@ async function renderAccount(): Promise<void> {
   if (!token) {
     el.innerHTML =
       `<div class="status"><span class="dot off"></span>` +
-      `<div><b>Not connected</b><span class="note">Your words stay on this device only.</span></div></div>` +
-      `<div class="row"><button type="button" class="btn btn-primary" id="connect">Connect account</button></div>`;
+      `<div><b>${ACCOUNT_COPY.notLinkedTitle}</b><span class="note">${ACCOUNT_COPY.notLinkedNote}</span></div></div>` +
+      `<div class="row"><button type="button" class="btn btn-primary" id="connect">${ACCOUNT_COPY.connect}</button></div>`;
     byId("connect").addEventListener("click", () => {
       void (async () => {
         const button = byId<HTMLButtonElement>("connect");
         button.disabled = true;
-        button.textContent = "Connecting…";
+        button.textContent = ACCOUNT_COPY.connecting;
         // Try the silent link once more first — the learner may have signed in
         // on another tab since the page loaded. Only send them to the site when
         // this browser genuinely has no session to borrow.
@@ -65,20 +61,20 @@ async function renderAccount(): Promise<void> {
         }
         await chrome.tabs.create({ url: `${WEB_URL}/app` });
         button.disabled = false;
-        button.textContent = "Connect account";
+        button.textContent = ACCOUNT_COPY.connect;
       })();
     });
     return;
   }
 
   const profile = await storage.getSyncProfile();
-  const who = profile?.email || profile?.name || "your account";
+  const who = profile?.email || profile?.name || ACCOUNT_COPY.unnamedAccount;
   const plan = planLabel(profile?.plan ?? null);
   el.innerHTML =
     `<div class="status"><span class="dot"></span>` +
-    `<div><b>Connected${plan ? ` · ${esc(plan)}` : ""}</b>` +
-    `<span class="note">Signed in as ${esc(who)}. Your words sync automatically.</span></div></div>` +
-    `<div class="row"><button type="button" class="btn" id="open-app">Open your cloud app</button></div>`;
+    `<div><b>${ACCOUNT_COPY.linkedTitle}${plan ? ` · ${esc(plan)}` : ""}</b>` +
+    `<span class="note">${esc(ACCOUNT_COPY.linkedNote(who))}</span></div></div>` +
+    `<div class="row"><button type="button" class="btn" id="open-app">${ACCOUNT_COPY.openApp}</button></div>`;
   byId("open-app").addEventListener("click", () => {
     void chrome.tabs.create({ url: `${WEB_URL}/app` });
   });

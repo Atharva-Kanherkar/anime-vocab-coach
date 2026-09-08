@@ -2,7 +2,8 @@ import { WEB_URL } from "../config";
 import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
-import type { DailyStats, SyncPlan } from "../types";
+import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
+import type { DailyStats } from "../types";
 
 type Theme = "dark" | "light";
 
@@ -102,10 +103,6 @@ function initTheme(): void {
   });
 }
 
-function planLabel(plan: SyncPlan | null | undefined): string {
-  return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
-}
-
 /** Ask the background worker to link this browser to its signed-in
  * animevocab.com session. It owns the host permission; the popup's own fetch
  * would be bound by page CORS. Resolves false when there is nothing to link. */
@@ -134,9 +131,9 @@ async function renderAccount(): Promise<void> {
     // Distinguish "never linked" from "was linked but repeated 401s signed us
     // out" so an expired session reads as recoverable, not a fresh setup.
     const relink = await storage.getRelinkNeeded();
-    const title = relink ? "Sign-in expired" : "Not signed in";
-    const sub = relink ? "Re-link to resume cloud sync" : "Progress stays on this device only";
-    const cta = relink ? "Reconnect account" : "Connect account";
+    const title = relink ? ACCOUNT_COPY.popupExpired : ACCOUNT_COPY.popupNotSignedIn;
+    const sub = relink ? ACCOUNT_COPY.popupExpiredNote : ACCOUNT_COPY.popupNotSignedInNote;
+    const cta = relink ? ACCOUNT_COPY.reconnect : ACCOUNT_COPY.connect;
     const dot = relink ? "av-dot av-dot-warn" : "av-dot av-dot-off";
     el.innerHTML =
       `<div class="av-account-row"><span class="${dot}"></span>` +
@@ -149,7 +146,7 @@ async function renderAccount(): Promise<void> {
         // step people were never completing (#123).
         const btn = byId<HTMLButtonElement>("signin-btn");
         btn.disabled = true;
-        btn.textContent = "Connecting…";
+        btn.textContent = ACCOUNT_COPY.connecting;
         if (await requestAccountLink(true)) {
           await renderAccount();
           void renderUsage();
@@ -165,7 +162,7 @@ async function renderAccount(): Promise<void> {
 
   const profile = await storage.getSyncProfile();
   const sync = await storage.getSyncStatus();
-  const who = profile?.email || profile?.name || "your account";
+  const who = profile?.email || profile?.name || ACCOUNT_COPY.unnamedAccount;
   // Only name a tier the account actually reported. Guessing "Free" at someone
   // paying for Max is worse than saying nothing.
   const plan = planLabel(profile?.plan);
@@ -297,7 +294,7 @@ async function renderUsage(): Promise<void> {
   const cta =
     (aiLow || listenLow) && offer?.checkoutUrl
       ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">` +
-        `Upgrade to ${esc(offer.name)} — ${esc(offer.priceLabel)}</button>`
+        `Upgrade to ${esc(offer.name)} · ${esc(offer.priceLabel)}</button>`
       : "";
 
   el.innerHTML =
