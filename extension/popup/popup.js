@@ -190,6 +190,9 @@
       chrome.storage.local.get(["relinkNeeded"], (r) => resolve(!!r.relinkNeeded));
     });
   }
+  function normalizeSyncPlan(value) {
+    return value === "free" || value === "pro" || value === "max" ? value : null;
+  }
   var EMPTY_SYNC_STATUS = {
     state: "idle",
     lastAttemptAt: null,
@@ -200,7 +203,9 @@
     return new Promise((resolve) => {
       chrome.storage.local.get(["syncProfile"], (r) => {
         const p = r.syncProfile;
-        resolve(p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null } : null);
+        resolve(
+          p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null, plan: normalizeSyncPlan(p.plan) } : null
+        );
       });
     });
   }

@@ -112,12 +112,40 @@
       chrome.storage.local.set({ relinkNeeded: needed }, () => resolve());
     });
   }
+  function mergeSyncProfile(previous, incoming) {
+    const base = previous ?? { email: null, name: null, plan: null };
+    if (!incoming || typeof incoming !== "object") return { ...base };
+    return {
+      email: "email" in incoming ? incoming.email ?? null : base.email,
+      name: "name" in incoming ? incoming.name ?? null : base.name,
+      plan: "plan" in incoming ? normalizeSyncPlan(incoming.plan) : base.plan
+    };
+  }
+  function normalizeSyncPlan(value) {
+    return value === "free" || value === "pro" || value === "max" ? value : null;
+  }
   var EMPTY_SYNC_STATUS = {
     state: "idle",
     lastAttemptAt: null,
     lastSuccessAt: null,
     error: null
   };
+  function getSyncProfile() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncProfile"], (r) => {
+        const p = r.syncProfile;
+        resolve(
+          p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null, plan: normalizeSyncPlan(p.plan) } : null
+        );
+      });
+    });
+  }
+  function setSyncProfile(incoming) {
+    return enqueue(async () => {
+      const previous = await getSyncProfile();
+      await chrome.storage.local.set({ syncProfile: mergeSyncProfile(previous, incoming) });
+    });
+  }
   function getSyncStatus() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["syncStatus"], (r) => {
@@ -139,6 +167,27 @@
   function setSyncStatus(next) {
     return new Promise((resolve) => {
       chrome.storage.local.set({ syncStatus: next }, () => resolve());
+    });
+  }
+  function getAutoLinkAttemptedAt() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["autoLinkAttemptedAt"], (r) => {
+        const n = Number(r.autoLinkAttemptedAt);
+        resolve(Number.isFinite(n) && n > 0 ? n : null);
+      });
+    });
+  }
+  function setAutoLinkAttemptedAt(at) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ autoLinkAttemptedAt: at }, () => resolve());
+    });
+  }
+  function getAutoLinkSuppressedUntil() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["autoLinkSuppressedUntil"], (r) => {
+        const n = Number(r.autoLinkSuppressedUntil);
+        resolve(Number.isFinite(n) && n > 0 ? n : null);
+      });
     });
   }
 
@@ -270,6 +319,78 @@
         error: err instanceof Error ? err.message : "Network error while syncing."
       });
     }
+  }
+
+  // src/lib/account-link.ts
+  var TOKEN_URL = WEB_URL + "/api/sync/token";
+  var AUTO_LINK_COOLDOWN_MS = 60 * 60 * 1e3;
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+  function shouldAttemptAutoLink(input) {
+    if (input.hasToken) return false;
+    if (input.suppressedUntil != null && input.now < input.suppressedUntil) return false;
+    if (input.force) return true;
+    if (input.lastAttemptAt == null) return true;
+    if (input.lastAttemptAt > input.now) return true;
+    return input.now - input.lastAttemptAt >= AUTO_LINK_COOLDOWN_MS;
+  }
+  function interpretMintResponse(httpStatus, body) {
+    if (httpStatus === 401 || httpStatus === 403) return { status: "signed-out" };
+    if (httpStatus < 200 || httpStatus >= 300) return { status: "error", detail: `HTTP ${httpStatus}` };
+    const data = body || {};
+    const token = typeof data.token === "string" ? data.token : "";
+    if (!token) return { status: "error", detail: "no token in response" };
+    const p = data.profile && typeof data.profile === "object" ? data.profile : {};
+    return {
+      status: "linked",
+      token,
+      profile: {
+        email: typeof p.email === "string" ? p.email : null,
+        name: typeof p.name === "string" ? p.name : null,
+        plan: normalizeSyncPlan(p.plan)
+      }
+    };
+  }
+  var inFlight = null;
+  function attemptAutoLink(trigger, options = {}) {
+    if (inFlight) return inFlight;
+    const attempt = runAutoLink(trigger, options).finally(() => {
+      inFlight = null;
+    });
+    inFlight = attempt;
+    return attempt;
+  }
+  async function runAutoLink(trigger, options = {}) {
+    const force = options.force === true;
+    const [hasToken, lastAttemptAt, suppressedUntil] = await Promise.all([
+      getSyncToken().then((t) => !!t),
+      getAutoLinkAttemptedAt(),
+      getAutoLinkSuppressedUntil()
+    ]);
+    if (hasToken) return { linked: false, outcome: "already-linked" };
+    if (!shouldAttemptAutoLink({ hasToken, now: Date.now(), lastAttemptAt, suppressedUntil, force })) {
+      return { linked: false, outcome: "throttled" };
+    }
+    await setAutoLinkAttemptedAt(Date.now());
+    let outcome;
+    try {
+      const res = await fetch(TOKEN_URL, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" }
+      });
+      const body = await res.json().catch(() => null);
+      outcome = interpretMintResponse(res.status, body);
+    } catch (err) {
+      outcome = { status: "error", detail: err instanceof Error ? err.message : "network error" };
+    }
+    if (outcome.status !== "linked") {
+      if (outcome.status === "error") warn(`auto-link (${trigger}) failed:`, outcome.detail);
+      return { linked: false, outcome: outcome.status };
+    }
+    await setSyncToken(outcome.token);
+    await setSyncProfile(outcome.profile);
+    log(`auto-link (${trigger}) ok`);
+    return { linked: true, outcome: "linked" };
   }
 
   // src/lib/coach-client.ts
@@ -529,6 +650,12 @@
     "*://*.crunchyroll.com/*"
   ];
   var APP_TAB_PATTERNS = ["https://animevocab.com/*", "https://www.animevocab.com/*"];
+  async function linkAccount(trigger, options = {}) {
+    const result = await attemptAutoLink(trigger, options);
+    if (result.linked) syncWithCloud().catch(() => {
+    });
+    return result;
+  }
   async function ensureSyncBridgeInOpenTabs() {
     const tabs = await chrome.tabs.query({ url: APP_TAB_PATTERNS });
     await Promise.all(tabs.map(async (tab) => {
@@ -560,6 +687,11 @@
         }
       });
     }
+    if (details.reason === "install") {
+      chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }).catch(() => {
+      });
+      void linkAccount("install");
+    }
     void ensureSyncBridgeInOpenTabs();
   });
   void ensureSyncBridgeInOpenTabs();
@@ -573,8 +705,11 @@
       });
     }, delayMs);
   }
-  chrome.runtime.onStartup.addListener(() => syncWithCloud().catch(() => {
-  }));
+  chrome.runtime.onStartup.addListener(() => {
+    syncWithCloud().catch(() => {
+    });
+    void linkAccount("startup");
+  });
   chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === SYNC_ALARM) syncWithCloud().catch(() => {
@@ -763,6 +898,10 @@
     if (msg.type === "avc-offscreen-log") {
       console.log("[AVC-audio]", msg.line);
       return;
+    }
+    if (msg.type === "avc-account-link") {
+      linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true }).then((result) => sendResponse({ ok: true, ...result })).catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
+      return true;
     }
     if (msg.type === "avc-sync-now") {
       syncWithCloud().then(() => sendResponse({ ok: true })).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));

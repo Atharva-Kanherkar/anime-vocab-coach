@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   AUTO_LINK_COOLDOWN_MS,
+  SIGN_OUT_SUPPRESSION_MS,
   interpretMintResponse,
   shouldAttemptAutoLink,
   type AutoLinkGateInput,
 } from "../src/lib/account-link";
 import { mergeSyncProfile, normalizeSyncPlan, type SyncProfile } from "../src/lib/storage";
+import { readFileSync } from "node:fs";
 
 const NOW = 1_800_000_000_000;
 
@@ -143,5 +145,21 @@ describe("normalizeSyncPlan", () => {
     expect(normalizeSyncPlan("owner")).toBeNull();
     expect(normalizeSyncPlan(undefined)).toBeNull();
     expect(normalizeSyncPlan(2)).toBeNull();
+  });
+});
+
+describe("sign-out suppression mirror", () => {
+  it("keeps sync-bridge's literal in step with SIGN_OUT_SUPPRESSION_MS", () => {
+    // sync-bridge runs on every animevocab.com page view, so it cannot import
+    // account-link (that would drag lib/storage and the scoring tables into the
+    // bundle). It duplicates the window as a literal instead — this is the guard
+    // that stops the two from drifting.
+    const source = readFileSync(new URL("../src/entries/sync-bridge.ts", import.meta.url), "utf8");
+    const match = source.match(/const SIGN_OUT_SUPPRESSION_MS = ([^;]+);/);
+    expect(match, "sync-bridge must declare SIGN_OUT_SUPPRESSION_MS").not.toBeNull();
+    const factors = match![1].split("*").map((part) => Number(part.trim()));
+    expect(factors.every(Number.isFinite)).toBe(true);
+    expect(factors.reduce((a, b) => a * b, 1)).toBe(SIGN_OUT_SUPPRESSION_MS);
+    expect(source).toContain("autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS");
   });
 });

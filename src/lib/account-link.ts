@@ -112,13 +112,30 @@ export interface AutoLinkResult {
   outcome: MintOutcome["status"] | "already-linked" | "throttled";
 }
 
+// Install, startup, the popup and the onboarding page can all ask at once. One
+// mint is enough for all of them, and the forced ones skip the cooldown — so
+// share the in-flight attempt rather than firing three requests at KV.
+let inFlight: Promise<AutoLinkResult> | null = null;
+
 /**
  * Try to link this browser to its signed-in animevocab.com account.
  *
  * Never throws and never surfaces an error to the user: a failure just leaves
  * the extension local-only, which is where it already was.
  */
-export async function attemptAutoLink(
+export function attemptAutoLink(
+  trigger: string,
+  options: { force?: boolean } = {}
+): Promise<AutoLinkResult> {
+  if (inFlight) return inFlight;
+  const attempt = runAutoLink(trigger, options).finally(() => {
+    inFlight = null;
+  });
+  inFlight = attempt;
+  return attempt;
+}
+
+async function runAutoLink(
   trigger: string,
   options: { force?: boolean } = {}
 ): Promise<AutoLinkResult> {
