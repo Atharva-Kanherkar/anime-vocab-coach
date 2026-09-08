@@ -233,7 +233,7 @@ export async function sendEmailBatch(
 
 /** Bump when starting a new feedback wave. Used in the idempotency key so a
  * re-run of the same wave cannot double-send, while a new wave can. */
-export const FEEDBACK_CAMPAIGN = "whats-new-2026-08-16";
+export const FEEDBACK_CAMPAIGN = "user-feedback-2026-09-08";
 
 /**
  * Headers every bulk (non-transactional) send should carry.
@@ -262,32 +262,21 @@ export function feedbackEmailCopy(opts: {
   const first = opts.name?.trim().split(/\s+/)[0] || null;
   const hello = first ? `Hey ${first},` : "Hey,";
 
-  const subject = "Subtitle Lens lands this weekend, and dinner on me in Tokyo";
+  const subject = "Thank you for using AnimeVocab, quick favor?";
 
   const text = `${hello}
 
-Quick update from AnimeVocab. The last two weeks were the busiest stretch of building since launch, and the best part arrives this weekend.
+Thank you for using AnimeVocab. I build this on my own, and I would love to hear directly from you instead of only guessing from the numbers.
 
-Coming this weekend: Subtitle Lens. Hover any word in the subtitles while you watch and the extension shows its reading and meaning right there. One click turns it into a flashcard. No pausing, no side trip to a dictionary. Chrome is doing its final review of the update now, and it will reach your extension automatically the moment it clears. Nothing to install.
+A few things I am curious about:
 
-Already live for you today:
+1. How are you actually using it? Extension, web app, both, and how often?
+2. What do you like about it so far?
+3. What is missing, confusing, or just annoying?
 
-* A sharper coach. Luna now thinks at full strength on every question, so grammar explanations and example sentences got noticeably better.
-* Listening Mode reliability. Fixed the bug where the wrong word could get carded during live playback, along with duplicate lines and old episodes bleeding into a new session.
-* More accurate dictionary entries. Meanings that only apply to one spelling or reading now show up the way they should.
-* Smoother extension sign-in. Your account syncs automatically and stays synced.
+Hit reply with even a couple of lines and I will give your account 6 months of Pro, free, no strings attached. I read every reply myself, and it directly shapes what gets built next.
 
-If you have two minutes, hit reply and tell me any of these:
-
-1. When Subtitle Lens reaches you this weekend, will you try it on the first episode you watch and tell me if it feels instant?
-2. What is the one thing you still wish the app did?
-3. Did anything feel broken, slow, or confusing?
-
-One line is plenty. I build this on my own, so replies like yours decide what gets built next.
-
-One more thing, and this is a real offer. I live in Tokyo. If you ever make it here, dinner is on me. Learning Japanese from anime deserves at least one meal in Japan with someone to practice on. Just reply to this email when you know your dates and we will pick a place.
-
-Thank you for using AnimeVocab, genuinely. Watching people learn real Japanese from the shows they already love is the whole reason this exists.
+Thank you again for learning Japanese with AnimeVocab. It means a lot.
 
 ${SITE_URL}
 
@@ -298,24 +287,15 @@ Do not want emails like this? Reply with "stop" and I will take you off the list
 `;
 
   const html = `<p>${escapeHtml(hello)}</p>
-<p>Quick update from AnimeVocab. The last two weeks were the busiest stretch of building since launch, and the best part arrives this weekend.</p>
-<p><strong>Coming this weekend: Subtitle Lens.</strong> Hover any word in the subtitles while you watch and the extension shows its reading and meaning right there. One click turns it into a flashcard. No pausing, no side trip to a dictionary. Chrome is doing its final review of the update now, and it will reach your extension automatically the moment it clears. Nothing to install.</p>
-<p>Already live for you today:</p>
-<ul>
-<li><strong>A sharper coach.</strong> Luna now thinks at full strength on every question, so grammar explanations and example sentences got noticeably better.</li>
-<li><strong>Listening Mode reliability.</strong> Fixed the bug where the wrong word could get carded during live playback, along with duplicate lines and old episodes bleeding into a new session.</li>
-<li><strong>More accurate dictionary entries.</strong> Meanings that only apply to one spelling or reading now show up the way they should.</li>
-<li><strong>Smoother extension sign-in.</strong> Your account syncs automatically and stays synced.</li>
-</ul>
-<p>If you have two minutes, hit reply and tell me any of these:</p>
+<p>Thank you for using AnimeVocab. I build this on my own, and I would love to hear directly from you instead of only guessing from the numbers.</p>
+<p>A few things I am curious about:</p>
 <ol>
-<li>When Subtitle Lens reaches you this weekend, will you try it on the first episode you watch and tell me if it feels instant?</li>
-<li>What is the one thing you still wish the app did?</li>
-<li>Did anything feel broken, slow, or confusing?</li>
+<li>How are you actually using it? Extension, web app, both, and how often?</li>
+<li>What do you like about it so far?</li>
+<li>What is missing, confusing, or just annoying?</li>
 </ol>
-<p>One line is plenty. I build this on my own, so replies like yours decide what gets built next.</p>
-<p><strong>One more thing, and this is a real offer.</strong> I live in Tokyo. If you ever make it here, dinner is on me. Learning Japanese from anime deserves at least one meal in Japan with someone to practice on. Just reply to this email when you know your dates and we will pick a place.</p>
-<p>Thank you for using AnimeVocab, genuinely. Watching people learn real Japanese from the shows they already love is the whole reason this exists.</p>
+<p>Hit reply with even a couple of lines and I will give your account <strong>6 months of Pro, free</strong>, no strings attached. I read every reply myself, and it directly shapes what gets built next.</p>
+<p>Thank you again for learning Japanese with AnimeVocab. It means a lot.</p>
 <p><a href="${SITE_URL}">${SITE_URL}</a></p>
 <p>Atharva<br>
 AnimeVocab, <a href="${SITE_URL}">animevocab.com</a></p>
