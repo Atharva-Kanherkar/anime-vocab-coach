@@ -108,6 +108,10 @@ export interface TranscriptSegment {
   text: string;
 }
 
+/** Billing tier a linked account is on. Shared by the popup account row, the
+ * usage meters and the stored sync profile so there is one spelling of it. */
+export type SyncPlan = "free" | "pro" | "max";
+
 export interface SiteAdapter {
   name: "youtube" | "netflix" | "generic";
   matches(): boolean;
