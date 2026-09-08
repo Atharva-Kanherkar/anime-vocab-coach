@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   billingMetadataPatch,
   effectivePlan,
+  giftEntitlement,
+  giftExpiresAt,
   giftMaxExpiresAt,
   isPaidSubscription,
   maxGiftEntitlement,
@@ -178,6 +180,32 @@ describe("giftMaxExpiresAt / maxGiftEntitlement", () => {
     expect(e.plan).toBe("max");
     expect(e.billingInterval).toBeNull();
     expect(e.planExpiresAt).toBe("2026-10-15T00:00:00.000Z");
+    // A gift must never look like a paid subscription.
+    expect(isPaidSubscription(e)).toBe(false);
+  });
+});
+
+describe("giftExpiresAt / giftEntitlement", () => {
+  it("adds an arbitrary number of UTC months", () => {
+    expect(giftExpiresAt(6, new Date("2026-09-08T12:00:00.000Z"))).toBe(
+      "2027-03-08T12:00:00.000Z"
+    );
+  });
+
+  it("clamps month-end overflow same as the 3-month helper", () => {
+    // Aug 31 + 6mo would be "Feb 31" — clamp to Feb 28/29.
+    expect(giftExpiresAt(6, new Date("2026-08-31T00:00:00.000Z"))).toBe(
+      "2027-02-28T00:00:00.000Z"
+    );
+  });
+
+  it("builds a single-user gift entitlement for the requested plan and months", () => {
+    const e = giftEntitlement("pro", 6, new Date("2026-09-08T00:00:00.000Z"));
+    expect(e).toEqual({
+      plan: "pro",
+      billingInterval: null,
+      planExpiresAt: "2027-03-08T00:00:00.000Z",
+    });
     // A gift must never look like a paid subscription.
     expect(isPaidSubscription(e)).toBe(false);
   });

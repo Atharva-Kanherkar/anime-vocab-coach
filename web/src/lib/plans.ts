@@ -93,17 +93,21 @@ export function billingMetadataPatch(
   };
 }
 
-/** Three months from `now` (UTC), for the early-adopter Max gift. Month-end
- * dates clamp to the target month's last day (Nov 30 + 3mo → Feb 28/29), so a
- * gift is never longer than three calendar months. */
-export function giftMaxExpiresAt(now = new Date()): string {
+/** `months` from `now` (UTC). Month-end dates clamp to the target month's last
+ * day (Nov 30 + 3mo → Feb 28/29), so a gift is never longer than requested. */
+export function giftExpiresAt(months: number, now = new Date()): string {
   const d = new Date(now.getTime());
   const day = d.getUTCDate();
   d.setUTCDate(1);
-  d.setUTCMonth(d.getUTCMonth() + 3);
+  d.setUTCMonth(d.getUTCMonth() + months);
   const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
   d.setUTCDate(Math.min(day, lastDay));
   return d.toISOString();
+}
+
+/** Three months from `now` (UTC), for the early-adopter Max gift. */
+export function giftMaxExpiresAt(now = new Date()): string {
+  return giftExpiresAt(3, now);
 }
 
 export function maxGiftEntitlement(now = new Date()): Entitlement {
@@ -112,5 +116,16 @@ export function maxGiftEntitlement(now = new Date()): Entitlement {
     // A gift is not a billing relationship — never fabricate an interval.
     billingInterval: null,
     planExpiresAt: giftMaxExpiresAt(now),
+  };
+}
+
+/** Entitlement for a one-off single-user gift of `plan` for `months`. Used by
+ * the individual grant-plan route (e.g. the 6-month Pro reward for feedback),
+ * as distinct from maxGiftEntitlement's fixed 3-month all-users wave. */
+export function giftEntitlement(plan: PlanId, months: number, now = new Date()): Entitlement {
+  return {
+    plan,
+    billingInterval: null,
+    planExpiresAt: giftExpiresAt(months, now),
   };
 }
