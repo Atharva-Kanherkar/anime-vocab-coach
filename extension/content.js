@@ -1231,6 +1231,72 @@
     if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
   }
 
+  // src/lib/pausable-timer.ts
+  var PausableTimer = class {
+    constructor() {
+      this.timer = null;
+      this.isFrozen = false;
+      /** Milliseconds banked while frozen; null when there is nothing to resume. */
+      this.remaining = null;
+      this.deadline = 0;
+      this.fire = null;
+    }
+    /** Start (or restart) the countdown. While frozen, banks `ms` instead. */
+    arm(ms, fire) {
+      this.fire = fire;
+      if (this.isFrozen) {
+        this.remaining = ms;
+        this.clearTimer();
+        return;
+      }
+      this.start(ms);
+    }
+    /** Stop the clock, keeping whatever time was left. */
+    freeze() {
+      if (this.isFrozen) return;
+      this.isFrozen = true;
+      if (this.timer) {
+        this.remaining = Math.max(0, this.deadline - Date.now());
+        this.clearTimer();
+      }
+    }
+    /** Resume from where the clock stopped. */
+    thaw() {
+      if (!this.isFrozen) return;
+      this.isFrozen = false;
+      const left = this.remaining;
+      this.remaining = null;
+      if (left !== null && this.fire) this.start(left);
+    }
+    /** Disarm completely; neither freeze nor thaw brings it back. */
+    clear() {
+      this.clearTimer();
+      this.isFrozen = false;
+      this.remaining = null;
+      this.fire = null;
+    }
+    /** True once armed, whether it is currently counting or frozen. */
+    get armed() {
+      return this.fire !== null;
+    }
+    get frozen() {
+      return this.isFrozen;
+    }
+    start(ms) {
+      this.clearTimer();
+      this.deadline = Date.now() + ms;
+      this.timer = setTimeout(() => {
+        const fire = this.fire;
+        this.clear();
+        fire?.();
+      }, ms);
+    }
+    clearTimer() {
+      if (this.timer) clearTimeout(this.timer);
+      this.timer = null;
+    }
+  };
+
   // src/lib/agent-panel.ts
   var AMBIENT_AUTO_DISMISS_SEC = 15;
   var FOCUS_AUTO_DISMISS_SEC = 30;
@@ -1242,9 +1308,11 @@
   var chatHistory = [];
   var chatPayload = null;
   var keyHandler = null;
-  var autoTimer = null;
-  var autoTimerMax = null;
+  var autoTimer = new PausableTimer();
+  var autoTimerMax = new PausableTimer();
   var playHandler = null;
+  var pauseHandler = null;
+  var selfPaused = false;
   var userResumed = false;
   var activeVideo = null;
   var wasPlaying = false;
@@ -2045,18 +2113,17 @@
     };
   }
   function clearWordTimers() {
-    if (autoTimer) {
-      clearTimeout(autoTimer);
-      autoTimer = null;
-    }
-    if (autoTimerMax) {
-      clearTimeout(autoTimerMax);
-      autoTimerMax = null;
-    }
+    autoTimer.clear();
+    autoTimerMax.clear();
     if (playHandler && activeVideo) {
       activeVideo.removeEventListener("play", playHandler);
       playHandler = null;
     }
+    if (pauseHandler && activeVideo) {
+      activeVideo.removeEventListener("pause", pauseHandler);
+      pauseHandler = null;
+    }
+    selfPaused = false;
     if (keyHandler) {
       window.removeEventListener("keydown", keyHandler, true);
       keyHandler = null;
@@ -2093,13 +2160,20 @@
     return opts2.interaction === "focus" ? FOCUS_AUTO_DISMISS_SEC : AMBIENT_AUTO_DISMISS_SEC;
   }
   function bumpAutoTimer(opts2) {
-    if (autoTimer) clearTimeout(autoTimer);
     const sec = effectiveAutoDismissSec(opts2);
-    autoTimer = setTimeout(() => finishWord("dismiss"), sec * 1e3);
-    if (!autoTimerMax) {
+    autoTimer.arm(sec * 1e3, () => finishWord("dismiss"));
+    if (!autoTimerMax.armed) {
       const capSec = Math.max(sec + 10, 45);
-      autoTimerMax = setTimeout(() => finishWord("dismiss"), capSec * 1e3);
+      autoTimerMax.arm(capSec * 1e3, () => finishWord("dismiss"));
     }
+  }
+  function freezeAutoTimers() {
+    autoTimer.freeze();
+    autoTimerMax.freeze();
+  }
+  function thawAutoTimers() {
+    autoTimer.thaw();
+    autoTimerMax.thaw();
   }
   async function submitChat() {
     if (!shell) return;
@@ -2699,6 +2773,16 @@
     showLimitSheet(kind, usage);
     return true;
   }
+  var visibilityListener = null;
+  function onAgentVisibility(listener) {
+    visibilityListener = listener;
+  }
+  function announceVisibility(open) {
+    try {
+      visibilityListener?.(open);
+    } catch {
+    }
+  }
   function ensureAgentMounted() {
     const root2 = mountHost();
     if (!root2.querySelector("style")) {
@@ -2708,6 +2792,7 @@
     shell = buildShell(root2);
     mounted = true;
     preloadVoices();
+    announceVisibility(true);
     void Promise.all([getSettings(), getAgentPanelWidth()]).then(([s, w]) => {
       if (!shell) return;
       shell.modeSelect.value = s.pauseMode;
@@ -2722,7 +2807,9 @@
     const host2 = document.getElementById("avc-overlay-host");
     if (host2) host2.remove();
     shell = null;
+    const was = mounted;
     mounted = false;
+    if (was) announceVisibility(false);
   }
   function isAgentActive() {
     return mounted;
@@ -2751,12 +2838,27 @@
     wasPlaying = !!(video && !video.paused && !video.ended);
     activeVideo = video;
     userResumed = false;
-    if (options.interaction === "focus" && wasPlaying && video) video.pause();
+    selfPaused = false;
+    if (options.interaction === "focus" && wasPlaying && video) {
+      selfPaused = true;
+      video.pause();
+    }
     if (video) {
       playHandler = () => {
         userResumed = true;
+        selfPaused = false;
+        thawAutoTimers();
       };
       video.addEventListener("play", playHandler);
+      pauseHandler = () => {
+        if (selfPaused) {
+          selfPaused = false;
+          return;
+        }
+        freezeAutoTimers();
+      };
+      video.addEventListener("pause", pauseHandler);
+      if (video.paused && !selfPaused) freezeAutoTimers();
     }
     wordCtx = ctx;
     wordPending = true;
@@ -3344,7 +3446,114 @@
     return activeDirection;
   }
 
+  // src/lib/cache-key.ts
+  var ALLOWED_AUDIO_LANGS = /* @__PURE__ */ new Set(["ja", "en"]);
+  function cacheKey(platform, contentId, audioLang2) {
+    const lang = ALLOWED_AUDIO_LANGS.has(audioLang2) ? audioLang2 : "ja";
+    if (platform === "generic") {
+      return `fp:${contentId}:${lang}`;
+    }
+    return `${platform}:${contentId}:${lang}`;
+  }
+  function detectAudioLang(video, preferred) {
+    if (preferred === "ja" || preferred === "en") return preferred;
+    const v = video || document.querySelector("video");
+    const tracks = v && v.audioTracks;
+    if (tracks && tracks.length) {
+      for (let i = 0; i < tracks.length; i++) {
+        const track = tracks[i];
+        if (track.enabled && track.language) {
+          const code = track.language.slice(0, 2).toLowerCase();
+          if (ALLOWED_AUDIO_LANGS.has(code)) return code;
+        }
+      }
+    }
+    return "ja";
+  }
+  function deriveContentId(platform) {
+    switch (platform) {
+      case "youtube": {
+        const m = location.search.match(/[?&]v=([^&]+)/);
+        if (m) return m[1];
+        const pathMatch = location.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/);
+        return pathMatch ? pathMatch[1] : null;
+      }
+      case "netflix": {
+        const watch = location.pathname.match(/\/watch\/(\d+)/);
+        if (watch) return watch[1];
+        const id = window.__avcNetflixVideoId;
+        return id || null;
+      }
+      case "crunchyroll": {
+        const parts = location.pathname.split("/").filter(Boolean);
+        const watchIdx = parts.indexOf("watch");
+        if (watchIdx >= 0) {
+          for (let i = watchIdx + 1; i < parts.length; i++) {
+            if (/^[A-Z0-9]{8,}$/.test(parts[i])) return parts[i];
+          }
+        }
+        return null;
+      }
+      default:
+        return null;
+    }
+  }
+  function deriveCacheKey(platform, video, preferredLang) {
+    const contentId = deriveContentId(platform);
+    if (!contentId) return null;
+    const lang = detectAudioLang(video, preferredLang);
+    return { key: cacheKey(platform, contentId, lang), platform, contentId, audioLang: lang };
+  }
+  function sessionIdentity(platform, preferredLang) {
+    const id = deriveContentId(platform);
+    const lang = detectAudioLang(void 0, preferredLang);
+    return id ? `${platform}:${id}:${lang}` : location.pathname;
+  }
+
+  // src/lib/caption-status.ts
+  var UNKNOWN = { state: "unknown", lang: "ja" };
+  var current = UNKNOWN;
+  var listeners = /* @__PURE__ */ new Set();
+  function reportCaptions(report) {
+    const same = current.state === report.state && current.lang === report.lang && current.reason === report.reason && !!current.autoGenerated === !!report.autoGenerated;
+    current = report;
+    if (same) return;
+    for (const listener of listeners) {
+      try {
+        listener(report);
+      } catch {
+      }
+    }
+  }
+  function captionReport() {
+    return current;
+  }
+  function resetCaptions() {
+    reportCaptions(UNKNOWN);
+  }
+  function onCaptions(listener) {
+    listeners.add(listener);
+  }
+  var LANG_NAME = { ja: "Japanese", en: "English" };
+  function captionNoticeText(report, opts2) {
+    if (report.state !== "missing") return null;
+    if (opts2.listening) return null;
+    if (!opts2.cardsOn && !opts2.lensOn) return null;
+    const lang = LANG_NAME[report.lang];
+    return `No ${lang} captions on this video, so there are no words to pull from the subtitles. Start Listening Mode from the AnimeVocab toolbar icon to learn from the audio instead, or pick a video that offers ${lang} subtitles.`;
+  }
+  function captionStatusDetail(report) {
+    if (report.state === "missing") {
+      return `No ${LANG_NAME[report.lang]} captions on this video. Listening Mode still works.`;
+    }
+    if (report.state === "ok" && report.autoGenerated) {
+      return `Using auto-generated ${LANG_NAME[report.lang]} captions on this video.`;
+    }
+    return null;
+  }
+
   // src/lib/adapters/youtube.ts
+  var CAPTION_SETTLE_MS = 1e3;
   var onLineCb = null;
   var targetCues = [];
   var contextCues = [];
@@ -3352,6 +3561,21 @@
   var lastCueKey = "";
   var attachedVideo = null;
   var loadedForDirection = "";
+  function urlVideoId() {
+    return deriveContentId("youtube") || "";
+  }
+  function dropCuesFromOtherVideo() {
+    const id = urlVideoId();
+    if (!currentVideoId || !id || id === currentVideoId) return false;
+    log("youtube: video changed to", id, "- dropping", targetCues.length, "stale cues");
+    targetCues = [];
+    contextCues = [];
+    lastCueKey = "";
+    currentVideoId = "";
+    loadedForDirection = "";
+    resetCaptions();
+    return true;
+  }
   function parseJson3(data2) {
     const cues = [];
     for (const ev of data2.events || []) {
@@ -3390,7 +3614,8 @@
     const ctx = contextLang(direction);
     const studyTrack = pickTrack(msg.tracks, study);
     if (!studyTrack) {
-      log(`youtube: no ${study} caption track on this video \u2014 DOM fallback only`);
+      log(`youtube: no ${study} caption track on this video, DOM fallback only`);
+      reportCaptions({ state: "missing", lang: study, reason: "no-track" });
       return;
     }
     try {
@@ -3402,11 +3627,13 @@
       log(
         `youtube: hidden ${study} caption track unavailable. Use Listening Mode from the toolbar, or turn on matching captions to read them from the page.`
       );
+      reportCaptions({ state: "missing", lang: study, reason: "empty-track" });
       return;
     }
     log(
       `youtube: loaded ${targetCues.length} ${study} cues (${studyTrack.kind === "asr" ? "auto-generated" : "manual"})`
     );
+    reportCaptions({ state: "ok", lang: study, autoGenerated: studyTrack.kind === "asr" });
     const ctxTrack = pickTrack(msg.tracks, ctx);
     if (ctxTrack) {
       try {
@@ -3425,6 +3652,7 @@
     return null;
   }
   function onTimeUpdate() {
+    if (dropCuesFromOtherVideo()) return;
     if (!targetCues.length || !onLineCb || !attachedVideo) return;
     const t = attachedVideo.currentTime;
     const cue = cueAt(targetCues, t);
@@ -3458,6 +3686,7 @@
         handleTracks(e.data).catch((err) => warn("youtube tracks error:", err));
       });
       setInterval(() => {
+        dropCuesFromOtherVideo();
         const v = getVideo();
         if (v && v !== attachedVideo) {
           if (attachedVideo) attachedVideo.removeEventListener("timeupdate", onTimeUpdate);
@@ -3466,10 +3695,21 @@
         }
       }, 2e3);
       let lastText = "";
+      let lastTextVideoId = "";
+      let settleUntil = 0;
       let debounceTimer = null;
       const check = () => {
         try {
+          dropCuesFromOtherVideo();
           if (targetCues.length) return;
+          const videoId = urlVideoId();
+          if (videoId !== lastTextVideoId) {
+            lastTextVideoId = videoId;
+            lastText = getVisibleText();
+            settleUntil = Date.now() + CAPTION_SETTLE_MS;
+            return;
+          }
+          if (Date.now() < settleUntil) return;
           const text = getVisibleText();
           if (!text || text === lastText) return;
           if (!matchesTargetScript(text, getAdapterDirection())) return;
@@ -3644,70 +3884,6 @@
     return overlay;
   }
 
-  // src/lib/cache-key.ts
-  var ALLOWED_AUDIO_LANGS = /* @__PURE__ */ new Set(["ja", "en"]);
-  function cacheKey(platform, contentId, audioLang2) {
-    const lang = ALLOWED_AUDIO_LANGS.has(audioLang2) ? audioLang2 : "ja";
-    if (platform === "generic") {
-      return `fp:${contentId}:${lang}`;
-    }
-    return `${platform}:${contentId}:${lang}`;
-  }
-  function detectAudioLang(video, preferred) {
-    if (preferred === "ja" || preferred === "en") return preferred;
-    const v = video || document.querySelector("video");
-    const tracks = v && v.audioTracks;
-    if (tracks && tracks.length) {
-      for (let i = 0; i < tracks.length; i++) {
-        const track = tracks[i];
-        if (track.enabled && track.language) {
-          const code = track.language.slice(0, 2).toLowerCase();
-          if (ALLOWED_AUDIO_LANGS.has(code)) return code;
-        }
-      }
-    }
-    return "ja";
-  }
-  function deriveContentId(platform) {
-    switch (platform) {
-      case "youtube": {
-        const m = location.search.match(/[?&]v=([^&]+)/);
-        if (m) return m[1];
-        const pathMatch = location.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/);
-        return pathMatch ? pathMatch[1] : null;
-      }
-      case "netflix": {
-        const watch = location.pathname.match(/\/watch\/(\d+)/);
-        if (watch) return watch[1];
-        const id = window.__avcNetflixVideoId;
-        return id || null;
-      }
-      case "crunchyroll": {
-        const parts = location.pathname.split("/").filter(Boolean);
-        const watchIdx = parts.indexOf("watch");
-        if (watchIdx >= 0) {
-          for (let i = watchIdx + 1; i < parts.length; i++) {
-            if (/^[A-Z0-9]{8,}$/.test(parts[i])) return parts[i];
-          }
-        }
-        return null;
-      }
-      default:
-        return null;
-    }
-  }
-  function deriveCacheKey(platform, video, preferredLang) {
-    const contentId = deriveContentId(platform);
-    if (!contentId) return null;
-    const lang = detectAudioLang(video, preferredLang);
-    return { key: cacheKey(platform, contentId, lang), platform, contentId, audioLang: lang };
-  }
-  function sessionIdentity(platform, preferredLang) {
-    const id = deriveContentId(platform);
-    const lang = detectAudioLang(void 0, preferredLang);
-    return id ? `${platform}:${id}:${lang}` : location.pathname;
-  }
-
   // src/lib/transcript-client.ts
   async function lookupTranscript(syncToken, cacheKey2, t, windowSec = 8) {
     const url = new URL(BACKEND_URL + "/v1/transcript");
@@ -3791,6 +3967,7 @@
     let cachePollInFlight = null;
     let cachePollGeneration = 0;
     let playbackRelayTimer = null;
+    let captionNoticeShown = false;
     function pickAdapter() {
       if (adapter) return adapter;
       adapter = adapters.find((a) => a.matches()) || null;
@@ -4159,6 +4336,11 @@
         sendResponse({ ok: true, visible: isAgentActive() });
         return true;
       }
+      if (msg.type === "avc-caption-status") {
+        const report = captionReport();
+        sendResponse({ ok: true, report, detail: captionStatusDetail(report) });
+        return true;
+      }
       if (msg.type === "avc-listening-state") {
         listeningActive = !!msg.active;
         if (listeningActive) {
@@ -4194,6 +4376,50 @@
         }
       })().catch((err) => warn("transcript handling failed:", err));
     });
+    async function maybeExplainMissingCaptions() {
+      if (captionNoticeShown) return;
+      const report = captionReport();
+      if (report.state !== "missing") return;
+      let current2;
+      try {
+        current2 = await getSettings();
+      } catch {
+        return;
+      }
+      const direction = normalizeDirection(current2.learningDirection);
+      const text = captionNoticeText(report, {
+        listening: listeningActive,
+        cardsOn: current2.pauseMode !== "off",
+        lensOn: direction === "en-ja" && current2.subLens !== false
+      });
+      if (!text) return;
+      captionNoticeShown = true;
+      showToast(text, "info");
+    }
+    onCaptions(() => {
+      void maybeExplainMissingCaptions();
+    });
+    async function restoreTabSession() {
+      let state;
+      try {
+        state = await chrome.runtime.sendMessage({ type: "avc-session-state" });
+      } catch {
+        return;
+      }
+      if (!state) return;
+      if (state.copilot) ensureAgentMounted();
+      if (state.listening && !listeningActive) {
+        log("restoring listening session after reload");
+        listeningActive = true;
+        startCachePolling();
+        startPlaybackRelay();
+        void maybeExplainMissingCaptions();
+      }
+    }
+    onAgentVisibility((open) => {
+      chrome.runtime.sendMessage({ type: "avc-copilot-state", open }).catch(() => {
+      });
+    });
     pickAdapter();
     const pickTimer = setInterval(() => {
       if (pickAdapter()) clearInterval(pickTimer);
@@ -4206,8 +4432,12 @@
         targetedThisSession.clear();
         lastLine = "";
         hideLens();
+        dismissAgent();
+        queuedLine = null;
         emittedCueKeys.clear();
         lastContextTitle = "";
+        resetCaptions();
+        captionNoticeShown = false;
         refreshCacheKey();
         log("session reset for new video:", sid);
         prefetchAnimeContext(currentTitle());
@@ -4225,5 +4455,6 @@
     const initial = pickAdapter();
     lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
     void setAgentPinned(false);
+    void restoreTabSession();
   })();
 })();

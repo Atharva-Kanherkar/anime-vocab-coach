@@ -3,6 +3,7 @@ export {
   ensureAgentMounted,
   hideAgent,
   isAgentMounted,
+  onAgentVisibility,
   presentWord,
   showAgentPanel,
   showToast,

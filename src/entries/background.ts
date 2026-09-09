@@ -144,6 +144,23 @@ async function setListening(tabs: Record<number, boolean>): Promise<void> {
   await chrome.storage.session.set({ listeningTabs: tabs });
 }
 
+// Copilot visibility lives beside it, and for the same reason: a page reload
+// wipes the panel out of the tab while Listening Mode keeps running in the
+// offscreen document, which left the learner with a half-dead session (#126).
+// Remembering which tabs had the panel open lets the fresh content script put
+// it back exactly where it was.
+async function getCopilot(): Promise<Record<number, boolean>> {
+  const r = await chrome.storage.session.get(["copilotTabs"]);
+  return (r.copilotTabs as Record<number, boolean> | undefined) || {};
+}
+
+async function setCopilotTab(tabId: number, open: boolean): Promise<void> {
+  const tabs = await getCopilot();
+  if (open) tabs[tabId] = true;
+  else delete tabs[tabId];
+  await chrome.storage.session.set({ copilotTabs: tabs });
+}
+
 async function ensureOffscreen(): Promise<void> {
   if (chrome.offscreen.hasDocument && (await chrome.offscreen.hasDocument())) return;
   await chrome.offscreen.createDocument({
@@ -343,6 +360,7 @@ interface RuntimeMsg {
   kind?: string;
   trigger?: string;
   force?: boolean;
+  open?: boolean;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
@@ -366,7 +384,34 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   }
 
   if (msg.type === "avc-listen-status") {
-    getListening().then((tabs) => sendResponse({ listening: !!tabs[msg.tabId!] }));
+    const tabId = msg.tabId ?? sender.tab?.id;
+    getListening().then((tabs) => sendResponse({ listening: tabId != null && !!tabs[tabId] }));
+    return true;
+  }
+
+  // A freshly loaded content script asking what its tab was doing before the
+  // reload. Answered from session state, so Listening Mode and the Copilot
+  // panel come back together instead of one without the other.
+  if (msg.type === "avc-session-state") {
+    const tabId = msg.tabId ?? sender.tab?.id;
+    if (tabId == null) {
+      sendResponse({ listening: false, copilot: false });
+      return true;
+    }
+    Promise.all([getListening(), getCopilot()])
+      .then(([listening, copilot]) =>
+        sendResponse({ listening: !!listening[tabId], copilot: !!copilot[tabId] })
+      )
+      .catch(() => sendResponse({ listening: false, copilot: false }));
+    return true;
+  }
+
+  // The panel reports its own visibility: opened or closed from the popup, from
+  // its own close button, or restored after a reload.
+  if (msg.type === "avc-copilot-state") {
+    const tabId = msg.tabId ?? sender.tab?.id;
+    if (tabId != null) void setCopilotTab(tabId, !!msg.open);
+    sendResponse({ ok: true });
     return true;
   }
 
@@ -469,7 +514,13 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     return true;
   }
 
-  if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status") {
+  if (
+    msg.type === "avc-agent-pin" ||
+    msg.type === "avc-agent-show" ||
+    msg.type === "avc-agent-hide" ||
+    msg.type === "avc-agent-status" ||
+    msg.type === "avc-caption-status"
+  ) {
     const tabId = msg.tabId!;
     const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;
     ensureContentScript(tabId)
@@ -577,4 +628,5 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     delete tabs[tabId];
     await setListening(tabs);
   }
+  await setCopilotTab(tabId, false);
 });
