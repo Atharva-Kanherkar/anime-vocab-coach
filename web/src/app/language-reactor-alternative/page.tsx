@@ -196,8 +196,9 @@ export default function LanguageReactorAlternativePage() {
             <h2>AnimeVocab as your free Language Reactor alternative</h2>
             <p>
               Install once. Watch Netflix, Crunchyroll, or YouTube. Get one useful word per line in romaji.
-              Review with built-in SRS ({TIERS.free.priceLabel} forever for the core loop). When Japanese text
-              is missing — including many Crunchyroll nights — Listening Mode works from audio. Guide:{" "}
+              Review with built-in SRS ({TIERS.free.priceLabel} forever for the core loop,{" "}
+              <Link href="/pricing">full pricing</Link>). When Japanese text is missing — including many
+              Crunchyroll nights — Listening Mode works from audio. Guide:{" "}
               <Link href="/learn-japanese-crunchyroll">learn Japanese on Crunchyroll</Link>.
             </p>
 

@@ -127,7 +127,12 @@ export default function VsMigakuPage() {
                   </tr>
                   <tr>
                     <th scope="row">Price</th>
-                    <td className="us">Free · Pro {TIERS.pro.priceLabel}</td>
+                    <td className="us">
+                      Free · Pro {TIERS.pro.priceLabel}
+                      <span className="cell-note">
+                        <Link href="/pricing">Full pricing</Link>
+                      </span>
+                    </td>
                     <td>~$9/mo or $87/yr · $399 lifetime</td>
                   </tr>
                   <tr>

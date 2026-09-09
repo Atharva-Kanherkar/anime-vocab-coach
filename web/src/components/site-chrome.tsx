@@ -19,6 +19,7 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
         </Link>
         {compact ? (
           <nav aria-label="Primary" className="top-nav-compact">
+            <Link href="/pricing">{t("pricing")}</Link>
             <Link href="/blog">{t("blog")}</Link>
             <Link href="/end">{t("endings")}</Link>
             <Link href="/studio">{t("studio")}</Link>
@@ -31,7 +32,7 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
             <Link href="/studio">{t("studio")}</Link>
             <Link href="/gallery">{t("gallery")}</Link>
             <Link href="/cloud">{t("cloud")}</Link>
-            <Link href="/#pricing">{t("pricing")}</Link>
+            <Link href="/pricing">{t("pricing")}</Link>
             <Link href="/#faq">{t("faq")}</Link>
           </nav>
         )}
@@ -131,6 +132,7 @@ export function HomeBrandBar() {
 export function SiteFooter({ links }: { links?: { href: string; label: string }[] }) {
   const { t } = useSiteLocale();
   const defaultLinks = [
+    { href: "/pricing", label: t("pricing") },
     { href: "/anime-vocabulary", label: "Anime vocabulary" },
     { href: "/studio", label: t("studio") },
     { href: "/gallery", label: t("gallery") },

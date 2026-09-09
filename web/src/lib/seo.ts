@@ -1,4 +1,5 @@
-import { CHROME_STORE_URL, GITHUB_URL, SITE_URL } from "@/lib/site";
+import { CHROME_STORE_URL, GITHUB_URL, SITE_URL, TIERS } from "@/lib/site";
+import { PLAN_ORDER, USD_PRICE } from "@/lib/pricing-page";
 
 export const SITE_NAME = "AnimeVocab";
 export const SITE_TAGLINE = "Learn Japanese from the anime you watch";
@@ -407,5 +408,66 @@ export function homeJsonLd() {
         ],
       }),
     ],
+  };
+}
+
+/**
+ * Product markup for /pricing: one SoftwareApplication carrying an Offer per
+ * tier and interval. Prices come from USD_PRICE (pinned against the TIERS
+ * labels), so the markup a comparison engine reads cannot drift from the price
+ * a visitor is charged.
+ */
+export function pricingJsonLd() {
+  const offers = PLAN_ORDER.flatMap((id) => {
+    const tier = TIERS[id];
+    const usd = USD_PRICE[id];
+    const base = {
+      "@type": "Offer" as const,
+      priceCurrency: "USD",
+      category: tier.name,
+      url: `${SITE_URL}/pricing`,
+      availability: "https://schema.org/InStock",
+    };
+    return [
+      {
+        ...base,
+        name: `${tier.name} monthly`,
+        price: String(usd.monthly),
+        ...(id === "free" ? {} : { priceSpecification: perPeriod(usd.monthly, "MON") }),
+      },
+      ...(usd.yearly
+        ? [
+            {
+              ...base,
+              name: `${tier.name} yearly`,
+              price: String(usd.yearly),
+              priceSpecification: perPeriod(usd.yearly, "ANN"),
+            },
+          ]
+        : []),
+    ];
+  });
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "@id": `${SITE_URL}/pricing#app`,
+    name: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: `${SITE_URL}/pricing`,
+    applicationCategory: "EducationalApplication",
+    operatingSystem: "Chrome",
+    installUrl: CHROME_STORE_URL || undefined,
+    offers,
+  };
+}
+
+/** Subscription price spec: the amount, per one month or one year. */
+function perPeriod(price: number, unitCode: "MON" | "ANN") {
+  return {
+    "@type": "UnitPriceSpecification",
+    price: String(price),
+    priceCurrency: "USD",
+    referenceQuantity: { "@type": "QuantitativeValue", value: 1, unitCode },
   };
 }
