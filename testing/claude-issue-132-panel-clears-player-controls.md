@@ -29,8 +29,14 @@ clicks through (an earlier fix). That is not enough here:
 
 - The sidebar leaves a bottom clearance so neither its interactive regions nor
   its painted background overlap the host player's control bar:
-  `clamp(96px, 13vh, 168px)`, which covers Netflix's bar (the tallest of the
-  supported players) and scales with the window.
+  `clamp(140px, 15vh, 190px)`.
+
+  Sized from Netflix's bottom-controls container, the tallest of the supported
+  players: about 130px on a 720px-high window and about 160px on a 1080px one.
+  The floor is what matters, and the first attempt at this contract set it to
+  96px, which the geometry check in `e2e/panel-layout.mjs` caught overlapping a
+  140px bar by 44px on a 720px window. The vh term keeps it proportionate on
+  larger screens and the cap stops it eating a TV-sized panel.
 - The clearance applies to the whole sidebar, so the blur and tint stop above
   the control bar too, not just the click targets.
 - The resize grip, which spans the sidebar's height, shortens with it. Resizing
@@ -69,12 +75,11 @@ omission is deliberate rather than forgotten.
 
 `test/panel-layout.test.ts` (pure, no DOM):
 
-- `panelBottomClearance()` returns the documented clamp expression, and the
-  rendered CSS contains it exactly once for the sidebar rule.
-- `collapsedWidth()` is narrower than `PANEL_MIN_W`, so the rail cannot be
-  confused with a resized panel.
-- Collapse state round-trips through the storage helper's parser: unset →
-  false, `true` → true, junk → false.
+- `PANEL_BOTTOM_CLEARANCE` is the documented clamp expression, and the sidebar
+  rule consumes it through `--avc-panel-bottom` rather than `bottom: 0`.
+- `PANEL_RAIL_W` is narrower than `PANEL_MIN_W`, so a rail cannot be confused
+  with a resized panel.
+- The collapse-state reader treats anything but a literal `true` as expanded.
 
 ## Integration / Functional Tests
 
