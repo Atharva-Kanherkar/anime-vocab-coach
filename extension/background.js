@@ -725,6 +725,16 @@
   async function setListening(tabs) {
     await chrome.storage.session.set({ listeningTabs: tabs });
   }
+  async function getCopilot() {
+    const r = await chrome.storage.session.get(["copilotTabs"]);
+    return r.copilotTabs || {};
+  }
+  async function setCopilotTab(tabId, open) {
+    const tabs = await getCopilot();
+    if (open) tabs[tabId] = true;
+    else delete tabs[tabId];
+    await chrome.storage.session.set({ copilotTabs: tabs });
+  }
   async function ensureOffscreen() {
     if (chrome.offscreen.hasDocument && await chrome.offscreen.hasDocument()) return;
     await chrome.offscreen.createDocument({
@@ -892,7 +902,25 @@
       return true;
     }
     if (msg.type === "avc-listen-status") {
-      getListening().then((tabs) => sendResponse({ listening: !!tabs[msg.tabId] }));
+      const tabId = msg.tabId ?? sender.tab?.id;
+      getListening().then((tabs) => sendResponse({ listening: tabId != null && !!tabs[tabId] }));
+      return true;
+    }
+    if (msg.type === "avc-session-state") {
+      const tabId = msg.tabId ?? sender.tab?.id;
+      if (tabId == null) {
+        sendResponse({ listening: false, copilot: false });
+        return true;
+      }
+      Promise.all([getListening(), getCopilot()]).then(
+        ([listening, copilot]) => sendResponse({ listening: !!listening[tabId], copilot: !!copilot[tabId] })
+      ).catch(() => sendResponse({ listening: false, copilot: false }));
+      return true;
+    }
+    if (msg.type === "avc-copilot-state") {
+      const tabId = msg.tabId ?? sender.tab?.id;
+      if (tabId != null) void setCopilotTab(tabId, !!msg.open);
+      sendResponse({ ok: true });
       return true;
     }
     if (msg.type === "avc-offscreen-log") {
@@ -954,7 +982,7 @@
       sendResponse({ ok: true });
       return true;
     }
-    if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status") {
+    if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status" || msg.type === "avc-caption-status") {
       const tabId = msg.tabId;
       const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;
       ensureContentScript(tabId).then((ok) => {
@@ -1050,5 +1078,6 @@
       delete tabs[tabId];
       await setListening(tabs);
     }
+    await setCopilotTab(tabId, false);
   });
 })();

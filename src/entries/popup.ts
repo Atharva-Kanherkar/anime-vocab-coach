@@ -338,6 +338,9 @@ async function activeTabId(): Promise<number | null> {
 interface ModeState {
   copilot: boolean;
   listening: boolean;
+  /** What the page found for study-language captions, when it knows. */
+  captionDetail: string | null;
+  captionsMissing: boolean;
   settings: Awaited<ReturnType<typeof storage.getSettings>>;
 }
 
@@ -378,12 +381,22 @@ async function initModeControls(): Promise<void> {
   let modeState: ModeState | null = null;
 
   const refresh = async (): Promise<void> => {
-    const [settings, agent, listening] = await Promise.all([
+    const [settings, agent, listening, captions] = await Promise.all([
       storage.getSettings(),
       runtimeMessage<{ visible?: boolean }>({ type: "avc-agent-status", tabId }),
       runtimeMessage<{ listening?: boolean }>({ type: "avc-listen-status", tabId }),
+      runtimeMessage<{ detail?: string | null; report?: { state?: string } }>({
+        type: "avc-caption-status",
+        tabId,
+      }),
     ]);
-    modeState = { settings, copilot: !!agent?.visible, listening: !!listening?.listening };
+    modeState = {
+      settings,
+      copilot: !!agent?.visible,
+      listening: !!listening?.listening,
+      captionDetail: captions?.detail ?? null,
+      captionsMissing: captions?.report?.state === "missing",
+    };
 
     const lensConfigured = settings.subLens !== false;
     const lensSupported = settings.learningDirection === "en-ja";
@@ -399,7 +412,14 @@ async function initModeControls(): Promise<void> {
       : settings.pauseMode === "copilot"
         ? "Shows automatic cards without pausing"
         : "Subtitle Lens can still run";
-    setModeRow("mode-cards", cardStatus, cardDetail, settings.pauseMode === "off" ? "off" : "on");
+    // A video with no study-language captions is why cards stopped appearing,
+    // so that fact outranks the mode description on this row.
+    setModeRow(
+      "mode-cards",
+      cardStatus,
+      modeState.captionDetail || cardDetail,
+      settings.pauseMode === "off" ? "off" : modeState.captionsMissing ? "warn" : "on"
+    );
     setModeRow("mode-listen", modeState.listening ? "Live" : "Off", "", modeState.listening ? "on" : "off");
     setModeRow("mode-copilot", modeState.copilot ? "Open" : "Closed", "", modeState.copilot ? "on" : "off");
 
