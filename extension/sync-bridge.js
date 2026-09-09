@@ -6,6 +6,7 @@
     if (bridgeWindow.__avcSyncBridgeLoaded) return;
     bridgeWindow.__avcSyncBridgeLoaded = true;
     const ALLOWED_ORIGINS = /* @__PURE__ */ new Set(["https://animevocab.com", "https://www.animevocab.com"]);
+    const SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
     function pageOrigin() {
       return window.location.origin;
     }
@@ -29,7 +30,12 @@
         const token = typeof data.token === "string" ? data.token : "";
         if (!token) return;
         const p = data.profile;
-        const syncProfile = p && typeof p === "object" ? { email: typeof p.email === "string" ? p.email : null, name: typeof p.name === "string" ? p.name : null } : void 0;
+        const plan = p?.plan;
+        const syncProfile = p && typeof p === "object" ? {
+          email: typeof p.email === "string" ? p.email : null,
+          name: typeof p.name === "string" ? p.name : null,
+          plan: plan === "free" || plan === "pro" || plan === "max" ? plan : null
+        } : void 0;
         const update = { syncToken: token };
         if (syncProfile !== void 0) update.syncProfile = syncProfile;
         update.relinkNeeded = false;
@@ -51,7 +57,8 @@
           syncProfile: null,
           relinkNeeded: false,
           syncAuthFailures: 0,
-          syncStatus: { state: "idle", lastAttemptAt: null, lastSuccessAt: null, error: null }
+          syncStatus: { state: "idle", lastAttemptAt: null, lastSuccessAt: null, error: null },
+          autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS
         });
       }
     });

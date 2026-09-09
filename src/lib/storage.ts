@@ -8,6 +8,7 @@ import type {
   JudgmentMeta,
   Settings,
   Stats,
+  SyncPlan,
   Token,
   VocabMap,
   VocabRecord,
@@ -378,11 +379,41 @@ export function setRelinkNeeded(needed: boolean): Promise<void> {
   });
 }
 
-// Who the sync token belongs to, handed over with the token by the web app.
-// Display-only (popup "Synced as <email>"); auth is the token itself.
+// Who the sync token belongs to, handed over with the token by the web app (or
+// minted directly by the background worker — see lib/account-link). Display-only
+// (popup "Synced as <email> · Pro"); auth is the token itself.
 export interface SyncProfile {
   email: string | null;
   name: string | null;
+  /** null when the sender did not say — the popup omits the tier rather than
+   * guessing "Free" for an account that may well be paying. */
+  plan: SyncPlan | null;
+}
+
+/**
+ * Fold an incoming profile payload onto whatever is already stored.
+ *
+ * A field the sender omits keeps its stored value; a field the sender sends as
+ * null clears it. That distinction matters for `plan`: older extension builds
+ * and older web builds send `{email, name}` with no plan at all, and treating
+ * that as "plan: null" would blank the tier on every re-link.
+ */
+export function mergeSyncProfile(
+  previous: SyncProfile | null,
+  incoming: Partial<SyncProfile> | null | undefined
+): SyncProfile {
+  const base: SyncProfile = previous ?? { email: null, name: null, plan: null };
+  if (!incoming || typeof incoming !== "object") return { ...base };
+  return {
+    email: "email" in incoming ? incoming.email ?? null : base.email,
+    name: "name" in incoming ? incoming.name ?? null : base.name,
+    plan: "plan" in incoming ? normalizeSyncPlan(incoming.plan) : base.plan,
+  };
+}
+
+/** Only the three tiers we bill are storable — anything else is "unknown". */
+export function normalizeSyncPlan(value: unknown): SyncPlan | null {
+  return value === "free" || value === "pro" || value === "max" ? value : null;
 }
 
 export interface SyncStatus {
@@ -402,9 +433,21 @@ const EMPTY_SYNC_STATUS: SyncStatus = {
 export function getSyncProfile(): Promise<SyncProfile | null> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["syncProfile"], (r) => {
-      const p = r.syncProfile as SyncProfile | null | undefined;
-      resolve(p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null } : null);
+      const p = r.syncProfile as Partial<SyncProfile> | null | undefined;
+      resolve(
+        p && typeof p === "object"
+          ? { email: p.email ?? null, name: p.name ?? null, plan: normalizeSyncPlan(p.plan) }
+          : null
+      );
     });
+  });
+}
+
+/** Merge-write, so a sender that knows only the email cannot blank the tier. */
+export function setSyncProfile(incoming: Partial<SyncProfile> | null): Promise<void> {
+  return enqueue(async () => {
+    const previous = await getSyncProfile();
+    await chrome.storage.local.set({ syncProfile: mergeSyncProfile(previous, incoming) });
   });
 }
 
@@ -430,6 +473,37 @@ export function getSyncStatus(): Promise<SyncStatus> {
 export function setSyncStatus(next: SyncStatus): Promise<void> {
   return new Promise((resolve) => {
     chrome.storage.local.set({ syncStatus: next }, () => resolve());
+  });
+}
+
+// --- Silent account link bookkeeping (see lib/account-link) -----------------
+// The background worker can mint a sync token straight from the browser's
+// animevocab.com session cookie. These two timestamps are what keep that from
+// turning into a mint loop against KV (the failure mode that once burned the
+// free-tier write budget): one throttles background attempts, the other stops a
+// probe from silently undoing a sign-out the user just performed on the site.
+
+export function getAutoLinkAttemptedAt(): Promise<number | null> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["autoLinkAttemptedAt"], (r) => {
+      const n = Number(r.autoLinkAttemptedAt);
+      resolve(Number.isFinite(n) && n > 0 ? n : null);
+    });
+  });
+}
+
+export function setAutoLinkAttemptedAt(at: number): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ autoLinkAttemptedAt: at }, () => resolve());
+  });
+}
+
+export function getAutoLinkSuppressedUntil(): Promise<number | null> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["autoLinkSuppressedUntil"], (r) => {
+      const n = Number(r.autoLinkSuppressedUntil);
+      resolve(Number.isFinite(n) && n > 0 ? n : null);
+    });
   });
 }
 

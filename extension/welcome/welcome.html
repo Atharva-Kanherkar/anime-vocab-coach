@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AnimeVocab: getting started</title>
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="head">
+      <span class="hanko" aria-hidden>アニ</span>
+      <div>
+        <h1>AnimeVocab is installed</h1>
+        <p class="sub">Three things and you are learning. The first one is watching anime.</p>
+      </div>
+    </header>
+
+    <ol class="steps">
+      <li class="step">
+        <span class="num" aria-hidden>1</span>
+        <div class="body">
+          <h2>Press play on something Japanese</h2>
+          <p>Open an episode with Japanese audio or Japanese subtitles. AnimeVocab reads the subtitle track as it goes, so there is nothing to set up per show.</p>
+          <div class="row">
+            <button type="button" class="btn" data-open="https://www.netflix.com/browse/genre/7424">Netflix anime</button>
+            <button type="button" class="btn" data-open="https://www.crunchyroll.com/videos/popular">Crunchyroll</button>
+            <button type="button" class="btn" data-open="https://www.youtube.com/results?search_query=anime+%E6%97%A5%E6%9C%AC%E8%AA%9E%E5%AD%97%E5%B9%95">YouTube</button>
+          </div>
+        </div>
+      </li>
+
+      <li class="step">
+        <span class="num" aria-hidden>2</span>
+        <div class="body">
+          <h2>Your first card appears on its own</h2>
+          <p>One word per line, in romaji, chosen for the level you are actually at. Hover or click a subtitle word to look it up, or open the toolbar popup to start Listening Mode and the Copilot on the tab you are watching.</p>
+          <div class="row">
+            <button type="button" class="btn" id="open-dashboard">See your progress dashboard</button>
+          </div>
+        </div>
+      </li>
+
+      <li class="step" id="account-step">
+        <span class="num" aria-hidden>3</span>
+        <div class="body">
+          <h2>Connect your account</h2>
+          <p>Linking backs your words up to the cloud, keeps them on every browser you sign in to, and turns on Listening Mode and the AI coach. Already signed in on animevocab.com in this Chrome profile? Then this is already done.</p>
+          <div class="account" id="account" aria-live="polite"></div>
+        </div>
+      </li>
+    </ol>
+
+    <footer class="foot">
+      <p>Nothing you watch leaves this browser except the words you save. <button type="button" class="link" id="open-privacy">Privacy</button> · <button type="button" class="link" id="open-settings">Settings</button></p>
+    </footer>
+  </main>
+
+  <script src="welcome.js"></script>
+</body>
+</html>

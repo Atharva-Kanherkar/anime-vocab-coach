@@ -94,6 +94,12 @@ body.av {
   gap: 7px;
 }
 
+/* Grid items default to min-width: auto, which lets a long email push the row
+   past the popup's 320px instead of ellipsising. */
+.av-account > * {
+  min-width: 0;
+}
+
 .av-account-row {
   display: flex;
   align-items: center;
@@ -104,6 +110,13 @@ body.av {
   background: var(--av-panel);
   font-size: 11.5px;
   color: var(--av-ink-2);
+}
+
+/* The text column has to be allowed to shrink, or the plan badge beside it
+   pushes a long email past the popup's 320px. */
+.av-account-row > div {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .av-account-row b {
@@ -119,7 +132,22 @@ body.av {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 220px;
+  max-width: 100%;
+}
+
+/* Which tier the linked account is on. Rendered only when the account actually
+   reported one — the popup never guesses a plan. */
+.av-account-plan {
+  flex: none;
+  align-self: flex-start;
+  padding: 2px 7px;
+  border: 1px solid var(--av-line-2);
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--av-ink-2);
 }
 
 .av-dot {

@@ -8,6 +8,12 @@ bridgeWindow.__avcSyncBridgeLoaded = true;
 
 const ALLOWED_ORIGINS = new Set(["https://animevocab.com", "https://www.animevocab.com"]);
 
+// Mirrors SIGN_OUT_SUPPRESSION_MS in lib/account-link. Kept as a literal rather
+// than an import: importing that module would pull lib/storage (and the scoring
+// tables behind it) into a bundle that runs on every animevocab.com page view.
+// test/account-link.test.ts fails if the two drift apart.
+const SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1000;
+
 function pageOrigin(): string {
   return window.location.origin;
 }
@@ -28,7 +34,7 @@ window.addEventListener("message", (event) => {
     source?: string;
     type?: string;
     token?: string;
-    profile?: { email?: string | null; name?: string | null } | null;
+    profile?: { email?: string | null; name?: string | null; plan?: string | null } | null;
   } | null;
   if (!data || data.source !== "avc-web") return;
 
@@ -41,11 +47,17 @@ window.addEventListener("message", (event) => {
     const token = typeof data.token === "string" ? data.token : "";
     if (!token) return;
     // Profile is display-only (popup account status). Older web builds don't
-    // send it; keep whatever we had rather than wiping it.
+    // send it; keep whatever we had rather than wiping it. `plan` is what lets
+    // the popup name the tier instead of just saying "signed in" (#123).
     const p = data.profile;
+    const plan = p?.plan;
     const syncProfile =
       p && typeof p === "object"
-        ? { email: typeof p.email === "string" ? p.email : null, name: typeof p.name === "string" ? p.name : null }
+        ? {
+            email: typeof p.email === "string" ? p.email : null,
+            name: typeof p.name === "string" ? p.name : null,
+            plan: plan === "free" || plan === "pro" || plan === "max" ? plan : null,
+          }
         : undefined;
     const update: Record<string, unknown> = { syncToken: token };
     if (syncProfile !== undefined) update.syncProfile = syncProfile;
@@ -65,12 +77,18 @@ window.addEventListener("message", (event) => {
   if (data.type === "avc-sign-out") {
     // The user signed out on the site — immediately invalidate the extension's
     // stored credential instead of waiting for the token's TTL or the next 401.
+    //
+    // autoLinkSuppressedUntil (read by lib/storage's getAutoLinkSuppressedUntil)
+    // holds the background worker's silent re-link off for a few minutes. Clerk
+    // clears its cookie around this same moment, so a probe that raced it would
+    // hand the credential straight back and undo the sign-out.
     chrome.storage.local.set({
       syncToken: "",
       syncProfile: null,
       relinkNeeded: false,
       syncAuthFailures: 0,
       syncStatus: { state: "idle", lastAttemptAt: null, lastSuccessAt: null, error: null },
+      autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS,
     });
   }
 });

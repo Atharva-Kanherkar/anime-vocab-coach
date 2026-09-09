@@ -2,6 +2,7 @@ import { WEB_URL } from "../config";
 import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
+import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
 import type { DailyStats } from "../types";
 
 type Theme = "dark" | "light";
@@ -102,9 +103,26 @@ function initTheme(): void {
   });
 }
 
-// Account status. The extension never has its own login: signing in on
-// animevocab.com/app hands a sync token to the extension. This section is
-// what tells the user that — and whether it has happened.
+/** Ask the background worker to link this browser to its signed-in
+ * animevocab.com session. It owns the host permission; the popup's own fetch
+ * would be bound by page CORS. Resolves false when there is nothing to link. */
+async function requestAccountLink(force: boolean): Promise<boolean> {
+  try {
+    const res = (await chrome.runtime.sendMessage({
+      type: "avc-account-link",
+      trigger: "popup",
+      force,
+    })) as { linked?: boolean } | undefined;
+    return res?.linked === true;
+  } catch {
+    return false; // worker asleep or mid-restart — the row just stays unlinked
+  }
+}
+
+// Account status. The extension never has its own login: it borrows the
+// browser's animevocab.com session, either from the signed-in page or by
+// minting a token itself (lib/account-link). This section is what tells the
+// user which account it landed on, on which plan — and when it hasn't.
 async function renderAccount(): Promise<void> {
   const el = byId("account");
   const token = await storage.getSyncToken();
@@ -113,23 +131,41 @@ async function renderAccount(): Promise<void> {
     // Distinguish "never linked" from "was linked but repeated 401s signed us
     // out" so an expired session reads as recoverable, not a fresh setup.
     const relink = await storage.getRelinkNeeded();
-    const title = relink ? "Sign-in expired" : "Not signed in";
-    const sub = relink ? "Re-link to resume cloud sync" : "Progress stays on this device only";
-    const cta = relink ? "Re-link — animevocab.com" : "Sign in to sync — animevocab.com";
+    const title = relink ? ACCOUNT_COPY.popupExpired : ACCOUNT_COPY.popupNotSignedIn;
+    const sub = relink ? ACCOUNT_COPY.popupExpiredNote : ACCOUNT_COPY.popupNotSignedInNote;
+    const cta = relink ? ACCOUNT_COPY.reconnect : ACCOUNT_COPY.connect;
     const dot = relink ? "av-dot av-dot-warn" : "av-dot av-dot-off";
     el.innerHTML =
       `<div class="av-account-row"><span class="${dot}"></span>` +
       `<div><b>${title}</b><span class="av-account-sub">${sub}</span></div></div>` +
       `<button id="signin-btn" class="av-btn av-btn-primary av-btn-block" type="button">${cta}</button>`;
     byId("signin-btn").addEventListener("click", () => {
-      chrome.tabs.create({ url: `${WEB_URL}/app` });
+      void (async () => {
+        // Borrow this browser's session first. Only send the user to the site
+        // when there is genuinely no session here to borrow — that trip is the
+        // step people were never completing (#123).
+        const btn = byId<HTMLButtonElement>("signin-btn");
+        btn.disabled = true;
+        btn.textContent = ACCOUNT_COPY.connecting;
+        if (await requestAccountLink(true)) {
+          await renderAccount();
+          void renderUsage();
+          return;
+        }
+        chrome.tabs.create({ url: `${WEB_URL}/app` });
+        btn.disabled = false;
+        btn.textContent = cta;
+      })();
     });
     return;
   }
 
   const profile = await storage.getSyncProfile();
   const sync = await storage.getSyncStatus();
-  const who = profile?.email || profile?.name || "your account";
+  const who = profile?.email || profile?.name || ACCOUNT_COPY.unnamedAccount;
+  // Only name a tier the account actually reported. Guessing "Free" at someone
+  // paying for Max is worse than saying nothing.
+  const plan = planLabel(profile?.plan);
   const staleSync = sync.state === "syncing" && !!sync.lastAttemptAt && Date.now() - sync.lastAttemptAt > 2 * 60_000;
   const lastGood = sync.lastSuccessAt ? relativeTime(sync.lastSuccessAt) : "not backed up yet";
   const title = staleSync || sync.state === "error"
@@ -147,7 +183,9 @@ async function renderAccount(): Promise<void> {
   const dot = staleSync || sync.state === "error" ? "av-dot av-dot-warn" : "av-dot";
   el.innerHTML =
     `<div class="av-account-row"><span class="${dot}"></span>` +
-    `<div><b>${title}</b><span class="av-account-sub">${esc(sub)}</span></div></div>` +
+    `<div><b>${title}</b><span class="av-account-sub">${esc(sub)}</span></div>` +
+    (plan ? `<span class="av-account-plan">${esc(plan)}</span>` : "") +
+    `</div>` +
     (staleSync || sync.state === "error"
       ? `<button id="sync-retry" class="av-btn av-btn-ghost av-btn-block" type="button">Retry cloud sync</button>`
       : "");
@@ -256,7 +294,7 @@ async function renderUsage(): Promise<void> {
   const cta =
     (aiLow || listenLow) && offer?.checkoutUrl
       ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">` +
-        `Upgrade to ${esc(offer.name)} — ${esc(offer.priceLabel)}</button>`
+        `Upgrade to ${esc(offer.name)} · ${esc(offer.priceLabel)}</button>`
       : "";
 
   el.innerHTML =
@@ -426,6 +464,15 @@ document.addEventListener("DOMContentLoaded", () => {
   void renderAccount();
   void renderUsage();
   void initModeControls();
+
+  // Opening the popup is the moment the learner is asking "am I connected?".
+  // If we aren't, try once in the background — the hourly cooldown in
+  // lib/account-link keeps this from becoming a mint on every popup open, and
+  // the storage listener below repaints if it works.
+  void (async () => {
+    if (await storage.getSyncToken()) return;
+    await requestAccountLink(false);
+  })();
 
   // If the user signs in on animevocab.com while this popup is open, the
   // token lands in storage — flip the account section live.

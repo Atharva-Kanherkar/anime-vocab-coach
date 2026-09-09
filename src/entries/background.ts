@@ -1,6 +1,7 @@
 import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
 import { syncWithCloud } from "../lib/cloud-sync";
+import { attemptAutoLink } from "../lib/account-link";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
 import { fetchExtractWords, type ExtractWordsRequest } from "../lib/extract-words-client";
@@ -38,6 +39,16 @@ const STREAMING_TAB_PATTERNS = [
 
 const APP_TAB_PATTERNS = ["https://animevocab.com/*", "https://www.animevocab.com/*"];
 
+// A link that lands mid-session usually has local words waiting behind it (the
+// learner watched first and connected later), and nothing else pushes on a token
+// change — the storage listener below only watches vocab/stats. The page
+// handshake has always kicked a sync after storing a token; do the same here.
+async function linkAccount(trigger: string, options: { force?: boolean } = {}) {
+  const result = await attemptAutoLink(trigger, options);
+  if (result.linked) syncWithCloud().catch(() => {});
+  return result;
+}
+
 async function ensureSyncBridgeInOpenTabs(): Promise<void> {
   const tabs = await chrome.tabs.query({ url: APP_TAB_PATTERNS });
   await Promise.all(tabs.map(async (tab) => {
@@ -74,6 +85,16 @@ chrome.runtime.onInstalled.addListener((details) => {
       }
     });
   }
+
+  // A fresh install used to land silently: no window, no instructions, and no
+  // account link unless the learner independently opened /app (#123). Show the
+  // three things that actually have to happen, and try the silent link at the
+  // same time so the account step is usually already done by the time the page
+  // paints. Only on a real install — an auto-update must not steal a tab.
+  if (details.reason === "install") {
+    chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }).catch(() => {});
+    void linkAccount("install");
+  }
   void ensureSyncBridgeInOpenTabs();
 });
 
@@ -97,7 +118,13 @@ function scheduleSync(delayMs = 8000): void {
   }, delayMs);
 }
 
-chrome.runtime.onStartup.addListener(() => syncWithCloud().catch(() => {}));
+chrome.runtime.onStartup.addListener(() => {
+  syncWithCloud().catch(() => {});
+  // Signing in on the site after installing (or clearing the extension's
+  // storage) leaves us unlinked with a perfectly good session cookie. Retry
+  // once per browser start; the module's own cooldown keeps it cheap.
+  void linkAccount("startup");
+});
 chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SYNC_ALARM) syncWithCloud().catch(() => {});
@@ -314,6 +341,8 @@ interface RuntimeMsg {
   payload?: CoachPayload | WordPickRequest | ExtractWordsRequest;
   url?: string;
   kind?: string;
+  trigger?: string;
+  force?: boolean;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
@@ -344,6 +373,16 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   if (msg.type === "avc-offscreen-log") {
     console.log("[AVC-audio]", msg.line);
     return;
+  }
+
+  // The popup and the onboarding page ask for a link attempt. They pass force
+  // for a click the learner can see happening, so a "Connect account" press is
+  // never silently swallowed by the cooldown.
+  if (msg.type === "avc-account-link") {
+    linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true })
+      .then((result) => sendResponse({ ok: true, ...result }))
+      .catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
+    return true;
   }
 
   if (msg.type === "avc-sync-now") {
