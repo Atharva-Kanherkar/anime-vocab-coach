@@ -133,9 +133,21 @@ is pinned by the source test below.
 
 ## E2E Tests
 
-N/A for the automated suite: `/app` requires a Clerk session, and the existing
-`e2e/extension-review.mjs` harness does not sign in. The banner matrix is
-covered by the unit tests plus the manual checks below.
+`e2e/app-link-status.mjs` (added during implementation; headed browser, manual
+gate). Runs the real `/app` against a dev server with
+`NEXT_PUBLIC_AVC_DEV_NO_CLERK=1`, fails `/api/sync/token` on demand, and walks
+the banner through: working mint, 503 named with its status, self-heal with no
+click, extension-reports-linked, and 401.
+
+The extension side is simulated by posting exactly the messages
+`sync-bridge.ts` posts, and that message shape is pinned by
+`extension-link-wiring.test.ts`. Loading the packaged extension instead would
+mean serving `/app` at the animevocab.com origin (the bridge only matches that
+host), and the dev server's client bundle does not hydrate when proxied to a
+different origin, which was tried and abandoned.
+
+    NEXT_PUBLIC_AVC_DEV_NO_CLERK=1 npm run dev --prefix web -- --port 4311
+    node e2e/app-link-status.mjs
 
 ## Manual / cURL Tests
 
