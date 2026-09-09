@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 const staticRoutes = [
   { path: "", priority: 1, changeFrequency: "weekly" as const, lastModified: "2026-07-18" },
   { path: "/anime-vocabulary", priority: 0.96, changeFrequency: "weekly" as const, lastModified: "2026-07-18" },
+  { path: "/pricing", priority: 0.9, changeFrequency: "weekly" as const, lastModified: "2026-09-09" },
   { path: "/blog", priority: 0.85, changeFrequency: "weekly" as const, lastModified: "2026-07-14" },
   { path: "/learn-japanese-with-anime", priority: 0.9, changeFrequency: "monthly" as const, lastModified: "2026-07-14" },
   { path: "/learn-japanese-with-anime-free", priority: 0.95, changeFrequency: "weekly" as const, lastModified: "2026-07-11" },

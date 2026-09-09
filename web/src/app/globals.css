@@ -469,8 +469,15 @@ section { padding: clamp(64px, 9vw, 100px) 0; }
   .flow li:last-child { border-bottom: none; }
   .feat-grid, .price-grid { grid-template-columns: 1fr; }
   .top nav:not(.top-nav-compact) { display: none; }
-  .top-nav-compact { gap: 10px; }
-  .top-nav-compact a { font-size: 12px; }
+  /* The compact header keeps its nav on phones, and the row is already wider
+     than a 375px viewport before any link is added. Let the nav shrink and
+     scroll inside itself so the header never widens the page instead. */
+  .top-nav-compact {
+    gap: 10px; flex: 1 1 auto; min-width: 0;
+    overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .top-nav-compact::-webkit-scrollbar { display: none; }
+  .top-nav-compact a { font-size: 12px; white-space: nowrap; }
 }
 
 @media (max-width: 520px) {
@@ -715,6 +722,19 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   .vs-grid { grid-template-columns: 1fr; }
   .pick { grid-template-columns: 1fr; }
 }
+
+/* ---------- Pricing page ---------- */
+/* Centers the interval toggle and the regional note above the price grid; the
+   cards themselves stay left-aligned like every other .price-card surface. */
+.pricing-plans { text-align: center; }
+.pricing-plans .price-grid { margin-top: 26px; text-align: left; }
+.pricing-note {
+  margin-top: 18px; max-width: 68ch;
+  font-size: 13.5px; line-height: 1.6; color: var(--ink-2);
+}
+.pricing-note a { color: var(--accent); }
+.pricing-regional { max-width: 620px; }
+.pricing-regional table.cmp { min-width: 380px; }
 
 /* ---------- Cloud app ---------- */
 .cloud-page {

@@ -4,18 +4,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { heroMobileImage, preloadHeroImages } from "@/lib/hero-images";
 import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
-import {
-  GITHUB_URL,
-  installUrl,
-  TIERS,
-  checkoutFor,
-  type CheckoutInterval,
-  type PlanId,
-} from "@/lib/site";
+import { GITHUB_URL, installUrl, type CheckoutInterval } from "@/lib/site";
 import type { HeroSlide } from "@/lib/slides";
-import { hasLocalizedPricing, localizedMonthlyLabel } from "@/lib/localized-pricing";
+import { hasLocalizedPricing } from "@/lib/localized-pricing";
 import { useVisitorCountry } from "@/lib/use-visitor-country";
 import { AuthControls } from "@/components/site-chrome";
+import { BillingToggle, PlanCards } from "@/components/plan-cards";
 
 function slideBgStyle(image?: string, tone?: string): CSSProperties {
   if (!image) return { background: tone };
@@ -181,75 +175,18 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
                 Prices shown for your region. You&apos;ll see the same price at checkout.
               </p>
             ) : (
-              <div className="billing-toggle" role="group" aria-label="Billing interval">
-                <button
-                  type="button"
-                  className={billingInterval === "monthly" ? "is-active" : ""}
-                  aria-pressed={billingInterval === "monthly"}
-                  onClick={() => setBillingInterval("monthly")}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  className={billingInterval === "yearly" ? "is-active" : ""}
-                  aria-pressed={billingInterval === "yearly"}
-                  onClick={() => setBillingInterval("yearly")}
-                >
-                  Yearly <span className="billing-toggle__save">save ~38%</span>
-                </button>
-              </div>
+              <BillingToggle interval={billingInterval} onChange={setBillingInterval} />
             )}
-            <div className="price-grid price-grid--three hero__pricing">
-              {(["free", "pro", "max"] as PlanId[]).map((id) => {
-                const t = TIERS[id];
-                const isPro = id === "pro";
-                const url = id === "free" ? null : checkoutFor(id, effectiveInterval);
-                const regional = localizedMonthlyLabel(id, country);
-                const amount =
-                  id === "free"
-                    ? t.priceLabel
-                    : localized && regional
-                      ? regional
-                      : effectiveInterval === "yearly" && t.yearlyLabel
-                        ? t.yearlyLabel
-                        : t.priceLabel;
-                const sub =
-                  id === "free" || localized
-                    ? null
-                    : effectiveInterval === "yearly"
-                      ? t.priceLabel
-                      : t.yearlyLabel ?? null;
-                return (
-                  <div key={id} className={"price-card" + (isPro ? " price-card-pro" : "")}>
-                    {isPro && <span className="pro-tag">Popular</span>}
-                    <h3>{t.name}</h3>
-                    <p className="amount-row">
-                      <span className="amount">{amount}</span>
-                      {sub && <span className="price-sub">or {sub}</span>}
-                    </p>
-                    <ul>
-                      {t.perks.slice(0, 3).map((p) => (
-                        <li key={p}>{p}</li>
-                      ))}
-                    </ul>
-                    {id === "free" ? (
-                      <a className="btn btn-line" href={installUrl()} rel="noopener noreferrer">
-                        Add to Chrome
-                      </a>
-                    ) : url ? (
-                      <a className="btn btn-accent" href={url} rel="noopener noreferrer">
-                        Get {t.name}
-                      </a>
-                    ) : (
-                      <span className="btn btn-accent" aria-disabled="true" style={{ opacity: 0.6, cursor: "default" }}>
-                        {t.name} coming soon
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <PlanCards
+              interval={effectiveInterval}
+              country={country}
+              localized={localized}
+              perkLimit={3}
+              className="hero__pricing"
+            />
+            <p className="hero__fineprint">
+              <Link href="/pricing">Full pricing, regional prices, and billing FAQ</Link>
+            </p>
           </div>
         ) : active.kind === "faq" ? (
           <div className="hero__center hero__center--wide hero__center--faq" key={active.id}>

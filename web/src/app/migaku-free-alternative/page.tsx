@@ -200,7 +200,7 @@ export default function MigakuFreeAlternativePage() {
               </li>
               <li>
                 <strong>Built-in SRS</strong> — no Anki install for the core habit ({TIERS.free.priceLabel}{" "}
-                forever)
+                forever, <Link href="/pricing">see pricing</Link>)
               </li>
               <li>
                 <strong>Listening Mode</strong> — works from spoken Japanese when subtitle text is missing

@@ -113,7 +113,7 @@ export default function CloudPage() {
                   Pro coming soon
                 </span>
               )}
-              <Link className="btn btn-line" href="/#pricing">
+              <Link className="btn btn-line" href="/pricing">
                 Compare Free vs Pro
               </Link>
               <Link className="btn btn-line" href="/app">

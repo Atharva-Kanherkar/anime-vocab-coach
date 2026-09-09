@@ -1585,13 +1585,13 @@ export const blogPosts: BlogPost[] = [
         type: "ul",
         items: [
           "You mine daily and want automation ([Migaku](/vs-migaku))",
-          "You need hosted Listening Mode without BYOK API keys",
+          "You need hosted Listening Mode without BYOK API keys ([AnimeVocab pricing](/pricing))",
           "Netflix dual-sub Pro features unblock you ([vs LR](/vs-language-reactor))",
         ],
       },
       {
         type: "p",
-        text: "Related: [Migaku free alternative](/blog/migaku-free-alternative-2026), [best free apps](/blog/best-free-japanese-learning-apps-anime-2026).",
+        text: "Related: [AnimeVocab pricing](/pricing), [Migaku free alternative](/blog/migaku-free-alternative-2026), [best free apps](/blog/best-free-japanese-learning-apps-anime-2026).",
       },
     ],
   },
@@ -6750,7 +6750,7 @@ export const blogPosts: BlogPost[] = [
       { type: "h2", text: "The pricing reality" },
       {
         type: "p",
-        text: "Migaku is a **subscription** on top of Crunchyroll/Netflix fees you already pay — and it still does not run on Crunchyroll. Paying for Migaku expecting CR coverage is the most common refund trigger in learner forums. The free stack (Yomitan + asbplayer + Anki) has the same CR limitation without the invoice. AnimeVocab's core loop is **free forever** on CR; Pro unlocks Listening Mode transcription when JP subs are missing.",
+        text: "Migaku is a **subscription** on top of Crunchyroll/Netflix fees you already pay — and it still does not run on Crunchyroll. Paying for Migaku expecting CR coverage is the most common refund trigger in learner forums. The free stack (Yomitan + asbplayer + Anki) has the same CR limitation without the invoice. AnimeVocab's core loop is **free forever** on CR; Pro unlocks Listening Mode transcription when JP subs are missing (see [AnimeVocab pricing](/pricing) for the tiers and regional prices).",
       },
       {
         type: "ul",

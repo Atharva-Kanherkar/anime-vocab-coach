@@ -192,8 +192,9 @@ export default function AnimelonAlternativePage() {
             <h2>AnimeVocab as your free Animelon alternative</h2>
             <p>
               Install once. Watch the anime you already subscribe to. Get one useful word per line in romaji.
-              Review with built-in SRS ({TIERS.free.priceLabel} forever for the core loop). When Japanese text
-              is missing, Listening Mode works from audio. Guide:{" "}
+              Review with built-in SRS ({TIERS.free.priceLabel} forever for the core loop,{" "}
+              <Link href="/pricing">full pricing</Link>). When Japanese text is missing, Listening Mode works
+              from audio. Guide:{" "}
               <Link href="/learn-japanese-with-anime-free">learn Japanese with anime free</Link>.
             </p>
 
