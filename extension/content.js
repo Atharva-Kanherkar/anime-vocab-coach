@@ -418,6 +418,18 @@
       chrome.storage.local.set({ agentPanelWidth: width }, () => resolve());
     });
   }
+  function getAgentPanelCollapsed() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["agentPanelCollapsed"], (r) => {
+        resolve(r.agentPanelCollapsed === true);
+      });
+    });
+  }
+  function setAgentPanelCollapsed(collapsed) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ agentPanelCollapsed: collapsed }, () => resolve());
+    });
+  }
   function getVocab() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["vocab"], (r) => resolve(r.vocab || {}));
@@ -1321,6 +1333,8 @@
   var PANEL_MIN_W = 280;
   var PANEL_MAX_W = 560;
   var PANEL_DEFAULT_W = 340;
+  var PANEL_RAIL_W = 36;
+  var PANEL_BOTTOM_CLEARANCE = "clamp(140px, 15vh, 190px)";
   var STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   .avc-agent-layer {
@@ -1340,7 +1354,8 @@
   }
   .avc-agent-sidebar {
     --avc-panel-w: 340px;
-    position: fixed; top: 0; right: 0; bottom: 0;
+    --avc-panel-bottom: ${PANEL_BOTTOM_CLEARANCE};
+    position: fixed; top: 0; right: 0; bottom: var(--avc-panel-bottom);
     width: var(--avc-panel-w);
     min-width: ${PANEL_MIN_W}px;
     max-width: min(${PANEL_MAX_W}px, 42vw);
@@ -1397,6 +1412,53 @@
   .avc-agent-sidebar.avc-focus-sidebar.avc-sidebar-active {
     background: rgba(8, 7, 10, 0.86);
     border-left-color: rgba(227, 186, 99, 0.14);
+  }
+  /* Collapsed: a rail on the right edge and nothing else. The card stays
+     mounted behind it, so expanding brings the same word back. */
+  .avc-agent-sidebar.avc-collapsed {
+    width: ${PANEL_RAIL_W}px;
+    min-width: ${PANEL_RAIL_W}px;
+    max-width: ${PANEL_RAIL_W}px;
+  }
+  .avc-agent-sidebar.avc-collapsed .avc-agent-panel,
+  .avc-agent-sidebar.avc-collapsed .avc-agent-resize {
+    display: none;
+  }
+  .avc-agent-rail {
+    display: none;
+    position: absolute; inset: 0;
+    flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 10px; padding: 12px 0;
+    pointer-events: auto; cursor: pointer;
+    background: rgba(8, 7, 10, 0.55);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .avc-agent-sidebar.avc-collapsed .avc-agent-rail { display: flex; }
+  .avc-agent-rail:hover { background: rgba(8, 7, 10, 0.78); }
+  .avc-agent-rail-mark {
+    font-size: 10px; letter-spacing: 0.14em; color: rgba(227, 186, 99, 0.7);
+    writing-mode: vertical-rl; text-transform: uppercase;
+  }
+  .avc-agent-rail-open {
+    font-size: 13px; line-height: 1; color: rgba(236, 234, 228, 0.6);
+  }
+  /* A card waiting behind the rail: the mark warms up so a collapsed panel
+     cannot silently swallow a word. */
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail-mark {
+    color: rgba(227, 186, 99, 1);
+  }
+  .avc-agent-collapse {
+    width: 26px; height: 26px; padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(236, 234, 228, 0.55);
+    font-size: 13px; line-height: 1;
+    cursor: pointer; font-family: inherit;
+  }
+  .avc-agent-collapse:hover {
+    color: rgba(236, 234, 228, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
   }
   .avc-agent-resize {
     position: absolute; left: 0; top: 0; bottom: 0;
@@ -1882,6 +1944,12 @@
     sidebar.style.width = `${clamped}px`;
     sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
   }
+  function setCollapsed(collapsed, persist = true) {
+    if (!shell) return;
+    shell.sidebar.classList.toggle("avc-collapsed", collapsed);
+    shell.collapseBtn.setAttribute("aria-expanded", String(!collapsed));
+    if (persist) void setAgentPanelCollapsed(collapsed);
+  }
   function attachResizeHandle(sidebar, grip) {
     let dragging = false;
     let startX = 0;
@@ -2152,6 +2220,7 @@
       shell.wordIdle.style.display = "";
       shell.foot.classList.remove("avc-active");
       shell.buttons.textContent = "";
+      shell.sidebar.classList.remove("avc-has-card");
     }
     currentJudgments = [];
     if (fn) fn(judgment);
@@ -2438,9 +2507,21 @@
       e.stopPropagation();
       hideAgent();
     });
+    const collapseBtn = document.createElement("button");
+    collapseBtn.className = "avc-agent-collapse";
+    collapseBtn.type = "button";
+    collapseBtn.setAttribute("aria-label", "Collapse copilot to a rail, keeping the current word");
+    collapseBtn.setAttribute("aria-expanded", "true");
+    collapseBtn.title = "Collapse to the edge (keeps the current word)";
+    collapseBtn.textContent = "\u203A";
+    collapseBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setCollapsed(true);
+    });
     const headActions = document.createElement("div");
     headActions.className = "avc-agent-head-actions";
     headActions.appendChild(modeSelect);
+    headActions.appendChild(collapseBtn);
     headActions.appendChild(closeBtn);
     head.appendChild(brand);
     head.appendChild(headActions);
@@ -2529,8 +2610,31 @@
     panel.appendChild(scrollArea);
     panel.appendChild(foot);
     panel.appendChild(composer);
+    const rail = document.createElement("div");
+    rail.className = "avc-agent-rail";
+    rail.setAttribute("role", "button");
+    rail.setAttribute("tabindex", "0");
+    rail.setAttribute("aria-label", "Expand AnimeVocab copilot");
+    rail.title = "Expand copilot";
+    const railMark = document.createElement("span");
+    railMark.className = "avc-agent-rail-mark";
+    railMark.textContent = "AnimeVocab";
+    const railOpen = document.createElement("span");
+    railOpen.className = "avc-agent-rail-open";
+    railOpen.textContent = "\u2039";
+    rail.appendChild(railOpen);
+    rail.appendChild(railMark);
+    const expand = (e) => {
+      e.stopPropagation();
+      setCollapsed(false);
+    };
+    rail.addEventListener("click", expand);
+    rail.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") expand(e);
+    });
     sidebar.appendChild(resize);
     sidebar.appendChild(panel);
+    sidebar.appendChild(rail);
     layer.appendChild(ambient);
     layer.appendChild(sidebar);
     root2.appendChild(layer);
@@ -2556,7 +2660,8 @@
       chatSend,
       aiOut,
       explainBtn,
-      hookBtn
+      hookBtn,
+      collapseBtn
     };
   }
   function showToast(text, kind = "info") {
@@ -2795,12 +2900,15 @@
     mounted = true;
     preloadVoices();
     announceVisibility(true);
-    void Promise.all([getSettings(), getAgentPanelWidth()]).then(([s, w]) => {
-      if (!shell) return;
-      shell.modeSelect.value = s.pauseMode;
-      applyInteractionMode(pauseModeToInteraction(s.pauseMode));
-      setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
-    });
+    void Promise.all([getSettings(), getAgentPanelWidth(), getAgentPanelCollapsed()]).then(
+      ([s, w, collapsed]) => {
+        if (!shell) return;
+        shell.modeSelect.value = s.pauseMode;
+        applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+        setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
+        if (collapsed) setCollapsed(true, false);
+      }
+    );
   }
   function hideAgent() {
     if (wordPending) finishWord("dismiss");
@@ -2868,6 +2976,7 @@
     wordCtx = ctx;
     wordPending = true;
     populateWordSection(ctx);
+    shell?.sidebar.classList.add("avc-has-card");
     applyInteractionMode(options.interaction);
     keyHandler = (e) => {
       if (!wordPending) return;
