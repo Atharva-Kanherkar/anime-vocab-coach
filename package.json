@@ -1,7 +1,7 @@
 {
   "name": "anime-vocab-coach",
   "version": "1.0.0",
-  "description": "Learn Japanese from anime — Chrome extension with romaji-first SRS, Listening Mode, and optional cloud sync. Site: animevocab.com",
+  "description": "Learn Japanese from anime \u2014 Chrome extension with romaji-first SRS, Listening Mode, and optional cloud sync. Site: animevocab.com",
   "homepage": "https://animevocab.com",
   "repository": {
     "type": "git",
@@ -17,6 +17,8 @@
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
+    "test:e2e": "node e2e/extension-review.mjs",
+    "test:e2e:youtube": "node e2e/youtube-session.mjs",
     "build-dict": "node scripts/build-dictionary.mjs",
     "pack": "npm run typecheck && npm run build && mkdir -p dist && rm -f dist/anime-vocab-coach.zip && cd extension && zip -rq ../dist/anime-vocab-coach.zip . -x 'icons/icon.svg' -x '*.DS_Store' && cd .. && echo 'Built dist/anime-vocab-coach.zip'",
     "deploy:site": "cd web && npm run deploy",
