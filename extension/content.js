@@ -1231,6 +1231,79 @@
     if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
   }
 
+  // src/lib/playback-hold.ts
+  var PlaybackHold = class {
+    constructor() {
+      this.held = false;
+      /**
+       * One pause event we are still waiting for from our own `pause()` call.
+       *
+       * HTMLMediaElement.pause() flips `paused` synchronously but **queues** the
+       * `pause` event, so the event lands after the call returns. A window that
+       * only spans the call therefore mistakes our own pause for the learner's and
+       * gives up a hold we do in fact own, which is how the peek-pause stopped
+       * resuming at all. The expectation is a single pending flag instead: exactly
+       * one pause event is ours, whenever it arrives.
+       *
+       * It cannot leak into a later learner pause, because a hold is only ever
+       * taken on a playing video (both callers check), and pausing a playing video
+       * always raises the event that consumes this.
+       */
+      this.ownPauseExpected = false;
+    }
+    /** Record that we are about to pause, then pause through `doPause`. */
+    hold(doPause) {
+      this.ownPauseExpected = true;
+      doPause();
+      this.held = true;
+    }
+    owned() {
+      return this.held;
+    }
+    /**
+     * A pause event arrived. Ours changes nothing; theirs means the learner has
+     * stopped the video deliberately and we must never undo that.
+     */
+    noticePause() {
+      if (this.ownPauseExpected) {
+        this.ownPauseExpected = false;
+        return;
+      }
+      this.held = false;
+    }
+    /**
+     * A play event. Judged against the video's state at the moment it is handled,
+     * not by the event's arrival: media events are queued, so a play the learner
+     * triggered just before we took a hold can land after it. Reading the state
+     * makes a stale event harmless, where trusting the order would hand back a
+     * pause we own and leave the learner stopped with nothing to resume it.
+     */
+    noticePlay(paused) {
+      if (paused) return;
+      this.held = false;
+      this.ownPauseExpected = false;
+    }
+    /**
+     * A seek. While paused this is #130's exact gesture: the learner stopped to
+     * study and is now moving to another moment, still stopped. Seeking during
+     * playback says nothing about who owns a pause.
+     */
+    noticeSeek(paused) {
+      if (paused) this.held = false;
+    }
+    /**
+     * Give the pause back, once. Returns false when we no longer own it, so the
+     * caller knows not to touch playback, and false on a second call, so two
+     * timers cannot both resume the same hold.
+     */
+    release() {
+      this.ownPauseExpected = false;
+      if (!this.held) return false;
+      this.held = false;
+      return true;
+    }
+  };
+
   // src/lib/agent-panel.ts
   var AMBIENT_AUTO_DISMISS_SEC = 15;
   var FOCUS_AUTO_DISMISS_SEC = 30;
@@ -1248,6 +1321,8 @@
   var userResumed = false;
   var activeVideo = null;
   var wasPlaying = false;
+  var cardHold = new PlaybackHold();
+  var cardVideoWatched = null;
   var currentJudgments = [];
   var PANEL_MIN_W = 280;
   var PANEL_MAX_W = 560;
@@ -2063,7 +2138,7 @@
     }
   }
   function resumeVideoIfNeeded() {
-    if (wasPlaying && !userResumed && activeVideo?.paused) {
+    if (wasPlaying && !userResumed && cardHold.release() && activeVideo?.paused) {
       activeVideo.play().catch(() => {
       });
     }
@@ -2751,12 +2826,21 @@
     wasPlaying = !!(video && !video.paused && !video.ended);
     activeVideo = video;
     userResumed = false;
-    if (options.interaction === "focus" && wasPlaying && video) video.pause();
+    if (options.interaction === "focus" && wasPlaying && video) {
+      cardHold.hold(() => video.pause());
+    }
     if (video) {
       playHandler = () => {
         userResumed = true;
       };
       video.addEventListener("play", playHandler);
+      if (video !== cardVideoWatched) {
+        cardVideoWatched = video;
+        video.addEventListener("pause", () => cardHold.noticePause());
+        video.addEventListener("play", () => cardHold.noticePlay(video.paused));
+        video.addEventListener("seeking", () => cardHold.noticeSeek(video.paused));
+        video.addEventListener("seeked", () => cardHold.noticeSeek(video.paused));
+      }
     }
     wordCtx = ctx;
     wordPending = true;
@@ -3006,7 +3090,8 @@
   var pointerLeaveTimer = null;
   var resumeTimer = null;
   var positionTimer = null;
-  var wePaused = false;
+  var peekHold = new PlaybackHold();
+  var watchedVideo = null;
   var keysBound = false;
   var currentLine = "";
   var judgmentsInFlight = /* @__PURE__ */ new Set();
@@ -3056,6 +3141,20 @@
       currentLine = "";
     }, AUTO_HIDE_MS);
   }
+  function watchVideo(video) {
+    if (!video || video === watchedVideo) return;
+    watchedVideo = video;
+    video.addEventListener("pause", () => peekHold.noticePause());
+    video.addEventListener("play", () => peekHold.noticePlay(video.paused));
+    video.addEventListener("seeking", () => peekHold.noticeSeek(video.paused));
+    video.addEventListener("seeked", () => peekHold.noticeSeek(video.paused));
+  }
+  function releasePeekPause() {
+    const video = opts?.getVideo();
+    if (!peekHold.release()) return;
+    if (video && video.paused) video.play().catch(() => {
+    });
+  }
   function onLensEnter() {
     if (pointerLeaveTimer) {
       clearTimeout(pointerLeaveTimer);
@@ -3067,9 +3166,9 @@
     }
     if (!opts?.peekPause) return;
     const video = opts.getVideo();
+    watchVideo(video);
     if (video && !video.paused) {
-      video.pause();
-      wePaused = true;
+      peekHold.hold(() => video.pause());
     }
   }
   function onLensLeave() {
@@ -3077,15 +3176,11 @@
     pointerLeaveTimer = setTimeout(() => {
       pointerLeaveTimer = null;
       hideTip();
-      if (!wePaused) return;
+      if (!peekHold.owned()) return;
       if (resumeTimer) clearTimeout(resumeTimer);
       resumeTimer = setTimeout(() => {
         resumeTimer = null;
-        if (!wePaused) return;
-        wePaused = false;
-        const video = opts?.getVideo();
-        if (video && video.paused) video.play().catch(() => {
-        });
+        releasePeekPause();
       }, RESUME_DELAY_MS);
     }, POINTER_LEAVE_DELAY_MS);
   }
@@ -3301,6 +3396,16 @@
     if (!keysBound) {
       keysBound = true;
       window.addEventListener("keydown", onKeyDown, true);
+      window.addEventListener("blur", () => {
+        hideTip();
+        releasePeekPause();
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          hideTip();
+          releasePeekPause();
+        }
+      });
     }
   }
   function hideLens() {
@@ -3315,12 +3420,7 @@
     }
     hideTip();
     lensEl?.classList.remove("on");
-    if (wePaused) {
-      wePaused = false;
-      const video = opts?.getVideo();
-      if (video && video.paused) video.play().catch(() => {
-      });
-    }
+    releasePeekPause();
   }
 
   // src/lib/adapters/util.ts

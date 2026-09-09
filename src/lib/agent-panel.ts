@@ -6,6 +6,7 @@ import { lookup } from "./dictionary";
 import { commonnessLabel } from "./levels";
 import { isEssentialWord } from "./priority-words";
 import { renderMarkdown } from "./markdown-lite";
+import { PlaybackHold } from "./playback-hold";
 import { getSettings, setSettings, getAgentPanelWidth, setAgentPanelWidth } from "./storage";
 import {
   chatPlaceholder,
@@ -98,6 +99,9 @@ let playHandler: (() => void) | null = null;
 let userResumed = false;
 let activeVideo: HTMLVideoElement | null = null;
 let wasPlaying = false;
+/** Ownership of the pause a focus-mode card causes; see resumeVideoIfNeeded. */
+const cardHold = new PlaybackHold();
+let cardVideoWatched: HTMLVideoElement | null = null;
 let currentJudgments: { val: Judgment; key: string }[] = [];
 
 const PANEL_MIN_W = 280;
@@ -960,7 +964,11 @@ function clearWordTimers(): void {
 }
 
 function resumeVideoIfNeeded(): void {
-  if (wasPlaying && !userResumed && activeVideo?.paused) {
+  // Only a pause we still own. A focus-mode card pauses the video and resumes
+  // it when the card resolves, which is the point of Focus mode, but if the
+  // learner paused or seeked while the card was up then the stop is theirs and
+  // undoing it is issue #130.
+  if (wasPlaying && !userResumed && cardHold.release() && activeVideo?.paused) {
     activeVideo.play().catch(() => {});
   }
   activeVideo = null;
@@ -1783,10 +1791,21 @@ export function presentWord(
   activeVideo = video;
   userResumed = false;
 
-  if (options.interaction === "focus" && wasPlaying && video) video.pause();
+  if (options.interaction === "focus" && wasPlaying && video) {
+    cardHold.hold(() => video.pause());
+  }
   if (video) {
     playHandler = () => { userResumed = true; };
     video.addEventListener("play", playHandler);
+    // One set of listeners per video, kept for its lifetime: they only feed the
+    // hold, so they are cheap and must not miss a learner pause between cards.
+    if (video !== cardVideoWatched) {
+      cardVideoWatched = video;
+      video.addEventListener("pause", () => cardHold.noticePause());
+      video.addEventListener("play", () => cardHold.noticePlay(video.paused));
+      video.addEventListener("seeking", () => cardHold.noticeSeek(video.paused));
+      video.addEventListener("seeked", () => cardHold.noticeSeek(video.paused));
+    }
   }
 
   wordCtx = ctx;
