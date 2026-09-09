@@ -17,6 +17,13 @@
       const origin = pageOrigin();
       window.postMessage({ source: "avc-ext", type: "avc-ext-present" }, origin);
       window.postMessage({ source: "avc-ext", type: "avc-request-token" }, origin);
+      try {
+        chrome.storage.local.get(["syncToken"], (r) => {
+          const linked = typeof r?.syncToken === "string" && r.syncToken.length > 0;
+          window.postMessage({ source: "avc-ext", type: "avc-ext-present", linked }, origin);
+        });
+      } catch {
+      }
     }
     window.addEventListener("message", (event) => {
       if (event.source !== window || !isAllowedOrigin(event.origin)) return;

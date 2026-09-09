@@ -1,19 +1,43 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import {
+  retryDelayMs,
+  shouldAutoRetry,
+  tokenErrorFor,
+  type PresenceState,
+  type TokenError,
+  type TokenState,
+} from "./extension-link-status";
 
-type LinkState = "checking" | "installed" | "missing" | "error";
+/** Kept for callers that still read `state`; "error" is no longer produced. */
+type LinkState = PresenceState | "error";
 
-let linkState: LinkState = "checking";
+// Presence and token health are tracked apart (issue #133). Collapsing them
+// meant a failed mint rendered "Could not link extension" at a learner whose
+// extension was linked and syncing on a token it minted itself.
+let presenceState: PresenceState = "checking";
+let tokenState: TokenState = "idle";
+let tokenError: TokenError | null = null;
+/** What the extension told us about its own token, when it told us. */
+let extensionLinked: boolean | undefined;
 const listeners = new Set<() => void>();
 
 function emit(): void {
+  refreshSnapshot();
   listeners.forEach((l) => l());
 }
 
-function setLinkState(next: LinkState): void {
-  if (linkState === next) return;
-  linkState = next;
+function setPresence(next: PresenceState): void {
+  if (presenceState === next) return;
+  presenceState = next;
+  emit();
+}
+
+function setToken(state: TokenState, error: TokenError | null): void {
+  if (tokenState === state && tokenError?.message === error?.message) return;
+  tokenState = state;
+  tokenError = error;
   emit();
 }
 
@@ -50,7 +74,7 @@ function startPinging(): void {
   pingExtension();
   pingTimer = window.setInterval(() => {
     // Once linked there is nothing left to detect — stop, don't ping forever.
-    if (linkState === "installed") {
+    if (presenceState === "installed") {
       stopPinging();
       return;
     }
@@ -61,17 +85,51 @@ function startPinging(): void {
 function scheduleMissingCheck(): void {
   if (missingTimer !== null) window.clearTimeout(missingTimer);
   missingTimer = window.setTimeout(() => {
-    if (linkState === "checking") setLinkState("missing");
+    if (presenceState === "checking") setPresence("missing");
   }, 8000);
+}
+
+/** Retries already spent on the current failure. Reset by a success or a
+ * fresh user-initiated attempt, so a later transient blip gets its own budget. */
+let retryAttempts = 0;
+let retryTimer: number | null = null;
+/** One mint in flight at a time: the #123 storm is not to be reintroduced. */
+let mintInFlight = false;
+
+function cancelRetry(): void {
+  if (retryTimer !== null) {
+    window.clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+}
+
+/** A transient failure should clear itself rather than leave a banner up. */
+function scheduleRetry(error: TokenError): void {
+  if (!shouldAutoRetry(error, retryAttempts)) return;
+  const delay = retryDelayMs(retryAttempts);
+  if (delay === undefined) return;
+  retryAttempts += 1;
+  cancelRetry();
+  retryTimer = window.setTimeout(() => {
+    retryTimer = null;
+    tokenBroadcast = false;
+    void broadcastToken();
+  }, delay);
 }
 
 async function broadcastToken(force = false): Promise<void> {
   // Once per page load: repeated extension signals must not each mint a token.
   // `force` is used only by the periodic refresh to keep a fresh, TTL'd token.
   if (tokenBroadcast && !force) return;
+  if (mintInFlight) return;
   tokenBroadcast = true;
+  mintInFlight = true;
+  // Status is carried out of the try so the failure can be classified by what
+  // actually happened instead of collapsing into one unexplained banner.
+  let status: number | null = null;
   try {
     const res = await fetch("/api/sync/token", { method: "POST" });
+    status = res.status;
     if (!res.ok) throw new Error(`token HTTP ${res.status}`);
     // plan rides along so the extension popup can name the tier; it has always
     // been in the response, and the extension now stores it (#123).
@@ -84,9 +142,17 @@ async function broadcastToken(force = false): Promise<void> {
       { source: "avc-web", type: "avc-sync-token", token, profile: profile ?? null },
       window.location.origin
     );
+    retryAttempts = 0;
+    cancelRetry();
+    setToken("ok", null);
   } catch {
     tokenBroadcast = false; // allow a later attempt (retry, or the next refresh)
-    if (linkState === "installed") setLinkState("error");
+    // A 200 that carried no token is a broken response, not an HTTP failure.
+    const error = tokenErrorFor(status !== null && status >= 200 && status < 300 ? 500 : status);
+    setToken("failed", error);
+    scheduleRetry(error);
+  } finally {
+    mintInFlight = false;
   }
 }
 
@@ -96,7 +162,7 @@ function markInstalled(): void {
     missingTimer = null;
   }
   stopPinging(); // the extension answered — no reason to keep pinging
-  setLinkState("installed");
+  setPresence("installed");
   void broadcastToken();
 }
 
@@ -106,8 +172,16 @@ function isExtensionSignal(type: string | undefined): boolean {
 
 function onExtensionMessage(e: MessageEvent): void {
   if (e.source !== window || e.origin !== window.location.origin) return;
-  const data = e.data as { source?: string; type?: string } | null;
+  const data = e.data as { source?: string; type?: string; linked?: unknown } | null;
   if (data?.source === "avc-ext" && isExtensionSignal(data.type)) {
+    // Newer extension builds say whether they already hold a sync token. An
+    // older build sends nothing, and that stays unknown rather than false.
+    if (typeof data.linked === "boolean") {
+      if (extensionLinked !== data.linked) {
+        extensionLinked = data.linked;
+        emit();
+      }
+    }
     markInstalled();
   }
 }
@@ -124,7 +198,7 @@ function startController(): void {
   // Long-interval refresh keeps the extension's token fresh (and, with the new
   // server-side TTL, alive). One mint per 20 minutes is not the runaway loop.
   window.setInterval(() => {
-    if (linkState === "installed") void broadcastToken(true);
+    if (presenceState === "installed") void broadcastToken(true);
   }, 20 * 60 * 1000);
 }
 
@@ -135,24 +209,61 @@ export function notifyExtensionLinkSignedIn(): void {
   // is authoritative: reopen detection and allow exactly one fresh token POST.
   startController();
   tokenBroadcast = false;
-  setLinkState("checking");
+  retryAttempts = 0;
+  cancelRetry();
+  setToken("idle", null);
+  setPresence("checking");
   startPinging();
   scheduleMissingCheck();
 }
 
-/** Detects the Chrome extension and keeps its sync token fresh. */
-export function useExtensionLink(): {
+export interface ExtensionLink {
   installed: boolean;
+  /** Presence only. Never reports a token failure; read `tokenState` for that. */
   state: LinkState;
+  tokenState: TokenState;
+  tokenError: TokenError | null;
+  /** What the extension said about its own token, or undefined if it did not. */
+  extensionLinked: boolean | undefined;
   retry: () => void;
-} {
-  const state = useSyncExternalStore(
+}
+
+/** One immutable snapshot per change, so useSyncExternalStore can compare it. */
+let snapshot: Omit<ExtensionLink, "retry"> = {
+  installed: false,
+  state: "checking",
+  tokenState: "idle",
+  tokenError: null,
+  extensionLinked: undefined,
+};
+
+function refreshSnapshot(): void {
+  snapshot = {
+    installed: presenceState === "installed",
+    state: presenceState,
+    tokenState,
+    tokenError,
+    extensionLinked,
+  };
+}
+
+const SERVER_SNAPSHOT: Omit<ExtensionLink, "retry"> = {
+  installed: false,
+  state: "checking",
+  tokenState: "idle",
+  tokenError: null,
+  extensionLinked: undefined,
+};
+
+/** Detects the Chrome extension and keeps its sync token fresh. */
+export function useExtensionLink(): ExtensionLink {
+  const current = useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => linkState,
-    () => "checking" as LinkState
+    () => snapshot,
+    () => SERVER_SNAPSHOT
   );
 
   useEffect(() => {
@@ -163,15 +274,20 @@ export function useExtensionLink(): {
   }, []);
 
   const retry = useCallback(() => {
-    setLinkState("checking");
+    // A deliberate retry gets a fresh budget and always attempts once, whatever
+    // the automatic backoff had decided.
+    retryAttempts = 0;
+    cancelRetry();
     tokenBroadcast = false;
-    startPinging();
-    scheduleMissingCheck();
+    setToken("idle", null);
+    if (presenceState !== "installed") {
+      setPresence("checking");
+      startPinging();
+      scheduleMissingCheck();
+    } else {
+      void broadcastToken();
+    }
   }, []);
 
-  return {
-    installed: state === "installed",
-    state,
-    retry,
-  };
+  return { ...current, retry };
 }
