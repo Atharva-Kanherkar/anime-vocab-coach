@@ -10,6 +10,7 @@ export const EXTENSION_EVENTS = [
   "upgrade_prompt_shown",
   "upgrade_prompt_clicked",
   "checkout_started",
+  "onboarding_shown",
 ] as const;
 
 export type ExtensionEvent = (typeof EXTENSION_EVENTS)[number];
@@ -53,6 +54,7 @@ export function trackExtensionEvent(event: ExtensionEvent): void {
 }
 
 export const EXTENSION_MILESTONES = [
+  "onboarding_shown",
   "signup_completed",
   "first_card_created",
   "first_srs_review",
