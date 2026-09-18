@@ -7,6 +7,7 @@ import { commonnessLabel } from "./levels";
 import { isEssentialWord } from "./priority-words";
 import { renderMarkdown } from "./markdown-lite";
 import { PausableTimer } from "./pausable-timer";
+import { PlaybackHold } from "./playback-hold";
 import {
   getSettings,
   setSettings,
@@ -105,20 +106,19 @@ let keyHandler: ((e: KeyboardEvent) => void) | null = null;
 /** Both auto-dismiss clocks freeze while the learner has the video paused. */
 const autoTimer = new PausableTimer();
 const autoTimerMax = new PausableTimer();
-let playHandler: (() => void) | null = null;
-let pauseHandler: (() => void) | null = null;
-/** True between our own video.pause() call and the pause event it raises, so a
- * focus-mode card that paused the video is not mistaken for a learner pause. */
-let selfPaused = false;
 let userResumed = false;
-/** True once the learner pauses under an open card. Pausing to study is the
- * learner taking the controls just as firmly as pressing play is, so the card's
- * own resume must not undo it: issue #127 is only half fixed if holding the card
- * through a pause still snaps the video back to playing the moment it is
- * graded. */
-let userPaused = false;
 let activeVideo: HTMLVideoElement | null = null;
 let wasPlaying = false;
+/**
+ * Ownership of the pause a focus-mode card causes (issues #127, #130).
+ *
+ * This is the single source of truth for "is the video still paused because we
+ * paused it". The learner pausing to study, seeking from a stop, or pressing
+ * play all release it, and no resume path of ours runs without it.
+ */
+const cardHold = new PlaybackHold();
+/** Teardown for the per-card listeners that feed the hold. */
+let videoWatchers: (() => void)[] = [];
 let currentJudgments: { val: Judgment; key: string }[] = [];
 
 /** Whether the panel currently sits collapsed to its rail. */
@@ -1076,15 +1076,12 @@ function payloadFromCtx(ctx: WordContext): CoachPayload {
 function clearWordTimers(): void {
   autoTimer.clear();
   autoTimerMax.clear();
-  if (playHandler && activeVideo) {
-    activeVideo.removeEventListener("play", playHandler);
-    playHandler = null;
-  }
-  if (pauseHandler && activeVideo) {
-    activeVideo.removeEventListener("pause", pauseHandler);
-    pauseHandler = null;
-  }
-  selfPaused = false;
+  // Detach every listener this card added. They exist only to feed the hold,
+  // and the hold's whole life is one card, so letting them outlive it would
+  // let a previous video's events reach the next one's hold — the same bleed
+  // issue #125 was about.
+  for (const off of videoWatchers) off();
+  videoWatchers = [];
   if (keyHandler) {
     window.removeEventListener("keydown", keyHandler, true);
     keyHandler = null;
@@ -1092,13 +1089,19 @@ function clearWordTimers(): void {
 }
 
 function resumeVideoIfNeeded(): void {
-  if (wasPlaying && !userResumed && !userPaused && activeVideo?.paused) {
-    activeVideo.play().catch(() => {});
+  // Release first and unconditionally, so a card that ends down any path
+  // cannot leave a hold standing for the next one to inherit.
+  const held = cardHold.release();
+  // Only a pause we still own, and only on the video we took it on. A
+  // focus-mode card pauses and resumes when the card resolves, which is the
+  // point of Focus mode, but if the learner paused (issue #127) or seeked
+  // (issue #130) while the card was up then the stop is theirs.
+  if (held && held === activeVideo && wasPlaying && !userResumed && held.paused) {
+    held.play().catch(() => {});
   }
   activeVideo = null;
   wasPlaying = false;
   userResumed = false;
-  userPaused = false;
 }
 
 function finishWord(judgment: Judgment | "dismiss"): void {
@@ -2001,37 +2004,48 @@ export function presentWord(
   wasPlaying = !!(video && !video.paused && !video.ended);
   activeVideo = video;
   userResumed = false;
-  userPaused = false;
-  selfPaused = false;
 
   // Collapsed, the panel is a 36px rail with no readable card in it. Stopping
   // the video for a word the learner cannot see is a worse interruption than
   // the overlap collapsing exists to escape (issue #132), so a collapsed panel
   // behaves as ambient: the card waits on the rail, playback carries on.
   if (options.interaction === "focus" && wasPlaying && video && !collapsed) {
-    // Our own pause, not the learner's: it must not freeze the dismissal clock,
-    // or a focus card would sit on screen until the learner touched something.
-    selfPaused = true;
-    video.pause();
+    // Taking the hold *is* the pause: the hold records that the pause event
+    // about to be queued is ours, so it does not read as the learner's and
+    // freeze the dismissal clock.
+    cardHold.hold(video, () => video.pause());
   }
   if (video) {
-    playHandler = () => {
+    const on = <K extends keyof HTMLMediaElementEventMap>(
+      type: K,
+      fn: (e: HTMLMediaElementEventMap[K]) => void
+    ): void => {
+      video.addEventListener(type, fn as EventListener);
+      videoWatchers.push(() => video.removeEventListener(type, fn as EventListener));
+    };
+
+    on("play", () => {
       userResumed = true;
-      userPaused = false;
-      selfPaused = false;
+      cardHold.noticePlay(video.paused);
       thawAutoTimers();
-    };
-    video.addEventListener("play", playHandler);
-    pauseHandler = () => {
-      if (selfPaused) { selfPaused = false; return; }
-      userPaused = true;
+    });
+    on("pause", () => {
+      // Our own pause changes nothing. Theirs is the learner taking the
+      // controls just as firmly as pressing play is (issue #127): the card's
+      // own resume must not undo it, and the dismissal clock stops so the card
+      // is still there when they look up.
+      if (cardHold.noticePause()) return;
       freezeAutoTimers();
-    };
-    video.addEventListener("pause", pauseHandler);
+    });
+    // Seeking from a stop is the learner moving to another moment, still
+    // stopped. It is issue #130's exact gesture and it ends our claim.
+    on("seeking", () => cardHold.noticeSeek(video.paused));
+    on("seeked", () => cardHold.noticeSeek(video.paused));
+
     // A card that arrives on an already-paused frame (a review fired from the
     // panel, say) is the same pause-to-study case: hold it until playback.
     // `wasPlaying` is already false here, so there is nothing to resume.
-    if (video.paused && !selfPaused) freezeAutoTimers();
+    if (video.paused && !cardHold.owned()) freezeAutoTimers();
   }
 
   wordCtx = ctx;

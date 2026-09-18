@@ -12,6 +12,7 @@ import { lookup } from "./dictionary";
 import { toRomaji } from "./romaji";
 import { commonnessLabel } from "./levels";
 import { buildGlossIndex, linkEnglishWord } from "./gloss-link";
+import { PlaybackHold } from "./playback-hold";
 import * as storage from "./storage";
 import { log, warn } from "./log";
 import type { Judgment, Token, VocabMap, WordSource } from "../types";
@@ -124,7 +125,16 @@ let hideTimer: ReturnType<typeof setTimeout> | null = null;
 let pointerLeaveTimer: ReturnType<typeof setTimeout> | null = null;
 let resumeTimer: ReturnType<typeof setTimeout> | null = null;
 let positionTimer: ReturnType<typeof setInterval> | null = null;
-let wePaused = false;
+/**
+ * Ownership of the peek-pause. Replaces a bare `wePaused` boolean, which could
+ * not tell our pause from the learner's: seeking from a deliberate stop got
+ * undone (#130) and a pause held across a focus loss parked the video (#131).
+ */
+const peekHold = new PlaybackHold();
+/** The video we have listeners on, so they follow a player swap. */
+let watchedVideo: HTMLVideoElement | null = null;
+/** Teardown for those listeners, so a swapped-out video stops feeding the hold. */
+let unwatch: (() => void) | null = null;
 let keysBound = false;
 let currentLine = "";
 const judgmentsInFlight = new Set<string>();
@@ -176,14 +186,55 @@ function armAutoHide(): void {
   }, AUTO_HIDE_MS);
 }
 
+/**
+ * Watch the video for the learner taking over. Any pause we did not cause, any
+ * seek while paused, and any play of their own releases our claim on the pause,
+ * so no resume path of ours can undo what they did.
+ */
+function watchVideo(video: HTMLVideoElement | null): void {
+  if (!video || video === watchedVideo) return;
+  // Let go of the old one first. Leaving its listeners attached meant a player
+  // tearing down the previous title still drove this hold, so the outgoing
+  // video's pause cleared a claim on the incoming one.
+  unwatch?.();
+  watchedVideo = video;
+  const onPause = (): void => { peekHold.noticePause(); };
+  const onPlay = (): void => peekHold.noticePlay(video.paused);
+  const onSeek = (): void => peekHold.noticeSeek(video.paused);
+  video.addEventListener("pause", onPause);
+  video.addEventListener("play", onPlay);
+  video.addEventListener("seeking", onSeek);
+  video.addEventListener("seeked", onSeek);
+  unwatch = () => {
+    video.removeEventListener("pause", onPause);
+    video.removeEventListener("play", onPlay);
+    video.removeEventListener("seeking", onSeek);
+    video.removeEventListener("seeked", onSeek);
+    unwatch = null;
+    watchedVideo = null;
+  };
+}
+
+/**
+ * Resume, but only a pause we still own, and only on the video we took it on.
+ *
+ * The video comes from the hold rather than from `opts.getVideo()`: by the time
+ * a resume path fires, the player may have swapped its element, and resuming
+ * "the current video" then starts a title nobody paused.
+ */
+function releasePeekPause(): void {
+  const video = peekHold.release();
+  if (video && video.paused) video.play().catch(() => {});
+}
+
 function onLensEnter(): void {
   if (pointerLeaveTimer) { clearTimeout(pointerLeaveTimer); pointerLeaveTimer = null; }
   if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
   if (!opts?.peekPause) return;
   const video = opts.getVideo();
+  watchVideo(video);
   if (video && !video.paused) {
-    video.pause();
-    wePaused = true;
+    peekHold.hold(video, () => video.pause());
   }
 }
 
@@ -195,15 +246,13 @@ function onLensLeave(): void {
   pointerLeaveTimer = setTimeout(() => {
     pointerLeaveTimer = null;
     hideTip();
-    if (!wePaused) return;
+    if (!peekHold.owned()) return;
     if (resumeTimer) clearTimeout(resumeTimer);
     resumeTimer = setTimeout(() => {
       resumeTimer = null;
-      if (!wePaused) return;
-      wePaused = false;
-      const video = opts?.getVideo();
-      // Only resume a pause we caused, and only if the user hasn't taken over.
-      if (video && video.paused) video.play().catch(() => {});
+      // Only a pause we still own: the learner may have paused or seeked in
+      // the delay, and undoing that is exactly issue #130.
+      releasePeekPause();
     }, RESUME_DELAY_MS);
   }, POINTER_LEAVE_DELAY_MS);
 }
@@ -440,6 +489,23 @@ export function showLensLine(
   if (!keysBound) {
     keysBound = true;
     window.addEventListener("keydown", onKeyDown, true);
+    // A peek-pause must not outlive the learner's attention. Opening the
+    // toolbar popup takes focus with the pointer outside the document, so the
+    // pointer-leave path never runs and the video used to sit paused until the
+    // pointer came back (issue #131). Losing focus gives the pause back now.
+    window.addEventListener("blur", () => {
+      hideTip();
+      releasePeekPause();
+    });
+    // A hidden tab is different: the learner is not looking at this page, so
+    // handing the pause back by *playing* would start audio in a window they
+    // have left. Drop the claim instead and leave the video where it is.
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        hideTip();
+        peekHold.forfeit();
+      }
+    });
   }
 }
 
@@ -450,9 +516,5 @@ export function hideLens(): void {
   if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
   hideTip();
   lensEl?.classList.remove("on");
-  if (wePaused) {
-    wePaused = false;
-    const video = opts?.getVideo();
-    if (video && video.paused) video.play().catch(() => {});
-  }
+  releasePeekPause();
 }

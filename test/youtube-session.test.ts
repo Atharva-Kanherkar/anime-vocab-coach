@@ -122,22 +122,34 @@ describe("#127 a paused video holds its card", () => {
 
   it("attaches the pause and play listeners to the card's video", () => {
     const present = functionBody(panel, "presentWord");
-    expect(present).toMatch(/addEventListener\("pause", pauseHandler\)/);
-    expect(present).toMatch(/addEventListener\("play", playHandler\)/);
+    expect(present).toMatch(/on\("pause",/);
+    expect(present).toMatch(/on\("play",/);
     expect(present).toMatch(/thawAutoTimers\(\)/);
+  });
+
+  // The listeners exist only to feed one card's hold, so they must not outlive
+  // it — a previous video's events reaching the next card's hold is the same
+  // bleed as #125.
+  it("detaches them when the card ends", () => {
+    const clear = functionBody(panel, "clearWordTimers");
+    expect(clear).toMatch(/for \(const off of videoWatchers\) off\(\);/);
+    expect(clear).toMatch(/videoWatchers = \[\]/);
+    expect(functionBody(panel, "presentWord")).toMatch(/videoWatchers\.push/);
   });
 
   // Focus mode pauses the video itself. That pause must not freeze the clock,
   // or a focus card would never time out on its own.
   it("does not mistake its own focus-mode pause for a learner pause", () => {
     const present = functionBody(panel, "presentWord");
-    expect(present).toMatch(/selfPaused = true;\s*\n\s*video\.pause\(\)/);
-    expect(present).toMatch(/if \(selfPaused\) \{ selfPaused = false; return; \}/);
+    // Taking the hold IS the pause, so the two can never fall out of step.
+    expect(present).toMatch(/cardHold\.hold\(video, \(\) => video\.pause\(\)\)/);
+    // Our own pause returns before the clock is frozen.
+    expect(present).toMatch(/if \(cardHold\.noticePause\(\)\) return;/);
   });
 
   it("holds a card that opens on an already-paused frame", () => {
     expect(functionBody(panel, "presentWord")).toMatch(
-      /if \(video\.paused && !selfPaused\) freezeAutoTimers\(\)/
+      /if \(video\.paused && !cardHold\.owned\(\)\) freezeAutoTimers\(\)/
     );
   });
 
@@ -152,26 +164,32 @@ describe("#127 a learner's pause outlives the card it was made for", () => {
   // Holding the card through a pause is only half the fix. The learner paused
   // to study; grading the card they paused for must not snap the video back to
   // playing under them.
+  // Ownership lives in one place now (PlaybackHold), so the learner pausing,
+  // seeking from a stop and pressing play are all the same answer to the same
+  // question. test/playback-ownership.test.ts drives that behaviour against a
+  // spec-shaped fake video; these pin the wiring.
   it("does not resume a video the learner paused", () => {
     const resume = functionBody(panel, "resumeVideoIfNeeded");
-    expect(resume).toMatch(/!userPaused/);
-    expect(resume).toMatch(/userPaused = false/);
+    expect(resume).toMatch(/cardHold\.release\(\)/);
   });
 
   it("records the learner's pause where it freezes the clock", () => {
     const present = functionBody(panel, "presentWord");
-    const pause = present.slice(present.indexOf("pauseHandler = () =>"));
-    const body = pause.slice(0, pause.indexOf("};"));
-    // Our own focus-mode pause returns before this line, so only a learner
-    // pause is recorded.
-    expect(body).toMatch(/userPaused = true/);
-    expect(body.indexOf("selfPaused")).toBeLessThan(body.indexOf("userPaused = true"));
+    const pause = present.slice(present.indexOf('on("pause"'));
+    const body = pause.slice(0, pause.indexOf("});"));
+    // Our own pause returns before this line, so only a learner pause freezes.
+    expect(body).toMatch(/freezeAutoTimers\(\)/);
+    expect(body.indexOf("cardHold.noticePause()")).toBeLessThan(
+      body.indexOf("freezeAutoTimers()")
+    );
   });
 
-  it("clears the flag when the learner gives playback back", () => {
+  it("clears the hold when the learner gives playback back", () => {
     const present = functionBody(panel, "presentWord");
-    const play = present.slice(present.indexOf("playHandler = () =>"));
-    expect(play.slice(0, play.indexOf("};"))).toMatch(/userPaused = false/);
+    const play = present.slice(present.indexOf('on("play"'));
+    const body = play.slice(0, play.indexOf("});"));
+    expect(body).toMatch(/cardHold\.noticePlay\(video\.paused\)/);
+    expect(body).toMatch(/thawAutoTimers\(\)/);
   });
 });
 
