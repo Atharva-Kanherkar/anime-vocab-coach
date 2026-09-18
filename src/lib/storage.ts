@@ -22,6 +22,7 @@ import {
   type ReviewPromptState,
 } from "./review-prompt";
 import { trackExtensionMilestone } from "./extension-events";
+import { trackFeature } from "./feature-events";
 import { stampOnboarding } from "./onboarding-store";
 
 let queue: Promise<unknown> = Promise.resolve();
@@ -244,6 +245,10 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
     }
 
     const rec = vocab[base];
+    // Whether this word was already in the deck, read BEFORE the judgment
+    // rewrites `state`. `word_saved` means "a new card entered the deck", not
+    // "the learner pressed a button again on a card they already had".
+    const wasCollected = rec.state === "known" || rec.state === "learning";
     if (meta) {
       rec.reading = meta.reading;
       rec.gloss = meta.gloss;
@@ -300,6 +305,16 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
     if (judgment === "know" || judgment === "learn") {
       void stampOnboarding("firstCardAt");
     }
+    // Learning-loop telemetry (#111). Fire-and-forget: the judgment is already
+    // persisted above and a beacon must never delay the panel's next card.
+    if (judgment === "know") void trackFeature("card_known");
+    if (judgment === "learn") void trackFeature("card_learn");
+    if (!wasCollected && (judgment === "know" || judgment === "learn")) {
+      void trackFeature("word_saved");
+    }
+    if (judgment === "review-pass" || judgment === "review-fail") {
+      void trackFeature("review_done");
+    }
     sendBadge(stats);
     return vocab[base];
   });
@@ -323,6 +338,7 @@ export function recordCardShown(base: string): Promise<void> {
     await trackExtensionMilestone("first_card_created");
     // Onboarding step 2: the panel is up and showing a word.
     void stampOnboarding("cardShownAt");
+    void trackFeature("card_shown");
   });
 }
 

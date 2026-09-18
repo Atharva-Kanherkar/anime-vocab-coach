@@ -30,17 +30,36 @@ from videos you watch. This policy explains exactly what it does with data.
   the monthly fair-use cap.
 - Nothing is captured when Listening Mode is off.
 
-## Anonymous product counters
+## Product counters
 
-When the extension shows the in-product Chrome Web Store rating prompt (or you
-click Rate), it sends a tiny allowlisted event name (e.g. `review_prompt_shown`)
-plus the extension id to `animevocab.com`. These are aggregate Analytics Engine
-counters only — no account id, vocabulary, or browsing history.
+The extension sends short **allowlisted event names** to `animevocab.com` so we
+can see whether the product works. There are two kinds, and they differ in
+whether they are tied to an account.
 
-There is no separate opt-out toggle for these counters; dismissing the prompt
-("No thanks" / Rate) stops further prompts and thus further beacons. The endpoint
-rate-limits by IP and only accepts requests that present as our Chrome extension
-(a public id in the Origin / header, not a secret credential).
+**Anonymous counters.** When the extension shows the in-product Chrome Web Store
+rating prompt (or you click Rate), it sends an event name (e.g.
+`review_prompt_shown`) plus the extension id. These are aggregate counters only
+— no account id, vocabulary, or browsing history. Dismissing the prompt
+("No thanks" / Rate) stops further prompts and thus further beacons. That
+endpoint rate-limits by IP and only accepts requests that present as our Chrome
+extension (a public id in a header, not a secret credential).
+
+**Learning-activity counters.** The extension also reports when a card was
+shown, kept, or reviewed, when Listening Mode started, when it was first
+installed, and when it was linked to an account — as a bare event name such as
+`card_shown`, and nothing else. **The word, the subtitle line, the show you are
+watching, and the page URL are never sent with these.** They exist so we can
+tell "nobody is getting cards" apart from "nobody has installed it", which
+previously could not be distinguished at all.
+
+If your extension is linked to an account, these are associated with your
+account id in the same way website analytics are (see below), because a count of
+activity nobody can be attributed to cannot answer whether anyone is learning.
+An unlinked, local-only install sends them without any identity.
+
+There is no separate opt-out toggle for either kind. Signing out on
+animevocab.com unlinks the extension, after which its counters are anonymous
+again.
 
 ## Website and service analytics
 

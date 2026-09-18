@@ -1,5 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { getSyncTokenProfile } from "./sync-store";
+import { rememberRequestIdentity } from "./request-identity";
+import { syncTokenOf } from "./telemetry";
 import { DEV_NO_CLERK, DEV_PROFILE } from "./dev-auth";
 import type { CloudUserProfile } from "./sync";
 import { normalizePlan, type Plan } from "./ai-coach";
@@ -36,17 +38,25 @@ function planFromProfile(profile: CloudUserProfile | null | undefined): Plan {
 //  3. A signed-in Clerk web session (cookie).
 // Returns null when none resolve → caller should 401.
 export async function resolveProfile(req: Request): Promise<CloudUserProfile | null> {
-  const auth = req.headers.get("authorization") || "";
-  const match = auth.match(/^Bearer\s+(avc_st_[A-Za-z0-9]+)$/);
+  const profile = await resolveProfileUncached(req);
+  // Hand the answer to the telemetry layer, which runs after the handler and
+  // would otherwise pay a second KV read to learn the same thing — or, before
+  // #112, give up and write "anon".
+  rememberRequestIdentity(req, profile ? { userId: profile.id, plan: profile.plan ?? null } : null);
+  return profile;
+}
+
+async function resolveProfileUncached(req: Request): Promise<CloudUserProfile | null> {
+  const token = syncTokenOf(req);
   // Note: a sync token authenticates the same user for any endpoint using this
   // resolver — including AI-metered ones (notebook summaries). That's the same
   // user and the same monthly quota bucket, so no cross-user or extra-spend
   // risk; it just means the extension's credential can also reach those paths.
-  if (match) {
+  if (token) {
     // A KV read hiccup here must not 500 every extension-authenticated request —
     // treat a lookup failure as "no valid session" so the caller gets a clean 401.
     try {
-      const profile = await getSyncTokenProfile(match[1]);
+      const profile = await getSyncTokenProfile(token);
       if (!profile) return null;
       return { ...profile, plan: planFromProfile(profile) };
     } catch (err) {

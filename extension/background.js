@@ -105,6 +105,66 @@
     }
   }
 
+  // src/lib/feature-events.ts
+  var FEATURE_EVENTS = [
+    "card_shown",
+    "card_known",
+    "card_learn",
+    "word_saved",
+    "review_done",
+    "listening_started",
+    "install_first_run",
+    "extension_linked"
+  ];
+  function isFeatureEvent(v) {
+    return typeof v === "string" && FEATURE_EVENTS.includes(v);
+  }
+  var TRACK_URL = WEB_URL + "/api/track";
+  var TRACK_FEATURE_MESSAGE = "avc-track-feature";
+  function inServiceWorker() {
+    return typeof window === "undefined";
+  }
+  function syncToken() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(
+          ["syncToken"],
+          (r) => resolve(typeof r?.syncToken === "string" ? r.syncToken : "")
+        );
+      } catch {
+        resolve("");
+      }
+    });
+  }
+  async function sendFeatureBeacon(event) {
+    if (!isFeatureEvent(event)) return;
+    try {
+      const token = await syncToken();
+      const headers = { "content-type": "application/json" };
+      if (token) headers.authorization = "Bearer " + token;
+      void fetch(TRACK_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kind: "feature", name: event }),
+        keepalive: true
+      }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  async function trackFeature(event) {
+    if (!isFeatureEvent(event)) return;
+    if (inServiceWorker()) {
+      await sendFeatureBeacon(event);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_FEATURE_MESSAGE, event }).catch(() => {
+      });
+    } catch {
+    }
+  }
+
   // src/lib/onboarding.ts
   var ONBOARDING_STORAGE_KEY = "onboarding";
   var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
@@ -816,6 +876,7 @@
     }
     if (details.reason === "install") {
       void stampOnboarding("installedAt");
+      void trackFeature("install_first_run");
       chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }).catch(() => {
       });
       void linkAccount("install");
@@ -844,7 +905,12 @@
     });
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && (changes.vocab || changes.stats)) scheduleSync();
+    if (area !== "local") return;
+    if (changes.vocab || changes.stats) scheduleSync();
+    const token = changes.syncToken;
+    if (token && !token.oldValue && typeof token.newValue === "string" && token.newValue) {
+      void trackFeature("extension_linked");
+    }
   });
   async function getListening() {
     const r = await chrome.storage.session.get(["listeningTabs"]);
@@ -957,11 +1023,11 @@
     if (settings.openaiKey?.trim()) {
       auth = { kind: "byo", key: settings.openaiKey.trim() };
     } else {
-      const syncToken = await getSyncToken();
-      if (!syncToken) {
+      const syncToken2 = await getSyncToken();
+      if (!syncToken2) {
         return { ok: false, error: NOT_LINKED_MSG };
       }
-      auth = { kind: "cloud", syncToken, backendUrl: BACKEND_URL };
+      auth = { kind: "cloud", syncToken: syncToken2, backendUrl: BACKEND_URL };
     }
     const injected = await ensureContentScript(tabId);
     if (!injected) {
@@ -999,6 +1065,7 @@
     });
     chrome.action.setBadgeText({ tabId, text: "REC" });
     chrome.action.setBadgeBackgroundColor({ tabId, color: "#f87171" });
+    void trackFeature("listening_started");
     console.log("[AVC] listening started on tab", tabId, "model", settings.transcribeModel || DEFAULTS.transcribeModel);
     return { ok: true };
   }
@@ -1019,6 +1086,10 @@
       const text = (msg.count || 0) > 0 ? String(msg.count) : "";
       chrome.action.setBadgeText({ text });
       chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
+      return;
+    }
+    if (msg.type === TRACK_FEATURE_MESSAGE) {
+      if (isFeatureEvent(msg.event)) void sendFeatureBeacon(msg.event);
       return;
     }
     if (msg.type === "avc-listen-start") {

@@ -414,6 +414,66 @@
     }
   }
 
+  // src/lib/feature-events.ts
+  var FEATURE_EVENTS = [
+    "card_shown",
+    "card_known",
+    "card_learn",
+    "word_saved",
+    "review_done",
+    "listening_started",
+    "install_first_run",
+    "extension_linked"
+  ];
+  function isFeatureEvent(v) {
+    return typeof v === "string" && FEATURE_EVENTS.includes(v);
+  }
+  var TRACK_URL = WEB_URL + "/api/track";
+  var TRACK_FEATURE_MESSAGE = "avc-track-feature";
+  function inServiceWorker() {
+    return typeof window === "undefined";
+  }
+  function syncToken() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(
+          ["syncToken"],
+          (r) => resolve(typeof r?.syncToken === "string" ? r.syncToken : "")
+        );
+      } catch {
+        resolve("");
+      }
+    });
+  }
+  async function sendFeatureBeacon(event) {
+    if (!isFeatureEvent(event)) return;
+    try {
+      const token = await syncToken();
+      const headers = { "content-type": "application/json" };
+      if (token) headers.authorization = "Bearer " + token;
+      void fetch(TRACK_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kind: "feature", name: event }),
+        keepalive: true
+      }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  async function trackFeature(event) {
+    if (!isFeatureEvent(event)) return;
+    if (inServiceWorker()) {
+      await sendFeatureBeacon(event);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_FEATURE_MESSAGE, event }).catch(() => {
+      });
+    } catch {
+    }
+  }
+
   // src/lib/onboarding.ts
   var ONBOARDING_STORAGE_KEY = "onboarding";
   var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
@@ -640,6 +700,7 @@
         };
       }
       const rec = vocab[base];
+      const wasCollected = rec.state === "known" || rec.state === "learning";
       if (meta) {
         rec.reading = meta.reading;
         rec.gloss = meta.gloss;
@@ -688,6 +749,14 @@
       if (judgment === "know" || judgment === "learn") {
         void stampOnboarding("firstCardAt");
       }
+      if (judgment === "know") void trackFeature("card_known");
+      if (judgment === "learn") void trackFeature("card_learn");
+      if (!wasCollected && (judgment === "know" || judgment === "learn")) {
+        void trackFeature("word_saved");
+      }
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        void trackFeature("review_done");
+      }
       sendBadge(stats);
       return vocab[base];
     });
@@ -706,6 +775,7 @@
       await chrome.storage.local.set({ vocab, stats });
       await trackExtensionMilestone("first_card_created");
       void stampOnboarding("cardShownAt");
+      void trackFeature("card_shown");
     });
   }
   function recordWatchTick() {
@@ -4295,13 +4365,13 @@
   }
 
   // src/lib/transcript-client.ts
-  async function lookupTranscript(syncToken, cacheKey2, t, windowSec = 8) {
+  async function lookupTranscript(syncToken2, cacheKey2, t, windowSec = 8) {
     const url = new URL(BACKEND_URL + "/v1/transcript");
     url.searchParams.set("key", cacheKey2);
     url.searchParams.set("t", String(t));
     url.searchParams.set("window", String(windowSec));
     const res = await fetch(url.toString(), {
-      headers: { Authorization: "Bearer " + syncToken }
+      headers: { Authorization: "Bearer " + syncToken2 }
     });
     if (res.status === 401) throw new Error("not signed in");
     if (res.status === 429) throw new Error("monthly listening hours used up");
@@ -4447,10 +4517,10 @@
       try {
         settings = await getSettings();
         if (stale()) return;
-        const syncToken = await getSyncToken();
-        if (!syncToken || stale()) return;
+        const syncToken2 = await getSyncToken();
+        if (!syncToken2 || stale()) return;
         const t = video.currentTime;
-        const result = await lookupTranscript(syncToken, requestedKey, t, 2);
+        const result = await lookupTranscript(syncToken2, requestedKey, t, 2);
         if (stale()) return;
         if (!result.hit || !result.segments.length) return;
         for (const seg of result.segments) {

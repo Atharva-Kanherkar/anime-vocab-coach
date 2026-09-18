@@ -3,6 +3,16 @@ import { completionTuning, DEFAULT_COACH_MODEL } from "./ai-coach";
 import { parseUsage } from "./llm-pricing";
 import { recordLlmCall, type LlmContext } from "./telemetry";
 
+/**
+ * Event name and outcome tags for the anime-context cache panel (#113).
+ *
+ * Defined next to the cache itself so the writer (the route) and the reader
+ * (telemetry-query.ts) cannot drift: a typo on either side produces a panel
+ * that reads 0% forever with no error anywhere.
+ */
+export const ANIME_CONTEXT_EVENT = "anime_context";
+export type AnimeContextCacheOutcome = "hit" | "miss";
+
 export const MAX_ANIME_TITLE_LEN = 120;
 export const MAX_ANIME_CONTEXT_LEN = 600;
 const CACHE_TTL_SECONDS = 60 * 24 * 3600; // 60 days — show context is stable

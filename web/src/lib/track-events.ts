@@ -5,16 +5,27 @@
 // every row into its own group and makes the dashboard useless — and lets any
 // visitor write arbitrary strings into the owner's telemetry.
 
-/** Feature invocations worth a row. Anything not listed is dropped. */
+/**
+ * Feature invocations worth a row. Anything not listed is dropped.
+ *
+ * The learning-loop block is the one the product is actually judged on: until
+ * it was wired up (#111) `avc_events` only ever held `api` and `pageview`
+ * rows, so "cards are not working" was a hypothesis with no data behind it.
+ * Those names are fired by the extension (src/lib/feature-events.ts) and by
+ * the sync route, not by the website, which is why they read like device
+ * actions rather than page interactions.
+ *
+ * `listening_started` and `review_done` replace the never-fired
+ * `listening_start` / `card_reviewed`: both were declared here when the beacon
+ * shipped and neither was ever written, so no historical row carries the old
+ * spelling and nothing queries it.
+ */
 export const TRACKABLE_EVENTS = [
   "coach_open",
   "coach_explain",
   "coach_hooks",
   "coach_chat",
-  "listening_start",
   "listening_stop",
-  "card_reviewed",
-  "word_saved",
   "notebook_open",
   "studio_create",
   "manga_create",
@@ -27,6 +38,17 @@ export const TRACKABLE_EVENTS = [
   "store_cta_click",
   "mobile_capture_shown",
   "mobile_capture_submitted",
+  // ---- learning loop (#111) ----
+  "card_shown",
+  "card_known",
+  "card_learn",
+  "word_saved",
+  "review_done",
+  "listening_started",
+  "streak_day",
+  "card_unlocked",
+  "install_first_run",
+  "extension_linked",
 ] as const;
 
 export type TrackableEvent = (typeof TRACKABLE_EVENTS)[number];

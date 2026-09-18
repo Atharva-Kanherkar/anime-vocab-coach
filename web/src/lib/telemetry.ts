@@ -268,6 +268,18 @@ export function requestFacts(req: Request): RequestFacts {
 }
 
 /**
+ * The extension's bearer credential, or null when the caller did not present
+ * one. One definition, shared by the auth resolver, the telemetry identity
+ * lookup and authKindOf — three copies of this pattern is how a tightened
+ * token format ends up rejected in one place and accepted in another.
+ */
+export function syncTokenOf(req: Request): string | null {
+  const auth = req.headers.get("authorization") || "";
+  const match = auth.match(/^Bearer\s+(avc_st_[A-Za-z0-9]+)$/);
+  return match ? match[1]! : null;
+}
+
+/**
  * How the caller authenticated, from the request alone.
  *
  * `sync_token` is the extension's credential (see resolveProfile), so it
@@ -276,8 +288,7 @@ export function requestFacts(req: Request): RequestFacts {
  * dashboard.
  */
 export function authKindOf(req: Request): "sync_token" | "clerk" | "none" {
-  const auth = req.headers.get("authorization") || "";
-  if (/^Bearer\s+avc_st_[A-Za-z0-9]+$/.test(auth)) return "sync_token";
+  if (syncTokenOf(req)) return "sync_token";
   const cookie = req.headers.get("cookie") || "";
   if (cookie.includes("__session") || cookie.includes("__client")) return "clerk";
   return "none";

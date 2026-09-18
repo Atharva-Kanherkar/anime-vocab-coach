@@ -3,6 +3,8 @@ import { getCloudSyncEnvelope, putCloudSyncEnvelope } from "@/lib/sync-store";
 import { resolveProfile } from "@/lib/auth";
 import { getPrefs, upsertEntry } from "@/lib/leaderboard-store";
 import { computeStreak, currentWeekId, weeklyMetrics } from "@/lib/gamification";
+import { newlyUnlockedCards, startedNewStreakDay } from "@/lib/learning-events";
+import { authKindOf, recordUserEvent, requestFacts } from "@/lib/telemetry";
 import {
   applyCloudSyncUpdate,
   normalizeAnimeVocabExport,
@@ -94,12 +96,56 @@ export async function PUT(req: Request) {
     await updateLeaderboard(profile, snapshot).catch((err) =>
       console.error("[leaderboard] update failed", err)
     );
+    // Derived learning-loop events (#111), from the diff between what the
+    // learner had and what they just pushed. Same best-effort contract as the
+    // leaderboard: a sync must never fail because a beacon did.
+    await recordProgressEvents(req, profile, current?.snapshot ?? null, snapshot).catch((err) =>
+      console.error("[telemetry] snapshot progress failed", err)
+    );
     return NextResponse.json({ envelope: next });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "sync_store_unavailable" },
       { status: 503 }
     );
+  }
+}
+
+/**
+ * Emit `streak_day` and `card_unlocked` for what this sync changed.
+ *
+ * Every extension push lands here, so the guards in learning-events.ts are
+ * what keep this from being one row per sync: a streak day fires once per
+ * learner per day, and an unlock only when a level gate is actually crossed.
+ */
+async function recordProgressEvents(
+  req: Request,
+  profile: CloudUserProfile,
+  before: CloudSyncSnapshot | null,
+  after: CloudSyncSnapshot
+): Promise<void> {
+  const now = new Date();
+  const facts = requestFacts(req);
+  const base = {
+    kind: "feature" as const,
+    userId: profile.id,
+    plan: profile.plan,
+    country: facts.country,
+    city: facts.city,
+    device: facts.device,
+    authKind: authKindOf(req),
+    status: "ok",
+  };
+
+  if (startedNewStreakDay(before, after)) {
+    await recordUserEvent({ ...base, name: "streak_day" });
+  }
+  // One row per card so the panel counts cards, not level-ups: a single sync
+  // that crosses two gates unlocked two cards, and collapsing that would
+  // under-report exactly the learners who came back after a long break.
+  const unlocked = newlyUnlockedCards(before, after, now);
+  for (let i = 0; i < unlocked; i++) {
+    await recordUserEvent({ ...base, name: "card_unlocked" });
   }
 }
 
