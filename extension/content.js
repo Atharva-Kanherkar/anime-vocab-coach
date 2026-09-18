@@ -348,6 +348,71 @@
   // src/lib/review-prompt.ts
   var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
 
+  // src/config.ts
+  var BACKEND_URL = "https://api.animevocab.com";
+  var WEB_URL = "https://animevocab.com";
+  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
+
+  // src/lib/extension-events.ts
+  var EXTENSION_EVENTS = [
+    "review_prompt_shown",
+    "review_prompt_clicked",
+    "signup_completed",
+    "first_card_created",
+    "first_srs_review",
+    "upgrade_prompt_shown",
+    "upgrade_prompt_clicked",
+    "checkout_started"
+  ];
+  function isExtensionEvent(v) {
+    return typeof v === "string" && EXTENSION_EVENTS.includes(v);
+  }
+  function extensionId() {
+    try {
+      if (typeof chrome !== "undefined" && chrome.runtime?.id) return chrome.runtime.id;
+    } catch {
+    }
+    return CWS_EXTENSION_ID;
+  }
+  function trackExtensionEvent(event) {
+    if (!isExtensionEvent(event)) return;
+    try {
+      const url = `${WEB_URL}/api/extension/track`;
+      const payload = JSON.stringify({ event });
+      void fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-avc-extension-id": extensionId()
+        },
+        body: payload,
+        keepalive: true
+      }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  var EXTENSION_MILESTONE_STORAGE_KEY = "funnelMilestones";
+  var milestoneInFlight = /* @__PURE__ */ new Set();
+  async function trackExtensionMilestone(event) {
+    if (milestoneInFlight.has(event)) return false;
+    milestoneInFlight.add(event);
+    try {
+      const result = await chrome.storage.local.get([EXTENSION_MILESTONE_STORAGE_KEY]);
+      const milestones = result[EXTENSION_MILESTONE_STORAGE_KEY] && typeof result[EXTENSION_MILESTONE_STORAGE_KEY] === "object" ? result[EXTENSION_MILESTONE_STORAGE_KEY] : {};
+      if (milestones[event]) return false;
+      await chrome.storage.local.set({
+        [EXTENSION_MILESTONE_STORAGE_KEY]: { ...milestones, [event]: true }
+      });
+      trackExtensionEvent(event);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      milestoneInFlight.delete(event);
+    }
+  }
+
   // src/lib/storage.ts
   var queue = Promise.resolve();
   function todayKey() {
@@ -548,6 +613,9 @@
         daily.judged += 1;
       }
       await chrome.storage.local.set({ vocab, stats });
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        await trackExtensionMilestone("first_srs_review");
+      }
       sendBadge(stats);
       return vocab[base];
     });
@@ -564,6 +632,7 @@
         vocab[base].shownCount = (vocab[base].shownCount || 0) + 1;
       }
       await chrome.storage.local.set({ vocab, stats });
+      await trackExtensionMilestone("first_card_created");
     });
   }
   function recordWatchTick() {
@@ -581,9 +650,6 @@
       chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
     });
   }
-
-  // src/config.ts
-  var BACKEND_URL = "https://api.animevocab.com";
 
   // src/lib/tts-client.ts
   var activeAudio = null;
@@ -2889,6 +2955,8 @@
     btn.appendChild(left);
     btn.appendChild(price);
     btn.addEventListener("click", () => {
+      trackExtensionEvent("upgrade_prompt_clicked");
+      trackExtensionEvent("checkout_started");
       chrome.runtime.sendMessage({ type: "avc-open-url", url: tier.checkoutUrl }).catch(() => {
       });
       dismissLimitSheet();
@@ -2955,6 +3023,7 @@
       }
     }
     if (upgrades.length) {
+      trackExtensionEvent("upgrade_prompt_shown");
       const plans = document.createElement("div");
       plans.className = "avc-agent-plans";
       for (const u of upgrades) plans.appendChild(u);

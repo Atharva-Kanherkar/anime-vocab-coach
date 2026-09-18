@@ -126,6 +126,46 @@
     return { ...prompt, dismissedForever: true };
   }
 
+  // src/lib/extension-events.ts
+  var EXTENSION_EVENTS = [
+    "review_prompt_shown",
+    "review_prompt_clicked",
+    "signup_completed",
+    "first_card_created",
+    "first_srs_review",
+    "upgrade_prompt_shown",
+    "upgrade_prompt_clicked",
+    "checkout_started"
+  ];
+  function isExtensionEvent(v) {
+    return typeof v === "string" && EXTENSION_EVENTS.includes(v);
+  }
+  function extensionId() {
+    try {
+      if (typeof chrome !== "undefined" && chrome.runtime?.id) return chrome.runtime.id;
+    } catch {
+    }
+    return CWS_EXTENSION_ID;
+  }
+  function trackExtensionEvent(event) {
+    if (!isExtensionEvent(event)) return;
+    try {
+      const url = `${WEB_URL}/api/extension/track`;
+      const payload = JSON.stringify({ event });
+      void fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-avc-extension-id": extensionId()
+        },
+        body: payload,
+        keepalive: true
+      }).catch(() => {
+      });
+    } catch {
+    }
+  }
+
   // src/lib/storage.ts
   var queue = Promise.resolve();
   function enqueue(fn) {
@@ -259,40 +299,6 @@
       if (r.state === "learning" && r.srs && r.srs.dueAt <= now) n++;
     }
     return n;
-  }
-
-  // src/lib/extension-events.ts
-  var EXTENSION_EVENTS = [
-    "review_prompt_shown",
-    "review_prompt_clicked"
-  ];
-  function isExtensionEvent(v) {
-    return typeof v === "string" && EXTENSION_EVENTS.includes(v);
-  }
-  function extensionId() {
-    try {
-      if (typeof chrome !== "undefined" && chrome.runtime?.id) return chrome.runtime.id;
-    } catch {
-    }
-    return CWS_EXTENSION_ID;
-  }
-  function trackExtensionEvent(event) {
-    if (!isExtensionEvent(event)) return;
-    try {
-      const url = `${WEB_URL}/api/extension/track`;
-      const payload = JSON.stringify({ event });
-      void fetch(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-avc-extension-id": extensionId()
-        },
-        body: payload,
-        keepalive: true
-      }).catch(() => {
-      });
-    } catch {
-    }
   }
 
   // src/lib/review-prompt-ui.ts
@@ -557,7 +563,10 @@
     el.innerHTML = `<div class="av-usage-head"><span class="av-usage-title">This month</span><span class="av-usage-plan">${esc(planName)}</span></div>` + meters + cta;
     el.hidden = false;
     if (cta && offer?.checkoutUrl) {
+      trackExtensionEvent("upgrade_prompt_shown");
       byId("usage-upgrade").addEventListener("click", () => {
+        trackExtensionEvent("upgrade_prompt_clicked");
+        trackExtensionEvent("checkout_started");
         chrome.tabs.create({ url: offer.checkoutUrl });
       });
     }

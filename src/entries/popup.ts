@@ -3,6 +3,7 @@ import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
 import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
+import { trackExtensionEvent } from "../lib/extension-events";
 import type { DailyStats } from "../types";
 
 type Theme = "dark" | "light";
@@ -305,7 +306,10 @@ async function renderUsage(): Promise<void> {
   el.hidden = false;
 
   if (cta && offer?.checkoutUrl) {
+    trackExtensionEvent("upgrade_prompt_shown");
     byId("usage-upgrade").addEventListener("click", () => {
+      trackExtensionEvent("upgrade_prompt_clicked");
+      trackExtensionEvent("checkout_started");
       chrome.tabs.create({ url: offer.checkoutUrl as string });
     });
   }

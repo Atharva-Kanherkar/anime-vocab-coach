@@ -38,6 +38,9 @@
   // src/lib/review-prompt.ts
   var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
 
+  // src/config.ts
+  var WEB_URL = "https://animevocab.com";
+
   // src/lib/storage.ts
   var queue = Promise.resolve();
   function todayKey() {
@@ -102,9 +105,6 @@
       sendBadge({ daily: {} });
     });
   }
-
-  // src/config.ts
-  var WEB_URL = "https://animevocab.com";
 
   // src/entries/options.ts
   function todayKey2() {
