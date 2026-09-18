@@ -81,6 +81,7 @@ interface Shell {
   wordIdle: HTMLElement;
   wordActive: HTMLElement;
   collapseBtn: HTMLElement;
+  rail: HTMLElement;
   foot: HTMLElement;
   buttons: HTMLElement;
   hint: HTMLElement;
@@ -120,6 +121,9 @@ let activeVideo: HTMLVideoElement | null = null;
 let wasPlaying = false;
 let currentJudgments: { val: Judgment; key: string }[] = [];
 
+/** Whether the panel currently sits collapsed to its rail. */
+let collapsed = false;
+
 const PANEL_MIN_W = 280;
 const PANEL_MAX_W = 560;
 const PANEL_DEFAULT_W = 340;
@@ -156,9 +160,15 @@ const STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   .avc-agent-layer {
     position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    /* Owned by the layer so the ambient wash respects the same host-control
+       clearance the sidebar does. Painting over those controls is half of
+       issue #132; stopping only the click targets leaves the tint behind. */
+    --avc-panel-bottom: ${PANEL_BOTTOM_CLEARANCE};
+    --avc-panel-w: ${PANEL_DEFAULT_W}px;
   }
   .avc-agent-ambient {
-    position: absolute; inset: 0; pointer-events: none;
+    position: absolute; inset: 0; bottom: var(--avc-panel-bottom);
+    pointer-events: none;
     transition: background 480ms ease;
   }
   .avc-agent-ambient.avc-focus {
@@ -170,8 +180,6 @@ const STYLES = `
     );
   }
   .avc-agent-sidebar {
-    --avc-panel-w: 340px;
-    --avc-panel-bottom: ${PANEL_BOTTOM_CLEARANCE};
     position: fixed; top: 0; right: 0; bottom: var(--avc-panel-bottom);
     width: var(--avc-panel-w);
     min-width: ${PANEL_MIN_W}px;
@@ -259,10 +267,19 @@ const STYLES = `
   .avc-agent-rail-open {
     font-size: 13px; line-height: 1; color: rgba(236, 234, 228, 0.6);
   }
-  /* A card waiting behind the rail: the mark warms up so a collapsed panel
-     cannot silently swallow a word. */
+  /* A card waiting behind the rail. The mark alone was 0.7 -> 1.0 alpha of the
+     same hue inside a 36px strip, which is not a notification; the whole rail
+     takes the accent so the waiting state is visible without looking for it. */
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail {
+    background: rgba(227, 186, 99, 0.16);
+    border-left-color: rgba(227, 186, 99, 0.55);
+    box-shadow: -6px 0 18px rgba(227, 186, 99, 0.18);
+  }
   .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail-mark {
     color: rgba(227, 186, 99, 1);
+  }
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail-open {
+    color: rgba(236, 234, 228, 0.95);
   }
   .avc-agent-collapse {
     width: 26px; height: 26px; padding: 0;
@@ -760,11 +777,15 @@ function clampPanelWidth(w: number): number {
   return Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, Math.round(w)));
 }
 
+/** The width the panel returns to when expanded, so collapse can be undone. */
+let expandedWidth = PANEL_DEFAULT_W;
+
 function setPanelWidth(sidebar: HTMLElement, w: number): void {
   const clamped = clampPanelWidth(w);
+  expandedWidth = clamped;
   sidebar.style.setProperty("--avc-panel-w", `${clamped}px`);
   sidebar.style.width = `${clamped}px`;
-  sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
+  if (!collapsed) sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
 }
 
 /**
@@ -774,11 +795,20 @@ function setPanelWidth(sidebar: HTMLElement, w: number): void {
  * exactly as they are, so a learner can reach the host player's controls
  * mid-card and come back to the same word (issue #132).
  */
-function setCollapsed(collapsed: boolean, persist = true): void {
+function setCollapsed(next: boolean, persist = true): void {
   if (!shell) return;
-  shell.sidebar.classList.toggle("avc-collapsed", collapsed);
-  shell.collapseBtn.setAttribute("aria-expanded", String(!collapsed));
-  if (persist) void setAgentPanelCollapsed(collapsed);
+  collapsed = next;
+  shell.sidebar.classList.toggle("avc-collapsed", next);
+  shell.collapseBtn.setAttribute("aria-expanded", String(!next));
+  shell.rail.setAttribute("aria-expanded", String(!next));
+  // The ambient wash is drawn from --avc-panel-w on the layer, which the
+  // sidebar's own class cannot reach. Without this the collapsed strip keeps a
+  // 340px darkened band over the player: click-through, but not out of the way.
+  shell.sidebar.parentElement?.style.setProperty(
+    "--avc-panel-w",
+    `${next ? PANEL_RAIL_W : expandedWidth}px`
+  );
+  if (persist) void setAgentPanelCollapsed(next);
 }
 
 function attachResizeHandle(sidebar: HTMLElement, grip: HTMLElement): void {
@@ -1536,6 +1566,7 @@ function buildShell(root: ShadowRoot): Shell {
   rail.setAttribute("role", "button");
   rail.setAttribute("tabindex", "0");
   rail.setAttribute("aria-label", "Expand AnimeVocab copilot");
+  rail.setAttribute("aria-expanded", "true");
   rail.title = "Expand copilot";
   const railMark = document.createElement("span");
   railMark.className = "avc-agent-rail-mark";
@@ -1551,7 +1582,9 @@ function buildShell(root: ShadowRoot): Shell {
   };
   rail.addEventListener("click", expand);
   rail.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") expand(e);
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault(); // Space on a role="button" would scroll the page
+    expand(e);
   });
 
   sidebar.appendChild(resize);
@@ -1570,7 +1603,7 @@ function buildShell(root: ShadowRoot): Shell {
   return {
     root, ambient, sidebar, panel, modeSelect, wordSection: scrollArea, scrollArea,
     wordIdle, wordActive, foot, buttons, hint, chatLog, chatInput, chatSend,
-    aiOut, explainBtn, hookBtn, collapseBtn,
+    aiOut, explainBtn, hookBtn, collapseBtn, rail,
   };
 }
 
@@ -1893,6 +1926,9 @@ export function ensureAgentMounted(): void {
   if (mounted && shell) return;
 
   shell = buildShell(root);
+  // A fresh shell renders expanded; the stored choice is re-applied below, so
+  // the flag must not carry a previous mount's state into this one.
+  collapsed = false;
   mounted = true;
   romaji.preloadVoices();
   announceVisibility(true);
@@ -1968,7 +2004,11 @@ export function presentWord(
   userPaused = false;
   selfPaused = false;
 
-  if (options.interaction === "focus" && wasPlaying && video) {
+  // Collapsed, the panel is a 36px rail with no readable card in it. Stopping
+  // the video for a word the learner cannot see is a worse interruption than
+  // the overlap collapsing exists to escape (issue #132), so a collapsed panel
+  // behaves as ambient: the card waits on the rail, playback carries on.
+  if (options.interaction === "focus" && wasPlaying && video && !collapsed) {
     // Our own pause, not the learner's: it must not freeze the dismissal clock,
     // or a focus card would sit on screen until the learner touched something.
     selfPaused = true;

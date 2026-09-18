@@ -204,6 +204,90 @@ try {
 
   const persisted = await sw.evaluate(async () => (await chrome.storage.local.get("agentPanelCollapsed")).agentPanelCollapsed);
   check("#132 the collapse choice is remembered", persisted === false, `stored ${JSON.stringify(persisted)}`);
+
+  // ── Review follow-ups ─────────────────────────────────────────────────────
+  // Two things the first pass left: the ambient wash ignored both the clearance
+  // and the collapse, and a focus card still stopped the video behind a rail
+  // the learner cannot read it in.
+
+  // Focus mode is what paints the wash and what pauses, so switch to it.
+  await sw.evaluate(
+    (s) => chrome.storage.local.set({ settings: { ...s, pauseMode: "pause" } }),
+    SETTINGS
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => !document.querySelector("video").paused, null, { timeout: 15000 });
+  await page.waitForTimeout(4000);
+  await sw.evaluate((id) => chrome.tabs.sendMessage(id, { type: "avc-agent-show" }), tabId);
+  await page.waitForSelector(SIDEBAR, { timeout: 8000 });
+  await page.waitForTimeout(800);
+
+  const washExpanded = await page.evaluate(() => {
+    const r = document.getElementById("avc-overlay-host").shadowRoot;
+    const amb = r.querySelector(".avc-agent-ambient");
+    return {
+      focusWash: amb.className.includes("avc-focus"),
+      bottom: Math.round(amb.getBoundingClientRect().bottom),
+      panelW: getComputedStyle(r.querySelector(".avc-agent-layer")).getPropertyValue("--avc-panel-w").trim(),
+    };
+  });
+  const barTop = await page.evaluate(() => Math.round(document.getElementById("host-controls").getBoundingClientRect().top));
+  check(
+    "#132 the ambient wash clears the control bar too, not just the sidebar",
+    washExpanded.focusWash && washExpanded.bottom <= barTop,
+    `wash bottom ${washExpanded.bottom}, bar top ${barTop}`
+  );
+
+  await page.evaluate(() =>
+    document.getElementById("avc-overlay-host").shadowRoot.querySelector(".avc-agent-collapse").click()
+  );
+  await page.waitForTimeout(400);
+  const washCollapsed = await page.evaluate(() => {
+    const r = document.getElementById("avc-overlay-host").shadowRoot;
+    return getComputedStyle(r.querySelector(".avc-agent-layer")).getPropertyValue("--avc-panel-w").trim();
+  });
+  check(
+    "#132 collapsing hands the wash back to the player as well as the clicks",
+    washCollapsed === "36px",
+    `--avc-panel-w was ${washExpanded.panelW} expanded, ${washCollapsed} collapsed`
+  );
+
+  // A focus card arriving behind the rail must not stop the video.
+  let collapsedCard = false;
+  for (let i = 0; i < 9 && !collapsedCard; i++) {
+    await page.evaluate((line) => window.avcCaption(line), LINES[i % LINES.length]);
+    await page.waitForTimeout(1200);
+    collapsedCard = await page.evaluate(
+      () => !!document.getElementById("avc-overlay-host").shadowRoot.querySelector(".avc-agent-word-block.avc-active")
+    );
+  }
+  const behindRail = await page.evaluate(() => {
+    const r = document.getElementById("avc-overlay-host").shadowRoot;
+    const sb = r.querySelector(".avc-agent-sidebar");
+    const rail = r.querySelector(".avc-agent-rail");
+    return {
+      videoPlaying: !document.querySelector("video").paused,
+      waiting: sb.classList.contains("avc-has-card"),
+      railAccented: getComputedStyle(rail).backgroundColor,
+      railAriaExpanded: rail.getAttribute("aria-expanded"),
+    };
+  });
+  check("a focus card does raise behind the rail", collapsedCard);
+  check(
+    "#132 a collapsed panel does not stop the video for a card it cannot show",
+    behindRail.videoPlaying,
+    JSON.stringify(behindRail)
+  );
+  check(
+    "#132 the waiting card is visible on the rail itself, not just its label",
+    behindRail.waiting && behindRail.railAccented.startsWith("rgba(227, 186, 99"),
+    `rail background ${behindRail.railAccented}`
+  );
+  check(
+    "the rail reports its own collapsed state to a screen reader",
+    behindRail.railAriaExpanded === "false",
+    `aria-expanded ${behindRail.railAriaExpanded}`
+  );
 } finally {
   await ctx.close();
 }

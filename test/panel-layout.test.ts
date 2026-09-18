@@ -50,7 +50,18 @@ describe("the panel clears the host control strip", () => {
     const body = rule.slice(0, rule.indexOf("\n  }"));
     expect(body).toMatch(/bottom: var\(--avc-panel-bottom\)/);
     expect(body).not.toMatch(/bottom: 0/);
-    expect(body).toMatch(/--avc-panel-bottom: \$\{PANEL_BOTTOM_CLEARANCE\}/);
+  });
+
+  it("stops the ambient wash there too, not just the sidebar", () => {
+    // The wash is a separate full-viewport layer. Clearing the sidebar while it
+    // kept painting to the bottom edge left the tint over the very controls
+    // this issue is about, so the clearance is owned by the layer both read.
+    const layer = panel.slice(panel.indexOf(".avc-agent-layer {"));
+    expect(layer.slice(0, layer.indexOf("\n  }"))).toMatch(
+      /--avc-panel-bottom: \$\{PANEL_BOTTOM_CLEARANCE\}/
+    );
+    const amb = panel.slice(panel.indexOf(".avc-agent-ambient {"));
+    expect(amb.slice(0, amb.indexOf("\n  }"))).toMatch(/bottom: var\(--avc-panel-bottom\)/);
   });
 });
 
@@ -65,7 +76,7 @@ describe("collapse keeps the card", () => {
   });
 
   it("persists the choice, and does not write back the one it just restored", () => {
-    expect(body).toMatch(/setAgentPanelCollapsed\(collapsed\)/);
+    expect(body).toMatch(/setAgentPanelCollapsed\(next\)/);
     expect(body).toMatch(/if \(persist\)/);
     expect(panel).toMatch(/setCollapsed\(true, false\)/);
   });
@@ -97,6 +108,28 @@ describe("collapse keeps the card", () => {
     expect(panel).toMatch(/classList\.add\("avc-has-card"\)/);
     expect(panel).toMatch(/classList\.remove\("avc-has-card"\)/);
     expect(panel).toMatch(/\.avc-collapsed\.avc-has-card \.avc-agent-rail-mark/);
+  });
+
+  it("hands the wash back to the player too, not just the clicks", () => {
+    // The gradient is drawn from --avc-panel-w on the layer, which the
+    // sidebar's own class cannot reach; leaving it at the expanded width kept a
+    // 340px darkened band over a player that was supposedly given back.
+    const body = functionBody(panel, "setCollapsed");
+    expect(body).toMatch(/parentElement\?\.style\.setProperty\(\s*\n?\s*"--avc-panel-w"/);
+    expect(body).toMatch(/PANEL_RAIL_W : expandedWidth/);
+  });
+
+  it("does not stop the video for a card the rail cannot show", () => {
+    // Focus mode pauses. Collapsed there is no readable card to pause for, so
+    // the learner would get an unexplained stop every time a word came up.
+    const present = functionBody(panel, "presentWord");
+    expect(present).toMatch(
+      /options\.interaction === "focus" && wasPlaying && video && !collapsed/
+    );
+  });
+
+  it("takes Space without scrolling the page underneath", () => {
+    expect(panel).toMatch(/e\.preventDefault\(\); \/\/ Space on a role="button"/);
   });
 
   it("applies the stored choice on mount, alongside the width", () => {

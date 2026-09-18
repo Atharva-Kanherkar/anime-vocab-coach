@@ -127,3 +127,43 @@ account can render the real control cluster:
    clickable without closing the panel.
 3. Collapse the panel mid-card, use the caption menu, expand, and confirm the
    same card is still there.
+
+## Review follow-ups (amended after the first implementation pass)
+
+Three things the first pass left, all found by running the rebased branch rather
+than reading it. Recorded here so the amendment is a decision, not a drift.
+
+**The wash is part of the panel.** `.avc-agent-ambient` is a separate
+full-viewport layer, and clearing only the sidebar left its focus-mode gradient
+painting over the control bar — measured `0→720` against a sidebar that stopped
+at `580`. The clearance is therefore owned by `.avc-agent-layer`, and both the
+sidebar and the ambient read it.
+
+- The ambient's bottom edge clears the host control bar, like the sidebar's.
+
+**Collapse hands back the strip, not just its clicks.** The gradient is drawn
+from `--avc-panel-w` on the layer, which the sidebar's own class cannot reach,
+so a collapsed panel kept a 340px darkened band over the player — click-through
+but still in the way.
+
+- Collapsing sets `--avc-panel-w` to the rail width; expanding restores the
+  learner's own width.
+
+**A collapsed panel must not stop the video.** Focus mode pauses on every card.
+Collapsed there is no readable card to pause *for*, so a learner who collapsed
+the panel to reach the player's controls got an unexplained stop of up to
+`FOCUS_AUTO_DISMISS_SEC` every time a word came up — a worse interruption than
+the overlap collapsing exists to escape. The rail's old signal (0.7 → 1.0 alpha
+on a 10px label) was not a notification either.
+
+- A card arriving while collapsed leaves playback alone.
+- The waiting state is carried by the whole rail, not only its label.
+- The rail reports its own `aria-expanded`, since the button that carries that
+  state is `display: none` while collapsed.
+- Space on the rail expands without scrolling the page underneath.
+
+**Still not addressed, deliberately:** `PANEL_BOTTOM_CLEARANCE` is one number
+for every site, sized from Netflix's bar. YouTube's is about a third of it, so
+the panel gives up height it did not need to. A per-adapter clearance is the
+durable version; it is a larger change than this issue, and the cost is lost
+panel height rather than a broken control.
