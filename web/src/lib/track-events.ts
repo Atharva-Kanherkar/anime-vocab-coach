@@ -5,16 +5,52 @@
 // every row into its own group and makes the dashboard useless — and lets any
 // visitor write arbitrary strings into the owner's telemetry.
 
-/** Feature invocations worth a row. Anything not listed is dropped. */
+/**
+ * The learning loop itself: what a learner does inside the product.
+ *
+ * Named separately from the rest of the allowlist because the /owner panel and
+ * the weekly "cards accepted per active learner" metric are about THESE, and
+ * nothing else. `feature` rows also carry acquisition events (`landing_view`,
+ * `store_cta_click`) and the anime-context cache probe, and folding those into
+ * a learning-loop panel would put a marketing click next to a card review and
+ * invite the reader to compare them.
+ */
+export const LEARNING_LOOP_EVENTS = [
+  "card_shown",
+  "card_known",
+  "card_learn",
+  "word_saved",
+  "review_done",
+  "listening_started",
+  "streak_day",
+  "card_unlocked",
+  "install_first_run",
+  "extension_linked",
+] as const;
+
+export type LearningLoopEvent = (typeof LEARNING_LOOP_EVENTS)[number];
+
+/**
+ * Feature invocations worth a row. Anything not listed is dropped.
+ *
+ * The learning-loop block is the one the product is actually judged on: until
+ * it was wired up (#111) `avc_events` only ever held `api` and `pageview`
+ * rows, so "cards are not working" was a hypothesis with no data behind it.
+ * Those names are fired by the extension (src/lib/feature-events.ts) and by
+ * the sync route, not by the website, which is why they read like device
+ * actions rather than page interactions.
+ *
+ * `listening_started` and `review_done` replace the never-fired
+ * `listening_start` / `card_reviewed`: both were declared here when the beacon
+ * shipped and neither was ever written, so no historical row carries the old
+ * spelling and nothing queries it.
+ */
 export const TRACKABLE_EVENTS = [
   "coach_open",
   "coach_explain",
   "coach_hooks",
   "coach_chat",
-  "listening_start",
   "listening_stop",
-  "card_reviewed",
-  "word_saved",
   "notebook_open",
   "studio_create",
   "manga_create",
@@ -27,6 +63,7 @@ export const TRACKABLE_EVENTS = [
   "store_cta_click",
   "mobile_capture_shown",
   "mobile_capture_submitted",
+  ...LEARNING_LOOP_EVENTS,
 ] as const;
 
 export type TrackableEvent = (typeof TRACKABLE_EVENTS)[number];

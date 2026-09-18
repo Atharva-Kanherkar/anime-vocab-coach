@@ -1,4 +1,5 @@
 import { CWS_EXTENSION_ID, WEB_URL } from "../config";
+import { inServiceWorker } from "./run-context";
 
 /** Allowlisted extension product-funnel events (aggregate counters only). */
 export const EXTENSION_EVENTS = [
@@ -28,13 +29,18 @@ function extensionId(): string {
   return CWS_EXTENSION_ID;
 }
 
+/** Message a content script or extension page uses to hand this beacon to the
+ *  service worker. */
+export const TRACK_EXTENSION_EVENT_MESSAGE = "avc-track-extension-event";
+
 /**
- * Fire-and-forget allowlisted counter. Never throws — analytics must not
- * break popup/dashboard UX. Sends the extension id so the server can reject
- * non-extension callers. fetch-only (sendBeacon cannot set the id header and
- * is not CORS-safelisted for application/json).
+ * Send the counter. Only ever called in the service worker — see below.
+ *
+ * Sends the extension id so the server can reject non-extension callers.
+ * fetch-only (sendBeacon cannot set the id header and is not CORS-safelisted
+ * for application/json).
  */
-export function trackExtensionEvent(event: ExtensionEvent): void {
+export function sendExtensionEventBeacon(event: ExtensionEvent): void {
   if (!isExtensionEvent(event)) return;
   try {
     const url = `${WEB_URL}/api/extension/track`;
@@ -48,6 +54,35 @@ export function trackExtensionEvent(event: ExtensionEvent): void {
       body: payload,
       keepalive: true,
     }).catch(() => {});
+  } catch {
+    // swallow
+  }
+}
+
+/**
+ * Fire-and-forget allowlisted counter. Never throws — analytics must not break
+ * popup/dashboard UX.
+ *
+ * Relayed through the service worker when it is not already running there.
+ * This used to fetch in place from every context, and e2e/learning-loop.mjs
+ * caught what that cost: the biggest callers (the in-page card overlay and
+ * storage.ts's judgeWord / recordCardShown) run in a CONTENT SCRIPT, at
+ * youtube.com's origin, where the request is cross-origin and CORS drops it
+ * after the preflight. So `first_card_created`, `first_srs_review`,
+ * `upgrade_prompt_shown/clicked` and `checkout_started` never reached the
+ * funnel dataset at all — and because trackExtensionMilestone marks a
+ * milestone as sent BEFORE sending, the lost ones were never retried.
+ */
+export function trackExtensionEvent(event: ExtensionEvent): void {
+  if (!isExtensionEvent(event)) return;
+  if (inServiceWorker()) {
+    sendExtensionEventBeacon(event);
+    return;
+  }
+  try {
+    void chrome.runtime
+      .sendMessage({ type: TRACK_EXTENSION_EVENT_MESSAGE, event })
+      .catch(() => {});
   } catch {
     // swallow
   }

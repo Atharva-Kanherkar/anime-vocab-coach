@@ -6,13 +6,13 @@ import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "AnimeVocab privacy policy: learning progress stays in your browser by default. Cloud sync is opt-in. Aggregate rating-prompt counters only — no ads, no selling of data.",
+    "AnimeVocab privacy policy: learning progress stays in your browser by default. Cloud sync is opt-in. The extension reports allowlisted activity counters (event names only, never the words or pages you see) — no ads, no selling of data.",
   alternates: { canonical: `${SITE_URL}/privacy` },
   openGraph: {
     ...defaultOpenGraph,
     title: "Privacy Policy | AnimeVocab",
     description:
-      "AnimeVocab privacy policy: learning progress stays in your browser by default. Cloud sync is opt-in. Aggregate rating-prompt counters only — no ads, no selling of data.",
+      "AnimeVocab privacy policy: learning progress stays in your browser by default. Cloud sync is opt-in. The extension reports allowlisted activity counters (event names only, never the words or pages you see) — no ads, no selling of data.",
     url: `${SITE_URL}/privacy`,
   },
   twitter: {
@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         <section className="legal wrap narrow" style={{ paddingTop: 48 }}>
           <h1>Privacy Policy</h1>
           <p className="date" style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 40 }}>
-            Last updated: July 17, 2026
+            Last updated: September 19, 2026
           </p>
 
           <p>
@@ -69,20 +69,40 @@ export default function PrivacyPage() {
             <li>Nothing is captured when Listening Mode is off.</li>
           </ul>
 
-          <h2>Anonymous product counters</h2>
+          <h2>Product counters</h2>
+          <p>
+            The extension sends short <b>allowlisted event names</b> to{" "}
+            <code>animevocab.com</code> so we can see whether the product works. There are two
+            kinds, and they differ in whether they are tied to an account.
+          </p>
           <ul>
             <li>
-              When the extension shows the in-product Chrome Web Store rating prompt (or you
-              click Rate), it sends a tiny allowlisted event name such as{" "}
-              <code>review_prompt_shown</code> plus the extension id to{" "}
-              <code>animevocab.com</code>. These are aggregate counters only — no account id,
-              vocabulary, or browsing history.
+              <b>Anonymous counters.</b> When the extension shows the in-product Chrome Web
+              Store rating prompt (or you click Rate), it sends an event name such as{" "}
+              <code>review_prompt_shown</code> plus the extension id. These are aggregate
+              counters only — no account id, vocabulary, or browsing history. Dismissing the
+              prompt (&quot;No thanks&quot; / Rate) stops further prompts and thus further
+              beacons. That endpoint rate-limits by IP and only accepts requests that present
+              as our Chrome extension (a public id, not a secret).
             </li>
             <li>
-              There is no separate opt-out toggle for these counters; dismissing the prompt
-              (&quot;No thanks&quot; / Rate) stops further prompts and thus further beacons.
-              The endpoint rate-limits by IP and only accepts requests that present as our
-              Chrome extension (a public id, not a secret).
+              <b>Learning-activity counters.</b> The extension also reports when a card was
+              shown, kept, or reviewed, when Listening Mode started, when it was first
+              installed, and when it was linked to an account — as a bare event name such as{" "}
+              <code>card_shown</code>, and nothing else. <b>The word, the subtitle line, the
+              show you are watching, and the page URL are never sent with these.</b> They exist
+              so we can tell &quot;nobody is getting cards&quot; apart from &quot;nobody has
+              installed it&quot;, which previously could not be distinguished at all.
+            </li>
+            <li>
+              If your extension is <b>linked to an account</b>, the learning-activity counters
+              are associated with your account id, in the same way the website analytics below
+              are. An unlinked, local-only install sends them with no identity attached.
+            </li>
+            <li>
+              There is no separate opt-out toggle for either kind. Signing out on{" "}
+              <code>animevocab.com</code> unlinks the extension, after which its counters are
+              anonymous again.
             </li>
           </ul>
 

@@ -34,8 +34,12 @@ import {
   type LlmTotals,
   type LlmUserRow,
   type TimeBucketRow,
+  animeContextCacheSql,
   eventDistinctUsersSql,
+  featureEventsSql,
   llmDistinctUsersSql,
+  type CacheOutcomeRow,
+  type FeatureEventRow,
   transcribeByUserSql,
   transcribeGroupSql,
   transcribeSeriesSql,
@@ -302,6 +306,75 @@ export interface OwnerDashboardData {
   transcribe: TranscribeSummary;
   /** Distinct identified users seen in the event stream in the window. */
   eventUserCount: number;
+  /** Learning-loop `feature` events (#111): card shown, saved, reviewed, … */
+  learningLoop: FeatureRow[];
+  /** The anime-context KV cache, which used to have no panel at all (#113). */
+  animeContextCache: CacheSummary;
+}
+
+/** One learning-loop event: how often, and how many learners. */
+export interface FeatureRow {
+  label: string;
+  events: number;
+  /** Distinct identified learners; anonymous rows are excluded, not bucketed. */
+  users: number;
+  anonEvents: number;
+  /** `events` minus the anonymous ones — the numerator `users` can divide. */
+  identifiedEvents: number;
+}
+
+/**
+ * A cache panel with its own denominator.
+ *
+ * `present` is false until the cache has been asked anything in the window,
+ * which the UI shows as "no data yet" — distinct from an honest 0% hit rate,
+ * and the difference between "the cache is broken" and "nobody watched
+ * anything today".
+ */
+export interface CacheSummary {
+  present: boolean;
+  hits: number;
+  misses: number;
+  /** hits / (hits + misses), 0..1. */
+  hitRate: number;
+}
+
+export const EMPTY_CACHE: CacheSummary = { present: false, hits: 0, misses: 0, hitRate: 0 };
+
+/**
+ * Fold the learning-loop rows, discounting the shared anonymous bucket.
+ *
+ * The writer stores "anon" for an unidentified row, so AE's COUNT(DISTINCT)
+ * reports every anonymous learner in the world as one extra user. Left in, a
+ * panel showing 1 user and 4,000 card views would be reporting a single
+ * insomniac when the truth is "we cannot tell yet".
+ */
+export function foldFeatureEvents(rows: FeatureEventRow[]): FeatureRow[] {
+  return rows
+    .filter((r) => r.label)
+    .map((r) => {
+      const events = num(r.events);
+      const anonEvents = num(r.anonEvents);
+      return {
+        label: r.label,
+        events,
+        users: Math.max(0, num(r.users) - (anonEvents > 0 ? 1 : 0)),
+        anonEvents,
+        // Dividing TOTAL events by identified users would charge every
+        // anonymous install's activity to the handful of learners who happen
+        // to be linked: `install_first_run` is anonymous by definition, so a
+        // panel doing that reports dozens of installs per learner.
+        identifiedEvents: Math.max(0, events - anonEvents),
+      };
+    });
+}
+
+/** Hits over real lookups. No lookups means "not asked yet", not "0% hit rate". */
+export function foldCacheOutcome(row: CacheOutcomeRow | undefined): CacheSummary {
+  const hits = num(row?.hits);
+  const misses = num(row?.misses);
+  const lookups = hits + misses;
+  return { present: lookups > 0, hits, misses, hitRate: lookups > 0 ? hits / lookups : 0 };
 }
 
 /**
@@ -380,6 +453,8 @@ const UNCONFIGURED: OwnerDashboardData = {
   extensionFunnel: [],
   transcribe: EMPTY_TRANSCRIBE,
   eventUserCount: 0,
+  learningLoop: [],
+  animeContextCache: EMPTY_CACHE,
 };
 
 const simple = (rows: EventGroupRow[]): SimpleRow[] =>
@@ -422,8 +497,15 @@ export async function loadOwnerDashboard(
     { label: "transcribe users", sql: transcribeByUserSql(hours) },
     // Distinct-user counts: separate ungrouped queries, because summing
     // per-group DISTINCTs double-counts anyone present in two groups.
-    { label: "llm distinct users", sql: llmDistinctUsersSql(hours) },
-    { label: "event distinct users", sql: eventDistinctUsersSql(hours) },
+    { label: "llm distinct users", sql: llmDistinctUsersSql(hours, userId) },
+    { label: "event distinct users", sql: eventDistinctUsersSql(hours, userId) },
+    // The learning loop (#111) and the cache that had no panel (#113). Both
+    // read `feature` rows, which did not exist at all before this work, so
+    // both fail independently until the first one is written. Both take the
+    // focus user, so the drill-down is one learner's telemetry throughout
+    // rather than a page where some panels quietly show everybody.
+    { label: "learning loop", sql: featureEventsSql(hours, userId) },
+    { label: "anime context cache", sql: animeContextCacheSql(hours, userId) },
   ];
 
   const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {
@@ -458,6 +540,8 @@ export async function loadOwnerDashboard(
     const txUsers = at<TranscribeUserRow>(17);
     const llmUsers = at<DistinctUsersRow>(18)[0];
     const eventUsersCount = at<DistinctUsersRow>(19)[0];
+    const featureRows = at<FeatureEventRow>(20);
+    const animeCacheRow = at<CacheOutcomeRow>(21)[0];
 
     const txCalls = num(txTotals?.calls);
     const txHits = num(txTotals?.hits);
@@ -509,6 +593,9 @@ export async function loadOwnerDashboard(
     // `Totals.users` was declared but never assigned, which is why the header
     // read "0 distinct users" next to a four-figure call count.
     const totals = { ...facets.totals, users: num(llmUsers?.users) };
+
+    const learningLoop = foldFeatureEvents(featureRows);
+    const animeContextCache = foldCacheOutcome(animeCacheRow);
 
     return {
       configured: true,
@@ -565,6 +652,8 @@ export async function loadOwnerDashboard(
       extensionFunnel: funnelRows.map((r) => ({ label: r.label, value: num(r.events) })),
       transcribe,
       eventUserCount: num(eventUsersCount?.users),
+      learningLoop,
+      animeContextCache,
     };
   }
 }

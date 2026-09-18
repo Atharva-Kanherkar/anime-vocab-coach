@@ -8,6 +8,7 @@ import {
   requestFacts,
 } from "@/lib/telemetry";
 import { normalizeAttribution } from "@/lib/funnel-attribution";
+import { requestIdentity } from "@/lib/request-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -53,8 +54,12 @@ export async function POST(req: Request) {
           : null;
     if (!name) return new Response(null, { status: 204 });
 
-    let userId: string | null = null;
-    if (!DEV_NO_CLERK) {
+    // The extension fires learning-loop events through this same beacon and
+    // has no Clerk cookie — its credential is the sync-token bearer. Resolving
+    // it is what makes `card_shown` attributable to a learner instead of a
+    // count of anonymous ticks (#111, #112).
+    let userId: string | null = (await requestIdentity(req)).userId;
+    if (!userId && !DEV_NO_CLERK) {
       try {
         userId = (await auth()).userId;
       } catch {

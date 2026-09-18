@@ -97,6 +97,11 @@
   var WEB_URL = "https://animevocab.com";
   var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
+  // src/lib/run-context.ts
+  function inServiceWorker() {
+    return typeof window === "undefined";
+  }
+
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
     "review_prompt_shown",
@@ -119,7 +124,8 @@
     }
     return CWS_EXTENSION_ID;
   }
-  function trackExtensionEvent(event) {
+  var TRACK_EXTENSION_EVENT_MESSAGE = "avc-track-extension-event";
+  function sendExtensionEventBeacon(event) {
     if (!isExtensionEvent(event)) return;
     try {
       const url = `${WEB_URL}/api/extension/track`;
@@ -133,6 +139,18 @@
         body: payload,
         keepalive: true
       }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  function trackExtensionEvent(event) {
+    if (!isExtensionEvent(event)) return;
+    if (inServiceWorker()) {
+      sendExtensionEventBeacon(event);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_EXTENSION_EVENT_MESSAGE, event }).catch(() => {
       });
     } catch {
     }
@@ -155,6 +173,63 @@
       return false;
     } finally {
       milestoneInFlight.delete(event);
+    }
+  }
+
+  // src/lib/feature-events.ts
+  var FEATURE_EVENTS = [
+    "card_shown",
+    "card_known",
+    "card_learn",
+    "word_saved",
+    "review_done",
+    "listening_started",
+    "install_first_run",
+    "extension_linked"
+  ];
+  function isFeatureEvent(v) {
+    return typeof v === "string" && FEATURE_EVENTS.includes(v);
+  }
+  var TRACK_URL = WEB_URL + "/api/track";
+  var TRACK_FEATURE_MESSAGE = "avc-track-feature";
+  function syncToken() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(
+          ["syncToken"],
+          (r) => resolve(typeof r?.syncToken === "string" ? r.syncToken : "")
+        );
+      } catch {
+        resolve("");
+      }
+    });
+  }
+  async function sendFeatureBeacon(event) {
+    if (!isFeatureEvent(event)) return;
+    try {
+      const token = await syncToken();
+      const headers = { "content-type": "application/json" };
+      if (token) headers.authorization = "Bearer " + token;
+      void fetch(TRACK_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kind: "feature", name: event }),
+        keepalive: true
+      }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  async function trackFeature(event) {
+    if (!isFeatureEvent(event)) return;
+    if (inServiceWorker()) {
+      await sendFeatureBeacon(event);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_FEATURE_MESSAGE, event }).catch(() => {
+      });
+    } catch {
     }
   }
 
@@ -289,6 +364,7 @@
         };
       }
       const rec = vocab[base];
+      const wasCollected = rec.state === "known" || rec.state === "learning";
       if (meta) {
         rec.reading = meta.reading;
         rec.gloss = meta.gloss;
@@ -336,6 +412,14 @@
       }
       if (judgment === "know" || judgment === "learn") {
         void stampOnboarding("firstCardAt");
+      }
+      if (judgment === "know") void trackFeature("card_known");
+      if (judgment === "learn") void trackFeature("card_learn");
+      if (!wasCollected && (judgment === "know" || judgment === "learn")) {
+        void trackFeature("word_saved");
+      }
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        void trackFeature("review_done");
       }
       sendBadge(stats);
       return vocab[base];

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCloudSyncEnvelope, putCloudSyncEnvelope } from "@/lib/sync-store";
+import { claimOnce, getCloudSyncEnvelope, putCloudSyncEnvelope } from "@/lib/sync-store";
 import { resolveProfile } from "@/lib/auth";
 import { getPrefs, upsertEntry } from "@/lib/leaderboard-store";
 import { computeStreak, currentWeekId, weeklyMetrics } from "@/lib/gamification";
+import { latestActiveDay, newlyUnlockedCards, startedNewStreakDay } from "@/lib/learning-events";
+import { authKindOf, recordUserEvent, requestFacts } from "@/lib/telemetry";
 import {
   applyCloudSyncUpdate,
   normalizeAnimeVocabExport,
@@ -94,12 +96,75 @@ export async function PUT(req: Request) {
     await updateLeaderboard(profile, snapshot).catch((err) =>
       console.error("[leaderboard] update failed", err)
     );
+    // Derived learning-loop events (#111), from the diff between what was
+    // stored and what is stored NOW — `next.snapshot`, not the incoming body.
+    // applyCloudSyncUpdate unions the two, so a second device pushing its own
+    // half can carry the union across a level gate that neither snapshot
+    // crosses alone; reading the request would miss exactly those unlocks.
+    // Same best-effort contract as the leaderboard: a sync must never fail
+    // because a beacon did.
+    await recordProgressEvents(req, profile, current?.snapshot ?? null, next.snapshot).catch((err) =>
+      console.error("[telemetry] snapshot progress failed", err)
+    );
     return NextResponse.json({ envelope: next });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "sync_store_unavailable" },
       { status: 503 }
     );
+  }
+}
+
+/** A streak marker only has to outlive the day it names. */
+const STREAK_MARKER_TTL_SECONDS = 60 * 60 * 48;
+/** An unlock is permanent; a marker past AE's retention horizon is pointless. */
+const UNLOCK_MARKER_TTL_SECONDS = 60 * 60 * 24 * 120;
+
+/**
+ * Emit `streak_day` and `card_unlocked` for what this sync changed.
+ *
+ * Every extension push lands here, so two things keep this from being one row
+ * per sync. The diff in learning-events.ts is the first: a streak day needs
+ * the latest ACTIVE day to advance, an unlock needs a level gate to be
+ * crossed. A KV marker is the second, because the diff alone is decided from a
+ * snapshot two concurrent syncs can both have read — see claimOnce, which
+ * explains what that does and does not guarantee.
+ */
+async function recordProgressEvents(
+  req: Request,
+  profile: CloudUserProfile,
+  before: CloudSyncSnapshot | null,
+  after: CloudSyncSnapshot
+): Promise<void> {
+  const now = new Date();
+  const facts = requestFacts(req);
+  const base = {
+    kind: "feature" as const,
+    userId: profile.id,
+    plan: profile.plan,
+    country: facts.country,
+    city: facts.city,
+    device: facts.device,
+    authKind: authKindOf(req),
+    status: "ok",
+  };
+
+  if (startedNewStreakDay(before, after)) {
+    const day = latestActiveDay(after);
+    if (day && (await claimOnce(`once:streak_day:${profile.id}:${day}`, STREAK_MARKER_TTL_SECONDS))) {
+      await recordUserEvent({ ...base, name: "streak_day" });
+    }
+  }
+
+  // One row per card so the panel counts cards, not level-ups: a single sync
+  // that crosses two gates unlocked two cards, and collapsing that would
+  // under-report exactly the learners who came back after a long break. Each
+  // card is claimed by id, so a snapshot that regresses and re-advances does
+  // not report the same unlock twice.
+  for (const cardId of newlyUnlockedCards(before, after, now)) {
+    if (await claimOnce(`once:card_unlocked:${profile.id}:${cardId}`, UNLOCK_MARKER_TTL_SECONDS)) {
+      await recordUserEvent({ ...base, name: "card_unlocked" });
+    }
   }
 }
 

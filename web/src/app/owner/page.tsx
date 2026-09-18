@@ -243,6 +243,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
   ]);
   const t = data.totals;
   const tx = data.transcribe;
+  const ctx = data.animeContextCache;
   const topUsers = await withEmails(data.topUsers);
 
   const href = (h: number) =>
@@ -353,11 +354,34 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
           value={fmtUsd(t.cost)}
           foot={t.calls > 0 ? `${fmtUsd(t.cost / t.calls)} / call` : undefined}
         />
+        {/* Three caches, three panels (#113). One number used to stand in for
+            all of them under a label that named the wrong one, so whichever
+            cache you were reasoning about, the figure was not it. */}
         <Stat
-          label="Response cache"
+          label="Coach response cache"
           value={fmtPct(t.cacheHitRate)}
-          foot={`${fmtInt(t.cachedHits)} served free`}
+          foot={`${fmtInt(t.cachedHits)} replies served free`}
           tone={t.cacheHitRate >= 0.3 ? "good" : undefined}
+        />
+        <Stat
+          label="LLM prompt cache"
+          value={t.inputTokens > 0 ? fmtPct(t.cachedInputTokens / t.inputTokens) : "—"}
+          foot={
+            t.inputTokens > 0
+              ? `${fmtInt(t.cachedInputTokens)} of ${fmtInt(t.inputTokens)} input tokens`
+              : "no input tokens yet"
+          }
+          tone={t.inputTokens > 0 && t.cachedInputTokens / t.inputTokens >= 0.3 ? "good" : undefined}
+        />
+        <Stat
+          label="Anime-context cache"
+          value={ctx.present ? fmtPct(ctx.hitRate) : "—"}
+          foot={
+            ctx.present
+              ? `${fmtInt(ctx.hits)} hits · ${fmtInt(ctx.misses)} paid lookups`
+              : "no lookups in this window"
+          }
+          tone={ctx.present && ctx.hitRate >= 0.3 ? "good" : undefined}
         />
         <Stat
           label="Errors"
@@ -376,15 +400,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
           }
           tone={t.outputTokens > 0 && t.reasoningTokens / t.outputTokens > 0.8 ? "warn" : undefined}
         />
-        <Stat
-          label="Input tokens"
-          value={fmtInt(t.inputTokens)}
-          foot={
-            t.inputTokens > 0
-              ? `${fmtPct(t.cachedInputTokens / t.inputTokens)} cached`
-              : undefined
-          }
-        />
+        <Stat label="Input tokens" value={fmtInt(t.inputTokens)} foot="cached share above" />
         <Stat label="Output tokens" value={fmtInt(t.outputTokens)} />
       </div>
 
@@ -536,6 +552,44 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
           </Panel>
         </div>
       ) : null}
+
+      {/* The learning loop (#111). Until these events existed the dashboard
+          could describe traffic and spend in detail and could not say whether
+          anyone had accepted a single card. */}
+      <div className="ow-grid">
+        <Panel title="Learning loop" wide empty={data.learningLoop.length === 0}>
+          <div className="ow-scroll">
+            <table className="ow-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th className="ow-num">Count</th>
+                  <th className="ow-num">Learners</th>
+                  {/* Identified events over identified learners. Dividing the
+                      total would charge anonymous installs to linked users. */}
+                  <th className="ow-num">Per learner</th>
+                  <th className="ow-num">Anonymous</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.learningLoop.map((r) => (
+                  <tr key={r.label}>
+                    <td className="ow-label">
+                      <span className="ow-mono">{r.label}</span>
+                    </td>
+                    <td className="ow-num">{fmtInt(r.events)}</td>
+                    <td className="ow-num">{fmtInt(r.users)}</td>
+                    <td className="ow-num">
+                      {r.users > 0 ? (r.identifiedEvents / r.users).toFixed(1) : "—"}
+                    </td>
+                    <td className="ow-num">{fmtInt(r.anonEvents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
 
       <div className="ow-grid">
         <Panel title="API routes" wide empty={data.apiRoutes.length === 0}>

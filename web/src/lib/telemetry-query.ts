@@ -12,6 +12,7 @@
 // so the numbers stay true if sampling ever kicks in. Averages divide two
 // weighted sums, which is correct for the same reason.
 
+import { LEARNING_LOOP_EVENTS } from "./track-events";
 import {
   EVENT_BLOBS,
   EVENT_DATASET,
@@ -639,21 +640,116 @@ export function transcribeSeriesSql(hours: number): string {
 // anyone who appears in two groups anyway. Hence a dedicated ungrouped query.
 
 /** Distinct users who made an LLM call in the window. */
-export function llmDistinctUsersSql(hours: number): string {
+export function llmDistinctUsersSql(hours: number, userId?: string): string {
   const col = llmColumn("userId");
   return `SELECT COUNT(DISTINCT ${col}) AS users
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'`;
+  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'${
+    userId ? ` AND ${col} = ${sqlString(userId)}` : ""
+  }`;
 }
 
 /** Distinct identified users seen in the event stream in the window. */
-export function eventDistinctUsersSql(hours: number): string {
+export function eventDistinctUsersSql(hours: number, userId?: string): string {
   const col = eventColumn("userId");
   return `SELECT COUNT(DISTINCT ${col}) AS users
   FROM ${EVENT_DATASET}
-  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'`;
+  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'${
+    userId ? ` AND ${col} = ${sqlString(userId)}` : ""
+  }`;
 }
 
 export interface DistinctUsersRow {
   users: number;
+}
+
+// ------------------------------------------------------------- Cache panels
+//
+// /owner used to carry ONE cache number (the AI coach's response cache) under a
+// label that implied it measured the anime-context cache. Two different caches,
+// two different economics, one figure — so the panel was confidently wrong
+// about whichever one you thought you were reading (#113). They are separate
+// queries now, and the third cache number (LLM prompt caching) is computed on
+// the dashboard from cachedInputTokens / inputTokens, which the totals already
+// carry.
+
+export interface CacheOutcomeRow {
+  hits: number;
+  misses: number;
+}
+
+/**
+ * Anime-context cache hit rate, from the feature rows the route writes.
+ *
+ * Hits and misses are counted in one pass rather than as a share of all
+ * requests, because a request that errored before reaching the cache is
+ * neither and must not land in the denominator.
+ */
+export function animeContextCacheSql(
+  hours: number,
+  userId?: string,
+  event = "anime_context"
+): string {
+  const status = eventColumn("status");
+  const filters = [
+    since(hours),
+    `${eventColumn("kind")} = 'feature'`,
+    `${eventColumn("name")} = ${sqlString(event)}`,
+  ];
+  // The drill-down view is one learner's telemetry; an unfiltered panel there
+  // shows everyone's numbers under a heading that says otherwise.
+  if (userId) filters.push(`${eventColumn("userId")} = ${sqlString(userId)}`);
+  return `SELECT
+    ${countIf(`${status} = 'hit'`, "hits")},
+    ${countIf(`${status} = 'miss'`, "misses")}
+  FROM ${EVENT_DATASET}
+  WHERE ${filters.join("\n    AND ")}`;
+}
+
+export interface FeatureEventRow {
+  label: string;
+  events: number;
+  /** Distinct userIds INCLUDING the single "anon" bucket — see below. */
+  users: number;
+  /** Rows written without an identity, so the caller can discount that bucket. */
+  anonEvents: number;
+}
+
+/**
+ * Learning-loop feature events, with how many distinct learners fired each.
+ *
+ * The per-event user count is the whole point: 400 `card_shown` rows from one
+ * insomniac and 400 from forty learners are the same number on a volume chart
+ * and completely different products.
+ *
+ * The writer stores "anon" rather than an empty string for an unidentified
+ * row, so COUNT(DISTINCT userId) counts all anonymous traffic as one extra
+ * user. Filtering it inside the aggregate would need IF(..., NULL), and AE
+ * rejects a mixed-type IF outright (see the countIf/weightedIf note above) —
+ * which fails the whole panel rather than the one column. So the anon bucket
+ * is reported alongside and subtracted by the caller.
+ */
+export function featureEventsSql(hours: number, userId?: string, limit = 30): string {
+  const userCol = eventColumn("userId");
+  const names = LEARNING_LOOP_EVENTS.map(sqlString).join(", ");
+  const filters = [
+    since(hours),
+    `${eventColumn("kind")} = 'feature'`,
+    // Restricted to the learning loop. `feature` also carries acquisition
+    // events and the anime-context cache probe, and a panel that mixed a
+    // marketing click into "cards accepted per learner" would be answering a
+    // different question than its heading asks.
+    `${eventColumn("name")} IN (${names})`,
+  ];
+  if (userId) filters.push(`${userCol} = ${sqlString(userId)}`);
+  return `SELECT
+    ${eventColumn("name")} AS label,
+    SUM(_sample_interval) AS events,
+    COUNT(DISTINCT ${userCol}) AS users,
+    ${countIf(`${userCol} = 'anon' OR ${userCol} = ''`, "anonEvents")}
+  FROM ${EVENT_DATASET}
+  WHERE ${filters.join("\n    AND ")}
+  GROUP BY label
+  ORDER BY events DESC
+  LIMIT ${Math.max(1, Math.min(200, Math.round(limit)))}`;
 }

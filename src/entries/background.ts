@@ -10,6 +10,17 @@ import { fetchTtsAudio } from "../lib/tts-client";
 import { fetchUsage } from "../lib/usage-client";
 import { getSyncToken } from "../lib/storage";
 import { stampOnboarding } from "../lib/onboarding-store";
+import {
+  TRACK_FEATURE_MESSAGE,
+  isFeatureEvent,
+  sendFeatureBeacon,
+  trackFeature,
+} from "../lib/feature-events";
+import {
+  TRACK_EXTENSION_EVENT_MESSAGE,
+  isExtensionEvent,
+  sendExtensionEventBeacon,
+} from "../lib/extension-events";
 import { toastTab } from "../lib/notify";
 import type { Settings } from "../types";
 
@@ -97,6 +108,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     // real install time, and an install that predates #77 has none, which is
     // exactly how `shouldShowChecklist` tells the two apart.
     void stampOnboarding("installedAt");
+    // The top of the learning funnel in `avc_events` (#111). Anonymous by
+    // definition — nobody has linked an account one tick after installing.
+    void trackFeature("install_first_run");
     chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }).catch(() => {});
     void linkAccount("install");
   }
@@ -135,7 +149,17 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SYNC_ALARM) syncWithCloud().catch(() => {});
 });
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && (changes.vocab || changes.stats)) scheduleSync();
+  if (area !== "local") return;
+  if (changes.vocab || changes.stats) scheduleSync();
+  // `extension_linked` is watched here rather than fired at the two places
+  // that store a token: the sync bridge writes chrome.storage directly (it is
+  // deliberately dependency-free), and lib/storage's setSyncToken is the other
+  // path. Watching the transition catches both, and only the transition — a
+  // re-link that rewrites the same token is not a new activation.
+  const token = changes.syncToken;
+  if (token && !token.oldValue && typeof token.newValue === "string" && token.newValue) {
+    void trackFeature("extension_linked");
+  }
 });
 
 // Listening-mode state lives in storage.session: the service worker can be
@@ -330,6 +354,9 @@ async function startListening(tabId: number): Promise<Ack> {
   chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: true }).catch(() => {});
   chrome.action.setBadgeText({ tabId, text: "REC" });
   chrome.action.setBadgeBackgroundColor({ tabId, color: "#f87171" });
+  // Only after capture actually started: an early beacon would count every
+  // failed start as discoverability, which is the number Pro is sold on (#118).
+  void trackFeature("listening_started");
   console.log("[AVC] listening started on tab", tabId, "model", settings.transcribeModel || DEFAULTS.transcribeModel);
   return { ok: true };
 }
@@ -361,6 +388,7 @@ interface RuntimeMsg {
   message?: string;
   history?: ChatMessage[];
   payload?: CoachPayload | WordPickRequest | ExtractWordsRequest;
+  event?: string;
   url?: string;
   kind?: string;
   trigger?: string;
@@ -373,6 +401,20 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     const text = (msg.count || 0) > 0 ? String(msg.count) : "";
     chrome.action.setBadgeText({ text });
     chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
+    return;
+  }
+
+  // Learning-loop beacons are relayed here (#111) because a content script runs
+  // at the watched page's origin, where a cross-origin POST to animevocab.com
+  // is blocked by CORS. The service worker has the host permission.
+  if (msg.type === TRACK_FEATURE_MESSAGE) {
+    if (isFeatureEvent(msg.event)) void sendFeatureBeacon(msg.event);
+    return;
+  }
+
+  // Same relay, same reason, for the older extension-funnel counters.
+  if (msg.type === TRACK_EXTENSION_EVENT_MESSAGE) {
+    if (isExtensionEvent(msg.event)) sendExtensionEventBeacon(msg.event);
     return;
   }
 

@@ -6,6 +6,7 @@
 // make the panel worth having. The route name is passed in rather than read
 // from the URL so that ids in a path can never explode the cardinality.
 
+import { requestIdentity } from "./request-identity";
 import { authKindOf, recordUserEvent, requestFacts } from "./telemetry";
 
 type Handler = (req: Request, ctx?: unknown) => Promise<Response> | Response;
@@ -31,11 +32,19 @@ export function withApiTelemetry(route: string, handler: Handler): Handler {
       // guards the two calls around it.
       try {
         const facts = requestFacts(req);
+        // Identity, not just auth kind (#112). Extension calls arrive with a
+        // sync-token bearer and used to land here as "anon", which made every
+        // per-user activity query blind to the surface where most of the
+        // product actually happens. resolveProfile has almost always already
+        // paid for this lookup by now, so it is a memo read, not a KV read.
+        const who = await requestIdentity(req);
         // For a streaming response this measures time-to-first-byte, since
         // the Response returns before the body is produced.
         await recordUserEvent({
           kind: "api",
           name: route,
+          userId: who.userId,
+          plan: who.plan,
           country: facts.country,
           city: facts.city,
           referrerHost: facts.referrerHost,

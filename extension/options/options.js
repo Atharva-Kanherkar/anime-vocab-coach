@@ -48,6 +48,9 @@
     return url.toString();
   }
 
+  // src/lib/feature-events.ts
+  var TRACK_URL = WEB_URL + "/api/track";
+
   // src/lib/onboarding.ts
   var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
 
