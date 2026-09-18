@@ -38,6 +38,16 @@
   // src/lib/review-prompt.ts
   var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
 
+  // src/config.ts
+  var WEB_URL = "https://animevocab.com";
+  function ownedWebUrl(path, campaign) {
+    const url = new URL(path, WEB_URL);
+    url.searchParams.set("utm_source", "animevocab_extension");
+    url.searchParams.set("utm_medium", "extension");
+    url.searchParams.set("utm_campaign", campaign);
+    return url.toString();
+  }
+
   // src/lib/storage.ts
   var queue = Promise.resolve();
   function todayKey() {
@@ -102,9 +112,6 @@
       sendBadge({ daily: {} });
     });
   }
-
-  // src/config.ts
-  var WEB_URL = "https://animevocab.com";
 
   // src/entries/options.ts
   function todayKey2() {
@@ -199,7 +206,7 @@
   document.addEventListener("DOMContentLoaded", async () => {
     const token = await getSyncToken();
     if (token) {
-      window.location.replace(`${WEB_URL}/app#settings`);
+      window.location.replace(ownedWebUrl("/app#settings", "options_redirect"));
       return;
     }
     initTheme();

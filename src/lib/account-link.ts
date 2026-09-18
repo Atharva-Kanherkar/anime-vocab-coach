@@ -26,6 +26,7 @@ import {
   setSyncToken,
 } from "./storage";
 import { log, warn } from "./log";
+import { trackExtensionMilestone } from "./extension-events";
 
 const TOKEN_URL = WEB_URL + "/api/sync/token";
 
@@ -209,6 +210,7 @@ async function runAutoLink(
   // merge so a missing field cannot blank what the page already told us.
   await setSyncToken(outcome.token);
   await setSyncProfile(outcome.profile);
+  await trackExtensionMilestone("signup_completed");
   log(`auto-link (${trigger}) ok`);
   return { linked: true, outcome: "linked" };
 }

@@ -23,6 +23,10 @@ export const TRACKABLE_EVENTS = [
   "upgrade_click",
   "checkout_start",
   "signin_start",
+  "landing_view",
+  "store_cta_click",
+  "mobile_capture_shown",
+  "mobile_capture_submitted",
 ] as const;
 
 export type TrackableEvent = (typeof TRACKABLE_EVENTS)[number];

@@ -4,6 +4,12 @@ import { CWS_EXTENSION_ID, WEB_URL } from "../config";
 export const EXTENSION_EVENTS = [
   "review_prompt_shown",
   "review_prompt_clicked",
+  "signup_completed",
+  "first_card_created",
+  "first_srs_review",
+  "upgrade_prompt_shown",
+  "upgrade_prompt_clicked",
+  "checkout_started",
 ] as const;
 
 export type ExtensionEvent = (typeof EXTENSION_EVENTS)[number];
@@ -43,5 +49,39 @@ export function trackExtensionEvent(event: ExtensionEvent): void {
     }).catch(() => {});
   } catch {
     // swallow
+  }
+}
+
+export const EXTENSION_MILESTONES = [
+  "signup_completed",
+  "first_card_created",
+  "first_srs_review",
+] as const satisfies readonly ExtensionEvent[];
+
+export type ExtensionMilestone = (typeof EXTENSION_MILESTONES)[number];
+export const EXTENSION_MILESTONE_STORAGE_KEY = "funnelMilestones";
+const milestoneInFlight = new Set<ExtensionMilestone>();
+
+/** Persist a lifecycle milestone before sending so it is counted once/install. */
+export async function trackExtensionMilestone(event: ExtensionMilestone): Promise<boolean> {
+  if (milestoneInFlight.has(event)) return false;
+  milestoneInFlight.add(event);
+  try {
+    const result = await chrome.storage.local.get([EXTENSION_MILESTONE_STORAGE_KEY]);
+    const milestones =
+      result[EXTENSION_MILESTONE_STORAGE_KEY] &&
+      typeof result[EXTENSION_MILESTONE_STORAGE_KEY] === "object"
+        ? (result[EXTENSION_MILESTONE_STORAGE_KEY] as Record<string, boolean>)
+        : {};
+    if (milestones[event]) return false;
+    await chrome.storage.local.set({
+      [EXTENSION_MILESTONE_STORAGE_KEY]: { ...milestones, [event]: true },
+    });
+    trackExtensionEvent(event);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    milestoneInFlight.delete(event);
   }
 }

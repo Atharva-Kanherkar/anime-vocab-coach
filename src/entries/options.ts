@@ -1,5 +1,5 @@
 import * as storage from "../lib/storage";
-import { WEB_URL } from "../config";
+import { ownedWebUrl } from "../config";
 import { isJapaneseUiLocale } from "../lib/locale-direction";
 import type { DisplayScript, LearningDirection, PauseMode, Settings } from "../types";
 
@@ -117,7 +117,7 @@ function maybeShowJaEnBanner(): void {
 document.addEventListener("DOMContentLoaded", async () => {
   const token = await storage.getSyncToken();
   if (token) {
-    window.location.replace(`${WEB_URL}/app#settings`);
+    window.location.replace(ownedWebUrl("/app#settings", "options_redirect"));
     return;
   }
 

@@ -48,6 +48,9 @@ export const EVENT_BLOBS = [
   "device",
   "authKind",
   "status",
+  "utmSource",
+  "utmMedium",
+  "utmCampaign",
 ] as const;
 
 export const EVENT_DOUBLES = ["durationMs"] as const;

@@ -240,7 +240,9 @@ describe("isExtensionEvent allowlist", () => {
   it("accepts only allowlisted names", () => {
     expect(isExtensionEvent("review_prompt_shown")).toBe(true);
     expect(isExtensionEvent("review_prompt_clicked")).toBe(true);
-    expect(isExtensionEvent("upgrade_prompt_shown")).toBe(false);
+    expect(isExtensionEvent("upgrade_prompt_shown")).toBe(true);
+    expect(isExtensionEvent("checkout_started")).toBe(true);
+    expect(isExtensionEvent("arbitrary_event")).toBe(false);
     expect(isExtensionEvent("")).toBe(false);
     expect(isExtensionEvent(null)).toBe(false);
   });

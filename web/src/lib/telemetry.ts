@@ -157,6 +157,9 @@ export interface UserEventRecord {
   /** HTTP status, or a short outcome tag. */
   status?: string | number | null;
   durationMs?: number;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
 }
 
 export async function recordUserEvent(record: UserEventRecord): Promise<void> {
@@ -175,6 +178,9 @@ export async function recordUserEvent(record: UserEventRecord): Promise<void> {
       device: record.device || "",
       authKind: record.authKind || "none",
       status: record.status === null || record.status === undefined ? "" : String(record.status),
+      utmSource: record.utmSource || "",
+      utmMedium: record.utmMedium || "",
+      utmCampaign: record.utmCampaign || "",
     };
     const numbers: Record<(typeof EVENT_DOUBLES)[number], number> = {
       durationMs: finite(record.durationMs),

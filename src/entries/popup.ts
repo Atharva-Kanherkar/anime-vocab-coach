@@ -1,8 +1,9 @@
-import { WEB_URL } from "../config";
+import { ownedWebUrl } from "../config";
 import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
 import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
+import { trackExtensionEvent } from "../lib/extension-events";
 import type { DailyStats } from "../types";
 
 type Theme = "dark" | "light";
@@ -152,7 +153,7 @@ async function renderAccount(): Promise<void> {
           void renderUsage();
           return;
         }
-        chrome.tabs.create({ url: `${WEB_URL}/app` });
+        chrome.tabs.create({ url: ownedWebUrl("/app", "popup_account") });
         btn.disabled = false;
         btn.textContent = cta;
       })();
@@ -305,7 +306,10 @@ async function renderUsage(): Promise<void> {
   el.hidden = false;
 
   if (cta && offer?.checkoutUrl) {
+    trackExtensionEvent("upgrade_prompt_shown");
     byId("usage-upgrade").addEventListener("click", () => {
+      trackExtensionEvent("upgrade_prompt_clicked");
+      trackExtensionEvent("checkout_started");
       chrome.tabs.create({ url: offer.checkoutUrl as string });
     });
   }
@@ -505,7 +509,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   byId("cloud-link").addEventListener("click", (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: `${WEB_URL}/app` });
+    chrome.tabs.create({ url: ownedWebUrl("/app", "popup_cloud") });
   });
 
   byId("review-due").addEventListener("click", () => {
@@ -516,7 +520,7 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const token = await storage.getSyncToken();
     if (token) {
-      chrome.tabs.create({ url: `${WEB_URL}/app#settings` });
+      chrome.tabs.create({ url: ownedWebUrl("/app#settings", "popup_settings") });
     } else {
       chrome.runtime.openOptionsPage();
     }

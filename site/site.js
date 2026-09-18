@@ -50,6 +50,46 @@
 
   localPromo();
 
+  const attribution = new URLSearchParams(location.search);
+  const funnelBody = (name) => JSON.stringify({
+    kind: "feature",
+    name,
+    utm_source: attribution.get("utm_source") || "",
+    utm_medium: attribution.get("utm_medium") || "",
+    utm_campaign: attribution.get("utm_campaign") || ""
+  });
+  const track = (name) => {
+    const body = funnelBody(name);
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon("/api/track", new Blob([body], { type: "application/json" }));
+        return;
+      }
+    } catch (_) {}
+    fetch("/api/track", { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true }).catch(() => {});
+  };
+  try {
+    if (!sessionStorage.getItem("avc_landing_view_sent")) {
+      sessionStorage.setItem("avc_landing_view_sent", "1");
+      track("landing_view");
+    }
+  } catch (_) {
+    track("landing_view");
+  }
+
+  document.addEventListener("click", (event) => {
+    const anchor = event.target?.closest?.("a[href]");
+    if (!anchor) return;
+    let url;
+    try { url = new URL(anchor.href); } catch (_) { return; }
+    if (url.hostname !== "chromewebstore.google.com") return;
+    url.searchParams.set("utm_source", "animevocab");
+    url.searchParams.set("utm_medium", "website");
+    url.searchParams.set("utm_campaign", location.pathname.replace(/^\/+|\/+$/g, "").replaceAll("/", "_") || "homepage");
+    anchor.href = url.toString();
+    track("store_cta_click");
+  }, true);
+
   if (cfg.apiBase && !cfg.apiBase.includes("example.workers.dev")) {
     fetch(cfg.apiBase + "/v1/public/config")
       .then((r) => (r.ok ? r.json() : null))

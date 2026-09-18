@@ -51,6 +51,15 @@ describe("maxGiftEmailCopy", () => {
     expect(text).toContain("October 15, 2026");
     expect(html).toContain("October 15, 2026");
   });
+
+  it("tags every owned link with the email campaign", () => {
+    const { text, html } = maxGiftEmailCopy({ name: "Bob", expiresAt: EXPIRES });
+    for (const body of [text, html]) {
+      expect(body).toContain("utm_source=animevocab_email");
+      expect(body).toContain("utm_medium=email");
+      expect(body).toContain("utm_campaign=max_gift");
+    }
+  });
 });
 
 describe("feedbackEmailCopy", () => {
@@ -79,6 +88,15 @@ describe("feedbackEmailCopy", () => {
     const { text, html } = feedbackEmailCopy({ name: null });
     expect(text.toLowerCase()).toContain("stop");
     expect(html.toLowerCase()).toContain("stop");
+  });
+
+  it("tags every owned link with the email campaign", () => {
+    const { text, html } = feedbackEmailCopy({ name: null });
+    for (const body of [text, html]) {
+      expect(body).toContain("utm_source=animevocab_email");
+      expect(body).toContain("utm_medium=email");
+      expect(body).toContain("utm_campaign=feedback_gift");
+    }
   });
 
   it("offers a List-Unsubscribe header for bulk sends", () => {

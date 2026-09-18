@@ -21,6 +21,7 @@ import {
   shouldCountShown,
   type ReviewPromptState,
 } from "./review-prompt";
+import { trackExtensionMilestone } from "./extension-events";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -286,6 +287,9 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
     }
 
     await chrome.storage.local.set({ vocab, stats });
+    if (judgment === "review-pass" || judgment === "review-fail") {
+      await trackExtensionMilestone("first_srs_review");
+    }
     sendBadge(stats);
     return vocab[base];
   });
@@ -306,6 +310,7 @@ export function recordCardShown(base: string): Promise<void> {
     }
 
     await chrome.storage.local.set({ vocab, stats });
+    await trackExtensionMilestone("first_card_created");
   });
 }
 
