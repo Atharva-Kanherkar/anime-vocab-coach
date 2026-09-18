@@ -6,6 +6,7 @@ import { lookup } from "./dictionary";
 import { commonnessLabel } from "./levels";
 import { isEssentialWord } from "./priority-words";
 import { renderMarkdown } from "./markdown-lite";
+import { PausableTimer } from "./pausable-timer";
 import { getSettings, setSettings, getAgentPanelWidth, setAgentPanelWidth } from "./storage";
 import {
   chatPlaceholder,
@@ -92,10 +93,21 @@ let chatHistory: ChatTurn[] = [];
 let chatPayload: CoachPayload | null = null;
 
 let keyHandler: ((e: KeyboardEvent) => void) | null = null;
-let autoTimer: ReturnType<typeof setTimeout> | null = null;
-let autoTimerMax: ReturnType<typeof setTimeout> | null = null;
+/** Both auto-dismiss clocks freeze while the learner has the video paused. */
+const autoTimer = new PausableTimer();
+const autoTimerMax = new PausableTimer();
 let playHandler: (() => void) | null = null;
+let pauseHandler: (() => void) | null = null;
+/** True between our own video.pause() call and the pause event it raises, so a
+ * focus-mode card that paused the video is not mistaken for a learner pause. */
+let selfPaused = false;
 let userResumed = false;
+/** True once the learner pauses under an open card. Pausing to study is the
+ * learner taking the controls just as firmly as pressing play is, so the card's
+ * own resume must not undo it: issue #127 is only half fixed if holding the card
+ * through a pause still snaps the video back to playing the moment it is
+ * graded. */
+let userPaused = false;
 let activeVideo: HTMLVideoElement | null = null;
 let wasPlaying = false;
 let currentJudgments: { val: Judgment; key: string }[] = [];
@@ -947,12 +959,17 @@ function payloadFromCtx(ctx: WordContext): CoachPayload {
 }
 
 function clearWordTimers(): void {
-  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-  if (autoTimerMax) { clearTimeout(autoTimerMax); autoTimerMax = null; }
+  autoTimer.clear();
+  autoTimerMax.clear();
   if (playHandler && activeVideo) {
     activeVideo.removeEventListener("play", playHandler);
     playHandler = null;
   }
+  if (pauseHandler && activeVideo) {
+    activeVideo.removeEventListener("pause", pauseHandler);
+    pauseHandler = null;
+  }
+  selfPaused = false;
   if (keyHandler) {
     window.removeEventListener("keydown", keyHandler, true);
     keyHandler = null;
@@ -960,12 +977,13 @@ function clearWordTimers(): void {
 }
 
 function resumeVideoIfNeeded(): void {
-  if (wasPlaying && !userResumed && activeVideo?.paused) {
+  if (wasPlaying && !userResumed && !userPaused && activeVideo?.paused) {
     activeVideo.play().catch(() => {});
   }
   activeVideo = null;
   wasPlaying = false;
   userResumed = false;
+  userPaused = false;
 }
 
 function finishWord(judgment: Judgment | "dismiss"): void {
@@ -992,14 +1010,26 @@ function effectiveAutoDismissSec(opts: AgentPanelOptions): number {
 }
 
 function bumpAutoTimer(opts: AgentPanelOptions): void {
-  if (autoTimer) clearTimeout(autoTimer);
   const sec = effectiveAutoDismissSec(opts);
-  autoTimer = setTimeout(() => finishWord("dismiss"), sec * 1000);
-  // Hard cap — never block the next word indefinitely (e.g. mouse parked on sidebar).
-  if (!autoTimerMax) {
+  autoTimer.arm(sec * 1000, () => finishWord("dismiss"));
+  // Hard cap: never block the next word indefinitely (e.g. mouse parked on
+  // sidebar). Frozen with the main clock while paused, which is safe because a
+  // paused video produces no new lines to block.
+  if (!autoTimerMax.armed) {
     const capSec = Math.max(sec + 10, 45);
-    autoTimerMax = setTimeout(() => finishWord("dismiss"), capSec * 1000);
+    autoTimerMax.arm(capSec * 1000, () => finishWord("dismiss"));
   }
+}
+
+/** Freeze both dismissal clocks while the learner studies a paused frame. */
+function freezeAutoTimers(): void {
+  autoTimer.freeze();
+  autoTimerMax.freeze();
+}
+
+function thawAutoTimers(): void {
+  autoTimer.thaw();
+  autoTimerMax.thaw();
 }
 
 async function submitChat(): Promise<void> {
@@ -1709,6 +1739,24 @@ export function isAgentMounted(): boolean {
   return mounted;
 }
 
+/** Notified whenever the panel opens or closes, however it happened: popup
+ * command, the panel's own close button, or a page reload restoring it. The
+ * content script forwards this so a reload can bring the panel back with
+ * Listening Mode instead of leaving the two out of step (issue #126). */
+let visibilityListener: ((open: boolean) => void) | null = null;
+
+export function onAgentVisibility(listener: (open: boolean) => void): void {
+  visibilityListener = listener;
+}
+
+function announceVisibility(open: boolean): void {
+  try {
+    visibilityListener?.(open);
+  } catch {
+    /* never let a listener break mounting */
+  }
+}
+
 export function ensureAgentMounted(): void {
   const root = mountHost();
   if (!root.querySelector("style")) {
@@ -1719,6 +1767,7 @@ export function ensureAgentMounted(): void {
   shell = buildShell(root);
   mounted = true;
   romaji.preloadVoices();
+  announceVisibility(true);
 
   void Promise.all([getSettings(), getAgentPanelWidth()]).then(([s, w]) => {
     if (!shell) return;
@@ -1736,7 +1785,9 @@ export function hideAgent(): void {
   const host = document.getElementById("avc-overlay-host");
   if (host) host.remove();
   shell = null;
+  const was = mounted;
   mounted = false;
+  if (was) announceVisibility(false);
 }
 
 export function isAgentActive(): boolean {
@@ -1782,11 +1833,33 @@ export function presentWord(
   wasPlaying = !!(video && !video.paused && !video.ended);
   activeVideo = video;
   userResumed = false;
+  userPaused = false;
+  selfPaused = false;
 
-  if (options.interaction === "focus" && wasPlaying && video) video.pause();
+  if (options.interaction === "focus" && wasPlaying && video) {
+    // Our own pause, not the learner's: it must not freeze the dismissal clock,
+    // or a focus card would sit on screen until the learner touched something.
+    selfPaused = true;
+    video.pause();
+  }
   if (video) {
-    playHandler = () => { userResumed = true; };
+    playHandler = () => {
+      userResumed = true;
+      userPaused = false;
+      selfPaused = false;
+      thawAutoTimers();
+    };
     video.addEventListener("play", playHandler);
+    pauseHandler = () => {
+      if (selfPaused) { selfPaused = false; return; }
+      userPaused = true;
+      freezeAutoTimers();
+    };
+    video.addEventListener("pause", pauseHandler);
+    // A card that arrives on an already-paused frame (a review fired from the
+    // panel, say) is the same pause-to-study case: hold it until playback.
+    // `wasPlaying` is already false here, so there is nothing to resume.
+    if (video.paused && !selfPaused) freezeAutoTimers();
   }
 
   wordCtx = ctx;

@@ -613,12 +613,22 @@
     }
     let modeState = null;
     const refresh = async () => {
-      const [settings, agent, listening] = await Promise.all([
+      const [settings, agent, listening, captions] = await Promise.all([
         getSettings(),
         runtimeMessage({ type: "avc-agent-status", tabId }),
-        runtimeMessage({ type: "avc-listen-status", tabId })
+        runtimeMessage({ type: "avc-listen-status", tabId }),
+        runtimeMessage({
+          type: "avc-caption-status",
+          tabId
+        })
       ]);
-      modeState = { settings, copilot: !!agent?.visible, listening: !!listening?.listening };
+      modeState = {
+        settings,
+        copilot: !!agent?.visible,
+        listening: !!listening?.listening,
+        captionDetail: captions?.detail ?? null,
+        captionsMissing: captions?.report?.state === "missing"
+      };
       const lensConfigured = settings.subLens !== false;
       const lensSupported = settings.learningDirection === "en-ja";
       setModeRow(
@@ -629,7 +639,12 @@
       );
       const cardStatus = settings.pauseMode === "pause" ? "Focus" : settings.pauseMode === "copilot" ? "Ambient" : "Off";
       const cardDetail = settings.pauseMode === "pause" ? "Pauses for each automatic card" : settings.pauseMode === "copilot" ? "Shows automatic cards without pausing" : "Subtitle Lens can still run";
-      setModeRow("mode-cards", cardStatus, cardDetail, settings.pauseMode === "off" ? "off" : "on");
+      setModeRow(
+        "mode-cards",
+        cardStatus,
+        modeState.captionDetail || cardDetail,
+        settings.pauseMode === "off" ? "off" : modeState.captionsMissing ? "warn" : "on"
+      );
       setModeRow("mode-listen", modeState.listening ? "Live" : "Off", "", modeState.listening ? "on" : "off");
       setModeRow("mode-copilot", modeState.copilot ? "Open" : "Closed", "", modeState.copilot ? "on" : "off");
       listeningBtn.textContent = modeState.listening ? "Stop Listening" : "Start Listening";

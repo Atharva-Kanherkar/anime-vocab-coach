@@ -18,6 +18,13 @@ import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-cl
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
 import { CueLedger } from "../lib/cue-ledger";
+import {
+  captionNoticeText,
+  captionReport,
+  captionStatusDetail,
+  onCaptions,
+  resetCaptions,
+} from "../lib/caption-status";
 import type { DictEntry, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
 
 declare global {
@@ -67,6 +74,19 @@ declare global {
    * including K -> other -> K cycles that a key-only check cannot detect. */
   let cachePollGeneration = 0;
   let playbackRelayTimer: ReturnType<typeof setInterval> | null = null;
+  /** One "no captions on this video" notice per video, not per caption report. */
+  let captionNoticeShown = false;
+  /** The video the page is on right now, read live rather than from the 2s
+   * session watcher. A line is processed across several awaits (word
+   * extraction, target pick, stats) and the video can change under it; that
+   * line belongs to the video it was spoken on, so a card or a Lens render for
+   * it must not land on the next one. Same bleed as issue #125, one gate
+   * further in than the dropped `queuedLine` — and the watcher's poll is too
+   * slow to catch it, since a line can finish well inside those 2 seconds. */
+  function currentSessionId(): string {
+    const a = adapter;
+    return a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
+  }
 
   // Adapters can start matching late (e.g. Crunchyroll's player iframe creates
   // its <video> well after document_idle), so keep looking until one matches.
@@ -348,8 +368,17 @@ declare global {
   }
 
   async function processLine(text: string, context?: LineContext): Promise<void> {
+    // Read once: every `staleSession()` below asks whether the video has changed
+    // since this line was spoken, not since the last await.
+    const lineSessionId = currentSessionId();
+    const staleSession = (): boolean => {
+      if (currentSessionId() === lineSessionId) return false;
+      log("dropped line from the previous video:", text.slice(0, 40));
+      return true;
+    };
 
     settings = await storage.getSettings();
+    if (staleSession()) return;
 
     const siteKey = adapter ? adapter.name : "generic";
     if (settings.sites && settings.sites[siteKey] === false) {
@@ -405,6 +434,8 @@ declare global {
       tokens = await tokenizer.tokenize(normalized);
     }
 
+    if (staleSession()) return;
+
     // Subtitle Lens: user-initiated hover/click cards, independent of the
     // auto-card pipeline below (no cooldown, no hourly cap, no AI quota).
     if (lensEnabled && tokens.length) {
@@ -428,7 +459,7 @@ declare global {
 
     await storage.recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
     wordStates = await storage.getVocab();
-    if (lensJudged) return;
+    if (lensJudged || staleSession()) return;
     if (settings.pauseMode === "off") return;
 
     if (overlay.isOpen()) {
@@ -445,7 +476,7 @@ declare global {
       currentTitle(),
       dictOverlay
     );
-    if (lensJudged) return;
+    if (lensJudged || staleSession()) return;
     if (!target) { log("no target word in:", normalized); return; }
 
     // pickTargetSmart just awaited a network round-trip; a card may have opened
@@ -457,7 +488,7 @@ declare global {
     }
 
     const stats = await storage.getStats();
-    if (lensJudged) return;
+    if (lensJudged || staleSession()) return;
     const now = Date.now();
     const cardTimestamps = stats.cardTimestamps || [];
 
@@ -529,6 +560,11 @@ declare global {
       sendResponse({ ok: true, visible: overlay.isAgentActive() });
       return true;
     }
+    if (msg.type === "avc-caption-status") {
+      const report = captionReport();
+      sendResponse({ ok: true, report, detail: captionStatusDetail(report) });
+      return true;
+    }
     if (msg.type === "avc-listening-state") {
       listeningActive = !!msg.active;
       if (listeningActive) {
@@ -562,21 +598,93 @@ declare global {
     })().catch((err) => warn("transcript handling failed:", err));
   });
 
+  /**
+   * Say something when the video has no usable study-language captions.
+   *
+   * Cards just stopped appearing on those clips while Listening Mode could
+   * still read as active, so the extension looked dead (issue #128). One notice
+   * per video, and none at all when Listening Mode is already covering for the
+   * missing captions or when nothing was going to read them anyway.
+   */
+  async function maybeExplainMissingCaptions(): Promise<void> {
+    if (captionNoticeShown) return;
+    const report = captionReport();
+    if (report.state !== "missing") return;
+    let current: Settings;
+    try {
+      current = await storage.getSettings();
+    } catch {
+      return;
+    }
+    const direction = normalizeDirection(current.learningDirection);
+    const text = captionNoticeText(report, {
+      listening: listeningActive,
+      cardsOn: current.pauseMode !== "off",
+      lensOn: direction === "en-ja" && current.subLens !== false,
+    });
+    if (!text) return;
+    captionNoticeShown = true;
+    overlay.showToast(text, "info");
+  }
+
+  onCaptions(() => {
+    void maybeExplainMissingCaptions();
+  });
+
+  /**
+   * Put the tab's session back together after a reload.
+   *
+   * Listening Mode lives in the background and the offscreen document, so it
+   * survives a refresh that wipes this script and the Copilot panel with it.
+   * That left Listening "Live" next to a closed Copilot and no word panel
+   * (issue #126). Ask what this tab was doing and restore both sides.
+   */
+  async function restoreTabSession(): Promise<void> {
+    let state: { listening?: boolean; copilot?: boolean } | undefined;
+    try {
+      state = await chrome.runtime.sendMessage({ type: "avc-session-state" });
+    } catch {
+      return; // background asleep or extension reloading; nothing to restore
+    }
+    if (!state) return;
+    if (state.copilot) overlay.ensureAgentMounted();
+    if (state.listening && !listeningActive) {
+      log("restoring listening session after reload");
+      listeningActive = true;
+      startCachePolling();
+      startPlaybackRelay();
+      void maybeExplainMissingCaptions();
+    }
+  }
+
+  // Keep the background's per-tab record of the panel honest, however the
+  // panel was opened or closed, so the next reload restores what was there.
+  overlay.onAgentVisibility((open) => {
+    chrome.runtime.sendMessage({ type: "avc-copilot-state", open }).catch(() => {});
+  });
+
   pickAdapter();
   const pickTimer = setInterval(() => {
     if (pickAdapter()) clearInterval(pickTimer);
   }, 2000);
 
   setInterval(() => {
-    const a = pickAdapter();
-    const sid = a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
+    pickAdapter();
+    const sid = currentSessionId();
     if (sid !== lastSessionId) {
       lastSessionId = sid;
       targetedThisSession.clear();
       lastLine = "";
       hideLens();
+      // A card and a queued line belong to the video they came from. Advancing
+      // a playlist used to leave both standing, so the new video opened with
+      // the previous clip's word on screen (issue #125).
+      overlay.dismissAgent();
+      queuedLine = null;
       emittedCueKeys.clear();
       lastContextTitle = "";
+      resetCaptions();
+      captionNoticeShown = false;
       refreshCacheKey();
       log("session reset for new video:", sid);
       prefetchAnimeContext(currentTitle());
@@ -598,4 +706,6 @@ declare global {
 
   // Legacy: stop auto-opening the sidebar on every page after an old popup session pinned it.
   void storage.setAgentPinned(false);
+
+  void restoreTabSession();
 })();
