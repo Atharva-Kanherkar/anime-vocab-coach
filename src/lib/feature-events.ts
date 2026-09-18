@@ -12,6 +12,7 @@
 // that can throw is a beacon that can break mining or playback.
 
 import { WEB_URL } from "../config";
+import { inServiceWorker } from "./run-context";
 
 /**
  * The learning-loop events this extension emits.
@@ -42,22 +43,6 @@ const TRACK_URL = WEB_URL + "/api/track";
 
 /** Message the content scripts use to hand a beacon to the service worker. */
 export const TRACK_FEATURE_MESSAGE = "avc-track-feature";
-
-/**
- * True in the MV3 service worker, false in a content script or an extension
- * page. `window` is the cheapest reliable discriminator — the service worker
- * has no DOM global at all.
- *
- * This matters because a content script runs at the WATCHED PAGE's origin
- * (youtube.com), so a fetch to animevocab.com from there is a cross-origin
- * request subject to CORS, and /api/track sends no CORS headers. The service
- * worker runs at the extension's own origin with animevocab.com in
- * host_permissions, where the same fetch is allowed. So the beacon is always
- * sent from there, and everywhere else forwards a message to it.
- */
-function inServiceWorker(): boolean {
-  return typeof window === "undefined";
-}
 
 /**
  * Read the sync token straight from storage rather than through lib/storage.

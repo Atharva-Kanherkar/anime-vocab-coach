@@ -353,6 +353,11 @@
   var WEB_URL = "https://animevocab.com";
   var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
+  // src/lib/run-context.ts
+  function inServiceWorker() {
+    return typeof window === "undefined";
+  }
+
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
     "review_prompt_shown",
@@ -375,7 +380,8 @@
     }
     return CWS_EXTENSION_ID;
   }
-  function trackExtensionEvent(event) {
+  var TRACK_EXTENSION_EVENT_MESSAGE = "avc-track-extension-event";
+  function sendExtensionEventBeacon(event) {
     if (!isExtensionEvent(event)) return;
     try {
       const url = `${WEB_URL}/api/extension/track`;
@@ -389,6 +395,18 @@
         body: payload,
         keepalive: true
       }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  function trackExtensionEvent(event) {
+    if (!isExtensionEvent(event)) return;
+    if (inServiceWorker()) {
+      sendExtensionEventBeacon(event);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_EXTENSION_EVENT_MESSAGE, event }).catch(() => {
       });
     } catch {
     }
@@ -430,9 +448,6 @@
   }
   var TRACK_URL = WEB_URL + "/api/track";
   var TRACK_FEATURE_MESSAGE = "avc-track-feature";
-  function inServiceWorker() {
-    return typeof window === "undefined";
-  }
   function syncToken() {
     return new Promise((resolve) => {
       try {

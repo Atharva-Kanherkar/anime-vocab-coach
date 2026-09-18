@@ -21,6 +21,7 @@
     "test:e2e:onboarding": "node e2e/onboarding.mjs",
     "test:e2e:youtube": "node e2e/youtube-session.mjs",
     "test:e2e:youtube:followups": "node e2e/youtube-followups.mjs",
+    "test:e2e:learning-loop": "node e2e/learning-loop.mjs",
     "build-dict": "node scripts/build-dictionary.mjs",
     "funnel:weekly": "node scripts/weekly-funnel.mjs",
     "kv:sweep-sync-tokens": "node scripts/purge-immortal-sync-tokens.mjs",

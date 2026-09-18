@@ -16,6 +16,11 @@ import {
   sendFeatureBeacon,
   trackFeature,
 } from "../lib/feature-events";
+import {
+  TRACK_EXTENSION_EVENT_MESSAGE,
+  isExtensionEvent,
+  sendExtensionEventBeacon,
+} from "../lib/extension-events";
 import { toastTab } from "../lib/notify";
 import type { Settings } from "../types";
 
@@ -404,6 +409,12 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   // is blocked by CORS. The service worker has the host permission.
   if (msg.type === TRACK_FEATURE_MESSAGE) {
     if (isFeatureEvent(msg.event)) void sendFeatureBeacon(msg.event);
+    return;
+  }
+
+  // Same relay, same reason, for the older extension-funnel counters.
+  if (msg.type === TRACK_EXTENSION_EVENT_MESSAGE) {
+    if (isExtensionEvent(msg.event)) sendExtensionEventBeacon(msg.event);
     return;
   }
 

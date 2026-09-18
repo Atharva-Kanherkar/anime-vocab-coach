@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   EXTENSION_EVENTS,
   EXTENSION_MILESTONE_STORAGE_KEY,
+  TRACK_EXTENSION_EVENT_MESSAGE,
+  trackExtensionEvent,
   trackExtensionMilestone,
 } from "../src/lib/extension-events";
 import { EXTENSION_EVENTS as SERVER_EXTENSION_EVENTS } from "../web/src/lib/extension-funnel";
@@ -39,5 +41,42 @@ describe("extension funnel events", () => {
     expect(await trackExtensionMilestone("first_card_created")).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(state[EXTENSION_MILESTONE_STORAGE_KEY]).toEqual({ first_card_created: true });
+  });
+
+  /**
+   * The biggest callers of this beacon — the in-page card overlay, and
+   * storage.ts's judgeWord / recordCardShown — run in a CONTENT SCRIPT, at the
+   * watched page's origin. A fetch from there to animevocab.com is
+   * cross-origin, and the endpoint sends no CORS headers, so the request dies
+   * after the preflight with nothing logged anywhere. e2e/learning-loop.mjs
+   * measures that against a real server; this pins the fix that follows from
+   * it, because the milestone is marked as sent BEFORE the send, so a dropped
+   * beacon is never retried.
+   */
+  it("relays through the service worker when it is not the service worker", async () => {
+    const sendMessage = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("chrome", {
+      runtime: { id: "lkjbomofgfonjjbemobacegffepbdnel", sendMessage },
+      storage: { local: { get: vi.fn(), set: vi.fn() } },
+    });
+
+    trackExtensionEvent("first_card_created");
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: TRACK_EXTENSION_EVENT_MESSAGE,
+      event: "first_card_created",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("drops a name that is not on the allowlist before it reaches the relay", () => {
+    const sendMessage = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("chrome", { runtime: { id: "x", sendMessage }, storage: { local: { get: vi.fn(), set: vi.fn() } } });
+    trackExtensionEvent("arbitrary_string" as never);
+    expect(sendMessage).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });
