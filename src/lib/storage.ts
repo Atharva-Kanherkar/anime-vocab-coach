@@ -22,6 +22,7 @@ import {
   type ReviewPromptState,
 } from "./review-prompt";
 import { trackExtensionMilestone } from "./extension-events";
+import { stampOnboarding } from "./onboarding-store";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -211,6 +212,9 @@ export function recordSeen(
 
     if (changed) {
       await chrome.storage.local.set({ vocab, stats });
+      // Onboarding step 1: something Japanese is on screen and we can read it.
+      // Write-once, so this costs one extra read per line and nothing else.
+      void stampOnboarding("watchedAt");
     }
   });
 }
@@ -290,6 +294,12 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
     if (judgment === "review-pass" || judgment === "review-fail") {
       await trackExtensionMilestone("first_srs_review");
     }
+    // Onboarding step 3. Only a word the learner chose to keep counts — an
+    // ignore or a dismiss is the opposite of mining, and a review judgment
+    // needs a card that already exists.
+    if (judgment === "know" || judgment === "learn") {
+      void stampOnboarding("firstCardAt");
+    }
     sendBadge(stats);
     return vocab[base];
   });
@@ -311,6 +321,8 @@ export function recordCardShown(base: string): Promise<void> {
 
     await chrome.storage.local.set({ vocab, stats });
     await trackExtensionMilestone("first_card_created");
+    // Onboarding step 2: the panel is up and showing a word.
+    void stampOnboarding("cardShownAt");
   });
 }
 
