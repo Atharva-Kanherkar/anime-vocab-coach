@@ -150,8 +150,20 @@ Screenshots for every assertion, written to `e2e/shots/onboarding-*.png`.
    dashboard link, live
 4. **popup-checklist-24h** — `installedAt` 25h ago, nothing mined → popup renders
    the 3-step checklist
-5. **popup-no-checklist-activated** — same age but `firstCardAt` set → checklist absent
-6. **popup-no-checklist-fresh** — `installedAt` 1h ago → checklist absent
+5. **popup-no-checklist-fresh** — `installedAt` 1h ago → checklist absent
+6. **popup-first-card-moment** — `installedAt` 25h ago and `firstCardAt` set → the
+   popup shows the 🎉 moment with a review-dashboard button, not the checklist;
+   reopening shows neither (the moment is spent, and an activated install is
+   never handed a first-run checklist)
+7. **popup-checklist-dismissed** — pressing "Hide this" stamps
+   `checklistDismissedAt` and the next open shows nothing
+
+Amendment (during step 4): the popup surface logic was going to get its own
+jsdom unit test. This repo has no jsdom and deliberately tests DOM behaviour in
+a real browser instead (`test/panel-layout.test.ts` reads source text rather than
+mounting anything). Cases 6 and 7 above are that coverage, moved to where the
+repo already puts it — which is stronger evidence anyway, since it exercises the
+actual popup document.
 
 Run: `node e2e/onboarding.mjs` (after `npm run build`). Exits non-zero on any failure.
 
