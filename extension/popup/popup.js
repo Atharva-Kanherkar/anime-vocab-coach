@@ -2,6 +2,13 @@
 (() => {
   // src/config.ts
   var WEB_URL = "https://animevocab.com";
+  function ownedWebUrl(path, campaign) {
+    const url = new URL(path, WEB_URL);
+    url.searchParams.set("utm_source", "animevocab_extension");
+    url.searchParams.set("utm_medium", "extension");
+    url.searchParams.set("utm_campaign", campaign);
+    return url.toString();
+  }
   var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
   // src/lib/log.ts
@@ -496,7 +503,7 @@
             void renderUsage();
             return;
           }
-          chrome.tabs.create({ url: `${WEB_URL}/app` });
+          chrome.tabs.create({ url: ownedWebUrl("/app", "popup_account") });
           btn.disabled = false;
           btn.textContent = cta;
         })();
@@ -720,7 +727,7 @@
     });
     byId("cloud-link").addEventListener("click", (e) => {
       e.preventDefault();
-      chrome.tabs.create({ url: `${WEB_URL}/app` });
+      chrome.tabs.create({ url: ownedWebUrl("/app", "popup_cloud") });
     });
     byId("review-due").addEventListener("click", () => {
       chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
@@ -729,7 +736,7 @@
       e.preventDefault();
       const token = await getSyncToken();
       if (token) {
-        chrome.tabs.create({ url: `${WEB_URL}/app#settings` });
+        chrome.tabs.create({ url: ownedWebUrl("/app#settings", "popup_settings") });
       } else {
         chrome.runtime.openOptionsPage();
       }

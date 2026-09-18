@@ -5,7 +5,7 @@
 // never happened unless the learner independently opened animevocab.com/app
 // (#123). This page states the three things that have to happen and resolves
 // the third one itself where it can.
-import { WEB_URL } from "../config";
+import { ownedWebUrl } from "../config";
 import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
 import * as storage from "../lib/storage";
 
@@ -59,7 +59,7 @@ async function renderAccount(): Promise<void> {
           await renderAccount();
           return;
         }
-        await chrome.tabs.create({ url: `${WEB_URL}/app` });
+        await chrome.tabs.create({ url: ownedWebUrl("/app", "welcome_connect") });
         button.disabled = false;
         button.textContent = ACCOUNT_COPY.connect;
       })();
@@ -76,7 +76,7 @@ async function renderAccount(): Promise<void> {
     `<span class="note">${esc(ACCOUNT_COPY.linkedNote(who))}</span></div></div>` +
     `<div class="row"><button type="button" class="btn" id="open-app">${ACCOUNT_COPY.openApp}</button></div>`;
   byId("open-app").addEventListener("click", () => {
-    void chrome.tabs.create({ url: `${WEB_URL}/app` });
+    void chrome.tabs.create({ url: ownedWebUrl("/app", "welcome_cloud") });
   });
 }
 
@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   byId("open-privacy").addEventListener("click", () => {
-    void chrome.tabs.create({ url: `${WEB_URL}/privacy` });
+    void chrome.tabs.create({ url: ownedWebUrl("/privacy", "welcome_privacy") });
   });
 
   // Signing in on another tab lands the token in storage — flip step 3 live

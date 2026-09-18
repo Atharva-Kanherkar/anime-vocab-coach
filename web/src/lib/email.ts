@@ -10,6 +10,14 @@ import { SITE_URL } from "./site";
 const DEFAULT_FROM = "Anime Vocab <atharva@animevocab.com>";
 const DEFAULT_REPLY_TO = "atharvakanherkar25@gmail.com";
 
+function emailSiteUrl(campaign: string): string {
+  const url = new URL(SITE_URL);
+  url.searchParams.set("utm_source", "animevocab_email");
+  url.searchParams.set("utm_medium", "email");
+  url.searchParams.set("utm_campaign", campaign);
+  return url.toString();
+}
+
 interface EmailEnv {
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
@@ -263,6 +271,7 @@ export function feedbackEmailCopy(opts: {
   const hello = first ? `Hey ${first},` : "Hey,";
 
   const subject = "Thank you for using AnimeVocab, quick favor?";
+  const siteUrl = emailSiteUrl("feedback_gift");
 
   const text = `${hello}
 
@@ -278,10 +287,10 @@ Hit reply with even a couple of lines and I will give your account 6 months of P
 
 Thank you again for learning Japanese with AnimeVocab. It means a lot.
 
-${SITE_URL}
+${siteUrl}
 
 Atharva
-AnimeVocab, ${SITE_URL}
+AnimeVocab, ${siteUrl}
 
 Do not want emails like this? Reply with "stop" and I will take you off the list.
 `;
@@ -296,9 +305,9 @@ Do not want emails like this? Reply with "stop" and I will take you off the list
 </ol>
 <p>Hit reply with even a couple of lines and I will give your account <strong>6 months of Pro, free</strong>, no strings attached. I read every reply myself, and it directly shapes what gets built next.</p>
 <p>Thank you again for learning Japanese with AnimeVocab. It means a lot.</p>
-<p><a href="${SITE_URL}">${SITE_URL}</a></p>
+<p><a href="${siteUrl}">animevocab.com</a></p>
 <p>Atharva<br>
-AnimeVocab, <a href="${SITE_URL}">animevocab.com</a></p>
+AnimeVocab, <a href="${siteUrl}">animevocab.com</a></p>
 <p style="color:#888;font-size:12px">Do not want emails like this? Reply with "stop" and I will take you off the list.</p>`;
 
   return { subject, text, html };
@@ -318,6 +327,7 @@ export function maxGiftEmailCopy(opts: {
   });
 
   const subject = "You're getting 3 months of Anime Vocab Max — free";
+  const siteUrl = emailSiteUrl("max_gift");
 
   const text = `${hello}
 
@@ -327,12 +337,12 @@ I'm giving every account Max for the next 3 months — free (through ${expiresLa
 That's the higher AI coach + Listening Mode limits. Nothing to buy.
 
 Just keep using the app / extension as you are:
-${SITE_URL}
+${siteUrl}
 
 One ask: reply to this email with any feedback — what's working, what's confusing, what you want next. I read every reply.
 
 — Atharva
-Anime Vocab · ${SITE_URL}
+Anime Vocab · ${siteUrl}
 `;
 
   const html = `<p>${escapeHtml(hello)}</p>
@@ -340,10 +350,10 @@ Anime Vocab · ${SITE_URL}
 <p>I'm giving every account <strong>Max for the next 3 months — free</strong> (through ${expiresLabel}).
 That's the higher AI coach + Listening Mode limits. Nothing to buy.</p>
 <p>Just keep using the app / extension as you are:<br>
-<a href="${SITE_URL}">${SITE_URL}</a></p>
+<a href="${siteUrl}">animevocab.com</a></p>
 <p><strong>One ask:</strong> reply to this email with any feedback — what's working, what's confusing, what you want next. I read every reply.</p>
 <p>— Atharva<br>
-Anime Vocab · <a href="${SITE_URL}">animevocab.com</a></p>`;
+Anime Vocab · <a href="${siteUrl}">animevocab.com</a></p>`;
 
   return { subject, text, html };
 }

@@ -1,4 +1,4 @@
-import { WEB_URL } from "../config";
+import { ownedWebUrl } from "../config";
 import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
@@ -153,7 +153,7 @@ async function renderAccount(): Promise<void> {
           void renderUsage();
           return;
         }
-        chrome.tabs.create({ url: `${WEB_URL}/app` });
+        chrome.tabs.create({ url: ownedWebUrl("/app", "popup_account") });
         btn.disabled = false;
         btn.textContent = cta;
       })();
@@ -509,7 +509,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   byId("cloud-link").addEventListener("click", (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: `${WEB_URL}/app` });
+    chrome.tabs.create({ url: ownedWebUrl("/app", "popup_cloud") });
   });
 
   byId("review-due").addEventListener("click", () => {
@@ -520,7 +520,7 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const token = await storage.getSyncToken();
     if (token) {
-      chrome.tabs.create({ url: `${WEB_URL}/app#settings` });
+      chrome.tabs.create({ url: ownedWebUrl("/app#settings", "popup_settings") });
     } else {
       chrome.runtime.openOptionsPage();
     }

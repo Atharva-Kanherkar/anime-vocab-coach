@@ -5,6 +5,7 @@ import {
   trackExtensionMilestone,
 } from "../src/lib/extension-events";
 import { EXTENSION_EVENTS as SERVER_EXTENSION_EVENTS } from "../web/src/lib/extension-funnel";
+import { ownedWebUrl } from "../src/config";
 
 describe("extension funnel events", () => {
   const state: Record<string, unknown> = {};
@@ -25,6 +26,12 @@ describe("extension funnel events", () => {
 
   it("keeps client and server allowlists identical", () => {
     expect(EXTENSION_EVENTS).toEqual(SERVER_EXTENSION_EVENTS);
+  });
+
+  it("tags extension-owned links with stable campaigns", () => {
+    expect(ownedWebUrl("/app#settings", "popup_settings")).toBe(
+      "https://animevocab.com/app?utm_source=animevocab_extension&utm_medium=extension&utm_campaign=popup_settings#settings"
+    );
   });
 
   it("sends lifecycle milestones only once per install", async () => {

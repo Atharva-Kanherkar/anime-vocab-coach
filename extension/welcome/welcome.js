@@ -2,6 +2,13 @@
 (() => {
   // src/config.ts
   var WEB_URL = "https://animevocab.com";
+  function ownedWebUrl(path, campaign) {
+    const url = new URL(path, WEB_URL);
+    url.searchParams.set("utm_source", "animevocab_extension");
+    url.searchParams.set("utm_medium", "extension");
+    url.searchParams.set("utm_campaign", campaign);
+    return url.toString();
+  }
 
   // src/types.ts
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
@@ -93,7 +100,7 @@
             await renderAccount();
             return;
           }
-          await chrome.tabs.create({ url: `${WEB_URL}/app` });
+          await chrome.tabs.create({ url: ownedWebUrl("/app", "welcome_connect") });
           button.disabled = false;
           button.textContent = ACCOUNT_COPY.connect;
         })();
@@ -105,7 +112,7 @@
     const plan = planLabel(profile?.plan ?? null);
     el.innerHTML = `<div class="status"><span class="dot"></span><div><b>${ACCOUNT_COPY.linkedTitle}${plan ? ` \xB7 ${esc(plan)}` : ""}</b><span class="note">${esc(ACCOUNT_COPY.linkedNote(who))}</span></div></div><div class="row"><button type="button" class="btn" id="open-app">${ACCOUNT_COPY.openApp}</button></div>`;
     byId("open-app").addEventListener("click", () => {
-      void chrome.tabs.create({ url: `${WEB_URL}/app` });
+      void chrome.tabs.create({ url: ownedWebUrl("/app", "welcome_cloud") });
     });
   }
   document.addEventListener("DOMContentLoaded", () => {
@@ -122,7 +129,7 @@
       chrome.runtime.openOptionsPage();
     });
     byId("open-privacy").addEventListener("click", () => {
-      void chrome.tabs.create({ url: `${WEB_URL}/privacy` });
+      void chrome.tabs.create({ url: ownedWebUrl("/privacy", "welcome_privacy") });
     });
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && (changes.syncToken || changes.syncProfile)) void renderAccount();

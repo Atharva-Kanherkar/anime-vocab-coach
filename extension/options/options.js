@@ -40,6 +40,13 @@
 
   // src/config.ts
   var WEB_URL = "https://animevocab.com";
+  function ownedWebUrl(path, campaign) {
+    const url = new URL(path, WEB_URL);
+    url.searchParams.set("utm_source", "animevocab_extension");
+    url.searchParams.set("utm_medium", "extension");
+    url.searchParams.set("utm_campaign", campaign);
+    return url.toString();
+  }
 
   // src/lib/storage.ts
   var queue = Promise.resolve();
@@ -199,7 +206,7 @@
   document.addEventListener("DOMContentLoaded", async () => {
     const token = await getSyncToken();
     if (token) {
-      window.location.replace(`${WEB_URL}/app#settings`);
+      window.location.replace(ownedWebUrl("/app#settings", "options_redirect"));
       return;
     }
     initTheme();

@@ -63,6 +63,15 @@ export const BACKEND_URL = "https://api.animevocab.com";
 // via postMessage and uses it for cloud sync and Listening Mode transcription.
 export const WEB_URL = "https://animevocab.com";
 
+/** Tag links the extension opens on the owned site without touching API URLs. */
+export function ownedWebUrl(path: string, campaign: string): string {
+  const url = new URL(path, WEB_URL);
+  url.searchParams.set("utm_source", "animevocab_extension");
+  url.searchParams.set("utm_medium", "extension");
+  url.searchParams.set("utm_campaign", campaign);
+  return url.toString();
+}
+
 /** Published Chrome Web Store extension id (reviews URL / track allowlist). */
 export const CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
