@@ -39,6 +39,27 @@ const watchPage = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><t
   };
   window.avcLearnerPause = () => v.pause();
   window.avcLearnerPlay = () => v.play().catch(() => {});
+  // Netflix and Crunchyroll replace the <video> between titles. The next one
+  // loads stopped, waiting on the learner.
+  window.avcSwapVideo = () => {
+    v.classList.remove("html5-main-video");
+    v.remove();
+    const nv = document.createElement("video");
+    nv.id = "vidB";
+    nv.className = "html5-main-video";
+    nv.width = 640;
+    nv.muted = true;
+    document.getElementById("movie_player").prepend(nv);
+    const c2 = document.createElement("canvas");
+    c2.width = 320; c2.height = 180;
+    const g2 = c2.getContext("2d");
+    setInterval(() => { g2.fillStyle = "#123"; g2.fillRect(0, 0, 320, 180); }, 100);
+    nv.srcObject = c2.captureStream(10);
+  };
+  window.avcNextPaused = () => {
+    const b = document.getElementById("vidB");
+    return b ? b.paused : null;
+  };
 </script></body></html>`;
 
 const LINES = ["父はまだ帰らない。", "約束を守ると言った。"];
@@ -167,13 +188,44 @@ try {
   await new Promise((r) => setTimeout(r, 2000));
   const pausedWhileHidden = await paused();
   if (hiddenForReal) {
-    check("#131 a hidden tab does the same", !pausedWhileHidden, `paused=${pausedWhileHidden}`);
+    // Not the same as blur: the learner is not looking at this page, so handing
+    // the pause back by playing would be audio in a window they have left. The
+    // claim is dropped and the video stays where it is.
+    check(
+      "a hidden tab is left where it is, not played into an empty window",
+      pausedWhileHidden,
+      `paused=${pausedWhileHidden}`
+    );
   } else {
-    console.log("SKIP  #131 hidden-tab case — this browser would not override page visibility");
+    console.log("SKIP  hidden-tab case — this browser would not override page visibility");
   }
   try {
     await cdp.send("Emulation.setPageVisibilityOverride", { visible: true });
   } catch {}
+
+  // ── Review follow-up: a hold belongs to the video it was taken on ─────────
+  // The resume paths fire later than the pause was taken, and the player can
+  // swap its element in between. Resolving "the current video" at resume time
+  // started a title nobody paused — the same bleed as #125.
+  await page.evaluate(() => window.avcLearnerPlay());
+  await page.waitForTimeout(400);
+  await hoverWord();
+  await page.waitForTimeout(600);
+  const heldOnFirst = await paused();
+  check("armed a peek-pause before the player swapped its video", heldOnFirst);
+
+  await page.evaluate(() => window.avcSwapVideo());
+  await page.waitForTimeout(400);
+  const nextBefore = await page.evaluate(() => window.avcNextPaused());
+  // hideLens() is what content.ts's session watcher calls on a video change.
+  await unhoverWord();
+  await page.waitForTimeout(2000); // past POINTER_LEAVE_DELAY + RESUME_DELAY
+  const nextAfter = await page.evaluate(() => window.avcNextPaused());
+  check(
+    "a hold taken on one video is never handed back to the next one",
+    nextBefore === true && nextAfter === true,
+    `next video paused: ${nextBefore} before, ${nextAfter} after`
+  );
 } finally {
   await ctx.close();
 }

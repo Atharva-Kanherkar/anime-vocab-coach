@@ -49,6 +49,9 @@ class FakeVideo {
   }
 }
 
+/** The hold records the element it paused, so the fake has to pass for one. */
+const asVideo = (v: FakeVideo): HTMLVideoElement => v as unknown as HTMLVideoElement;
+
 /** Wire a hold to a video the way sub-lens.ts and agent-panel.ts do. */
 function wire(hold: PlaybackHold, video: FakeVideo): void {
   video.addEventListener("pause", () => hold.noticePause());
@@ -62,11 +65,11 @@ describe("PlaybackHold", () => {
     const video = new FakeVideo();
     const hold = new PlaybackHold();
     wire(hold, video);
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     expect(hold.owned()).toBe(true);
     video.flush(); // the pause event arrives a task later
     expect(hold.owned()).toBe(true);
-    expect(hold.release()).toBe(true);
+    expect(hold.release()).toBe(asVideo(video));
   });
 
   it("gives up ownership when the learner pauses a playing video", () => {
@@ -77,7 +80,7 @@ describe("PlaybackHold", () => {
     video.pause();
     video.flush();
     expect(hold.owned()).toBe(false);
-    expect(hold.release()).toBe(false);
+    expect(hold.release()).toBeNull();
   });
 
   // #130: pause to study, then click a later point on the timeline.
@@ -85,26 +88,26 @@ describe("PlaybackHold", () => {
     const video = new FakeVideo();
     const hold = new PlaybackHold();
     wire(hold, video);
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     video.flush();
     video.seek();
     video.flush();
     expect(hold.owned()).toBe(false);
-    expect(hold.release()).toBe(false);
+    expect(hold.release()).toBeNull();
   });
 
   it("ignores a seek during playback", () => {
     const video = new FakeVideo();
     const hold = new PlaybackHold();
     wire(hold, video);
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     video.flush();
     video.play();
     // Deliberately not flushed: the play event is still queued when the next
     // hold is taken, which is the real race (the learner presses play and the
     // pointer reaches the lens before the event is delivered). A stale play
     // must not steal the hold.
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     video.flush();
     expect(hold.owned(), "a queued play event stole the hold").toBe(true);
     video.paused = false; // now scrubbing while it plays
@@ -117,7 +120,7 @@ describe("PlaybackHold", () => {
     const video = new FakeVideo();
     const hold = new PlaybackHold();
     wire(hold, video);
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     video.flush();
     video.play();
     video.flush();
@@ -128,35 +131,62 @@ describe("PlaybackHold", () => {
     const video = new FakeVideo();
     const hold = new PlaybackHold();
     wire(hold, video);
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     video.flush();
-    expect(hold.release()).toBe(true);
-    expect(hold.release()).toBe(false);
+    expect(hold.release()).toBe(asVideo(video));
+    expect(hold.release()).toBeNull();
   });
 
   it("can own a new pause after losing the last one", () => {
     const video = new FakeVideo();
     const hold = new PlaybackHold();
     wire(hold, video);
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     video.flush();
     video.seek(); // learner takes over
     video.flush();
     expect(hold.owned()).toBe(false);
     video.play();
     video.flush();
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     video.flush();
     expect(hold.owned()).toBe(true);
+  });
+
+  // The defect this signature exists to stop: players swap their <video>
+  // between titles, and the resume paths fire later than the pause was taken.
+  it("hands back the video it paused, not whichever one is current", () => {
+    const a = new FakeVideo();
+    const b = new FakeVideo();
+    const hold = new PlaybackHold();
+    wire(hold, a);
+    hold.hold(asVideo(a), () => a.pause());
+    a.flush();
+    b.paused = true; // the next title, loaded stopped, waiting on the learner
+    const released = hold.release();
+    expect(released).toBe(asVideo(a));
+    expect(released).not.toBe(asVideo(b));
+  });
+
+  it("forfeits without naming a video, so nothing can be resumed", () => {
+    const video = new FakeVideo();
+    const hold = new PlaybackHold();
+    wire(hold, video);
+    hold.hold(asVideo(video), () => video.pause());
+    video.flush();
+    hold.forfeit();
+    expect(hold.owned()).toBe(false);
+    expect(hold.release()).toBeNull();
+    expect(video.paused).toBe(true); // left exactly where the learner left it
   });
 
   it("does not mistake a later learner pause for the one it caused", () => {
     const video = new FakeVideo();
     const hold = new PlaybackHold();
     wire(hold, video);
-    hold.hold(() => video.pause());
+    hold.hold(asVideo(video), () => video.pause());
     video.flush();
-    expect(hold.release()).toBe(true); // we resumed it
+    expect(hold.release()).toBe(asVideo(video)); // we resumed it
     video.play();
     video.flush();
     video.pause(); // their pause, later
@@ -183,7 +213,29 @@ describe("every resume goes through the hold", () => {
     expect(body).toContain("video.play()");
     // The guard has to come first, or the check is decoration.
     expect(body.indexOf("peekHold.release()")).toBeLessThan(body.indexOf("video.play()"));
-    expect(body).toMatch(/if \(!peekHold\.release\(\)\) return;/);
+    // And the video has to come from the hold. Asking opts.getVideo() at resume
+    // time is how a peek-pause on one episode started the next one.
+    expect(body).toMatch(/const video = peekHold\.release\(\);/);
+    expect(body).not.toMatch(/getVideo\(\)/);
+  });
+
+  it("sub-lens stops watching a video it swapped away from", () => {
+    // Listeners left on the outgoing element still drove this hold, so a player
+    // tearing down the previous title cleared a claim on the incoming one.
+    const watch = lens.slice(lens.indexOf("function watchVideo"));
+    const body = watch.slice(0, watch.indexOf("\n}"));
+    expect(body).toMatch(/unwatch\?\.\(\)/);
+    for (const event of ["pause", "play", "seeking", "seeked"]) {
+      expect(body, event).toMatch(new RegExp(`removeEventListener\\("${event}"`));
+    }
+  });
+
+  it("sub-lens leaves a hidden tab where it is instead of playing it", () => {
+    // Resuming is right when the learner is still here (the popup, #131). A
+    // hidden tab means they are not, and playing it is audio in a window they
+    // have left.
+    const vis = lens.slice(lens.indexOf('addEventListener("visibilitychange"'));
+    expect(vis.slice(0, vis.indexOf("});"))).toMatch(/peekHold\.forfeit\(\)/);
   });
 
   it("sub-lens watches for the learner taking over", () => {
@@ -202,6 +254,10 @@ describe("every resume goes through the hold", () => {
   it("the card's resume consults the hold too", () => {
     const fn = panel.slice(panel.indexOf("function resumeVideoIfNeeded"));
     const body = fn.slice(0, fn.indexOf("\n}"));
-    expect(body).toMatch(/release\(\)/);
+    expect(body).toMatch(/const held = cardHold\.release\(\);/);
+    // Released unconditionally, so no path leaves a hold for the next card, and
+    // only ever resumed on the element the card itself paused.
+    expect(body.indexOf("cardHold.release()")).toBeLessThan(body.indexOf("if ("));
+    expect(body).toMatch(/held === activeVideo/);
   });
 });

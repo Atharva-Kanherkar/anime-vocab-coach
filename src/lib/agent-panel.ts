@@ -1089,12 +1089,15 @@ function clearWordTimers(): void {
 }
 
 function resumeVideoIfNeeded(): void {
-  // Only a pause we still own. A focus-mode card pauses the video and resumes
-  // it when the card resolves, which is the point of Focus mode, but if the
-  // learner paused (issue #127) or seeked (issue #130) while the card was up
-  // then the stop is theirs and undoing it is the bug.
-  if (wasPlaying && !userResumed && cardHold.release() && activeVideo?.paused) {
-    activeVideo.play().catch(() => {});
+  // Release first and unconditionally, so a card that ends down any path
+  // cannot leave a hold standing for the next one to inherit.
+  const held = cardHold.release();
+  // Only a pause we still own, and only on the video we took it on. A
+  // focus-mode card pauses and resumes when the card resolves, which is the
+  // point of Focus mode, but if the learner paused (issue #127) or seeked
+  // (issue #130) while the card was up then the stop is theirs.
+  if (held && held === activeVideo && wasPlaying && !userResumed && held.paused) {
+    held.play().catch(() => {});
   }
   activeVideo = null;
   wasPlaying = false;
@@ -2010,7 +2013,7 @@ export function presentWord(
     // Taking the hold *is* the pause: the hold records that the pause event
     // about to be queued is ours, so it does not read as the learner's and
     // freeze the dismissal clock.
-    cardHold.hold(() => video.pause());
+    cardHold.hold(video, () => video.pause());
   }
   if (video) {
     const on = <K extends keyof HTMLMediaElementEventMap>(

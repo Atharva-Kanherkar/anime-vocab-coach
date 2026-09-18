@@ -134,3 +134,35 @@ sequences:
 1. Play, pause, click a later point on the timeline. Playback must stay paused.
 2. Play, open the AnimeVocab popup, dismiss it. Playback must be unchanged
    throughout.
+
+## Review follow-ups (amended after the first implementation pass)
+
+**One mechanism, not two.** PR #134 merged in the meantime and had already added
+its own ownership flags to `presentWord` — `selfPaused` for our pause versus the
+learner's, `userPaused` for a pause taken under an open card. Carrying both
+would leave two state machines answering one question about one pause, and
+`resumeVideoIfNeeded`'s `&&` chain would skip whichever check came second. The
+merge keeps `PlaybackHold` alone; `noticePause()` now reports whether the pause
+was ours, which is what #134's flags were for.
+
+- Grading a card on a learner-paused video leaves it paused (#127).
+- A card that opens on an already-paused frame freezes its dismissal clock; a
+  card that paused the video itself does not.
+
+**A hold names its video.** The hold recorded *that* we had paused, not *what*.
+The resume paths resolve the element when they fire, and players swap `<video>`
+between titles — so a peek-pause taken on one episode started the next one, the
+same bleed as #125. Reproduced before the fix: video B, loaded stopped, was
+playing after `hideLens()` ran on the session change.
+
+- `release()` hands back the element the hold was taken on, or null.
+- A hold taken on one video is never handed back to another.
+- Listeners are detached from a video the lens stops watching, and from the
+  card's video when the card ends.
+
+**A hidden tab is not a blurred one.** `visibilitychange` → hidden resumed
+playback, which is audio in a window the learner has left. #131's reported case
+is the toolbar popup, which raises `blur`.
+
+- On `blur`, the pause is handed back (#131, unchanged).
+- On hidden, the claim is forfeited and the video is left where it is.

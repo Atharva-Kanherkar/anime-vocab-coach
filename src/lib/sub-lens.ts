@@ -133,6 +133,8 @@ let positionTimer: ReturnType<typeof setInterval> | null = null;
 const peekHold = new PlaybackHold();
 /** The video we have listeners on, so they follow a player swap. */
 let watchedVideo: HTMLVideoElement | null = null;
+/** Teardown for those listeners, so a swapped-out video stops feeding the hold. */
+let unwatch: (() => void) | null = null;
 let keysBound = false;
 let currentLine = "";
 const judgmentsInFlight = new Set<string>();
@@ -191,17 +193,37 @@ function armAutoHide(): void {
  */
 function watchVideo(video: HTMLVideoElement | null): void {
   if (!video || video === watchedVideo) return;
+  // Let go of the old one first. Leaving its listeners attached meant a player
+  // tearing down the previous title still drove this hold, so the outgoing
+  // video's pause cleared a claim on the incoming one.
+  unwatch?.();
   watchedVideo = video;
-  video.addEventListener("pause", () => peekHold.noticePause());
-  video.addEventListener("play", () => peekHold.noticePlay(video.paused));
-  video.addEventListener("seeking", () => peekHold.noticeSeek(video.paused));
-  video.addEventListener("seeked", () => peekHold.noticeSeek(video.paused));
+  const onPause = (): void => { peekHold.noticePause(); };
+  const onPlay = (): void => peekHold.noticePlay(video.paused);
+  const onSeek = (): void => peekHold.noticeSeek(video.paused);
+  video.addEventListener("pause", onPause);
+  video.addEventListener("play", onPlay);
+  video.addEventListener("seeking", onSeek);
+  video.addEventListener("seeked", onSeek);
+  unwatch = () => {
+    video.removeEventListener("pause", onPause);
+    video.removeEventListener("play", onPlay);
+    video.removeEventListener("seeking", onSeek);
+    video.removeEventListener("seeked", onSeek);
+    unwatch = null;
+    watchedVideo = null;
+  };
 }
 
-/** Resume, but only a pause we still own. */
+/**
+ * Resume, but only a pause we still own, and only on the video we took it on.
+ *
+ * The video comes from the hold rather than from `opts.getVideo()`: by the time
+ * a resume path fires, the player may have swapped its element, and resuming
+ * "the current video" then starts a title nobody paused.
+ */
 function releasePeekPause(): void {
-  const video = opts?.getVideo();
-  if (!peekHold.release()) return;
+  const video = peekHold.release();
   if (video && video.paused) video.play().catch(() => {});
 }
 
@@ -212,7 +234,7 @@ function onLensEnter(): void {
   const video = opts.getVideo();
   watchVideo(video);
   if (video && !video.paused) {
-    peekHold.hold(() => video.pause());
+    peekHold.hold(video, () => video.pause());
   }
 }
 
@@ -475,10 +497,13 @@ export function showLensLine(
       hideTip();
       releasePeekPause();
     });
+    // A hidden tab is different: the learner is not looking at this page, so
+    // handing the pause back by *playing* would start audio in a window they
+    // have left. Drop the claim instead and leave the video where it is.
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         hideTip();
-        releasePeekPause();
+        peekHold.forfeit();
       }
     });
   }

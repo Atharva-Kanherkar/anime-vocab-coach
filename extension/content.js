@@ -1312,7 +1312,16 @@
   // src/lib/playback-hold.ts
   var PlaybackHold = class {
     constructor() {
-      this.held = false;
+      /**
+       * The video the current hold was taken on, or null when nothing is held.
+       *
+       * A hold has to name its video, not just its existence. Players swap their
+       * `<video>` between titles, and the resume paths resolve the element when
+       * they fire rather than when the pause was taken — so a hold recorded as a
+       * bare boolean let a peek-pause on the last episode start the next one, which
+       * is issue #125's bleed wearing a different hat.
+       */
+      this.heldVideo = null;
       /**
        * One pause event we are still waiting for from our own `pause()` call.
        *
@@ -1329,14 +1338,14 @@
        */
       this.ownPauseExpected = false;
     }
-    /** Record that we are about to pause, then pause through `doPause`. */
-    hold(doPause) {
+    /** Record that we are about to pause `video`, then pause through `doPause`. */
+    hold(video, doPause) {
       this.ownPauseExpected = true;
       doPause();
-      this.held = true;
+      this.heldVideo = video;
     }
     owned() {
-      return this.held;
+      return this.heldVideo !== null;
     }
     /**
      * A pause event arrived. Ours changes nothing; theirs means the learner has
@@ -1352,7 +1361,7 @@
         this.ownPauseExpected = false;
         return true;
       }
-      this.held = false;
+      this.heldVideo = null;
       return false;
     }
     /**
@@ -1364,7 +1373,7 @@
      */
     noticePlay(paused) {
       if (paused) return;
-      this.held = false;
+      this.heldVideo = null;
       this.ownPauseExpected = false;
     }
     /**
@@ -1373,18 +1382,32 @@
      * playback says nothing about who owns a pause.
      */
     noticeSeek(paused) {
-      if (paused) this.held = false;
+      if (paused) this.heldVideo = null;
     }
     /**
-     * Give the pause back, once. Returns false when we no longer own it, so the
-     * caller knows not to touch playback, and false on a second call, so two
-     * timers cannot both resume the same hold.
+     * Give the pause back, once. Returns **the video the hold was taken on**, so
+     * a caller can only ever resume that element — resolving the video at resume
+     * time instead is how a peek-pause on one episode started the next one. Null
+     * when we no longer own a pause, and null on a second call, so two timers
+     * cannot both resume the same hold.
      */
     release() {
       this.ownPauseExpected = false;
-      if (!this.held) return false;
-      this.held = false;
-      return true;
+      const video = this.heldVideo;
+      this.heldVideo = null;
+      return video;
+    }
+    /**
+     * Drop the claim without resuming.
+     *
+     * For the cases where the learner has gone somewhere else entirely: the tab
+     * is hidden, so starting playback would be audio in a window they are not
+     * looking at. Resuming is right when they are still here (the toolbar popup,
+     * issue #131); it is not right when they have left.
+     */
+    forfeit() {
+      this.ownPauseExpected = false;
+      this.heldVideo = null;
     }
   };
 
@@ -2291,8 +2314,9 @@
     }
   }
   function resumeVideoIfNeeded() {
-    if (wasPlaying && !userResumed && cardHold.release() && activeVideo?.paused) {
-      activeVideo.play().catch(() => {
+    const held = cardHold.release();
+    if (held && held === activeVideo && wasPlaying && !userResumed && held.paused) {
+      held.play().catch(() => {
       });
     }
     activeVideo = null;
@@ -3045,7 +3069,7 @@
     activeVideo = video;
     userResumed = false;
     if (options.interaction === "focus" && wasPlaying && video && !collapsed) {
-      cardHold.hold(() => video.pause());
+      cardHold.hold(video, () => video.pause());
     }
     if (video) {
       const on = (type, fn) => {
@@ -3316,6 +3340,7 @@
   var positionTimer = null;
   var peekHold = new PlaybackHold();
   var watchedVideo = null;
+  var unwatch = null;
   var keysBound = false;
   var currentLine = "";
   var judgmentsInFlight = /* @__PURE__ */ new Set();
@@ -3367,15 +3392,28 @@
   }
   function watchVideo(video) {
     if (!video || video === watchedVideo) return;
+    unwatch?.();
     watchedVideo = video;
-    video.addEventListener("pause", () => peekHold.noticePause());
-    video.addEventListener("play", () => peekHold.noticePlay(video.paused));
-    video.addEventListener("seeking", () => peekHold.noticeSeek(video.paused));
-    video.addEventListener("seeked", () => peekHold.noticeSeek(video.paused));
+    const onPause = () => {
+      peekHold.noticePause();
+    };
+    const onPlay = () => peekHold.noticePlay(video.paused);
+    const onSeek = () => peekHold.noticeSeek(video.paused);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("play", onPlay);
+    video.addEventListener("seeking", onSeek);
+    video.addEventListener("seeked", onSeek);
+    unwatch = () => {
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("seeking", onSeek);
+      video.removeEventListener("seeked", onSeek);
+      unwatch = null;
+      watchedVideo = null;
+    };
   }
   function releasePeekPause() {
-    const video = opts?.getVideo();
-    if (!peekHold.release()) return;
+    const video = peekHold.release();
     if (video && video.paused) video.play().catch(() => {
     });
   }
@@ -3392,7 +3430,7 @@
     const video = opts.getVideo();
     watchVideo(video);
     if (video && !video.paused) {
-      peekHold.hold(() => video.pause());
+      peekHold.hold(video, () => video.pause());
     }
   }
   function onLensLeave() {
@@ -3627,7 +3665,7 @@
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
           hideTip();
-          releasePeekPause();
+          peekHold.forfeit();
         }
       });
     }

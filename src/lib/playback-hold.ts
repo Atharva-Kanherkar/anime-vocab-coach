@@ -11,7 +11,16 @@
  * hold for good. Holding is per pause: a later peek-pause owns its own.
  */
 export class PlaybackHold {
-  private held = false;
+  /**
+   * The video the current hold was taken on, or null when nothing is held.
+   *
+   * A hold has to name its video, not just its existence. Players swap their
+   * `<video>` between titles, and the resume paths resolve the element when
+   * they fire rather than when the pause was taken — so a hold recorded as a
+   * bare boolean let a peek-pause on the last episode start the next one, which
+   * is issue #125's bleed wearing a different hat.
+   */
+  private heldVideo: HTMLVideoElement | null = null;
   /**
    * One pause event we are still waiting for from our own `pause()` call.
    *
@@ -28,15 +37,15 @@ export class PlaybackHold {
    */
   private ownPauseExpected = false;
 
-  /** Record that we are about to pause, then pause through `doPause`. */
-  hold(doPause: () => void): void {
+  /** Record that we are about to pause `video`, then pause through `doPause`. */
+  hold(video: HTMLVideoElement, doPause: () => void): void {
     this.ownPauseExpected = true;
     doPause();
-    this.held = true;
+    this.heldVideo = video;
   }
 
   owned(): boolean {
-    return this.held;
+    return this.heldVideo !== null;
   }
 
   /**
@@ -53,7 +62,7 @@ export class PlaybackHold {
       this.ownPauseExpected = false;
       return true;
     }
-    this.held = false;
+    this.heldVideo = null;
     return false;
   }
 
@@ -66,7 +75,7 @@ export class PlaybackHold {
    */
   noticePlay(paused: boolean): void {
     if (paused) return;
-    this.held = false;
+    this.heldVideo = null;
     this.ownPauseExpected = false;
   }
 
@@ -76,18 +85,33 @@ export class PlaybackHold {
    * playback says nothing about who owns a pause.
    */
   noticeSeek(paused: boolean): void {
-    if (paused) this.held = false;
+    if (paused) this.heldVideo = null;
   }
 
   /**
-   * Give the pause back, once. Returns false when we no longer own it, so the
-   * caller knows not to touch playback, and false on a second call, so two
-   * timers cannot both resume the same hold.
+   * Give the pause back, once. Returns **the video the hold was taken on**, so
+   * a caller can only ever resume that element — resolving the video at resume
+   * time instead is how a peek-pause on one episode started the next one. Null
+   * when we no longer own a pause, and null on a second call, so two timers
+   * cannot both resume the same hold.
    */
-  release(): boolean {
+  release(): HTMLVideoElement | null {
     this.ownPauseExpected = false;
-    if (!this.held) return false;
-    this.held = false;
-    return true;
+    const video = this.heldVideo;
+    this.heldVideo = null;
+    return video;
+  }
+
+  /**
+   * Drop the claim without resuming.
+   *
+   * For the cases where the learner has gone somewhere else entirely: the tab
+   * is hidden, so starting playback would be audio in a window they are not
+   * looking at. Resuming is right when they are still here (the toolbar popup,
+   * issue #131); it is not right when they have left.
+   */
+  forfeit(): void {
+    this.ownPauseExpected = false;
+    this.heldVideo = null;
   }
 }
