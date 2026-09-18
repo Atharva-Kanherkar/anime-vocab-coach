@@ -6,6 +6,31 @@
 // visitor write arbitrary strings into the owner's telemetry.
 
 /**
+ * The learning loop itself: what a learner does inside the product.
+ *
+ * Named separately from the rest of the allowlist because the /owner panel and
+ * the weekly "cards accepted per active learner" metric are about THESE, and
+ * nothing else. `feature` rows also carry acquisition events (`landing_view`,
+ * `store_cta_click`) and the anime-context cache probe, and folding those into
+ * a learning-loop panel would put a marketing click next to a card review and
+ * invite the reader to compare them.
+ */
+export const LEARNING_LOOP_EVENTS = [
+  "card_shown",
+  "card_known",
+  "card_learn",
+  "word_saved",
+  "review_done",
+  "listening_started",
+  "streak_day",
+  "card_unlocked",
+  "install_first_run",
+  "extension_linked",
+] as const;
+
+export type LearningLoopEvent = (typeof LEARNING_LOOP_EVENTS)[number];
+
+/**
  * Feature invocations worth a row. Anything not listed is dropped.
  *
  * The learning-loop block is the one the product is actually judged on: until
@@ -38,17 +63,7 @@ export const TRACKABLE_EVENTS = [
   "store_cta_click",
   "mobile_capture_shown",
   "mobile_capture_submitted",
-  // ---- learning loop (#111) ----
-  "card_shown",
-  "card_known",
-  "card_learn",
-  "word_saved",
-  "review_done",
-  "listening_started",
-  "streak_day",
-  "card_unlocked",
-  "install_first_run",
-  "extension_linked",
+  ...LEARNING_LOOP_EVENTS,
 ] as const;
 
 export type TrackableEvent = (typeof TRACKABLE_EVENTS)[number];

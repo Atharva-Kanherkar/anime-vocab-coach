@@ -565,6 +565,8 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
                   <th>Event</th>
                   <th className="ow-num">Count</th>
                   <th className="ow-num">Learners</th>
+                  {/* Identified events over identified learners. Dividing the
+                      total would charge anonymous installs to linked users. */}
                   <th className="ow-num">Per learner</th>
                   <th className="ow-num">Anonymous</th>
                 </tr>
@@ -578,7 +580,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
                     <td className="ow-num">{fmtInt(r.events)}</td>
                     <td className="ow-num">{fmtInt(r.users)}</td>
                     <td className="ow-num">
-                      {r.users > 0 ? (r.events / r.users).toFixed(1) : "—"}
+                      {r.users > 0 ? (r.identifiedEvents / r.users).toFixed(1) : "—"}
                     </td>
                     <td className="ow-num">{fmtInt(r.anonEvents)}</td>
                   </tr>

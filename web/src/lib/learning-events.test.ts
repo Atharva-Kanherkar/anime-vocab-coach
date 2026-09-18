@@ -93,28 +93,48 @@ describe("startedNewStreakDay", () => {
 });
 
 describe("newlyUnlockedCards", () => {
-  it("counts nothing for a first-ever import, however much progress it carries", () => {
+  it("reports nothing for a first-ever import, however much progress it carries", () => {
     const after = snapshot([day("2026-09-18", { judged: 200, watchMin: 400 })], words(300));
     expect(snapshotLevel(after, NOW)).toBeGreaterThan(1);
-    expect(newlyUnlockedCards(null, after, NOW)).toBe(0);
+    expect(newlyUnlockedCards(null, after, NOW)).toEqual([]);
   });
 
-  it("counts a card when a sync crosses its level gate", () => {
+  it("names the cards a sync unlocked, so each can be claimed once", () => {
     const before = snapshot([day("2026-09-17", { judged: 1 })], words(1));
     const after = snapshot([day("2026-09-17", { judged: 40, watchMin: 120 })], words(60));
     expect(snapshotLevel(after, NOW)).toBeGreaterThan(snapshotLevel(before, NOW));
-    expect(newlyUnlockedCards(before, after, NOW)).toBeGreaterThan(0);
+    const unlocked = newlyUnlockedCards(before, after, NOW);
+    expect(unlocked.length).toBeGreaterThan(0);
+    expect(unlocked.every((id) => typeof id === "string" && id.length > 0)).toBe(true);
+    expect(new Set(unlocked).size).toBe(unlocked.length);
   });
 
-  it("counts nothing when the level did not move", () => {
+  it("reports nothing when the level did not move", () => {
     const before = snapshot([day("2026-09-17", { judged: 4 })], words(3));
     const after = snapshot([day("2026-09-17", { judged: 5 })], words(3));
-    expect(newlyUnlockedCards(before, after, NOW)).toBe(0);
+    expect(newlyUnlockedCards(before, after, NOW)).toEqual([]);
   });
 
-  it("never reports a negative unlock if progress somehow shrinks", () => {
+  it("never reports an unlock if progress somehow shrinks", () => {
     const before = snapshot([day("2026-09-17", { judged: 40, watchMin: 120 })], words(60));
     const after = snapshot([day("2026-09-17", { judged: 1 })], words(1));
-    expect(newlyUnlockedCards(before, after, NOW)).toBe(0);
+    expect(newlyUnlockedCards(before, after, NOW)).toEqual([]);
+  });
+
+  /**
+   * The sync route derives this from the PERSISTED union, not the request
+   * body. Two devices each holding half the progress can union across a gate
+   * that neither side crosses alone — reading the incoming snapshot would miss
+   * exactly those unlocks.
+   */
+  it("crosses a gate the union reaches but neither device does alone", () => {
+    const stored = snapshot([day("2026-09-17", { judged: 20, watchMin: 60 })], words(30));
+    const incoming = snapshot([day("2026-09-16", { judged: 20, watchMin: 60 })], words(30));
+    const union = snapshot(
+      [day("2026-09-16", { judged: 20, watchMin: 60 }), day("2026-09-17", { judged: 20, watchMin: 60 })],
+      words(60)
+    );
+    expect(newlyUnlockedCards(stored, incoming, NOW)).toEqual([]);
+    expect(newlyUnlockedCards(stored, union, NOW).length).toBeGreaterThan(0);
   });
 });

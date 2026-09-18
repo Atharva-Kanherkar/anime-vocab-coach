@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getSyncTokenProfile = vi.fn();
 vi.mock("./sync-store", () => ({ getSyncTokenProfile }));
 
-const { ANONYMOUS, rememberRequestIdentity, requestIdentity } = await import("./request-identity");
+const { ANONYMOUS, rememberRequestIdentity, requestIdentity, resetIdentityLookupBudgetForTests } =
+  await import("./request-identity");
 
 /**
  * Issue #112. An extension request authenticates with a sync-token bearer, and
@@ -12,14 +13,15 @@ const { ANONYMOUS, rememberRequestIdentity, requestIdentity } = await import("./
  * active-days figure that was simply too low.
  */
 
-const extensionRequest = (token = "avc_st_abc123") =>
+const extensionRequest = (token = "avc_st_abc123", ip = "203.0.113.7") =>
   new Request("https://animevocab.com/api/sync/snapshot", {
     method: "PUT",
-    headers: { authorization: `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}`, "cf-connecting-ip": ip },
   });
 
 beforeEach(() => {
   getSyncTokenProfile.mockReset();
+  resetIdentityLookupBudgetForTests();
 });
 
 describe("requestIdentity", () => {
@@ -68,6 +70,32 @@ describe("requestIdentity", () => {
     });
     expect(await requestIdentity(req)).toEqual(ANONYMOUS);
     expect(getSyncTokenProfile).not.toHaveBeenCalled();
+  });
+
+  /**
+   * /api/track is public and unauthenticated, and the only thing that decides
+   * whether it does a KV read is whether the caller sent something shaped like
+   * a sync token. Anyone can send that, so the uncached lookup is bounded per
+   * IP — and going over it costs attribution, never the event itself.
+   */
+  it("stops doing KV reads for one IP that floods forged tokens", async () => {
+    getSyncTokenProfile.mockResolvedValue(null);
+    for (let i = 0; i < 400; i++) {
+      await requestIdentity(extensionRequest(`avc_st_forged${i}`, "198.51.100.9"));
+    }
+    expect(getSyncTokenProfile.mock.calls.length).toBeLessThanOrEqual(120);
+  });
+
+  it("and still resolves a different caller, because the budget is per IP", async () => {
+    getSyncTokenProfile.mockResolvedValue(null);
+    for (let i = 0; i < 400; i++) {
+      await requestIdentity(extensionRequest(`avc_st_forged${i}`, "198.51.100.9"));
+    }
+    getSyncTokenProfile.mockResolvedValue({ id: "user_42", plan: "pro" });
+    expect(await requestIdentity(extensionRequest("avc_st_real", "203.0.113.55"))).toEqual({
+      userId: "user_42",
+      plan: "pro",
+    });
   });
 
   it("records a failed auth as anonymous so a later lookup is not retried", async () => {

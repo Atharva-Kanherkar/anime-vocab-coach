@@ -70,9 +70,13 @@ export function snapshotLevel(snapshot: CloudSyncSnapshot | null, now: Date): nu
 }
 
 /**
- * How many collectible cards this sync unlocked.
+ * Which collectible cards this sync unlocked, by id.
  *
- * Zero for a first-ever snapshot even though level 1 technically unlocks a
+ * Ids rather than a count so the caller can claim each one exactly once —
+ * an unlock is a permanent milestone, and a snapshot that regresses and then
+ * re-advances must not report the same card twice.
+ *
+ * Empty for a first-ever snapshot even though level 1 technically unlocks a
  * card: an import of existing progress is not an unlock the learner
  * experienced, and counting it would put a spike on the panel for every
  * migrating install.
@@ -81,10 +85,10 @@ export function newlyUnlockedCards(
   before: CloudSyncSnapshot | null,
   after: CloudSyncSnapshot,
   now: Date
-): number {
-  if (!before) return 0;
+): string[] {
+  if (!before) return [];
   const from = snapshotLevel(before, now);
   const to = snapshotLevel(after, now);
-  if (to <= from) return 0;
-  return CARDS.filter((card) => card.level > from && card.level <= to).length;
+  if (to <= from) return [];
+  return CARDS.filter((card) => card.level > from && card.level <= to).map((card) => card.id);
 }

@@ -34,7 +34,6 @@ function rowsFor(sql) {
       { label: "card_unlocked", events: "4", users: "3", anonEvents: "0" },
       { label: "install_first_run", events: "31", users: "1", anonEvents: "31" },
       { label: "extension_linked", events: "11", users: "11", anonEvents: "0" },
-      { label: "anime_context", events: "100", users: "9", anonEvents: "0" },
     ];
   }
 

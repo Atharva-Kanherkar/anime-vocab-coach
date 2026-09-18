@@ -105,6 +105,35 @@ export async function getSyncTokenProfile(token: string): Promise<CloudUserProfi
   return JSON.parse(raw) as CloudUserProfile;
 }
 
+/**
+ * Claim a one-shot marker, returning true only for the caller that created it.
+ *
+ * Used by the derived learning-loop events (#111), which are computed from a
+ * snapshot diff on a route every extension push hits. The diff alone is not
+ * enough: two syncs that race can both read the same previous envelope, both
+ * see the day advance, and both emit `streak_day` — so a metric documented as
+ * once-per-learner-per-day would quietly count twice.
+ *
+ * KV has no compare-and-set, so this is a read followed by a write and two
+ * callers inside the same few milliseconds can still both claim. That is the
+ * same limitation the envelope's optimistic revisions live with. It closes the
+ * realistic window (the extension's debounced sync landing beside a web
+ * import, seconds apart) rather than a simultaneous one, and it fails OPEN —
+ * a KV hiccup emits the event rather than silently losing it, because an
+ * occasional double count is a smaller lie than a missing day.
+ */
+export async function claimOnce(key: string, ttlSeconds: number): Promise<boolean> {
+  try {
+    const store = await resolveStore();
+    if (await store.get(key)) return false;
+    await store.put(key, "1", { expirationTtl: ttlSeconds });
+    return true;
+  } catch (err) {
+    console.warn("[sync-store] once-marker failed, emitting anyway", err);
+    return true;
+  }
+}
+
 // Entitlement changes (Dodo webhook, Max-gift grant) must reach the extension's
 // existing credential, not just the next mint: the backend Worker meters caps
 // off the token-embedded profile, and extension-only users may not re-open the

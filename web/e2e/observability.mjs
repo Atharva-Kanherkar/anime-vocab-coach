@@ -163,6 +163,11 @@ try {
     ),
     JSON.stringify(loopRows.map((r) => r.split("\t")[0]))
   );
+  check(
+    "and nothing else — acquisition events and the cache probe stay out",
+    !loopRows.some((r) => /anime_context|landing_view|store_cta_click/.test(r)),
+    JSON.stringify(loopRows.map((r) => r.split("\t")[0]))
+  );
   const cardShownRow = loopRows.find((r) => r.startsWith("card_shown"));
   check(
     "card_shown reports 412 events across 8 identified learners",
@@ -173,6 +178,20 @@ try {
     "the anonymous bucket is shown separately, not counted as a learner",
     /140/.test(cardShownRow || ""),
     JSON.stringify(cardShownRow)
+  );
+  // 412 events, 140 of them anonymous, over 8 identified learners: 272/8 = 34.0.
+  // Dividing the total instead would read 51.5 and charge anonymous installs
+  // to the learners who happen to be linked.
+  check(
+    "per learner divides identified events, not the total",
+    /34\.0/.test(cardShownRow || ""),
+    JSON.stringify(cardShownRow)
+  );
+  const installRow = loopRows.find((r) => r.startsWith("install_first_run"));
+  check(
+    "an entirely anonymous event reports no learners and no rate",
+    /—/.test(installRow || ""),
+    JSON.stringify(installRow)
   );
 
   await page.screenshot({ path: join(SHOTS, "owner-observability.png"), fullPage: true });

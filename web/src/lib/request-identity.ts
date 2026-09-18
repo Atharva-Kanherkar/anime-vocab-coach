@@ -15,6 +15,7 @@
 // for a request that presented a token but whose route never authenticated it.
 
 import { getSyncTokenProfile } from "./sync-store";
+import { clientIp } from "./extension-store";
 import { syncTokenOf } from "./telemetry";
 
 export interface RequestIdentity {
@@ -44,12 +45,58 @@ export function rememberRequestIdentity(
 }
 
 /**
+ * Per-IP ceiling on UNCACHED lookups, per minute.
+ *
+ * /api/track is a public, unauthenticated beacon, and the only thing that
+ * decides whether it does a KV read is whether the caller sent something
+ * shaped like `Bearer avc_st_…`. Anyone can send that, so without a bound a
+ * stranger could turn a fire-and-forget beacon into one KV read per request,
+ * for free, from a single machine.
+ *
+ * The counter is per-isolate and in memory ON PURPOSE. Keeping it in KV would
+ * spend a read and a write to avoid a read, which is worse than the problem;
+ * the existing IP limiter in extension-store.ts pays that price because it has
+ * to drop requests, and this one does not — over budget just means the row is
+ * written without an identity, which is exactly what happened before #112.
+ * Being per-isolate makes it a soft ceiling rather than a guarantee, which is
+ * the honest bound available without a dedicated rate-limiting binding.
+ *
+ * A linked learner's real beacon volume is human-paced (a card shown, a word
+ * judged), so this is far above anything legitimate traffic produces.
+ */
+const LOOKUPS_PER_IP_PER_MINUTE = 120;
+
+const lookupBudget = new Map<string, { minute: number; used: number }>();
+
+function allowLookup(req: Request): boolean {
+  const minute = Math.floor(Date.now() / 60_000);
+  const key = clientIp(req);
+  const entry = lookupBudget.get(key);
+
+  if (!entry || entry.minute !== minute) {
+    // Drop everything from older minutes rather than letting one entry per
+    // attacker-chosen IP accumulate for the life of the isolate.
+    if (lookupBudget.size > 5000) lookupBudget.clear();
+    lookupBudget.set(key, { minute, used: 1 });
+    return true;
+  }
+  if (entry.used >= LOOKUPS_PER_IP_PER_MINUTE) return false;
+  entry.used++;
+  return true;
+}
+
+/**
  * The best identity available for a request, without authenticating it.
  *
- * Order: what a route already resolved, then the sync token's own KV record.
- * A Clerk session is deliberately NOT resolved here — reading it costs a call
- * on every request including the ones that never needed identity, and routes
- * that care already go through resolveProfile, which memoises above.
+ * Order: what a route already resolved, then — if the caller has budget — the
+ * sync token's own KV record. A Clerk session is deliberately NOT resolved
+ * here: reading it costs a call on every request including the ones that never
+ * needed identity, and routes that care already go through resolveProfile,
+ * which memoises above.
+ *
+ * Note what the budget does and does not touch. A route that authenticated has
+ * already recorded its answer, so it reads the memo and never spends budget;
+ * only an unauthenticated caller presenting a bearer can reach the lookup.
  *
  * Never throws: telemetry identity is not worth failing a request over, and a
  * KV hiccup should degrade to "anon", exactly as it did before.
@@ -60,6 +107,9 @@ export async function requestIdentity(req: Request): Promise<RequestIdentity> {
 
   const token = syncTokenOf(req);
   if (!token) return ANONYMOUS;
+  // Over budget: record the event anonymously rather than dropping it. The
+  // beacon is still worth counting; only the attribution is lost.
+  if (!allowLookup(req)) return ANONYMOUS;
 
   try {
     const profile = await getSyncTokenProfile(token);
@@ -71,4 +121,9 @@ export async function requestIdentity(req: Request): Promise<RequestIdentity> {
   } catch {
     return ANONYMOUS;
   }
+}
+
+/** Test-only: forget every per-IP budget so cases cannot leak into each other. */
+export function resetIdentityLookupBudgetForTests(): void {
+  lookupBudget.clear();
 }

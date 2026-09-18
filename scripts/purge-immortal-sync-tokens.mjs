@@ -7,16 +7,22 @@
 // non-revocable-by-waiting bearer credential for a real account: the only way
 // any of them stops working is if someone deletes it. That is the whole issue.
 //
-// WHY NOT JUST DELETE EVERYTHING. One of those tokens per linked user is the
-// credential their extension is holding right now. Deleting it does not
-// "re-mint transparently" — cloud-sync.ts tolerates a couple of 401s and then
-// unlinks the install and asks the learner to re-link by hand. So the sweep
-// splits the set:
+// WHY NOTHING IS DELETED. An earlier version of this script deleted every
+// token with no `synctoken:user:<id>:v1` pointer aimed at it, on the theory
+// that a pointerless token is a superseded mint nobody holds. That theory is
+// backwards. The reverse pointer was introduced BY the TTL fix, so *every*
+// token in this backlog predates it and none of them has a pointer — including
+// the one an extension that linked before the fix and never re-linked is still
+// using right now. Deleting it does not "re-mint transparently": cloud-sync.ts
+// tolerates a couple of 401s and then unlinks the install and asks the learner
+// to re-link by hand.
 //
-//   live   — pointed at by `synctoken:user:<id>:v1`. Rewritten with the same
-//            30-day TTL a fresh mint would get, so it keeps working and stops
-//            being immortal.
-//   orphan — everything else: a superseded mint nobody holds. Deleted.
+// There is no way to prove a token is dead from KV alone. So the sweep only
+// ever does the safe half: give every immortal key the same 30-day sliding TTL
+// a fresh mint gets. An active extension keeps working and refreshes its TTL on
+// the next mint; an abandoned one expires on its own. Keys with no expiration
+// drop to ~0 immediately, which is what the issue asks for, and the credentials
+// stop being immortal, which is what the issue is *for*.
 //
 // Dry-run by default. Nothing is written without --apply.
 //
@@ -39,30 +45,21 @@ const POINTER_KEY = /^synctoken:user:(.+):v1$/;
  * Decide what to do with every listed key. Pure, so the classification is
  * testable without touching an account (test/sync-token-sweep.test.ts).
  *
- * `keys` is the KV list payload: `{ name, expiration? }`. A key with an
- * `expiration` already has a TTL and is left completely alone — this sweep
- * only ever touches the immortal ones, so re-running it is a no-op.
+ * `keys` is the KV list payload: `{ name, expiration? }`. A key that already
+ * has an `expiration` is left completely alone, so re-running this is a no-op.
+ * Everything else that is one of ours gets a TTL — tokens and pointers alike,
+ * since an immortal pointer would keep naming a token forever.
  */
-export function planSweep(keys, liveTokens) {
-  const live = liveTokens instanceof Set ? liveTokens : new Set(liveTokens);
-  const plan = { expire: [], delete: [], pointers: 0, alreadyExpiring: 0, other: 0 };
+export function planSweep(keys) {
+  const plan = { expire: [], alreadyExpiring: 0, other: 0 };
 
   for (const key of keys) {
     const name = key?.name;
     if (typeof name !== "string") continue;
 
-    if (POINTER_KEY.test(name)) {
-      // The reverse pointer is what tells us which token is live, so it is
-      // never deleted. It was introduced BY the TTL fix and so should always
-      // carry one — but an immortal pointer would keep a token alive forever,
-      // so give it the same TTL rather than trusting that.
-      plan.pointers++;
-      if (!key.expiration) plan.expire.push({ name, token: null });
-      continue;
-    }
-
-    const match = TOKEN_KEY.exec(name);
-    if (!match) {
+    const isPointer = POINTER_KEY.test(name);
+    const token = TOKEN_KEY.exec(name)?.[1] ?? null;
+    if (!isPointer && !token) {
       plan.other++;
       continue;
     }
@@ -70,20 +67,40 @@ export function planSweep(keys, liveTokens) {
       plan.alreadyExpiring++;
       continue;
     }
-
-    const token = match[1];
-    if (live.has(token)) plan.expire.push({ name, token });
-    else plan.delete.push(name);
+    plan.expire.push({ name, token, kind: isPointer ? "pointer" : "token" });
   }
 
   return plan;
+}
+
+/**
+ * `--limit N` must be a positive integer.
+ *
+ * The obvious `Number(arg) || Infinity` is wrong in three separate ways:
+ * `--limit abc` is NaN and falls through to Infinity, `--limit 0` is falsy and
+ * also becomes Infinity, and `--limit -5` survives as a negative that turns a
+ * slice into "all but the last five". Every one of those silently writes far
+ * more than the operator asked for, which is the opposite of what a limit is
+ * for — so anything that is not a positive integer is a hard error.
+ */
+export function parseLimit(raw) {
+  if (raw === undefined) return { ok: true, limit: Infinity };
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) {
+    return { ok: false, error: `--limit must be a positive integer, got ${JSON.stringify(raw)}` };
+  }
+  return { ok: true, limit: n };
 }
 
 // ---------------------------------------------------------------- CLI driver
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : undefined;
+  if (i < 0) return undefined;
+  // A flag with no value (`--limit` at the end, or `--limit --apply`) must not
+  // read as "absent" — that is the same silent-unlimited trap as `--limit 0`.
+  const value = process.argv[i + 1];
+  return value === undefined || value.startsWith("--") ? "" : value;
 };
 const flag = (name) => process.argv.includes(`--${name}`);
 
@@ -101,8 +118,14 @@ async function main() {
     process.exit(1);
   }
 
+  const parsed = parseLimit(arg("limit"));
+  if (!parsed.ok) {
+    console.error(parsed.error);
+    process.exit(1);
+  }
+  const { limit } = parsed;
+
   const apply = flag("apply");
-  const limit = Number(arg("limit") || 0) || Infinity;
   const base = `${API}/accounts/${accountId}/storage/kv/namespaces/${namespaceId}`;
   const auth = { Authorization: `Bearer ${apiToken}` };
 
@@ -133,67 +156,102 @@ async function main() {
 
   console.log("Listing synctoken:* …");
   const all = await listPrefix("synctoken:");
-
-  // Which token is each linked user actually holding? The pointer's VALUE is
-  // the token, so this costs one read per linked user (tens, not thousands).
-  const pointers = all.filter((k) => POINTER_KEY.test(k.name));
-  const liveTokens = new Set();
-  for (const pointer of pointers) {
-    const value = (await (await cf(`/values/${encodeURIComponent(pointer.name)}`)).text()).trim();
-    if (value) liveTokens.add(value);
-  }
-
-  const plan = planSweep(all, liveTokens);
-  const toDelete = plan.delete.slice(0, limit === Infinity ? undefined : limit);
+  const plan = planSweep(all);
+  const todo = limit === Infinity ? plan.expire : plan.expire.slice(0, limit);
 
   console.log(
     [
       "",
       `keys listed under synctoken:      ${all.length}`,
-      `  user→token pointers             ${plan.pointers}`,
-      `  tokens already expiring         ${plan.alreadyExpiring}`,
-      `  immortal but still in use       ${plan.expire.length}  → set ${SYNC_TOKEN_TTL_SECONDS}s TTL`,
-      `  immortal and superseded         ${plan.delete.length}  → delete`,
+      `  already expiring (left alone)   ${plan.alreadyExpiring}`,
+      `  immortal → 30-day TTL           ${plan.expire.length}`,
+      `    of which user→token pointers  ${plan.expire.filter((k) => k.kind === "pointer").length}`,
       `  unrecognised key shapes         ${plan.other}  (left alone)`,
       "",
-      apply ? `APPLYING (deleting ${toDelete.length})` : "DRY RUN — pass --apply to write",
+      apply
+        ? `APPLYING to ${todo.length}${limit === Infinity ? "" : ` (--limit ${limit})`}`
+        : "DRY RUN — pass --apply to write",
       "",
     ].join("\n")
   );
 
   if (!apply) return;
 
-  // Give the still-linked credentials the TTL a fresh mint would have. Read
-  // then write: the value is the stored profile and must survive untouched.
-  for (const { name } of plan.expire) {
-    const body = await (await cf(`/values/${encodeURIComponent(name)}`)).text();
-    await cf(`/values/${encodeURIComponent(name)}?expiration_ttl=${SYNC_TOKEN_TTL_SECONDS}`, {
-      method: "PUT",
-      headers: { "content-type": "text/plain" },
-      body,
-    });
-  }
-  console.log(`TTL set on ${plan.expire.length} key(s) that are still in use.`);
+  // Re-TTL means read-then-write: the value is the stored profile (or, for a
+  // pointer, the token) and must survive untouched. Reads are the expensive
+  // half, so they run with bounded concurrency; writes go through KV's bulk
+  // endpoint, which takes a per-entry expiration_ttl.
+  const READ_CONCURRENCY = 8;
+  const WRITE_BATCH = 1000;
+  let read = 0;
+  const failures = [];
 
-  // Bulk delete takes up to 10k names per call; 1k keeps each request small
-  // enough to retry cheaply if one fails.
-  const BATCH = 1000;
-  let deleted = 0;
-  for (let i = 0; i < toDelete.length; i += BATCH) {
-    const batch = toDelete.slice(i, i + BATCH);
-    await cf("/bulk", {
-      method: "DELETE",
+  async function readValues(batch) {
+    const out = [];
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(READ_CONCURRENCY, batch.length) }, async () => {
+        for (;;) {
+          const i = next++;
+          if (i >= batch.length) return;
+          const { name } = batch[i];
+          try {
+            const value = await (await cf(`/values/${encodeURIComponent(name)}`)).text();
+            out.push({ key: name, value, expiration_ttl: SYNC_TOKEN_TTL_SECONDS });
+          } catch (err) {
+            // A key that expired or was deleted between the listing and now is
+            // not a failure of this sweep; anything else is worth reporting.
+            failures.push(`${name}: ${err.message || err}`);
+          }
+          read++;
+          if (read % 500 === 0) console.log(`  read ${read}/${todo.length}`);
+        }
+      })
+    );
+    return out;
+  }
+
+  let written = 0;
+  for (let i = 0; i < todo.length; i += WRITE_BATCH) {
+    const batch = todo.slice(i, i + WRITE_BATCH);
+    const entries = await readValues(batch);
+    if (!entries.length) continue;
+
+    const res = await cf("/bulk", {
+      method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(batch),
+      body: JSON.stringify(entries),
     });
-    deleted += batch.length;
-    console.log(`  deleted ${deleted}/${toDelete.length}`);
+    // A 200 from the bulk endpoint does NOT mean every key landed: the body
+    // carries `success` and an `errors` array, and reporting the batch size as
+    // written without reading them is how a half-failed sweep gets recorded as
+    // a clean one.
+    const body = await res.json().catch(() => ({}));
+    if (body.success === false) {
+      const detail = JSON.stringify(body.errors ?? body).slice(0, 300);
+      failures.push(`bulk write of ${entries.length} keys rejected: ${detail}`);
+      continue;
+    }
+    written += entries.length;
+    console.log(`  TTL set on ${written}/${todo.length}`);
   }
 
   console.log(
-    `\nDone. Spot-check: open animevocab.com/app as a linked user and confirm the ` +
-      `extension still syncs (it re-mints on the next page load if it needs to).`
+    [
+      "",
+      `TTL set on ${written} of ${todo.length} key(s).`,
+      failures.length ? `${failures.length} failure(s):` : "No failures.",
+      ...failures.slice(0, 20).map((f) => `  ${f}`),
+      failures.length > 20 ? `  …and ${failures.length - 20} more` : "",
+      "",
+      "Verify: re-run without --apply — `immortal → 30-day TTL` should be ~0.",
+      "Spot-check: open animevocab.com/app as a linked user and confirm sync still works.",
+    ]
+      .filter(Boolean)
+      .join("\n")
   );
+
+  if (failures.length) process.exitCode = 1;
 }
 
 // Only run when invoked directly, so `import { planSweep }` stays side-effect free.

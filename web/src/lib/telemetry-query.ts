@@ -12,6 +12,7 @@
 // so the numbers stay true if sampling ever kicks in. Averages divide two
 // weighted sums, which is correct for the same reason.
 
+import { LEARNING_LOOP_EVENTS } from "./track-events";
 import {
   EVENT_BLOBS,
   EVENT_DATASET,
@@ -639,19 +640,23 @@ export function transcribeSeriesSql(hours: number): string {
 // anyone who appears in two groups anyway. Hence a dedicated ungrouped query.
 
 /** Distinct users who made an LLM call in the window. */
-export function llmDistinctUsersSql(hours: number): string {
+export function llmDistinctUsersSql(hours: number, userId?: string): string {
   const col = llmColumn("userId");
   return `SELECT COUNT(DISTINCT ${col}) AS users
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'`;
+  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'${
+    userId ? ` AND ${col} = ${sqlString(userId)}` : ""
+  }`;
 }
 
 /** Distinct identified users seen in the event stream in the window. */
-export function eventDistinctUsersSql(hours: number): string {
+export function eventDistinctUsersSql(hours: number, userId?: string): string {
   const col = eventColumn("userId");
   return `SELECT COUNT(DISTINCT ${col}) AS users
   FROM ${EVENT_DATASET}
-  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'`;
+  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'${
+    userId ? ` AND ${col} = ${sqlString(userId)}` : ""
+  }`;
 }
 
 export interface DistinctUsersRow {
@@ -680,15 +685,25 @@ export interface CacheOutcomeRow {
  * requests, because a request that errored before reaching the cache is
  * neither and must not land in the denominator.
  */
-export function animeContextCacheSql(hours: number, event = "anime_context"): string {
+export function animeContextCacheSql(
+  hours: number,
+  userId?: string,
+  event = "anime_context"
+): string {
   const status = eventColumn("status");
+  const filters = [
+    since(hours),
+    `${eventColumn("kind")} = 'feature'`,
+    `${eventColumn("name")} = ${sqlString(event)}`,
+  ];
+  // The drill-down view is one learner's telemetry; an unfiltered panel there
+  // shows everyone's numbers under a heading that says otherwise.
+  if (userId) filters.push(`${eventColumn("userId")} = ${sqlString(userId)}`);
   return `SELECT
     ${countIf(`${status} = 'hit'`, "hits")},
     ${countIf(`${status} = 'miss'`, "misses")}
   FROM ${EVENT_DATASET}
-  WHERE ${since(hours)}
-    AND ${eventColumn("kind")} = 'feature'
-    AND ${eventColumn("name")} = ${sqlString(event)}`;
+  WHERE ${filters.join("\n    AND ")}`;
 }
 
 export interface FeatureEventRow {
@@ -714,15 +729,26 @@ export interface FeatureEventRow {
  * which fails the whole panel rather than the one column. So the anon bucket
  * is reported alongside and subtracted by the caller.
  */
-export function featureEventsSql(hours: number, limit = 30): string {
+export function featureEventsSql(hours: number, userId?: string, limit = 30): string {
   const userCol = eventColumn("userId");
+  const names = LEARNING_LOOP_EVENTS.map(sqlString).join(", ");
+  const filters = [
+    since(hours),
+    `${eventColumn("kind")} = 'feature'`,
+    // Restricted to the learning loop. `feature` also carries acquisition
+    // events and the anime-context cache probe, and a panel that mixed a
+    // marketing click into "cards accepted per learner" would be answering a
+    // different question than its heading asks.
+    `${eventColumn("name")} IN (${names})`,
+  ];
+  if (userId) filters.push(`${userCol} = ${sqlString(userId)}`);
   return `SELECT
     ${eventColumn("name")} AS label,
     SUM(_sample_interval) AS events,
     COUNT(DISTINCT ${userCol}) AS users,
     ${countIf(`${userCol} = 'anon' OR ${userCol} = ''`, "anonEvents")}
   FROM ${EVENT_DATASET}
-  WHERE ${since(hours)} AND ${eventColumn("kind")} = 'feature'
+  WHERE ${filters.join("\n    AND ")}
   GROUP BY label
   ORDER BY events DESC
   LIMIT ${Math.max(1, Math.min(200, Math.round(limit)))}`;

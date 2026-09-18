@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FEATURE_EVENTS, TRACK_FEATURE_MESSAGE, trackFeature } from "../src/lib/feature-events";
-import { TRACKABLE_EVENTS } from "../web/src/lib/track-events";
+import { LEARNING_LOOP_EVENTS, TRACKABLE_EVENTS } from "../web/src/lib/track-events";
 import * as storage from "../src/lib/storage";
 import type { DictEntry, JudgmentMeta, Token } from "../src/types";
 
@@ -53,6 +53,17 @@ describe("feature event allowlist", () => {
   it("only sends names the server will accept", () => {
     for (const event of FEATURE_EVENTS) {
       expect(TRACKABLE_EVENTS as readonly string[]).toContain(event);
+    }
+  });
+
+  /**
+   * Tighter than the allowlist: /owner's learning-loop panel queries
+   * LEARNING_LOOP_EVENTS by name, so a name that is merely trackable but not
+   * on that list would be written and then never shown.
+   */
+  it("only sends names the learning-loop panel queries", () => {
+    for (const event of FEATURE_EVENTS) {
+      expect(LEARNING_LOOP_EVENTS as readonly string[]).toContain(event);
     }
   });
 

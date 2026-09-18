@@ -319,6 +319,8 @@ export interface FeatureRow {
   /** Distinct identified learners; anonymous rows are excluded, not bucketed. */
   users: number;
   anonEvents: number;
+  /** `events` minus the anonymous ones — the numerator `users` can divide. */
+  identifiedEvents: number;
 }
 
 /**
@@ -351,12 +353,18 @@ export function foldFeatureEvents(rows: FeatureEventRow[]): FeatureRow[] {
   return rows
     .filter((r) => r.label)
     .map((r) => {
+      const events = num(r.events);
       const anonEvents = num(r.anonEvents);
       return {
         label: r.label,
-        events: num(r.events),
+        events,
         users: Math.max(0, num(r.users) - (anonEvents > 0 ? 1 : 0)),
         anonEvents,
+        // Dividing TOTAL events by identified users would charge every
+        // anonymous install's activity to the handful of learners who happen
+        // to be linked: `install_first_run` is anonymous by definition, so a
+        // panel doing that reports dozens of installs per learner.
+        identifiedEvents: Math.max(0, events - anonEvents),
       };
     });
 }
@@ -489,13 +497,15 @@ export async function loadOwnerDashboard(
     { label: "transcribe users", sql: transcribeByUserSql(hours) },
     // Distinct-user counts: separate ungrouped queries, because summing
     // per-group DISTINCTs double-counts anyone present in two groups.
-    { label: "llm distinct users", sql: llmDistinctUsersSql(hours) },
-    { label: "event distinct users", sql: eventDistinctUsersSql(hours) },
+    { label: "llm distinct users", sql: llmDistinctUsersSql(hours, userId) },
+    { label: "event distinct users", sql: eventDistinctUsersSql(hours, userId) },
     // The learning loop (#111) and the cache that had no panel (#113). Both
     // read `feature` rows, which did not exist at all before this work, so
-    // both fail independently until the first one is written.
-    { label: "learning loop", sql: featureEventsSql(hours) },
-    { label: "anime context cache", sql: animeContextCacheSql(hours) },
+    // both fail independently until the first one is written. Both take the
+    // focus user, so the drill-down is one learner's telemetry throughout
+    // rather than a page where some panels quietly show everybody.
+    { label: "learning loop", sql: featureEventsSql(hours, userId) },
+    { label: "anime context cache", sql: animeContextCacheSql(hours, userId) },
   ];
 
   const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {
