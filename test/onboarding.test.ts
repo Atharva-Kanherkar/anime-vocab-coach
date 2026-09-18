@@ -6,6 +6,7 @@ import {
   applyStamp,
   checklistSteps,
   isActivated,
+  isFirstCardTransition,
   normalizeOnboarding,
   shouldCelebrate,
   shouldShowChecklist,
@@ -134,5 +135,30 @@ describe("onboarding_shown event", () => {
     expect(EXTENSION_EVENTS).toContain("onboarding_shown");
     expect(isExtensionEvent("onboarding_shown")).toBe(true);
     expect(isExtensionEvent("onboarding_shown_evil")).toBe(false);
+  });
+});
+
+describe("isFirstCardTransition", () => {
+  const withCard = { ...EMPTY_ONBOARDING, firstCardAt: T0 };
+
+  it("fires on the change that first sets firstCardAt", () => {
+    expect(isFirstCardTransition(EMPTY_ONBOARDING, withCard)).toBe(true);
+    // A brand-new key has no oldValue at all.
+    expect(isFirstCardTransition(undefined, withCard)).toBe(true);
+  });
+
+  it("does not fire on later writes to the same key", () => {
+    // Every subsequent save rewrites the object; only the first is the moment.
+    expect(isFirstCardTransition(withCard, { ...withCard, celebratedAt: T0 + 1 })).toBe(false);
+  });
+
+  it("does not fire on an unrelated stamp landing", () => {
+    expect(
+      isFirstCardTransition(EMPTY_ONBOARDING, { ...EMPTY_ONBOARDING, watchedAt: T0 })
+    ).toBe(false);
+  });
+
+  it("does not fire on the key being cleared", () => {
+    expect(isFirstCardTransition(withCard, undefined)).toBe(false);
   });
 });

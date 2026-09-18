@@ -1617,7 +1617,16 @@ function buildShell(root: ShadowRoot): Shell {
  * by the page. Used to surface listening/sync errors that otherwise only showed
  * as an easy-to-miss toolbar badge.
  */
-export function showToast(text: string, kind: "error" | "info" = "info"): void {
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+export function showToast(
+  text: string,
+  kind: "error" | "info" = "info",
+  action?: ToastAction
+): void {
   if (!text) return;
   const root = mountHost();
   let layer = root.getElementById("avc-toast-layer");
@@ -1641,6 +1650,19 @@ export function showToast(text: string, kind: "error" | "info" = "info"): void {
     "backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);" +
     "opacity:0; transform:translateY(-6px); transition:opacity 180ms ease, transform 180ms ease;";
   toast.textContent = text;
+  if (action) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = action.label;
+    btn.style.cssText =
+      "display:block; margin-top:9px; padding:5px 11px; border-radius:7px; cursor:pointer;" +
+      `border:1px solid ${accent}; background:transparent; color:${accent};` +
+      "font:inherit; font-size:12px; font-weight:600;";
+    // The click bubbles to the toast's own dismiss handler, so the toast closes
+    // on its own after the action runs.
+    btn.addEventListener("click", () => action.onClick());
+    toast.appendChild(btn);
+  }
   layer.appendChild(toast);
   requestAnimationFrame(() => {
     toast.style.opacity = "1";

@@ -447,6 +447,9 @@
     if (state[field] > 0) return state;
     return { ...state, [field]: stamp(now) || 1 };
   }
+  function isFirstCardTransition(oldValue, newValue) {
+    return normalizeOnboarding(oldValue).firstCardAt === 0 && normalizeOnboarding(newValue).firstCardAt > 0;
+  }
 
   // src/lib/onboarding-store.ts
   var queue = Promise.resolve();
@@ -2911,7 +2914,7 @@
       rail
     };
   }
-  function showToast(text, kind = "info") {
+  function showToast(text, kind = "info", action) {
     if (!text) return;
     const root2 = mountHost();
     let layer = root2.getElementById("avc-toast-layer");
@@ -2925,6 +2928,14 @@
     const toast = document.createElement("div");
     toast.style.cssText = `pointer-events:auto; max-width:min(380px, 92vw); padding:11px 14px; border-radius:10px;background:rgba(18,16,22,0.95); color:rgba(240,238,232,0.96); font-size:13px; line-height:1.45;border:1px solid ${accent}44; border-left:3px solid ${accent};box-shadow:0 10px 30px rgba(0,0,0,0.45); cursor:pointer;backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);opacity:0; transform:translateY(-6px); transition:opacity 180ms ease, transform 180ms ease;`;
     toast.textContent = text;
+    if (action) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = action.label;
+      btn.style.cssText = `display:block; margin-top:9px; padding:5px 11px; border-radius:7px; cursor:pointer;border:1px solid ${accent}; background:transparent; color:${accent};font:inherit; font-size:12px; font-weight:600;`;
+      btn.addEventListener("click", () => action.onClick());
+      toast.appendChild(btn);
+    }
     layer.appendChild(toast);
     requestAnimationFrame(() => {
       toast.style.opacity = "1";
@@ -4801,6 +4812,19 @@
     }
     onCaptions(() => {
       void maybeExplainMissingCaptions();
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local") return;
+      const change = changes[ONBOARDING_STORAGE_KEY];
+      if (!change) return;
+      if (!isFirstCardTransition(change.oldValue, change.newValue)) return;
+      showToast("\u{1F389} First card saved. It comes back for review on its own.", "info", {
+        label: "Open review dashboard",
+        onClick: () => {
+          chrome.runtime.sendMessage({ type: "avc-open-url", url: chrome.runtime.getURL("dashboard/dashboard.html") }).catch(() => {
+          });
+        }
+      });
     });
     async function restoreTabSession() {
       let state;

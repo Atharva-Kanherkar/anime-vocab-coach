@@ -158,3 +158,18 @@ export function shouldShowChecklist(input: ChecklistVisibilityInput): boolean {
 export function shouldCelebrate(state: OnboardingState): boolean {
   return isActivated(state) && state.celebratedAt === 0;
 }
+
+/**
+ * True only for the storage change that first sets `firstCardAt`.
+ *
+ * The content script hangs the 🎉 toast off this rather than off the judgment
+ * call sites, so both ways to mine a word — the copilot card and a Subtitle
+ * Lens click — get the moment without either knowing onboarding exists. Takes
+ * the raw `StorageChange` values because that is what the listener is handed.
+ */
+export function isFirstCardTransition(oldValue: unknown, newValue: unknown): boolean {
+  return (
+    normalizeOnboarding(oldValue).firstCardAt === 0 &&
+    normalizeOnboarding(newValue).firstCardAt > 0
+  );
+}
