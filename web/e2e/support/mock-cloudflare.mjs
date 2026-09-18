@@ -1,4 +1,4 @@
-// Preloaded into `next dev` (NODE_OPTIONS=--require …) for web/e2e/observability.mjs.
+// Preloaded into `next dev` (NODE_OPTIONS=--import …) for web/e2e/observability.mjs.
 //
 // /owner reads Cloudflare's Analytics Engine SQL API over HTTPS with an
 // account token. A local test has neither, and without rows the page renders
@@ -10,7 +10,7 @@
 //
 // Nothing else is intercepted; every other request (including the dev server's
 // own localhost traffic) passes through untouched.
-const { MockAgent, setGlobalDispatcher } = require("undici");
+import { MockAgent, setGlobalDispatcher } from "undici";
 
 const SQL_ORIGIN = "https://api.cloudflare.com";
 const SQL_PATH = /\/client\/v4\/accounts\/[^/]+\/analytics_engine\/sql/;

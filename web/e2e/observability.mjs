@@ -3,7 +3,7 @@
 //
 // It starts the dev server itself (dev Clerk bypass on) with one thing faked:
 // Cloudflare's Analytics Engine SQL API, intercepted at the undici layer by
-// e2e/support/mock-cloudflare.cjs. Without that, /owner has no credentials,
+// e2e/support/mock-cloudflare.mjs. Without that, /owner has no credentials,
 // renders its "not configured" state, and the panels this PR changed never
 // appear — so the fake is what makes the render assertable at all. Everything
 // else (the routes, KV's dev fallback, the page itself) is the real thing.
@@ -15,7 +15,7 @@
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -44,7 +44,11 @@ if (OWN_SERVER) {
       // and the request never leaves the process.
       CF_ACCOUNT_ID: "e2e-account",
       CF_ANALYTICS_API_TOKEN: "e2e-token",
-      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --require ${join(HERE, "support", "mock-cloudflare.cjs")}`.trim(),
+      // --import, not --require: the preload is an ES module, so there is no
+      // require() anywhere for the repo's eslint config to reject.
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --import ${pathToFileURL(
+        join(HERE, "support", "mock-cloudflare.mjs")
+      )}`.trim(),
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
