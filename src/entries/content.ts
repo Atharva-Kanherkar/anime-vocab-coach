@@ -76,6 +76,17 @@ declare global {
   let playbackRelayTimer: ReturnType<typeof setInterval> | null = null;
   /** One "no captions on this video" notice per video, not per caption report. */
   let captionNoticeShown = false;
+  /** The video the page is on right now, read live rather than from the 2s
+   * session watcher. A line is processed across several awaits (word
+   * extraction, target pick, stats) and the video can change under it; that
+   * line belongs to the video it was spoken on, so a card or a Lens render for
+   * it must not land on the next one. Same bleed as issue #125, one gate
+   * further in than the dropped `queuedLine` — and the watcher's poll is too
+   * slow to catch it, since a line can finish well inside those 2 seconds. */
+  function currentSessionId(): string {
+    const a = adapter;
+    return a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
+  }
 
   // Adapters can start matching late (e.g. Crunchyroll's player iframe creates
   // its <video> well after document_idle), so keep looking until one matches.
@@ -357,8 +368,17 @@ declare global {
   }
 
   async function processLine(text: string, context?: LineContext): Promise<void> {
+    // Read once: every `staleSession()` below asks whether the video has changed
+    // since this line was spoken, not since the last await.
+    const lineSessionId = currentSessionId();
+    const staleSession = (): boolean => {
+      if (currentSessionId() === lineSessionId) return false;
+      log("dropped line from the previous video:", text.slice(0, 40));
+      return true;
+    };
 
     settings = await storage.getSettings();
+    if (staleSession()) return;
 
     const siteKey = adapter ? adapter.name : "generic";
     if (settings.sites && settings.sites[siteKey] === false) {
@@ -414,6 +434,8 @@ declare global {
       tokens = await tokenizer.tokenize(normalized);
     }
 
+    if (staleSession()) return;
+
     // Subtitle Lens: user-initiated hover/click cards, independent of the
     // auto-card pipeline below (no cooldown, no hourly cap, no AI quota).
     if (lensEnabled && tokens.length) {
@@ -437,7 +459,7 @@ declare global {
 
     await storage.recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
     wordStates = await storage.getVocab();
-    if (lensJudged) return;
+    if (lensJudged || staleSession()) return;
     if (settings.pauseMode === "off") return;
 
     if (overlay.isOpen()) {
@@ -454,7 +476,7 @@ declare global {
       currentTitle(),
       dictOverlay
     );
-    if (lensJudged) return;
+    if (lensJudged || staleSession()) return;
     if (!target) { log("no target word in:", normalized); return; }
 
     // pickTargetSmart just awaited a network round-trip; a card may have opened
@@ -466,7 +488,7 @@ declare global {
     }
 
     const stats = await storage.getStats();
-    if (lensJudged) return;
+    if (lensJudged || staleSession()) return;
     const now = Date.now();
     const cardTimestamps = stats.cardTimestamps || [];
 
@@ -647,8 +669,8 @@ declare global {
   }, 2000);
 
   setInterval(() => {
-    const a = pickAdapter();
-    const sid = a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
+    pickAdapter();
+    const sid = currentSessionId();
     if (sid !== lastSessionId) {
       lastSessionId = sid;
       targetedThisSession.clear();

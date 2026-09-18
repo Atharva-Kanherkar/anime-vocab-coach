@@ -1314,6 +1314,7 @@
   var pauseHandler = null;
   var selfPaused = false;
   var userResumed = false;
+  var userPaused = false;
   var activeVideo = null;
   var wasPlaying = false;
   var currentJudgments = [];
@@ -2130,13 +2131,14 @@
     }
   }
   function resumeVideoIfNeeded() {
-    if (wasPlaying && !userResumed && activeVideo?.paused) {
+    if (wasPlaying && !userResumed && !userPaused && activeVideo?.paused) {
       activeVideo.play().catch(() => {
       });
     }
     activeVideo = null;
     wasPlaying = false;
     userResumed = false;
+    userPaused = false;
   }
   function finishWord(judgment) {
     const fn = wordResolve;
@@ -2838,6 +2840,7 @@
     wasPlaying = !!(video && !video.paused && !video.ended);
     activeVideo = video;
     userResumed = false;
+    userPaused = false;
     selfPaused = false;
     if (options.interaction === "focus" && wasPlaying && video) {
       selfPaused = true;
@@ -2846,6 +2849,7 @@
     if (video) {
       playHandler = () => {
         userResumed = true;
+        userPaused = false;
         selfPaused = false;
         thawAutoTimers();
       };
@@ -2855,6 +2859,7 @@
           selfPaused = false;
           return;
         }
+        userPaused = true;
         freezeAutoTimers();
       };
       video.addEventListener("pause", pauseHandler);
@@ -3968,6 +3973,10 @@
     let cachePollGeneration = 0;
     let playbackRelayTimer = null;
     let captionNoticeShown = false;
+    function currentSessionId() {
+      const a = adapter;
+      return a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
+    }
     function pickAdapter() {
       if (adapter) return adapter;
       adapter = adapters.find((a) => a.matches()) || null;
@@ -4185,7 +4194,14 @@
       if (next) await onLine(next.text, next.context);
     }
     async function processLine(text, context) {
+      const lineSessionId = currentSessionId();
+      const staleSession = () => {
+        if (currentSessionId() === lineSessionId) return false;
+        log("dropped line from the previous video:", text.slice(0, 40));
+        return true;
+      };
       settings = await getSettings();
+      if (staleSession()) return;
       const siteKey = adapter ? adapter.name : "generic";
       if (settings.sites && settings.sites[siteKey] === false) {
         hideLens();
@@ -4232,6 +4248,7 @@
       } else {
         tokens = await tokenize(normalized);
       }
+      if (staleSession()) return;
       if (lensEnabled && tokens.length) {
         try {
           showLensLine(normalized, context?.en || "", tokens, wordStates, {
@@ -4252,7 +4269,7 @@
       }
       await recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
       wordStates = await getVocab();
-      if (lensJudged) return;
+      if (lensJudged || staleSession()) return;
       if (settings.pauseMode === "off") return;
       if (isOpen()) {
         log("skipped line (word card still open):", normalized.slice(0, 40));
@@ -4267,7 +4284,7 @@
         currentTitle(),
         dictOverlay
       );
-      if (lensJudged) return;
+      if (lensJudged || staleSession()) return;
       if (!target) {
         log("no target word in:", normalized);
         return;
@@ -4277,7 +4294,7 @@
         return;
       }
       const stats = await getStats();
-      if (lensJudged) return;
+      if (lensJudged || staleSession()) return;
       const now = Date.now();
       const cardTimestamps = stats.cardTimestamps || [];
       if (!target.isReview) {
@@ -4425,8 +4442,8 @@
       if (pickAdapter()) clearInterval(pickTimer);
     }, 2e3);
     setInterval(() => {
-      const a = pickAdapter();
-      const sid = a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
+      pickAdapter();
+      const sid = currentSessionId();
       if (sid !== lastSessionId) {
         lastSessionId = sid;
         targetedThisSession.clear();

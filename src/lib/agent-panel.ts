@@ -102,6 +102,12 @@ let pauseHandler: (() => void) | null = null;
  * focus-mode card that paused the video is not mistaken for a learner pause. */
 let selfPaused = false;
 let userResumed = false;
+/** True once the learner pauses under an open card. Pausing to study is the
+ * learner taking the controls just as firmly as pressing play is, so the card's
+ * own resume must not undo it: issue #127 is only half fixed if holding the card
+ * through a pause still snaps the video back to playing the moment it is
+ * graded. */
+let userPaused = false;
 let activeVideo: HTMLVideoElement | null = null;
 let wasPlaying = false;
 let currentJudgments: { val: Judgment; key: string }[] = [];
@@ -971,12 +977,13 @@ function clearWordTimers(): void {
 }
 
 function resumeVideoIfNeeded(): void {
-  if (wasPlaying && !userResumed && activeVideo?.paused) {
+  if (wasPlaying && !userResumed && !userPaused && activeVideo?.paused) {
     activeVideo.play().catch(() => {});
   }
   activeVideo = null;
   wasPlaying = false;
   userResumed = false;
+  userPaused = false;
 }
 
 function finishWord(judgment: Judgment | "dismiss"): void {
@@ -1826,6 +1833,7 @@ export function presentWord(
   wasPlaying = !!(video && !video.paused && !video.ended);
   activeVideo = video;
   userResumed = false;
+  userPaused = false;
   selfPaused = false;
 
   if (options.interaction === "focus" && wasPlaying && video) {
@@ -1837,17 +1845,20 @@ export function presentWord(
   if (video) {
     playHandler = () => {
       userResumed = true;
+      userPaused = false;
       selfPaused = false;
       thawAutoTimers();
     };
     video.addEventListener("play", playHandler);
     pauseHandler = () => {
       if (selfPaused) { selfPaused = false; return; }
+      userPaused = true;
       freezeAutoTimers();
     };
     video.addEventListener("pause", pauseHandler);
     // A card that arrives on an already-paused frame (a review fired from the
     // panel, say) is the same pause-to-study case: hold it until playback.
+    // `wasPlaying` is already false here, so there is nothing to resume.
     if (video.paused && !selfPaused) freezeAutoTimers();
   }
 

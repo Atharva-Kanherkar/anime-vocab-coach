@@ -146,3 +146,65 @@ describe("#127 a paused video holds its card", () => {
     expect(panel).not.toMatch(/autoTimer = setTimeout/);
   });
 });
+
+// Review follow-ups: two paths the first pass at #125 and #127 left open.
+describe("#127 a learner's pause outlives the card it was made for", () => {
+  // Holding the card through a pause is only half the fix. The learner paused
+  // to study; grading the card they paused for must not snap the video back to
+  // playing under them.
+  it("does not resume a video the learner paused", () => {
+    const resume = functionBody(panel, "resumeVideoIfNeeded");
+    expect(resume).toMatch(/!userPaused/);
+    expect(resume).toMatch(/userPaused = false/);
+  });
+
+  it("records the learner's pause where it freezes the clock", () => {
+    const present = functionBody(panel, "presentWord");
+    const pause = present.slice(present.indexOf("pauseHandler = () =>"));
+    const body = pause.slice(0, pause.indexOf("};"));
+    // Our own focus-mode pause returns before this line, so only a learner
+    // pause is recorded.
+    expect(body).toMatch(/userPaused = true/);
+    expect(body.indexOf("selfPaused")).toBeLessThan(body.indexOf("userPaused = true"));
+  });
+
+  it("clears the flag when the learner gives playback back", () => {
+    const present = functionBody(panel, "presentWord");
+    const play = present.slice(present.indexOf("playHandler = () =>"));
+    expect(play.slice(0, play.indexOf("};"))).toMatch(/userPaused = false/);
+  });
+});
+
+describe("#125 a line in flight belongs to the video it came from", () => {
+  // Dropping `queuedLine` covers a line that never started. One already past
+  // that gate keeps awaiting word extraction, a target pick and stats, and used
+  // to card against whatever video was on screen when it landed.
+  // The 2s session watcher is too slow to be the gate: a line can finish well
+  // inside those 2 seconds, so the check reads the page's identity live.
+  it("compares against a live session id, not the watcher's poll", () => {
+    const body = functionBody(content, "currentSessionId");
+    expect(body).toMatch(/sessionIdentity\(/);
+    const stale = functionBody(content, "processLine");
+    expect(stale).toMatch(/currentSessionId\(\) === lineSessionId/);
+  });
+
+  it("reads the line's session id once, at the top of processLine", () => {
+    const body = functionBody(content, "processLine");
+    expect(body).toMatch(/const lineSessionId = currentSessionId\(\)/);
+    // Captured before the first suspension point, so it names the video the
+    // line was spoken on rather than whatever is playing after the next await.
+    expect(body.indexOf("const lineSessionId = currentSessionId()")).toBeLessThan(
+      body.indexOf("await storage.getSettings()")
+    );
+  });
+
+  it("re-checks it after every await that can outlive the video", () => {
+    const body = functionBody(content, "processLine");
+    expect(body.match(/staleSession\(\)/g)?.length).toBeGreaterThanOrEqual(5);
+    // Nothing may reach the screen after a change: not the card, not the Lens.
+    const lens = body.indexOf("showLensLine(");
+    const card = body.indexOf("await handleCard(");
+    expect(body.lastIndexOf("staleSession()", lens)).toBeGreaterThan(-1);
+    expect(body.lastIndexOf("staleSession()", card)).toBeGreaterThan(-1);
+  });
+});
