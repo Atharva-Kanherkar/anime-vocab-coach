@@ -142,7 +142,8 @@
     "first_srs_review",
     "upgrade_prompt_shown",
     "upgrade_prompt_clicked",
-    "checkout_started"
+    "checkout_started",
+    "onboarding_shown"
   ];
   function isExtensionEvent(v) {
     return typeof v === "string" && EXTENSION_EVENTS.includes(v);
@@ -173,11 +174,17 @@
     }
   }
 
-  // src/lib/storage.ts
+  // src/lib/onboarding.ts
+  var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
+
+  // src/lib/onboarding-store.ts
   var queue = Promise.resolve();
+
+  // src/lib/storage.ts
+  var queue2 = Promise.resolve();
   function enqueue(fn) {
-    const next = queue.then(fn, fn);
-    queue = next.catch((err) => warn("storage error:", err));
+    const next = queue2.then(fn, fn);
+    queue2 = next.catch((err) => warn("storage error:", err));
     return next;
   }
   function pruneTimestamps(timestamps) {

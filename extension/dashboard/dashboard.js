@@ -106,7 +106,8 @@
     "first_srs_review",
     "upgrade_prompt_shown",
     "upgrade_prompt_clicked",
-    "checkout_started"
+    "checkout_started",
+    "onboarding_shown"
   ];
   function isExtensionEvent(v) {
     return typeof v === "string" && EXTENSION_EVENTS.includes(v);
@@ -157,14 +158,70 @@
     }
   }
 
-  // src/lib/storage.ts
+  // src/lib/onboarding.ts
+  var ONBOARDING_STORAGE_KEY = "onboarding";
+  var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
+  var EMPTY_ONBOARDING = {
+    installedAt: 0,
+    shownAt: 0,
+    watchedAt: 0,
+    cardShownAt: 0,
+    firstCardAt: 0,
+    celebratedAt: 0,
+    checklistDismissedAt: 0
+  };
+  function stamp(v) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  }
+  function normalizeOnboarding(raw) {
+    if (!raw || typeof raw !== "object") return { ...EMPTY_ONBOARDING };
+    const o = raw;
+    return {
+      installedAt: stamp(o.installedAt),
+      shownAt: stamp(o.shownAt),
+      watchedAt: stamp(o.watchedAt),
+      cardShownAt: stamp(o.cardShownAt),
+      firstCardAt: stamp(o.firstCardAt),
+      celebratedAt: stamp(o.celebratedAt),
+      checklistDismissedAt: stamp(o.checklistDismissedAt)
+    };
+  }
+  function applyStamp(state, field, now) {
+    if (state[field] > 0) return state;
+    return { ...state, [field]: stamp(now) || 1 };
+  }
+
+  // src/lib/onboarding-store.ts
   var queue = Promise.resolve();
+  function enqueue(fn) {
+    const next = queue.then(fn, fn);
+    queue = next.catch((err) => warn("onboarding storage error:", err));
+    return next;
+  }
+  function stampOnboarding(field, now = Date.now()) {
+    return enqueue(async () => {
+      try {
+        const r = await chrome.storage.local.get([ONBOARDING_STORAGE_KEY]);
+        const state = normalizeOnboarding(r[ONBOARDING_STORAGE_KEY]);
+        const next = applyStamp(state, field, now);
+        if (next === state) return false;
+        await chrome.storage.local.set({ [ONBOARDING_STORAGE_KEY]: next });
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  // src/lib/storage.ts
+  var queue2 = Promise.resolve();
   function todayKey() {
     return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
   }
-  function enqueue(fn) {
-    const next = queue.then(fn, fn);
-    queue = next.catch((err) => warn("storage error:", err));
+  function enqueue2(fn) {
+    const next = queue2.then(fn, fn);
+    queue2 = next.catch((err) => warn("storage error:", err));
     return next;
   }
   function ensureDaily(stats, day) {
@@ -202,7 +259,7 @@
     });
   }
   function judgeWord(base, judgment, meta, source) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
@@ -269,6 +326,9 @@
       if (judgment === "review-pass" || judgment === "review-fail") {
         await trackExtensionMilestone("first_srs_review");
       }
+      if (judgment === "know" || judgment === "learn") {
+        void stampOnboarding("firstCardAt");
+      }
       sendBadge(stats);
       return vocab[base];
     });
@@ -281,14 +341,14 @@
     });
   }
   function setReviewPrompt(next) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const state = normalizeReviewPrompt(next);
       await chrome.storage.local.set({ reviewPrompt: state });
       return state;
     });
   }
   function recordReviewPromptShown(now = Date.now()) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const r = await chrome.storage.local.get(["reviewPrompt"]);
       const prompt = normalizeReviewPrompt(r.reviewPrompt);
       if (!shouldCountShown(prompt, now)) return false;
