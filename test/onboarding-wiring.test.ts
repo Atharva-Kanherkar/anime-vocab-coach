@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as storage from "../src/lib/storage";
-import { getOnboarding } from "../src/lib/onboarding-store";
+import { getOnboarding, stampOnboarding } from "../src/lib/onboarding-store";
 import { EMPTY_ONBOARDING } from "../src/lib/onboarding";
 import type { DictEntry, JudgmentMeta, Token, VocabMap } from "../src/types";
 
@@ -87,5 +87,41 @@ describe("onboarding stamps on the real mining paths", () => {
     // the moment the learner mined their first one.
     await storage.judgeWord("約束", "review-pass", META);
     expect((await getOnboarding()).firstCardAt).toBe(0);
+  });
+});
+
+describe("a stamp losing a race with another extension context", () => {
+  it("re-applies itself instead of vanishing", async () => {
+    // chrome.storage.local has no compare-and-set. The install handler stamps
+    // installedAt in the service worker while the welcome tab it just opened
+    // stamps shownAt from its own read of the same key — the later write wins
+    // and the other stamp is gone. Losing installedAt would mean the 24h
+    // checklist never appears for that install, so it must heal.
+    let clobbered = false;
+    const foreign = { ...EMPTY_ONBOARDING, shownAt: 111 };
+
+    vi.stubGlobal("chrome", {
+      runtime: { id: "test" },
+      storage: {
+        local: {
+          get: vi.fn(async (keys: string[]) =>
+            Object.fromEntries(keys.map((k) => [k, local[k]]).filter(([, v]) => v !== undefined))
+          ),
+          set: vi.fn(async (value: Record<string, unknown>) => {
+            Object.assign(local, value);
+            if (!clobbered) {
+              clobbered = true;
+              local.onboarding = foreign; // the other context's write lands
+            }
+          }),
+        },
+      },
+    });
+
+    expect(await stampOnboarding("installedAt", 999)).toBe(true);
+    const state = await getOnboarding();
+    expect(state.installedAt).toBe(999);
+    // The other context's stamp is kept too — the merge is not a rollback.
+    expect(state.shownAt).toBe(111);
   });
 });

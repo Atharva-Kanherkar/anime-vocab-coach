@@ -146,14 +146,22 @@
     queue = next.catch((err) => warn("onboarding storage error:", err));
     return next;
   }
+  async function readState() {
+    const r = await chrome.storage.local.get([ONBOARDING_STORAGE_KEY]);
+    return normalizeOnboarding(r[ONBOARDING_STORAGE_KEY]);
+  }
+  async function writeStamp(field, now) {
+    const state = await readState();
+    const next = applyStamp(state, field, now);
+    if (next === state) return false;
+    await chrome.storage.local.set({ [ONBOARDING_STORAGE_KEY]: next });
+    return true;
+  }
   function stampOnboarding(field, now = Date.now()) {
     return enqueue(async () => {
       try {
-        const r = await chrome.storage.local.get([ONBOARDING_STORAGE_KEY]);
-        const state = normalizeOnboarding(r[ONBOARDING_STORAGE_KEY]);
-        const next = applyStamp(state, field, now);
-        if (next === state) return false;
-        await chrome.storage.local.set({ [ONBOARDING_STORAGE_KEY]: next });
+        if (!await writeStamp(field, now)) return false;
+        if ((await readState())[field] === 0) await writeStamp(field, now);
         return true;
       } catch {
         return false;
