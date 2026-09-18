@@ -43,4 +43,3 @@ export function ownedCampaignForPath(pathname: string): string {
   if (pathname === "/") return "homepage";
   return normalizeUtm(pathname.replace(/^\/(?:ja\/)?/, "").replaceAll("/", "_")) || "site_cta";
 }
-

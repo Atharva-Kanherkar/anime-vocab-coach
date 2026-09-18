@@ -49,4 +49,3 @@
 - POST an unknown event and overlong campaign values to `/api/track`; expect HTTP 204 and no unbounded value to be stored.
 - Trigger one new card and one first SRS judgment in a clean extension profile; confirm each lifecycle milestone is sent once after repeated actions.
 - Run the weekly funnel report for a fixed seven-day fixture with a supplied CWS install count and compare every displayed count and conversion rate to the fixture.
-
