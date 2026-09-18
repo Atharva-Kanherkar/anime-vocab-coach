@@ -48,14 +48,20 @@
     return url.toString();
   }
 
-  // src/lib/storage.ts
+  // src/lib/onboarding.ts
+  var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
+
+  // src/lib/onboarding-store.ts
   var queue = Promise.resolve();
+
+  // src/lib/storage.ts
+  var queue2 = Promise.resolve();
   function todayKey() {
     return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
   }
   function enqueue(fn) {
-    const next = queue.then(fn, fn);
-    queue = next.catch((err) => warn("storage error:", err));
+    const next = queue2.then(fn, fn);
+    queue2 = next.catch((err) => warn("storage error:", err));
     return next;
   }
   function emptyStats() {

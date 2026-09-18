@@ -142,7 +142,8 @@
     "first_srs_review",
     "upgrade_prompt_shown",
     "upgrade_prompt_clicked",
-    "checkout_started"
+    "checkout_started",
+    "onboarding_shown"
   ];
   function isExtensionEvent(v) {
     return typeof v === "string" && EXTENSION_EVENTS.includes(v);
@@ -173,11 +174,121 @@
     }
   }
 
-  // src/lib/storage.ts
+  // src/lib/onboarding.ts
+  var ONBOARDING_STORAGE_KEY = "onboarding";
+  var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
+  var EMPTY_ONBOARDING = {
+    installedAt: 0,
+    shownAt: 0,
+    watchedAt: 0,
+    cardShownAt: 0,
+    firstCardAt: 0,
+    celebratedAt: 0,
+    checklistDismissedAt: 0
+  };
+  function stamp(v) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  }
+  function normalizeOnboarding(raw) {
+    if (!raw || typeof raw !== "object") return { ...EMPTY_ONBOARDING };
+    const o = raw;
+    return {
+      installedAt: stamp(o.installedAt),
+      shownAt: stamp(o.shownAt),
+      watchedAt: stamp(o.watchedAt),
+      cardShownAt: stamp(o.cardShownAt),
+      firstCardAt: stamp(o.firstCardAt),
+      celebratedAt: stamp(o.celebratedAt),
+      checklistDismissedAt: stamp(o.checklistDismissedAt)
+    };
+  }
+  function applyStamp(state, field, now) {
+    if (state[field] > 0) return state;
+    return { ...state, [field]: stamp(now) || 1 };
+  }
+  function isActivated(state) {
+    return state.firstCardAt > 0;
+  }
+  var ONBOARDING_STEPS = [
+    {
+      id: "watch",
+      stampField: "watchedAt",
+      title: "Play any anime",
+      detail: "Crunchyroll, Netflix or YouTube, with Japanese audio or Japanese subtitles."
+    },
+    {
+      id: "panel",
+      stampField: "cardShownAt",
+      title: "Open the AnimeVocab panel",
+      detail: "The \u30A2\u30CB rail sits at the edge of the player. It picks one word per line for you."
+    },
+    {
+      id: "mine",
+      stampField: "firstCardAt",
+      title: "Click a word to save it",
+      detail: "That is your first card. It comes back for review on its own."
+    }
+  ];
+  function checklistSteps(state) {
+    return ONBOARDING_STEPS.map((step) => ({ ...step, done: state[step.stampField] > 0 }));
+  }
+  function shouldShowChecklist(input) {
+    const { state } = input;
+    const now = input.now ?? Date.now();
+    if (state.installedAt === 0) return false;
+    if (isActivated(state)) return false;
+    if (state.checklistDismissedAt > 0) return false;
+    return now - state.installedAt >= ONBOARDING_CHECKLIST_AFTER_MS;
+  }
+  function shouldCelebrate(state) {
+    return isActivated(state) && state.celebratedAt === 0;
+  }
+
+  // src/lib/onboarding-store.ts
   var queue = Promise.resolve();
   function enqueue(fn) {
     const next = queue.then(fn, fn);
-    queue = next.catch((err) => warn("storage error:", err));
+    queue = next.catch((err) => warn("onboarding storage error:", err));
+    return next;
+  }
+  function getOnboarding() {
+    return enqueue(async () => {
+      try {
+        return await readState();
+      } catch {
+        return normalizeOnboarding(null);
+      }
+    });
+  }
+  async function readState() {
+    const r = await chrome.storage.local.get([ONBOARDING_STORAGE_KEY]);
+    return normalizeOnboarding(r[ONBOARDING_STORAGE_KEY]);
+  }
+  async function writeStamp(field, now) {
+    const state = await readState();
+    const next = applyStamp(state, field, now);
+    if (next === state) return false;
+    await chrome.storage.local.set({ [ONBOARDING_STORAGE_KEY]: next });
+    return true;
+  }
+  function stampOnboarding(field, now = Date.now()) {
+    return enqueue(async () => {
+      try {
+        if (!await writeStamp(field, now)) return false;
+        if ((await readState())[field] === 0) await writeStamp(field, now);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  // src/lib/storage.ts
+  var queue2 = Promise.resolve();
+  function enqueue2(fn) {
+    const next = queue2.then(fn, fn);
+    queue2 = next.catch((err) => warn("storage error:", err));
     return next;
   }
   function pruneTimestamps(timestamps) {
@@ -282,14 +393,14 @@
     });
   }
   function setReviewPrompt(next) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const state = normalizeReviewPrompt(next);
       await chrome.storage.local.set({ reviewPrompt: state });
       return state;
     });
   }
   function recordReviewPromptShown(now = Date.now()) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const r = await chrome.storage.local.get(["reviewPrompt"]);
       const prompt = normalizeReviewPrompt(r.reviewPrompt);
       if (!shouldCountShown(prompt, now)) return false;
@@ -343,7 +454,7 @@
     const btnQuiet = variant === "popup" ? "av-btn av-btn-quiet av-btn-block" : "rp-btn rp-btn-quiet";
     host.hidden = false;
     host.innerHTML = `<div class="${rootClass}" role="region" aria-label="Rate AnimeVocab"><p class="${variant === "popup" ? "av-review-prompt-copy" : "rp-copy"}">Enjoying AnimeVocab? A rating helps other learners find it.</p><div class="${variant === "popup" ? "av-review-prompt-actions" : "rp-actions"}"><button type="button" class="${btnPrimary}" data-rp="rate">Rate on Chrome Web Store</button><button type="button" class="${btnGhost}" data-rp="later">Maybe later</button><button type="button" class="${btnQuiet}" data-rp="no">No thanks</button></div></div>`;
-    const hide = () => {
+    const hide2 = () => {
       host.hidden = true;
       host.innerHTML = "";
     };
@@ -354,24 +465,86 @@
         await setReviewPrompt(applyRate(current));
         trackExtensionEvent("review_prompt_clicked");
         chrome.tabs.create({ url: CWS_REVIEWS_URL });
-        hide();
+        hide2();
       })();
     });
     host.querySelector('[data-rp="later"]')?.addEventListener("click", () => {
       void (async () => {
         const current = await getReviewPrompt();
         await setReviewPrompt(applyMaybeLater(current, mined));
-        hide();
+        hide2();
       })();
     });
     host.querySelector('[data-rp="no"]')?.addEventListener("click", () => {
       void (async () => {
         const current = await getReviewPrompt();
         await setReviewPrompt(applyNoThanks(current));
-        hide();
+        hide2();
       })();
     });
     return true;
+  }
+
+  // src/lib/onboarding-ui.ts
+  function esc(s) {
+    return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  }
+  async function mountOnboarding(opts) {
+    try {
+      return await mountInner(opts.host, opts.now ?? Date.now());
+    } catch {
+      hide(opts.host);
+      return "none";
+    }
+  }
+  function hide(host) {
+    try {
+      host.hidden = true;
+      host.innerHTML = "";
+    } catch {
+    }
+  }
+  async function mountInner(host, now) {
+    const state = await getOnboarding();
+    if (shouldCelebrate(state)) {
+      if (await stampOnboarding("celebratedAt", now)) {
+        renderCelebration(host);
+        return "celebration";
+      }
+    }
+    if (!shouldShowChecklist({ state, now })) {
+      hide(host);
+      return "none";
+    }
+    renderChecklist(host, state, now);
+    return "checklist";
+  }
+  function renderCelebration(host) {
+    host.hidden = false;
+    host.innerHTML = `<div class="av-onboarding av-onboarding-win" role="region" aria-label="First card saved"><p class="av-onboarding-title">\u{1F389} First card saved</p><p class="av-onboarding-copy">It comes back for review on its own. The dashboard is where you will meet it again.</p><button type="button" class="av-btn av-btn-primary av-btn-block" data-onb="dashboard">Open review dashboard</button></div>`;
+    host.querySelector('[data-onb="dashboard"]')?.addEventListener("click", () => {
+      void chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
+    });
+  }
+  function renderChecklist(host, state, now) {
+    const steps = checklistSteps(state);
+    const rows = steps.map(
+      (step, i) => `<li class="av-onboarding-step${step.done ? " done" : ""}"><span class="av-onboarding-num" aria-hidden>${step.done ? "\u2713" : i + 1}</span><span class="av-onboarding-step-title">${esc(step.title)}</span></li>`
+    ).join("");
+    host.hidden = false;
+    host.innerHTML = `<div class="av-onboarding" role="region" aria-label="Getting started"><p class="av-onboarding-title">Three steps to your first card</p><ol class="av-onboarding-steps">${rows}</ol><button type="button" class="av-btn av-btn-primary av-btn-block" data-onb="start">Open Crunchyroll</button><button type="button" class="av-btn av-btn-quiet av-btn-block" data-onb="guide">Show me the full guide</button><button type="button" class="av-btn av-btn-quiet av-btn-block" data-onb="dismiss">Hide this</button></div>`;
+    host.querySelector('[data-onb="start"]')?.addEventListener("click", () => {
+      void chrome.tabs.create({ url: "https://www.crunchyroll.com/videos/popular" });
+    });
+    host.querySelector('[data-onb="guide"]')?.addEventListener("click", () => {
+      void chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") });
+    });
+    host.querySelector('[data-onb="dismiss"]')?.addEventListener("click", () => {
+      void (async () => {
+        await stampOnboarding("checklistDismissedAt", now);
+        hide(host);
+      })();
+    });
   }
 
   // src/lib/account-link.ts
@@ -406,7 +579,7 @@
   function todayKey() {
     return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
   }
-  function esc(s) {
+  function esc2(s) {
     return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   }
   function byId(id) {
@@ -433,9 +606,9 @@
     const todayHit = today?.hit;
     const todayLabel = today?.label ?? "today";
     const grid = week.map(
-      (d) => `<div class="${d.hit ? "av-stamp av-stamp-hit" : "av-stamp"}">${d.hit ? "\u6E08" : esc(d.label)}</div>`
+      (d) => `<div class="${d.hit ? "av-stamp av-stamp-hit" : "av-stamp"}">${d.hit ? "\u6E08" : esc2(d.label)}</div>`
     ).join("");
-    const note = todayHit ? `<b>${esc(todayLabel)} is stamped.</b> Come back tomorrow.` : `Practice today to stamp <b>${esc(todayLabel)}</b>.`;
+    const note = todayHit ? `<b>${esc2(todayLabel)} is stamped.</b> Come back tomorrow.` : `Practice today to stamp <b>${esc2(todayLabel)}</b>.`;
     byId("stamp-rally").innerHTML = `<div class="av-stamp-head"><span>STAMP RALLY</span><span class="av-stamp-head-jp">\u30B9\u30BF\u30F3\u30D7</span></div><div class="av-stamp-grid">${grid}</div><p class="av-stamp-note">${note}</p>`;
   }
   function initTheme() {
@@ -519,7 +692,7 @@
     const title = staleSync || sync.state === "error" ? "Cloud sync issue" : sync.state === "syncing" ? "Syncing now\u2026" : "Cloud sync on";
     const sub = staleSync ? `Previous sync was interrupted \xB7 last good sync ${lastGood}` : sync.state === "error" ? `${sync.error || "Couldn't reach cloud."} \xB7 last good sync ${lastGood}` : sync.state === "ok" ? `Synced as ${who} \xB7 ${lastGood}` : `Connected as ${who} \xB7 waiting for first backup`;
     const dot = staleSync || sync.state === "error" ? "av-dot av-dot-warn" : "av-dot";
-    el.innerHTML = `<div class="av-account-row"><span class="${dot}"></span><div><b>${title}</b><span class="av-account-sub">${esc(sub)}</span></div>` + (plan ? `<span class="av-account-plan">${esc(plan)}</span>` : "") + `</div>` + (staleSync || sync.state === "error" ? `<button id="sync-retry" class="av-btn av-btn-ghost av-btn-block" type="button">Retry cloud sync</button>` : "");
+    el.innerHTML = `<div class="av-account-row"><span class="${dot}"></span><div><b>${title}</b><span class="av-account-sub">${esc2(sub)}</span></div>` + (plan ? `<span class="av-account-plan">${esc2(plan)}</span>` : "") + `</div>` + (staleSync || sync.state === "error" ? `<button id="sync-retry" class="av-btn av-btn-ghost av-btn-block" type="button">Retry cloud sync</button>` : "");
     document.getElementById("sync-retry")?.addEventListener("click", () => {
       void chrome.runtime.sendMessage({ type: "avc-sync-now" });
     });
@@ -538,7 +711,7 @@
     const pct = Math.min(100, Math.round(used / limit * 100));
     const cls = pct >= 100 ? "av-meter-fill av-meter-full" : pct >= 85 ? "av-meter-fill av-meter-low" : "av-meter-fill";
     const fmt = (n) => unit === "minutes" ? `${Number.isInteger(n / 60) ? n / 60 : (n / 60).toFixed(1)}h` : n.toLocaleString();
-    return `<div class="av-meter"><div class="av-meter-row"><span>${esc(label)}</span><span class="av-meter-val">${esc(fmt(Math.min(used, limit)))} / ${esc(fmt(limit))}</span></div><div class="av-meter-track"><div class="${cls}" style="width:${pct}%"></div></div></div>`;
+    return `<div class="av-meter"><div class="av-meter-row"><span>${esc2(label)}</span><span class="av-meter-val">${esc2(fmt(Math.min(used, limit)))} / ${esc2(fmt(limit))}</span></div><div class="av-meter-track"><div class="${cls}" style="width:${pct}%"></div></div></div>`;
   }
   function meterLow(m) {
     return !!m && m.limit > 0 && m.used / m.limit >= 0.8;
@@ -566,8 +739,8 @@
     const aiLow = !usage.unlimited && meterLow(usage.ai);
     const listenLow = !usage.unlimited && meterLow(usage.listening);
     const offer = usage.plan === "free" ? usage.tiers?.pro : usage.plan === "pro" ? usage.tiers?.max : null;
-    const cta = (aiLow || listenLow) && offer?.checkoutUrl ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">Upgrade to ${esc(offer.name)} \xB7 ${esc(offer.priceLabel)}</button>` : "";
-    el.innerHTML = `<div class="av-usage-head"><span class="av-usage-title">This month</span><span class="av-usage-plan">${esc(planName)}</span></div>` + meters + cta;
+    const cta = (aiLow || listenLow) && offer?.checkoutUrl ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">Upgrade to ${esc2(offer.name)} \xB7 ${esc2(offer.priceLabel)}</button>` : "";
+    el.innerHTML = `<div class="av-usage-head"><span class="av-usage-title">This month</span><span class="av-usage-plan">${esc2(planName)}</span></div>` + meters + cta;
     el.hidden = false;
     if (cta && offer?.checkoutUrl) {
       trackExtensionEvent("upgrade_prompt_shown");
@@ -591,6 +764,7 @@
       reviewBtn.hidden = true;
     }
     await mountReviewPrompt({ host: byId("review-prompt"), variant: "popup" });
+    await mountOnboarding({ host: byId("onboarding") });
   }
   async function activeTabId() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

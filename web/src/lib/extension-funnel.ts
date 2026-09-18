@@ -10,6 +10,7 @@ export const EXTENSION_EVENTS = [
   "upgrade_prompt_shown",
   "upgrade_prompt_clicked",
   "checkout_started",
+  "onboarding_shown",
 ] as const;
 
 export type ExtensionEvent = (typeof EXTENSION_EVENTS)[number];

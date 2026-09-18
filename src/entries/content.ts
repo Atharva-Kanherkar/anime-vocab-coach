@@ -18,6 +18,7 @@ import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-cl
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
 import { CueLedger } from "../lib/cue-ledger";
+import { ONBOARDING_STORAGE_KEY, isFirstCardTransition } from "../lib/onboarding";
 import {
   captionNoticeText,
   captionReport,
@@ -629,6 +630,30 @@ declare global {
 
   onCaptions(() => {
     void maybeExplainMissingCaptions();
+  });
+
+  /**
+   * The 🎉 first-card moment (#77), shown where the learner actually is: on the
+   * episode, a beat after they saved the word.
+   *
+   * Driven off the storage change rather than the judgment call sites, so it
+   * covers both ways to mine — the copilot card and a Subtitle Lens click —
+   * without either of them knowing about onboarding. The stamp is write-once,
+   * so this fires exactly once per install.
+   */
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    const change = changes[ONBOARDING_STORAGE_KEY];
+    if (!change) return;
+    if (!isFirstCardTransition(change.oldValue, change.newValue)) return;
+    overlay.showToast("\u{1F389} First card saved. It comes back for review on its own.", "info", {
+      label: "Open review dashboard",
+      onClick: () => {
+        chrome.runtime
+          .sendMessage({ type: "avc-open-url", url: chrome.runtime.getURL("dashboard/dashboard.html") })
+          .catch(() => {});
+      },
+    });
   });
 
   /**

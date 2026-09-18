@@ -251,6 +251,74 @@ body.av {
   color: var(--av-ink-3);
 }
 
+.av-onboarding-host {
+  margin-top: 12px;
+}
+
+.av-onboarding-host[hidden] {
+  display: none;
+}
+
+.av-onboarding {
+  display: grid;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1.5px solid var(--av-accent);
+  border-radius: 10px;
+  background: var(--av-panel);
+}
+
+.av-onboarding-win { border-color: var(--av-ok); }
+
+.av-onboarding-title { font-size: 13px; font-weight: 700; }
+
+.av-onboarding-copy {
+  font-size: 12px;
+  color: var(--av-ink-2);
+  line-height: 1.4;
+}
+
+.av-onboarding-steps {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  margin: 2px 0;
+  padding: 0;
+}
+
+.av-onboarding-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--av-ink);
+}
+
+.av-onboarding-step.done .av-onboarding-step-title {
+  color: var(--av-ink-2);
+  text-decoration: line-through;
+}
+
+.av-onboarding-num {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--av-line);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--av-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.av-onboarding-step.done .av-onboarding-num {
+  background: var(--av-ok);
+  border-color: var(--av-ok);
+  color: #fffdf6;
+}
+
 .av-review-prompt-host {
   margin-top: 12px;
 }

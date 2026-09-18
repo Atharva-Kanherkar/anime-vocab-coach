@@ -94,7 +94,7 @@ body {
 .step h2 { font-size: 16px; font-weight: 700; }
 .step p { color: var(--av-ink-2); font-size: 14px; margin-top: 6px; }
 
-.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
 
 .btn {
   border: 1px solid var(--av-line-2);
@@ -117,7 +117,48 @@ body {
 .btn:disabled { opacity: 0.55; cursor: default; }
 .btn:disabled:hover { border-color: var(--av-line-2); color: var(--av-ink); }
 
-.account { margin-top: 14px; }
+/* The one CTA on the page that should be impossible to miss: a fresh install
+   has nothing to do until an episode is playing. */
+.btn-lg { font-size: 15px; padding: 12px 22px; border-radius: 11px; }
+
+/* --- step completion ---------------------------------------------------- */
+
+.step.done { border-color: color-mix(in srgb, var(--av-ok) 45%, var(--av-line)); }
+.step.done h2 { color: var(--av-ink-2); }
+.step.done .num {
+  background: var(--av-ok);
+  border-color: var(--av-ok);
+  color: #fffdf6;
+}
+.step-done-note {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--av-ok);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* --- first-card moment --------------------------------------------------- */
+
+.celebrate {
+  margin-top: 28px;
+  padding: 22px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--av-ok) 45%, var(--av-line));
+  background: var(--av-panel);
+}
+.celebrate h2 { font-size: 19px; font-weight: 800; }
+.celebrate p { color: var(--av-ink-2); font-size: 14px; margin-top: 6px; }
+
+.signin {
+  margin-top: 22px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px dashed var(--av-line-2);
+}
+.signin-lead { color: var(--av-ink-2); font-size: 13px; }
+
+.account { margin-top: 10px; }
 
 .status { display: flex; align-items: center; gap: 9px; }
 

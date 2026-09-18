@@ -362,7 +362,8 @@
     "first_srs_review",
     "upgrade_prompt_shown",
     "upgrade_prompt_clicked",
-    "checkout_started"
+    "checkout_started",
+    "onboarding_shown"
   ];
   function isExtensionEvent(v) {
     return typeof v === "string" && EXTENSION_EVENTS.includes(v);
@@ -413,14 +414,81 @@
     }
   }
 
-  // src/lib/storage.ts
+  // src/lib/onboarding.ts
+  var ONBOARDING_STORAGE_KEY = "onboarding";
+  var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
+  var EMPTY_ONBOARDING = {
+    installedAt: 0,
+    shownAt: 0,
+    watchedAt: 0,
+    cardShownAt: 0,
+    firstCardAt: 0,
+    celebratedAt: 0,
+    checklistDismissedAt: 0
+  };
+  function stamp(v) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  }
+  function normalizeOnboarding(raw) {
+    if (!raw || typeof raw !== "object") return { ...EMPTY_ONBOARDING };
+    const o = raw;
+    return {
+      installedAt: stamp(o.installedAt),
+      shownAt: stamp(o.shownAt),
+      watchedAt: stamp(o.watchedAt),
+      cardShownAt: stamp(o.cardShownAt),
+      firstCardAt: stamp(o.firstCardAt),
+      celebratedAt: stamp(o.celebratedAt),
+      checklistDismissedAt: stamp(o.checklistDismissedAt)
+    };
+  }
+  function applyStamp(state, field, now) {
+    if (state[field] > 0) return state;
+    return { ...state, [field]: stamp(now) || 1 };
+  }
+  function isFirstCardTransition(oldValue, newValue) {
+    return normalizeOnboarding(oldValue).firstCardAt === 0 && normalizeOnboarding(newValue).firstCardAt > 0;
+  }
+
+  // src/lib/onboarding-store.ts
   var queue = Promise.resolve();
+  function enqueue(fn) {
+    const next = queue.then(fn, fn);
+    queue = next.catch((err) => warn("onboarding storage error:", err));
+    return next;
+  }
+  async function readState() {
+    const r = await chrome.storage.local.get([ONBOARDING_STORAGE_KEY]);
+    return normalizeOnboarding(r[ONBOARDING_STORAGE_KEY]);
+  }
+  async function writeStamp(field, now) {
+    const state = await readState();
+    const next = applyStamp(state, field, now);
+    if (next === state) return false;
+    await chrome.storage.local.set({ [ONBOARDING_STORAGE_KEY]: next });
+    return true;
+  }
+  function stampOnboarding(field, now = Date.now()) {
+    return enqueue(async () => {
+      try {
+        if (!await writeStamp(field, now)) return false;
+        if ((await readState())[field] === 0) await writeStamp(field, now);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  // src/lib/storage.ts
+  var queue2 = Promise.resolve();
   function todayKey() {
     return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
   }
-  function enqueue(fn) {
-    const next = queue.then(fn, fn);
-    queue = next.catch((err) => warn("storage error:", err));
+  function enqueue2(fn) {
+    const next = queue2.then(fn, fn);
+    queue2 = next.catch((err) => warn("storage error:", err));
     return next;
   }
   function ensureDaily(stats, day) {
@@ -458,7 +526,7 @@
     });
   }
   function setSettings(partial) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const r = await chrome.storage.local.get(["settings"]);
       const settings = { ...withDefaults(r.settings || {}), ...partial };
       await chrome.storage.local.set({ settings });
@@ -510,7 +578,7 @@
     });
   }
   function recordSeen(tokens, wordStates, targetedSet, direction = "en-ja", overlay) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = { ...r.vocab || {} };
       const stats = r.stats || emptyStats();
@@ -545,11 +613,12 @@
       }
       if (changed) {
         await chrome.storage.local.set({ vocab, stats });
+        void stampOnboarding("watchedAt");
       }
     });
   }
   function judgeWord(base, judgment, meta, source) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
@@ -616,12 +685,15 @@
       if (judgment === "review-pass" || judgment === "review-fail") {
         await trackExtensionMilestone("first_srs_review");
       }
+      if (judgment === "know" || judgment === "learn") {
+        void stampOnboarding("firstCardAt");
+      }
       sendBadge(stats);
       return vocab[base];
     });
   }
   function recordCardShown(base) {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
@@ -633,10 +705,11 @@
       }
       await chrome.storage.local.set({ vocab, stats });
       await trackExtensionMilestone("first_card_created");
+      void stampOnboarding("cardShownAt");
     });
   }
   function recordWatchTick() {
-    return enqueue(async () => {
+    return enqueue2(async () => {
       const r = await chrome.storage.local.get(["stats"]);
       const stats = r.stats || emptyStats();
       const day = todayKey();
@@ -2849,7 +2922,7 @@
       rail
     };
   }
-  function showToast(text, kind = "info") {
+  function showToast(text, kind = "info", action) {
     if (!text) return;
     const root2 = mountHost();
     let layer = root2.getElementById("avc-toast-layer");
@@ -2863,6 +2936,14 @@
     const toast = document.createElement("div");
     toast.style.cssText = `pointer-events:auto; max-width:min(380px, 92vw); padding:11px 14px; border-radius:10px;background:rgba(18,16,22,0.95); color:rgba(240,238,232,0.96); font-size:13px; line-height:1.45;border:1px solid ${accent}44; border-left:3px solid ${accent};box-shadow:0 10px 30px rgba(0,0,0,0.45); cursor:pointer;backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);opacity:0; transform:translateY(-6px); transition:opacity 180ms ease, transform 180ms ease;`;
     toast.textContent = text;
+    if (action) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = action.label;
+      btn.style.cssText = `display:block; margin-top:9px; padding:5px 11px; border-radius:7px; cursor:pointer;border:1px solid ${accent}; background:transparent; color:${accent};font:inherit; font-size:12px; font-weight:600;`;
+      btn.addEventListener("click", () => action.onClick());
+      toast.appendChild(btn);
+    }
     layer.appendChild(toast);
     requestAnimationFrame(() => {
       toast.style.opacity = "1";
@@ -4739,6 +4820,19 @@
     }
     onCaptions(() => {
       void maybeExplainMissingCaptions();
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local") return;
+      const change = changes[ONBOARDING_STORAGE_KEY];
+      if (!change) return;
+      if (!isFirstCardTransition(change.oldValue, change.newValue)) return;
+      showToast("\u{1F389} First card saved. It comes back for review on its own.", "info", {
+        label: "Open review dashboard",
+        onClick: () => {
+          chrome.runtime.sendMessage({ type: "avc-open-url", url: chrome.runtime.getURL("dashboard/dashboard.html") }).catch(() => {
+          });
+        }
+      });
     });
     async function restoreTabSession() {
       let state;

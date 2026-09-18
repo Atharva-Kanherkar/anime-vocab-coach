@@ -2,6 +2,7 @@ import { ownedWebUrl } from "../config";
 import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
+import { mountOnboarding } from "../lib/onboarding-ui";
 import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
 import { trackExtensionEvent } from "../lib/extension-events";
 import type { DailyStats } from "../types";
@@ -332,6 +333,11 @@ async function render(): Promise<void> {
 
   // Idle surface only — popup never mounts on a playing video.
   await mountReviewPrompt({ host: byId("review-prompt"), variant: "popup" });
+
+  // A day-old install with no card gets the checklist here instead of a row of
+  // mode toggles it has no way to interpret yet (#77). Mounted after the review
+  // prompt so an ask for a rating cannot land on someone who has mined nothing.
+  await mountOnboarding({ host: byId("onboarding") });
 }
 
 async function activeTabId(): Promise<number | null> {

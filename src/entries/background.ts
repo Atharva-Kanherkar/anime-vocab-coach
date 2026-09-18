@@ -9,6 +9,7 @@ import { fetchAnimeContext } from "../lib/anime-context-client";
 import { fetchTtsAudio } from "../lib/tts-client";
 import { fetchUsage } from "../lib/usage-client";
 import { getSyncToken } from "../lib/storage";
+import { stampOnboarding } from "../lib/onboarding-store";
 import { toastTab } from "../lib/notify";
 import type { Settings } from "../types";
 
@@ -92,6 +93,10 @@ chrome.runtime.onInstalled.addListener((details) => {
   // same time so the account step is usually already done by the time the page
   // paints. Only on a real install — an auto-update must not steal a tab.
   if (details.reason === "install") {
+    // Stamped here and nowhere else: the popup checklist's 24h rule needs a
+    // real install time, and an install that predates #77 has none, which is
+    // exactly how `shouldShowChecklist` tells the two apart.
+    void stampOnboarding("installedAt");
     chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }).catch(() => {});
     void linkAccount("install");
   }
