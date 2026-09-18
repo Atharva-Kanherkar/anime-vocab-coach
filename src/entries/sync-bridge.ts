@@ -22,10 +22,30 @@ function isAllowedOrigin(origin: string): boolean {
   return ALLOWED_ORIGINS.has(origin) || origin === pageOrigin();
 }
 
+/**
+ * Announce presence, and say whether we already hold a sync token.
+ *
+ * The page cannot read extension storage, so without `linked` it can only
+ * judge the link by its own token mint. When that mint failed it told the
+ * learner the extension was not linked, while the extension was linked and
+ * syncing on a token the background worker minted itself (issue #133).
+ *
+ * The announcement never waits on storage: presence goes out immediately, and
+ * the linked flag follows in a second message if and when storage answers.
+ */
 function announceExtension(): void {
   const origin = pageOrigin();
   window.postMessage({ source: "avc-ext", type: "avc-ext-present" }, origin);
   window.postMessage({ source: "avc-ext", type: "avc-request-token" }, origin);
+  try {
+    chrome.storage.local.get(["syncToken"], (r) => {
+      const linked = typeof r?.syncToken === "string" && r.syncToken.length > 0;
+      window.postMessage({ source: "avc-ext", type: "avc-ext-present", linked }, origin);
+    });
+  } catch {
+    // Storage unavailable (extension reloading): presence is already out, and
+    // the page falls back to judging the link by its own token mint.
+  }
 }
 
 window.addEventListener("message", (event) => {
