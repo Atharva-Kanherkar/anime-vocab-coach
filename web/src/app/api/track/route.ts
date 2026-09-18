@@ -7,6 +7,7 @@ import {
   recordUserEvent,
   requestFacts,
 } from "@/lib/telemetry";
+import { normalizeAttribution } from "@/lib/funnel-attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,16 @@ export async function POST(req: Request) {
     const text = await req.text();
     if (text.length > MAX_BODY_BYTES) return new Response(null, { status: 204 });
 
-    let body: { kind?: unknown; name?: unknown; referrer?: unknown };
+    let body: {
+      kind?: unknown;
+      name?: unknown;
+      referrer?: unknown;
+      utm_source?: unknown;
+      utm_medium?: unknown;
+      utm_campaign?: unknown;
+    };
     try {
-      body = JSON.parse(text) as { kind?: unknown; name?: unknown; referrer?: unknown };
+      body = JSON.parse(text) as typeof body;
     } catch {
       return new Response(null, { status: 204 });
     }
@@ -55,6 +63,7 @@ export async function POST(req: Request) {
     }
 
     const facts = requestFacts(req);
+    const attribution = normalizeAttribution(body);
     // The client sends document.referrer, because this beacon's own `Referer`
     // header is always a page on our own domain — reading that made every
     // pageview look self-referred and destroyed acquisition attribution.
@@ -76,6 +85,7 @@ export async function POST(req: Request) {
       device: facts.device,
       authKind: authKindOf(req),
       status: "200",
+      ...attribution,
     });
   } catch {
     // Beacons never surface errors.

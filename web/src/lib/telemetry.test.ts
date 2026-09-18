@@ -44,6 +44,12 @@ import {
   runQuery,
 } from "./telemetry-query";
 import { isTrackableEvent, normalizeTrackPath } from "./track-events";
+import {
+  attributionFromSearch,
+  isPublicLandingPath,
+  normalizeUtm,
+  ownedCampaignForPath,
+} from "./funnel-attribution";
 import { withApiTelemetry } from "./api-telemetry";
 import { foldFacets, loadOwnerDashboard, summarizeFailures } from "./owner-dashboard";
 
@@ -342,6 +348,33 @@ describe("track event allowlist", () => {
     expect(isTrackableEvent("coach_open")).toBe(true);
     expect(isTrackableEvent("arbitrary_string")).toBe(false);
     expect(isTrackableEvent(42)).toBe(false);
+  });
+
+  it("accepts only the site funnel vocabulary", () => {
+    for (const event of [
+      "landing_view",
+      "store_cta_click",
+      "mobile_capture_shown",
+      "mobile_capture_submitted",
+    ]) {
+      expect(isTrackableEvent(event)).toBe(true);
+    }
+    expect(isTrackableEvent("landing_view_with_email")).toBe(false);
+  });
+
+  it("normalizes bounded campaign attribution without arbitrary query data", () => {
+    expect(attributionFromSearch("?utm_source=Instagram&utm_medium=reel&utm_campaign=Format_One&email=x@y.test"))
+      .toEqual({ utmSource: "instagram", utmMedium: "reel", utmCampaign: "format_one" });
+    expect(normalizeUtm("spaces are not allowed")).toBe("");
+    expect(normalizeUtm("x".repeat(120))).toHaveLength(80);
+  });
+
+  it("classifies public landings and creates stable owned-link campaigns", () => {
+    expect(isPublicLandingPath("/learn-japanese-with-anime")).toBe(true);
+    expect(isPublicLandingPath("/app/cards")).toBe(false);
+    expect(isPublicLandingPath("/api/track")).toBe(false);
+    expect(ownedCampaignForPath("/")).toBe("homepage");
+    expect(ownedCampaignForPath("/ja/learn-japanese")).toBe("learn-japanese");
   });
 
   it("collapses record ids so cardinality stays bounded", () => {
