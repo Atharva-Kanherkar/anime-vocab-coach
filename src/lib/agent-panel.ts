@@ -7,7 +7,14 @@ import { commonnessLabel } from "./levels";
 import { isEssentialWord } from "./priority-words";
 import { renderMarkdown } from "./markdown-lite";
 import { PausableTimer } from "./pausable-timer";
-import { getSettings, setSettings, getAgentPanelWidth, setAgentPanelWidth } from "./storage";
+import {
+  getSettings,
+  setSettings,
+  getAgentPanelWidth,
+  setAgentPanelWidth,
+  getAgentPanelCollapsed,
+  setAgentPanelCollapsed,
+} from "./storage";
 import {
   chatPlaceholder,
   contextSubtitleLabel,
@@ -73,6 +80,8 @@ interface Shell {
   scrollArea: HTMLElement;
   wordIdle: HTMLElement;
   wordActive: HTMLElement;
+  collapseBtn: HTMLElement;
+  rail: HTMLElement;
   foot: HTMLElement;
   buttons: HTMLElement;
   hint: HTMLElement;
@@ -112,9 +121,27 @@ let activeVideo: HTMLVideoElement | null = null;
 let wasPlaying = false;
 let currentJudgments: { val: Judgment; key: string }[] = [];
 
+/** Whether the panel currently sits collapsed to its rail. */
+let collapsed = false;
+
 const PANEL_MIN_W = 280;
 const PANEL_MAX_W = 560;
 const PANEL_DEFAULT_W = 340;
+/** Width of the collapsed rail. Deliberately below PANEL_MIN_W so a rail can
+ * never be mistaken for a resized panel. */
+const PANEL_RAIL_W = 36;
+/**
+ * Height left clear at the bottom of the sidebar for the host player's control
+ * bar (issue #132). The panel is a full-height strip on the right, so its
+ * composer and judgment row landed on top of Netflix's subtitle, speed,
+ * next-episode and fullscreen buttons, and its blur painted over the rest.
+ * Sized from Netflix's bottom-controls container, the tallest of the supported
+ * players: roughly 130px on a 720px-high window, 160px on a 1080px one. The
+ * floor is what matters; the vh term keeps it proportionate above that and the
+ * cap stops it eating a TV-sized panel. e2e/panel-layout.mjs asserts the
+ * sidebar's bottom edge clears a 140px bar.
+ */
+const PANEL_BOTTOM_CLEARANCE = "clamp(140px, 15vh, 190px)";
 
 interface CoachPayload {
   word: string;
@@ -133,9 +160,15 @@ const STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   .avc-agent-layer {
     position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    /* Owned by the layer so the ambient wash respects the same host-control
+       clearance the sidebar does. Painting over those controls is half of
+       issue #132; stopping only the click targets leaves the tint behind. */
+    --avc-panel-bottom: ${PANEL_BOTTOM_CLEARANCE};
+    --avc-panel-w: ${PANEL_DEFAULT_W}px;
   }
   .avc-agent-ambient {
-    position: absolute; inset: 0; pointer-events: none;
+    position: absolute; inset: 0; bottom: var(--avc-panel-bottom);
+    pointer-events: none;
     transition: background 480ms ease;
   }
   .avc-agent-ambient.avc-focus {
@@ -147,8 +180,7 @@ const STYLES = `
     );
   }
   .avc-agent-sidebar {
-    --avc-panel-w: 340px;
-    position: fixed; top: 0; right: 0; bottom: 0;
+    position: fixed; top: 0; right: 0; bottom: var(--avc-panel-bottom);
     width: var(--avc-panel-w);
     min-width: ${PANEL_MIN_W}px;
     max-width: min(${PANEL_MAX_W}px, 42vw);
@@ -205,6 +237,62 @@ const STYLES = `
   .avc-agent-sidebar.avc-focus-sidebar.avc-sidebar-active {
     background: rgba(8, 7, 10, 0.86);
     border-left-color: rgba(227, 186, 99, 0.14);
+  }
+  /* Collapsed: a rail on the right edge and nothing else. The card stays
+     mounted behind it, so expanding brings the same word back. */
+  .avc-agent-sidebar.avc-collapsed {
+    width: ${PANEL_RAIL_W}px;
+    min-width: ${PANEL_RAIL_W}px;
+    max-width: ${PANEL_RAIL_W}px;
+  }
+  .avc-agent-sidebar.avc-collapsed .avc-agent-panel,
+  .avc-agent-sidebar.avc-collapsed .avc-agent-resize {
+    display: none;
+  }
+  .avc-agent-rail {
+    display: none;
+    position: absolute; inset: 0;
+    flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 10px; padding: 12px 0;
+    pointer-events: auto; cursor: pointer;
+    background: rgba(8, 7, 10, 0.55);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .avc-agent-sidebar.avc-collapsed .avc-agent-rail { display: flex; }
+  .avc-agent-rail:hover { background: rgba(8, 7, 10, 0.78); }
+  .avc-agent-rail-mark {
+    font-size: 10px; letter-spacing: 0.14em; color: rgba(227, 186, 99, 0.7);
+    writing-mode: vertical-rl; text-transform: uppercase;
+  }
+  .avc-agent-rail-open {
+    font-size: 13px; line-height: 1; color: rgba(236, 234, 228, 0.6);
+  }
+  /* A card waiting behind the rail. The mark alone was 0.7 -> 1.0 alpha of the
+     same hue inside a 36px strip, which is not a notification; the whole rail
+     takes the accent so the waiting state is visible without looking for it. */
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail {
+    background: rgba(227, 186, 99, 0.16);
+    border-left-color: rgba(227, 186, 99, 0.55);
+    box-shadow: -6px 0 18px rgba(227, 186, 99, 0.18);
+  }
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail-mark {
+    color: rgba(227, 186, 99, 1);
+  }
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail-open {
+    color: rgba(236, 234, 228, 0.95);
+  }
+  .avc-agent-collapse {
+    width: 26px; height: 26px; padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(236, 234, 228, 0.55);
+    font-size: 13px; line-height: 1;
+    cursor: pointer; font-family: inherit;
+  }
+  .avc-agent-collapse:hover {
+    color: rgba(236, 234, 228, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
   }
   .avc-agent-resize {
     position: absolute; left: 0; top: 0; bottom: 0;
@@ -689,11 +777,38 @@ function clampPanelWidth(w: number): number {
   return Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, Math.round(w)));
 }
 
+/** The width the panel returns to when expanded, so collapse can be undone. */
+let expandedWidth = PANEL_DEFAULT_W;
+
 function setPanelWidth(sidebar: HTMLElement, w: number): void {
   const clamped = clampPanelWidth(w);
+  expandedWidth = clamped;
   sidebar.style.setProperty("--avc-panel-w", `${clamped}px`);
   sidebar.style.width = `${clamped}px`;
-  sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
+  if (!collapsed) sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
+}
+
+/**
+ * Collapse to the rail, or expand back.
+ *
+ * Deliberately not `hideAgent`: the shell, the pending card and the chat stay
+ * exactly as they are, so a learner can reach the host player's controls
+ * mid-card and come back to the same word (issue #132).
+ */
+function setCollapsed(next: boolean, persist = true): void {
+  if (!shell) return;
+  collapsed = next;
+  shell.sidebar.classList.toggle("avc-collapsed", next);
+  shell.collapseBtn.setAttribute("aria-expanded", String(!next));
+  shell.rail.setAttribute("aria-expanded", String(!next));
+  // The ambient wash is drawn from --avc-panel-w on the layer, which the
+  // sidebar's own class cannot reach. Without this the collapsed strip keeps a
+  // 340px darkened band over the player: click-through, but not out of the way.
+  shell.sidebar.parentElement?.style.setProperty(
+    "--avc-panel-w",
+    `${next ? PANEL_RAIL_W : expandedWidth}px`
+  );
+  if (persist) void setAgentPanelCollapsed(next);
 }
 
 function attachResizeHandle(sidebar: HTMLElement, grip: HTMLElement): void {
@@ -998,6 +1113,7 @@ function finishWord(judgment: Judgment | "dismiss"): void {
     shell.wordIdle.style.display = "";
     shell.foot.classList.remove("avc-active");
     shell.buttons.textContent = "";
+    shell.sidebar.classList.remove("avc-has-card");
   }
   currentJudgments = [];
   if (fn) fn(judgment);
@@ -1335,9 +1451,25 @@ function buildShell(root: ShadowRoot): Shell {
     hideAgent();
   });
 
+  // Collapse is not close: the card survives it. Labels and titles say so,
+  // because two adjacent icon buttons that do different things to your work
+  // need to be told apart before they are clicked.
+  const collapseBtn = document.createElement("button");
+  collapseBtn.className = "avc-agent-collapse";
+  collapseBtn.type = "button";
+  collapseBtn.setAttribute("aria-label", "Collapse copilot to a rail, keeping the current word");
+  collapseBtn.setAttribute("aria-expanded", "true");
+  collapseBtn.title = "Collapse to the edge (keeps the current word)";
+  collapseBtn.textContent = "›";
+  collapseBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setCollapsed(true);
+  });
+
   const headActions = document.createElement("div");
   headActions.className = "avc-agent-head-actions";
   headActions.appendChild(modeSelect);
+  headActions.appendChild(collapseBtn);
   headActions.appendChild(closeBtn);
 
   head.appendChild(brand);
@@ -1427,8 +1559,37 @@ function buildShell(root: ShadowRoot): Shell {
   panel.appendChild(scrollArea);
   panel.appendChild(foot);
   panel.appendChild(composer);
+  // The rail: the only live target while collapsed, so everything else in the
+  // strip passes clicks to the player underneath.
+  const rail = document.createElement("div");
+  rail.className = "avc-agent-rail";
+  rail.setAttribute("role", "button");
+  rail.setAttribute("tabindex", "0");
+  rail.setAttribute("aria-label", "Expand AnimeVocab copilot");
+  rail.setAttribute("aria-expanded", "true");
+  rail.title = "Expand copilot";
+  const railMark = document.createElement("span");
+  railMark.className = "avc-agent-rail-mark";
+  railMark.textContent = "AnimeVocab";
+  const railOpen = document.createElement("span");
+  railOpen.className = "avc-agent-rail-open";
+  railOpen.textContent = "‹";
+  rail.appendChild(railOpen);
+  rail.appendChild(railMark);
+  const expand = (e: Event): void => {
+    e.stopPropagation();
+    setCollapsed(false);
+  };
+  rail.addEventListener("click", expand);
+  rail.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault(); // Space on a role="button" would scroll the page
+    expand(e);
+  });
+
   sidebar.appendChild(resize);
   sidebar.appendChild(panel);
+  sidebar.appendChild(rail);
   layer.appendChild(ambient);
   layer.appendChild(sidebar);
   root.appendChild(layer);
@@ -1442,7 +1603,7 @@ function buildShell(root: ShadowRoot): Shell {
   return {
     root, ambient, sidebar, panel, modeSelect, wordSection: scrollArea, scrollArea,
     wordIdle, wordActive, foot, buttons, hint, chatLog, chatInput, chatSend,
-    aiOut, explainBtn, hookBtn,
+    aiOut, explainBtn, hookBtn, collapseBtn, rail,
   };
 }
 
@@ -1765,16 +1926,23 @@ export function ensureAgentMounted(): void {
   if (mounted && shell) return;
 
   shell = buildShell(root);
+  // A fresh shell renders expanded; the stored choice is re-applied below, so
+  // the flag must not carry a previous mount's state into this one.
+  collapsed = false;
   mounted = true;
   romaji.preloadVoices();
   announceVisibility(true);
 
-  void Promise.all([getSettings(), getAgentPanelWidth()]).then(([s, w]) => {
-    if (!shell) return;
-    shell.modeSelect.value = s.pauseMode;
-    applyInteractionMode(pauseModeToInteraction(s.pauseMode));
-    setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
-  });
+  void Promise.all([getSettings(), getAgentPanelWidth(), getAgentPanelCollapsed()]).then(
+    ([s, w, collapsed]) => {
+      if (!shell) return;
+      shell.modeSelect.value = s.pauseMode;
+      applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+      setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
+      // Re-applying the learner's own choice, so it is not written back.
+      if (collapsed) setCollapsed(true, false);
+    }
+  );
 }
 
 /** Remove the sidebar from this tab until opened again. */
@@ -1836,7 +2004,11 @@ export function presentWord(
   userPaused = false;
   selfPaused = false;
 
-  if (options.interaction === "focus" && wasPlaying && video) {
+  // Collapsed, the panel is a 36px rail with no readable card in it. Stopping
+  // the video for a word the learner cannot see is a worse interruption than
+  // the overlap collapsing exists to escape (issue #132), so a collapsed panel
+  // behaves as ambient: the card waits on the rail, playback carries on.
+  if (options.interaction === "focus" && wasPlaying && video && !collapsed) {
     // Our own pause, not the learner's: it must not freeze the dismissal clock,
     // or a focus card would sit on screen until the learner touched something.
     selfPaused = true;
@@ -1865,6 +2037,9 @@ export function presentWord(
   wordCtx = ctx;
   wordPending = true;
   populateWordSection(ctx);
+  // A collapsed panel must not swallow a word silently: the rail marks that
+  // one is waiting behind it.
+  shell?.sidebar.classList.add("avc-has-card");
   applyInteractionMode(options.interaction);
 
   keyHandler = (e: KeyboardEvent) => {

@@ -112,6 +112,23 @@ export function setAgentPanelWidth(width: number): Promise<void> {
   });
 }
 
+/** Whether the copilot sits collapsed to its rail. Anything unparseable reads
+ * as expanded: the panel showing when it should not is recoverable, a panel
+ * that will not come back is not. */
+export function getAgentPanelCollapsed(): Promise<boolean> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["agentPanelCollapsed"], (r) => {
+      resolve(r.agentPanelCollapsed === true);
+    });
+  });
+}
+
+export function setAgentPanelCollapsed(collapsed: boolean): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ agentPanelCollapsed: collapsed }, () => resolve());
+  });
+}
+
 export function getVocab(): Promise<VocabMap> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["vocab"], (r) => resolve((r.vocab as VocabMap | undefined) || {}));

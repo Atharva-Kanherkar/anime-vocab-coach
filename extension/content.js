@@ -418,6 +418,18 @@
       chrome.storage.local.set({ agentPanelWidth: width }, () => resolve());
     });
   }
+  function getAgentPanelCollapsed() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["agentPanelCollapsed"], (r) => {
+        resolve(r.agentPanelCollapsed === true);
+      });
+    });
+  }
+  function setAgentPanelCollapsed(collapsed2) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ agentPanelCollapsed: collapsed2 }, () => resolve());
+    });
+  }
   function getVocab() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["vocab"], (r) => resolve(r.vocab || {}));
@@ -1318,16 +1330,25 @@
   var activeVideo = null;
   var wasPlaying = false;
   var currentJudgments = [];
+  var collapsed = false;
   var PANEL_MIN_W = 280;
   var PANEL_MAX_W = 560;
   var PANEL_DEFAULT_W = 340;
+  var PANEL_RAIL_W = 36;
+  var PANEL_BOTTOM_CLEARANCE = "clamp(140px, 15vh, 190px)";
   var STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   .avc-agent-layer {
     position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    /* Owned by the layer so the ambient wash respects the same host-control
+       clearance the sidebar does. Painting over those controls is half of
+       issue #132; stopping only the click targets leaves the tint behind. */
+    --avc-panel-bottom: ${PANEL_BOTTOM_CLEARANCE};
+    --avc-panel-w: ${PANEL_DEFAULT_W}px;
   }
   .avc-agent-ambient {
-    position: absolute; inset: 0; pointer-events: none;
+    position: absolute; inset: 0; bottom: var(--avc-panel-bottom);
+    pointer-events: none;
     transition: background 480ms ease;
   }
   .avc-agent-ambient.avc-focus {
@@ -1339,8 +1360,7 @@
     );
   }
   .avc-agent-sidebar {
-    --avc-panel-w: 340px;
-    position: fixed; top: 0; right: 0; bottom: 0;
+    position: fixed; top: 0; right: 0; bottom: var(--avc-panel-bottom);
     width: var(--avc-panel-w);
     min-width: ${PANEL_MIN_W}px;
     max-width: min(${PANEL_MAX_W}px, 42vw);
@@ -1397,6 +1417,62 @@
   .avc-agent-sidebar.avc-focus-sidebar.avc-sidebar-active {
     background: rgba(8, 7, 10, 0.86);
     border-left-color: rgba(227, 186, 99, 0.14);
+  }
+  /* Collapsed: a rail on the right edge and nothing else. The card stays
+     mounted behind it, so expanding brings the same word back. */
+  .avc-agent-sidebar.avc-collapsed {
+    width: ${PANEL_RAIL_W}px;
+    min-width: ${PANEL_RAIL_W}px;
+    max-width: ${PANEL_RAIL_W}px;
+  }
+  .avc-agent-sidebar.avc-collapsed .avc-agent-panel,
+  .avc-agent-sidebar.avc-collapsed .avc-agent-resize {
+    display: none;
+  }
+  .avc-agent-rail {
+    display: none;
+    position: absolute; inset: 0;
+    flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 10px; padding: 12px 0;
+    pointer-events: auto; cursor: pointer;
+    background: rgba(8, 7, 10, 0.55);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .avc-agent-sidebar.avc-collapsed .avc-agent-rail { display: flex; }
+  .avc-agent-rail:hover { background: rgba(8, 7, 10, 0.78); }
+  .avc-agent-rail-mark {
+    font-size: 10px; letter-spacing: 0.14em; color: rgba(227, 186, 99, 0.7);
+    writing-mode: vertical-rl; text-transform: uppercase;
+  }
+  .avc-agent-rail-open {
+    font-size: 13px; line-height: 1; color: rgba(236, 234, 228, 0.6);
+  }
+  /* A card waiting behind the rail. The mark alone was 0.7 -> 1.0 alpha of the
+     same hue inside a 36px strip, which is not a notification; the whole rail
+     takes the accent so the waiting state is visible without looking for it. */
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail {
+    background: rgba(227, 186, 99, 0.16);
+    border-left-color: rgba(227, 186, 99, 0.55);
+    box-shadow: -6px 0 18px rgba(227, 186, 99, 0.18);
+  }
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail-mark {
+    color: rgba(227, 186, 99, 1);
+  }
+  .avc-agent-sidebar.avc-collapsed.avc-has-card .avc-agent-rail-open {
+    color: rgba(236, 234, 228, 0.95);
+  }
+  .avc-agent-collapse {
+    width: 26px; height: 26px; padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(236, 234, 228, 0.55);
+    font-size: 13px; line-height: 1;
+    cursor: pointer; font-family: inherit;
+  }
+  .avc-agent-collapse:hover {
+    color: rgba(236, 234, 228, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
   }
   .avc-agent-resize {
     position: absolute; left: 0; top: 0; bottom: 0;
@@ -1876,11 +1952,25 @@
   function clampPanelWidth(w) {
     return Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, Math.round(w)));
   }
+  var expandedWidth = PANEL_DEFAULT_W;
   function setPanelWidth(sidebar, w) {
     const clamped = clampPanelWidth(w);
+    expandedWidth = clamped;
     sidebar.style.setProperty("--avc-panel-w", `${clamped}px`);
     sidebar.style.width = `${clamped}px`;
-    sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
+    if (!collapsed) sidebar.parentElement?.style.setProperty("--avc-panel-w", `${clamped}px`);
+  }
+  function setCollapsed(next, persist = true) {
+    if (!shell) return;
+    collapsed = next;
+    shell.sidebar.classList.toggle("avc-collapsed", next);
+    shell.collapseBtn.setAttribute("aria-expanded", String(!next));
+    shell.rail.setAttribute("aria-expanded", String(!next));
+    shell.sidebar.parentElement?.style.setProperty(
+      "--avc-panel-w",
+      `${next ? PANEL_RAIL_W : expandedWidth}px`
+    );
+    if (persist) void setAgentPanelCollapsed(next);
   }
   function attachResizeHandle(sidebar, grip) {
     let dragging = false;
@@ -2152,6 +2242,7 @@
       shell.wordIdle.style.display = "";
       shell.foot.classList.remove("avc-active");
       shell.buttons.textContent = "";
+      shell.sidebar.classList.remove("avc-has-card");
     }
     currentJudgments = [];
     if (fn) fn(judgment);
@@ -2438,9 +2529,21 @@
       e.stopPropagation();
       hideAgent();
     });
+    const collapseBtn = document.createElement("button");
+    collapseBtn.className = "avc-agent-collapse";
+    collapseBtn.type = "button";
+    collapseBtn.setAttribute("aria-label", "Collapse copilot to a rail, keeping the current word");
+    collapseBtn.setAttribute("aria-expanded", "true");
+    collapseBtn.title = "Collapse to the edge (keeps the current word)";
+    collapseBtn.textContent = "\u203A";
+    collapseBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setCollapsed(true);
+    });
     const headActions = document.createElement("div");
     headActions.className = "avc-agent-head-actions";
     headActions.appendChild(modeSelect);
+    headActions.appendChild(collapseBtn);
     headActions.appendChild(closeBtn);
     head.appendChild(brand);
     head.appendChild(headActions);
@@ -2529,8 +2632,34 @@
     panel.appendChild(scrollArea);
     panel.appendChild(foot);
     panel.appendChild(composer);
+    const rail = document.createElement("div");
+    rail.className = "avc-agent-rail";
+    rail.setAttribute("role", "button");
+    rail.setAttribute("tabindex", "0");
+    rail.setAttribute("aria-label", "Expand AnimeVocab copilot");
+    rail.setAttribute("aria-expanded", "true");
+    rail.title = "Expand copilot";
+    const railMark = document.createElement("span");
+    railMark.className = "avc-agent-rail-mark";
+    railMark.textContent = "AnimeVocab";
+    const railOpen = document.createElement("span");
+    railOpen.className = "avc-agent-rail-open";
+    railOpen.textContent = "\u2039";
+    rail.appendChild(railOpen);
+    rail.appendChild(railMark);
+    const expand = (e) => {
+      e.stopPropagation();
+      setCollapsed(false);
+    };
+    rail.addEventListener("click", expand);
+    rail.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      expand(e);
+    });
     sidebar.appendChild(resize);
     sidebar.appendChild(panel);
+    sidebar.appendChild(rail);
     layer.appendChild(ambient);
     layer.appendChild(sidebar);
     root2.appendChild(layer);
@@ -2556,7 +2685,9 @@
       chatSend,
       aiOut,
       explainBtn,
-      hookBtn
+      hookBtn,
+      collapseBtn,
+      rail
     };
   }
   function showToast(text, kind = "info") {
@@ -2792,15 +2923,19 @@
     }
     if (mounted && shell) return;
     shell = buildShell(root2);
+    collapsed = false;
     mounted = true;
     preloadVoices();
     announceVisibility(true);
-    void Promise.all([getSettings(), getAgentPanelWidth()]).then(([s, w]) => {
-      if (!shell) return;
-      shell.modeSelect.value = s.pauseMode;
-      applyInteractionMode(pauseModeToInteraction(s.pauseMode));
-      setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
-    });
+    void Promise.all([getSettings(), getAgentPanelWidth(), getAgentPanelCollapsed()]).then(
+      ([s, w, collapsed2]) => {
+        if (!shell) return;
+        shell.modeSelect.value = s.pauseMode;
+        applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+        setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
+        if (collapsed2) setCollapsed(true, false);
+      }
+    );
   }
   function hideAgent() {
     if (wordPending) finishWord("dismiss");
@@ -2842,7 +2977,7 @@
     userResumed = false;
     userPaused = false;
     selfPaused = false;
-    if (options.interaction === "focus" && wasPlaying && video) {
+    if (options.interaction === "focus" && wasPlaying && video && !collapsed) {
       selfPaused = true;
       video.pause();
     }
@@ -2868,6 +3003,7 @@
     wordCtx = ctx;
     wordPending = true;
     populateWordSection(ctx);
+    shell?.sidebar.classList.add("avc-has-card");
     applyInteractionMode(options.interaction);
     keyHandler = (e) => {
       if (!wordPending) return;
