@@ -36,8 +36,27 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Real Chromium, real VTTCues: the cue-text path can only be checked
+      # where a browser parses the markup, not in the node unit runner.
+      - name: E2E — generic adapter cue text
+        run: npm run test:e2e:cues
+
       - name: Pack extension (the exact zip deploy ships)
         run: npm run pack
+
+      # extension/*.js is committed, and it is what a contributor loads
+      # unpacked. `pack` above just rebuilt it from src/, so any diff here
+      # means someone changed source without committing the rebuilt bundle.
+      - name: Committed bundles match src/
+        run: |
+          if ! git diff --quiet -- extension; then
+            echo "::error::extension/ is stale — run 'npm run build' and commit the result."
+            git diff --stat -- extension
+            exit 1
+          fi
 
   web:
     name: Web — lint, typecheck, unit tests, prod build

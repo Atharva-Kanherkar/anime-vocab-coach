@@ -3924,6 +3924,11 @@
   function normalize(text) {
     return text.replace(/\s+/g, " ").trim();
   }
+  var CUE_SEPARATOR_TAG = /<\s*\/?\s*(?:br|p|div)\b[^>]*>/gi;
+  var CUE_INLINE_TAG = /<[^>]+>/g;
+  function stripCueTags(text) {
+    return text.replace(CUE_SEPARATOR_TAG, " ").replace(CUE_INLINE_TAG, "");
+  }
   function hasJapanese(text) {
     return /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/.test(text);
   }
@@ -4280,7 +4285,7 @@
         if (track.mode !== "showing" || !track.activeCues) continue;
         for (const cue of track.activeCues) {
           const text = cue.text;
-          if (text) parts.push(text.replace(/<[^>]+>/g, ""));
+          if (text) parts.push(stripCueTags(text));
         }
       }
       return normalize(parts.join(" "));
@@ -4293,14 +4298,14 @@
         for (const track of video.textTracks) {
           if (!(track.language || "").startsWith(want) || !track.activeCues) continue;
           const text = normalize(
-            Array.from(track.activeCues).map((c) => c.text.replace(/<[^>]+>/g, "")).join(" ")
+            Array.from(track.activeCues).map((c) => stripCueTags(c.text)).join(" ")
           );
           if (text) return text;
         }
         for (const track of video.textTracks) {
           if (track.mode !== "showing" || !track.activeCues) continue;
           const text = normalize(
-            Array.from(track.activeCues).map((c) => c.text.replace(/<[^>]+>/g, "")).join(" ")
+            Array.from(track.activeCues).map((c) => stripCueTags(c.text)).join(" ")
           );
           if (!text) continue;
           if (want === "en" && hasEnglish(text)) return text;
@@ -4320,7 +4325,7 @@
                   const cues = track.activeCues;
                   if (!cues || !cues.length) return;
                   const text = normalize(
-                    Array.from(cues).map((c) => c.text.replace(/<[^>]+>/g, "")).join(" ")
+                    Array.from(cues).map((c) => stripCueTags(c.text)).join(" ")
                   );
                   const lastText = lastByTrack.get(track) || "";
                   if (!text || text === lastText) return;
