@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { heroMobileImage, preloadHeroImages } from "@/lib/hero-images";
 import { playFxSound, primeFxAudio, type SfxKind } from "@/lib/fx-sounds";
 import { GITHUB_URL, installUrl, type CheckoutInterval } from "@/lib/site";
@@ -24,6 +24,12 @@ function slideBgStyle(image?: string, tone?: string): CSSProperties {
 /**
  * Full-bleed, scroll-driven hero and entire homepage. The stage pins while the
  * tall outer section scrolls; scroll progress selects the active slide.
+ *
+ * Every slide is server-rendered into the pinned stage — all 13 bodies exist
+ * in the shipped HTML (SEO: Googlebot reads the full narrative, issue #115) —
+ * and the active index only toggles `.is-active` (CSS hides the rest, `inert`
+ * drops them from the tab order). Slide CTAs whose href is `#slide-<id>`
+ * smooth-scroll the wrapper to that slide.
  */
 export function FxSlider({ slides }: { slides: HeroSlide[] }) {
   const wrapRef = useRef<HTMLElement>(null);
@@ -99,8 +105,6 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
     };
   }, [slides.length]);
 
-  const active = slides[index];
-
   const goToSlideId = (id: string) => {
     const wrap = wrapRef.current;
     const i = slides.findIndex((s) => s.id === id);
@@ -111,6 +115,24 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
       top: wrap.offsetTop + (distance * (i + 0.5)) / slides.length,
       behavior: "smooth",
     });
+  };
+
+  // Slide-anchored CTAs scroll the pinned stage instead of the browser
+  // jumping to an absolutely-positioned body mid-stack.
+  const onCtaClick = (e: React.MouseEvent<HTMLAnchorElement>, slide: HeroSlide) => {
+    if (slide.ctaHref?.startsWith("#slide-")) {
+      e.preventDefault();
+      goToSlideId(slide.ctaHref.slice("#slide-".length));
+    }
+  };
+
+  const heading = (i: number): ReactNode => {
+    const s = slides[i];
+    if (s.kind === "pricing" || s.kind === "faq") {
+      return <h2 className="hero__title">{s.title}</h2>;
+    }
+    const Tag = i === 0 ? "h1" : "h2";
+    return <Tag className="hero__title">{s.title}</Tag>;
   };
 
   return (
@@ -131,7 +153,7 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
         ))}
         <div className="hero__scrim" aria-hidden="true" />
         <div
-          className={`hero__scrim hero__scrim--deep${active.bright ? " is-on" : ""}`}
+          className={`hero__scrim hero__scrim--deep${slides[index].bright ? " is-on" : ""}`}
           aria-hidden="true"
         />
 
@@ -166,90 +188,107 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
           ))}
         </ul>
 
-        {active.kind === "pricing" ? (
-          <div className="hero__center hero__center--wide hero__center--pricing" key={active.id}>
-            <h2 className="hero__title">{active.title}</h2>
-            <p className="hero__body">{active.body}</p>
-            {localized ? (
-              <p className="hero__body" style={{ fontSize: "0.85em", opacity: 0.85 }}>
-                Prices shown for your region. You&apos;ll see the same price at checkout.
-              </p>
-            ) : (
-              <BillingToggle interval={billingInterval} onChange={setBillingInterval} />
-            )}
-            <PlanCards
-              interval={effectiveInterval}
-              country={country}
-              localized={localized}
-              perkLimit={3}
-              className="hero__pricing"
-            />
-            <p className="hero__fineprint">
-              <Link href="/pricing">Full pricing, regional prices, and billing FAQ</Link>
-            </p>
-          </div>
-        ) : active.kind === "faq" ? (
-          <div className="hero__center hero__center--wide hero__center--faq" key={active.id}>
-            <h2 className="hero__title">{active.title}</h2>
-            <div className="hero__faq">
-              <details>
-                <summary>Can I learn Japanese just by watching anime?</summary>
-                <p>
-                  Only if you actively notice and remember words. AnimeVocab handles that: one
-                  word at a time, in context, with scheduled reviews.
-                </p>
-              </details>
-              <details>
-                <summary>I can&apos;t read hiragana yet. Can I still use this?</summary>
-                <p>
-                  Yes. That&apos;s the default setup. Cards show <em>taikutsu</em> before 退屈.
-                  Switch to kana-first or kanji-first when you&apos;re ready.
-                </p>
-              </details>
-              <details>
-                <summary>How is this different from subtitle dictionary tools?</summary>
-                <p>
-                  Most tools assume you can read Japanese subtitles and hover words yourself.
-                  AnimeVocab pushes one curated word to you in romaji and tracks SRS for you.
-                </p>
-              </details>
-              <details>
-                <summary>Where is my data stored?</summary>
-                <p>
-                  On your device by default — the extension works with no account. Create a free
-                  account only if you want cloud backup, sync across devices, or the AI coach. No
-                  ads, no tracking, and the source is on GitHub under AGPL.
-                </p>
-              </details>
+        {/* All 13 slide bodies ship in the HTML; CSS + inert show one. */}
+        {slides.map((s, i) => {
+          const active = i === index;
+          const wide = s.kind === "pricing" || s.kind === "faq";
+          const classes = [
+            "hero__center",
+            wide ? "hero__center--wide" : "",
+            s.kind === "pricing" ? "hero__center--pricing" : "",
+            s.kind === "faq" ? "hero__center--faq" : "",
+            active ? "is-active" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return (
+            <div
+              key={s.id}
+              id={`slide-${s.id}`}
+              className={classes}
+              aria-hidden={!active}
+              inert={!active}
+            >
+              {heading(i)}
+              {s.kind === "pricing" ? (
+                <>
+                  <p className="hero__body">{s.body}</p>
+                  {localized ? (
+                    <p className="hero__body" style={{ fontSize: "0.85em", opacity: 0.85 }}>
+                      Prices shown for your region. You&apos;ll see the same price at checkout.
+                    </p>
+                  ) : (
+                    <BillingToggle interval={billingInterval} onChange={setBillingInterval} />
+                  )}
+                  <PlanCards
+                    interval={effectiveInterval}
+                    country={country}
+                    localized={localized}
+                    perkLimit={3}
+                    className="hero__pricing"
+                  />
+                  <p className="hero__fineprint">
+                    <Link href="/pricing">Full pricing, regional prices, and billing FAQ</Link>
+                  </p>
+                </>
+              ) : s.kind === "faq" ? (
+                <>
+                  <div className="hero__faq">
+                    <details>
+                      <summary>Can I learn Japanese just by watching anime?</summary>
+                      <p>
+                        Only if you actively notice and remember words. AnimeVocab handles that:
+                        one word at a time, in context, with scheduled reviews.
+                      </p>
+                    </details>
+                    <details>
+                      <summary>I can&apos;t read hiragana yet. Can I still use this?</summary>
+                      <p>
+                        Yes. That&apos;s the default setup. Cards show <em>taikutsu</em> before 退屈.
+                        Switch to kana-first or kanji-first when you&apos;re ready.
+                      </p>
+                    </details>
+                    <details>
+                      <summary>How is this different from subtitle dictionary tools?</summary>
+                      <p>
+                        Most tools assume you can read Japanese subtitles and hover words yourself.
+                        AnimeVocab pushes one curated word to you in romaji and tracks SRS for you.
+                      </p>
+                    </details>
+                    <details>
+                      <summary>Where is my data stored?</summary>
+                      <p>
+                        On your device by default — the extension works with no account. Create a
+                        free account only if you want cloud backup, sync across devices, or the AI
+                        coach. No ads, no tracking, and the source is on GitHub under AGPL.
+                      </p>
+                    </details>
+                  </div>
+                  <p className="hero__fineprint">
+                    © AnimeVocab ·{" "}
+                    <a href={GITHUB_URL} rel="noopener noreferrer">GitHub</a> ·{" "}
+                    <a href="/learn-japanese-with-anime">Compare</a> ·{" "}
+                    <a href="/privacy">Privacy</a>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="hero__body">{s.body}</p>
+                  <div className="hero__cta">
+                    <a
+                      className="btn btn-line hero__cta-btn"
+                      href={s.ctaHref ?? installUrl()}
+                      rel="noopener noreferrer"
+                      onClick={(e) => onCtaClick(e, s)}
+                    >
+                      {s.ctaLabel ?? "Add to Chrome · free"}
+                    </a>
+                  </div>
+                </>
+              )}
             </div>
-            <p className="hero__fineprint">
-              © AnimeVocab ·{" "}
-              <a href={GITHUB_URL} rel="noopener noreferrer">GitHub</a> ·{" "}
-              <a href="/learn-japanese-with-anime">Compare</a> ·{" "}
-              <a href="/privacy">Privacy</a>
-            </p>
-          </div>
-        ) : (
-          <div className="hero__center" key={active.id}>
-            <h1 className="hero__title">{active.title}</h1>
-            <p className="hero__body">{active.body}</p>
-            <div className="hero__cta">
-              <a
-                className="btn btn-line hero__cta-btn"
-                href={active.ctaHref ?? installUrl()}
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                  if (active.ctaHref?.startsWith("#slide-")) {
-                    e.preventDefault();
-                    goToSlideId(active.ctaHref.slice("#slide-".length));
-                  }
-                }}
-              >
-                {active.ctaLabel ?? "Add to Chrome · free"}
-              </a>
-            </div>
-          </div>
-        )}
+          );
+        })}
       </div>
     </section>
   );

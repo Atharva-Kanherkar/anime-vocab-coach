@@ -2021,6 +2021,18 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   justify-content: center;
   text-align: center;
   padding: 0 clamp(24px, 16vw, 220px);
+}
+
+/* All 13 slide bodies exist in the DOM (SEO: crawlers read the full
+   narrative); CSS shows exactly one. `inert` on the hidden ones drops their
+   links from the tab order. */
+.hero__center:not(.is-active) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.hero__center.is-active {
   animation: hero-rise 700ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
