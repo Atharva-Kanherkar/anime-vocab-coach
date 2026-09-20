@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DemoStrip } from "@/components/demo-strip";
 import { FxSlider } from "@/components/fx-slider";
 import { HeroImagePreloader } from "@/components/hero-preload";
 import { SiteFooter } from "@/components/site-chrome";
@@ -81,6 +82,7 @@ export default function HomePage() {
       </a>
       <main id="main">
         <FxSlider slides={heroSlides} />
+        <DemoStrip />
       </main>
       <a
         className="creator-credit"
