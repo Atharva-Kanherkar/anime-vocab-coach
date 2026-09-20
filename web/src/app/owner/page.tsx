@@ -17,6 +17,7 @@ import {
   type UserRow,
 } from "@/lib/owner-dashboard";
 import { fmtMinutes, loadOwnerHistory, type OwnerHistory } from "@/lib/owner-history";
+import { AiInsights } from "./ai-insights";
 import { BarList, Chart, Panel, Stat } from "./ui";
 
 // Always fresh: a cached observability dashboard is a lying one.
@@ -338,6 +339,19 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
           does not exist yet, which is expected right after deploy.
           <br />
           <code>{data.queryError}</code>
+        </div>
+      ) : null}
+
+      {data.configured ? (
+        <div className="ow-grid">
+          <Panel title="AI insights" wide empty={false}>
+            <AiInsights
+              key={`${win.hours}:${focusUser ?? ""}`}
+              hours={win.hours}
+              label={win.label}
+              focusUser={focusUser}
+            />
+          </Panel>
         </div>
       ) : null}
 

@@ -169,7 +169,7 @@ export function completionTuning(
   };
 }
 
-async function openAiHttpError(res: Response, operation: string): Promise<Error> {
+export async function openAiHttpError(res: Response, operation: string): Promise<Error> {
   let providerError: Record<string, string> = {};
   try {
     const payload = (await res.json()) as {
