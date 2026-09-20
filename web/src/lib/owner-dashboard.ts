@@ -58,6 +58,9 @@ export interface WindowOption {
 }
 
 export const WINDOWS: WindowOption[] = [
+  { hours: 6, label: "6h" },
+  { hours: 10, label: "10h" },
+  { hours: 12, label: "12h" },
   { hours: 24, label: "24h" },
   { hours: 24 * 7, label: "7d" },
   { hours: 24 * 30, label: "30d" },
@@ -66,7 +69,13 @@ export const WINDOWS: WindowOption[] = [
 
 export function resolveWindow(raw: string | undefined): WindowOption {
   const hours = sqlHours(Number(raw));
-  return WINDOWS.find((w) => w.hours === hours) ?? WINDOWS[0]!;
+  // Fall back to 24h specifically (not WINDOWS[0]) so an `h=` value outside
+  // the preset list — anything sqlHours doesn't clamp away — still lands on
+  // the historical default instead of silently becoming the newest, shortest
+  // preset just because it sorts first in the array.
+  return (
+    WINDOWS.find((w) => w.hours === hours) ?? WINDOWS.find((w) => w.hours === 24) ?? WINDOWS[0]!
+  );
 }
 
 export interface Totals {
