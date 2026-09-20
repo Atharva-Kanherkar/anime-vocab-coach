@@ -1,5 +1,5 @@
 import { warn } from "../log";
-import { normalize, matchesTargetScript, getAdapterDirection, hasEnglish } from "./util";
+import { normalize, stripCueTags, matchesTargetScript, getAdapterDirection, hasEnglish } from "./util";
 import { contextLang } from "../direction";
 import type { SiteAdapter } from "../../types";
 
@@ -25,7 +25,7 @@ export const genericAdapter: SiteAdapter = {
       if (track.mode !== "showing" || !track.activeCues) continue;
       for (const cue of track.activeCues) {
         const text = (cue as VTTCue).text;
-        if (text) parts.push(text.replace(/<[^>]+>/g, ""));
+        if (text) parts.push(stripCueTags(text));
       }
     }
     return normalize(parts.join(" "));
@@ -40,7 +40,7 @@ export const genericAdapter: SiteAdapter = {
         if (!(track.language || "").startsWith(want) || !track.activeCues) continue;
         const text = normalize(
           Array.from(track.activeCues)
-            .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
+            .map((c) => stripCueTags((c as VTTCue).text))
             .join(" ")
         );
         if (text) return text;
@@ -50,7 +50,7 @@ export const genericAdapter: SiteAdapter = {
         if (track.mode !== "showing" || !track.activeCues) continue;
         const text = normalize(
           Array.from(track.activeCues)
-            .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
+            .map((c) => stripCueTags((c as VTTCue).text))
             .join(" ")
         );
         if (!text) continue;
@@ -74,7 +74,7 @@ export const genericAdapter: SiteAdapter = {
                 if (!cues || !cues.length) return;
                 const text = normalize(
                   Array.from(cues)
-                    .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
+                    .map((c) => stripCueTags((c as VTTCue).text))
                     .join(" ")
                 );
                 const lastText = lastByTrack.get(track) || "";
