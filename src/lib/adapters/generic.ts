@@ -25,7 +25,7 @@ export const genericAdapter: SiteAdapter = {
       if (track.mode !== "showing" || !track.activeCues) continue;
       for (const cue of track.activeCues) {
         const text = (cue as VTTCue).text;
-        if (text) parts.push(text.replace(/<[^>]+>/g, ""));
+        if (text) parts.push(text.replace(/<[^>]+>/g, " "));
       }
     }
     return normalize(parts.join(" "));
@@ -40,7 +40,7 @@ export const genericAdapter: SiteAdapter = {
         if (!(track.language || "").startsWith(want) || !track.activeCues) continue;
         const text = normalize(
           Array.from(track.activeCues)
-            .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
+            .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, " "))
             .join(" ")
         );
         if (text) return text;
@@ -50,7 +50,7 @@ export const genericAdapter: SiteAdapter = {
         if (track.mode !== "showing" || !track.activeCues) continue;
         const text = normalize(
           Array.from(track.activeCues)
-            .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
+            .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, " "))
             .join(" ")
         );
         if (!text) continue;
@@ -74,7 +74,7 @@ export const genericAdapter: SiteAdapter = {
                 if (!cues || !cues.length) return;
                 const text = normalize(
                   Array.from(cues)
-                    .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, ""))
+                    .map((c) => (c as VTTCue).text.replace(/<[^>]+>/g, " "))
                     .join(" ")
                 );
                 const lastText = lastByTrack.get(track) || "";
