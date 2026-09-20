@@ -3,7 +3,33 @@
 Closes #117 (product visual above the fold) and #115 (all 13 hero slides as
 crawlable HTML) in one PR.
 
+> Revision 2 (added mid-implementation, committed separately per skill rule):
+> new **horizontal demo strip** section below the hero — one full-width
+> animated/interactive demo panel per feature, scrolled sideways.
+
 ## Functional Behavior
+
+### Demo strip (revision 2)
+- A new section below the hero (`#demo`) renders a horizontally scrollable
+  strip of feature demos: **Capture**, **Listening Mode**, **AI coach**,
+  **Reviews (SRS)**, **Collect (XP/cards)** — one panel each, scroll-snap,
+  swipeable/trackpad-scrollable, prev/next buttons.
+- Each panel pairs feature copy (kicker + h3 + body + CTA link) with a demo
+  stage built from real HTML (no screenshots), so the strip is also
+  crawlable content.
+- Animation is on by default; `prefers-reduced-motion: reduce` disables the
+  looping/entrance animations (states stay readable).
+- Interactivity:
+  - Capture: replay button remounts the loop; subtitle words highlight on
+    hover.
+  - Listening: play/pause toggle actually pauses the waveform + transcript
+    reveal (`animation-play-state`).
+  - Coach: question chips swap the Q&A pair; answer streams word-by-word.
+  - Reviews: click the card to flip (3D flip); Next cycles 3 cards with
+    per-card next-review intervals.
+  - Collect: "Collect" button replays the XP-fill → level-pop → card-reveal
+    sequence.
+- No new dependencies; no binary assets; all copy real text.
 
 ### #115 — Crawlable hero slides
 - Fetching `/` with no JS (curl / Googlebot) shows the text of **all 13**
@@ -49,6 +75,12 @@ crawlable HTML) in one PR.
     body.
   - `product shot renders real product text` — mockup contains the demo word
     (退屈), romaji (taikutsu), gloss (boredom), and the scene `<img>` with alt.
+- `demo-strip.test.tsx` (revision 2):
+  - All 5 demo panels render their h3 + body copy in SSR HTML.
+  - Demo words (退屈, taikutsu, mabushii) and the review card copy ship in
+    HTML.
+  - The section carries `id="demo"` and the play/pause + flip affordances
+    exist in markup (buttons, not fake spans).
 - Existing `slides.test.ts`-style invariants still hold (13 slides, unique ids).
 
 ## Integration / Functional Tests
