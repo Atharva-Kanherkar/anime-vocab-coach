@@ -1678,154 +1678,62 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 }
 
 /* ---------- Hero: full-bleed, scroll-driven vertical slideshow ---------- */
-.hero {
-  position: relative;
-  padding: 0; /* override global `section` padding so the backdrop reaches y=0 */
+/* ---------- Feature page: title, mockup, repeat (stacked, real HTML) ---------- */
+.feature-page {
   background: var(--bg);
-  /* Total scroll length = one viewport per slide. --slides is set inline by
-     FxSlider. Phones use a shorter length per slide so you don't have to swipe
-     a whole screen to turn each slide (it felt "stuck"). */
-  height: calc(var(--slides, 1) * 100vh);
 }
 
-.hero__brand {
-  position: absolute;
-  top: clamp(16px, 3vw, 28px);
-  left: clamp(20px, 4.5vw, 44px);
-  z-index: 4;
-  font-family: var(--jp);
-  font-size: 18px;
-  color: var(--ink);
-  text-decoration: none;
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 500ms ease;
-}
-.hero__auth {
-  position: absolute;
-  top: clamp(16px, 3vw, 28px);
-  right: clamp(20px, 4.5vw, 44px);
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-@media (max-width: 600px) {
-  .hero__auth .btn-line {
-    display: none;
-  }
-}
-.hero__brand.is-visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-.hero__brand b { color: var(--accent); font-weight: 600; }
-
-/* pinned stage: stays full-screen while the tall .hero scrolls past it */
-.hero__stage {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100svh;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-/* crossfading full-bleed backdrops (cover everything, incl. the old navbar) */
-.hero__bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  opacity: 0;
-  transform: scale(1.04);
-  background-image: var(--hero-bg-desktop);
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  transition: opacity 900ms ease, transform 1600ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity;
-}
-
-.hero__bg.is-active {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.hero__scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background:
-    radial-gradient(120% 80% at 50% 42%, transparent 28%, rgba(8, 7, 10, 0.5) 100%),
-    linear-gradient(to bottom, rgba(8, 7, 10, 0.5) 0%, transparent 22%, transparent 60%, rgba(8, 7, 10, 0.85) 100%);
-}
-
-/* side indexes (navLabel left, tag right) */
-.hero__index {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 3;
+.feature-row {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 11px;
-  list-style: none;
-  font-size: 14px;
-  line-height: 1.2;
-  pointer-events: none;
+  align-items: center;
+  gap: 40px;
+  padding: 110px clamp(20px, 6vw, 60px) 70px;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
 }
 
-.hero__index--left {
-  left: clamp(20px, 4.5vw, 60px);
-  align-items: flex-start;
+/* First feature is the fold: title + CTA + mockup fit one screen with no
+   scrolling (issue #117). */
+.feature-row--first {
+  min-height: 100svh;
+  padding-top: 96px;
+  justify-content: center;
 }
 
-.hero__index--right {
-  right: clamp(20px, 4.5vw, 60px);
-  align-items: flex-end;
-  text-align: right;
+.feature-row__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 640px;
 }
 
-.hero__index--left li,
-.hero__index--right li {
-  color: var(--ink-3);
-  padding: 2px 0;
-  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.85), 0 0 4px rgba(0, 0, 0, 0.6);
-  transition: color 260ms ease;
-}
-
-.hero__index--left li.is-active,
-.hero__index--right li.is-active {
-  color: var(--ink);
+.feature-row__kicker {
+  font-family: var(--jp);
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(227, 186, 99, 0.85);
+  margin-bottom: 14px;
 }
 
-/* deeper scrim, faded in over bright artwork (e.g. the sunrise slide) */
-.hero__scrim--deep {
-  opacity: 0;
-  transition: opacity 700ms ease;
-  background:
-    radial-gradient(85% 65% at 50% 46%, rgba(6, 8, 14, 0.62) 0%, rgba(6, 8, 14, 0.38) 55%, rgba(6, 8, 14, 0.2) 100%),
-    linear-gradient(to bottom, rgba(6, 8, 14, 0.45), rgba(6, 8, 14, 0.55));
-}
-.hero__scrim--deep.is-on { opacity: 1; }
-
-/* in-slider pricing + FAQ slide bodies */
-.hero__center--wide {
-  padding: 0 clamp(24px, 6vw, 100px);
+/* pricing + FAQ rows: no side art, just the wide content block */
+.feature-row--wide {
+  gap: 0;
+  padding-left: clamp(24px, 6vw, 100px);
+  padding-right: clamp(24px, 6vw, 100px);
 }
 /* dense slides: title/body step down to the scale of the plain slides */
-.hero__center--wide .hero__title {
+.feature-row--wide .hero__title {
   font-size: clamp(24px, 2.8vw, 38px);
 }
-.hero__center--wide .hero__body {
+.feature-row--wide .hero__body {
   margin-top: 12px;
   font-size: clamp(14px, 1.6vw, 16px);
 }
-.hero__center--pricing .billing-toggle {
+.feature-row--pricing .billing-toggle {
   display: flex;
   width: fit-content;
 }
@@ -1837,7 +1745,7 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 }
 /* three stacked cards can be tall on phones — let the pricing slide scroll */
 @media (max-width: 900px) {
-  .hero__center--pricing { max-height: 86svh; overflow-y: auto; overscroll-behavior: contain; }
+  .feature-row--pricing { max-height: 86svh; overflow-y: auto; overscroll-behavior: contain; }
   .hero__pricing { margin-top: 18px; }
   .hero__pricing .price-card h3 { min-height: 0; }
   .hero__pricing .amount-row { min-height: 0; margin-bottom: 10px; }
@@ -1883,14 +1791,6 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 .hero__pricing .amount { font-size: 30px; }
 .hero__pricing .amount-row { min-height: 0; margin-bottom: 12px; }
 .hero__pricing ul { margin-bottom: 16px; }
-/* FAQ frame: side-subject artwork with an extra dark-centered scrim so the
-   questions stay readable over the middle of the image */
-.hero__center--faq { position: absolute; }
-.hero__center--faq::before {
-  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background: radial-gradient(58% 60% at 50% 50%, rgba(7, 9, 14, 0.82) 0%, rgba(7, 9, 14, 0.55) 55%, transparent 100%);
-}
-.hero__center--faq > * { position: relative; z-index: 1; }
 .hero__faq {
   margin-top: 26px;
   width: min(680px, 100%);
@@ -2004,29 +1904,96 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 /* stacked cards / opened FAQs can exceed one viewport on small screens —
    let the pinned frame scroll internally instead of clipping */
 @media (max-width: 860px) {
-  .hero__center--wide {
+  .feature-row--wide {
     justify-content: flex-start;
     overflow-y: auto;
     padding-top: 84px;
     padding-bottom: 44px;
   }
 }
-.hero__center {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 0 clamp(24px, 16vw, 220px);
-  animation: hero-rise 700ms cubic-bezier(0.22, 1, 0.36, 1);
+/* the product mockup under each title — same frame every slide */
+.feature-mockup {
+  width: min(900px, 100%);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
 }
 
-@keyframes hero-rise {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
+.feature-mockup__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--line);
+}
+
+.feature-mockup__dots { display: flex; gap: 6px; }
+.feature-mockup__dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: block;
+}
+
+.feature-mockup__url {
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+
+.feature-mockup__screen {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+}
+
+.feature-mockup__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.feature-mockup__word,
+.feature-mockup__badge {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(10, 9, 14, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.4);
+}
+
+.feature-mockup__word {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.feature-mockup__ja { font-family: var(--jp); font-size: 22px; color: var(--ink); }
+.feature-mockup__romaji { font-size: 13px; color: var(--ink-2); }
+.feature-mockup__gloss { font-size: 13px; color: rgba(227, 186, 99, 0.9); font-weight: 600; }
+
+.feature-mockup__badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+@media (max-width: 640px) {
+  .feature-mockup__screen { aspect-ratio: 4 / 5; }
+  .feature-mockup__word,
+  .feature-mockup__badge { left: 14px; bottom: 14px; right: 14px; }
 }
 
 .hero__title {
@@ -2064,44 +2031,13 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
 }
 
 @media (max-width: 768px) {
-  /* Shorter scroll length per slide on phones so slides turn with a normal
-     swipe instead of a full-screen drag. */
-  .hero {
-    height: calc(var(--slides, 1) * 76vh);
+  .feature-row {
+    padding: 88px 20px 48px;
+    gap: 28px;
   }
 
-  .hero__brand {
-    font-size: 17px;
-  }
-
-  .hero__bg {
-    background-image: var(--hero-bg-mobile, var(--hero-bg-desktop));
-    background-position: center 22%;
-    /* Phones stutter animating a full-bleed scale() zoom while glass cards
-       run backdrop-filter. Drop the zoom; crossfade opacity only. */
-    transform: none;
-    transition: opacity 620ms ease;
-  }
-  .hero__bg.is-active {
-    transform: none;
-  }
-
-  .hero__index {
-    font-size: 11px;
-    gap: 0;
-    top: auto;
-    bottom: 40px;
-    transform: none;
-  }
-
-  .hero__index--left { left: 14px; }
-  .hero__index--right { right: 14px; }
-
-  /* mobile: only the active slide label on each side */
-  .hero__index li:not(.is-active) { display: none; }
-
-  .hero__center {
-    padding: 72px 28px 88px;
+  .feature-row--first {
+    padding-top: 84px;
   }
 
   .hero__title {
@@ -2114,17 +2050,17 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
     margin-top: 14px;
   }
 
-  .hero__center--wide {
+  .feature-row--wide {
     padding: 72px 16px 88px;
     -webkit-overflow-scrolling: touch;
   }
 
-  .hero__center--wide .hero__title {
+  .feature-row--wide .hero__title {
     font-size: clamp(22px, 6.2vw, 28px);
     max-width: none;
   }
 
-  .hero__center--pricing .hero__pricing {
+  .feature-row--pricing .hero__pricing {
     margin-top: 18px;
     width: 100%;
     max-width: none;
@@ -2188,12 +2124,6 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
     right: 0;
     padding: 14px 16px;
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero__bg { transition: opacity 300ms ease; transform: none; }
-  .hero__bg.is-active { transform: none; }
-  .hero__center { animation: none; }
 }
 
 /* ================================================================

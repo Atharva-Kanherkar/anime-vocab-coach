@@ -2,9 +2,9 @@ import { GITHUB_URL, installUrl } from "@/lib/site";
 
 export type HeroSlide = {
   id: string;
-  /** Special slide body rendered by FxSlider ("pricing" | "faq"). */
+  /** Special slide body rendered in the wide layout ("pricing" | "faq"). */
   kind?: "pricing" | "faq";
-  /** Bright artwork — FxSlider adds a deeper scrim so light text stays readable. */
+  /** Bright artwork — darker overlay so light text stays readable. */
   bright?: boolean;
   /** Cinematic CSS-gradient backdrop. Used when no `image` is set. */
   tone: string;
@@ -22,12 +22,17 @@ export type HeroSlide = {
   ctaHref?: string;
   secondaryLabel?: string;
   secondaryHref?: string;
+  /** Floating word card drawn over the mockup screen. */
+  overlayWord?: { ja: string; romaji: string; gloss: string };
+  /** Simple text badge drawn over the mockup screen (used when there's no word). */
+  overlayBadge?: string;
 };
 
 /**
  * Copy stays in narrative order; the background images are shuffled so the
  * strongest art leads (starry night first, then blossoms). `image` overrides
- * the `tone` gradient fallback.
+ * the `tone` gradient fallback. Every slide renders as its own stacked
+ * section: title + copy on top, a product mockup below.
  */
 export const heroSlides: HeroSlide[] = [
   {
@@ -43,6 +48,7 @@ export const heroSlides: HeroSlide[] = [
     ctaHref: installUrl(),
     secondaryLabel: "How it works",
     secondaryHref: "#how",
+    overlayWord: { ja: "退屈", romaji: "taikutsu", gloss: "boredom" },
   },
   {
     id: "listen",
@@ -55,6 +61,7 @@ export const heroSlides: HeroSlide[] = [
     body: "Listening Mode transcribes audio on Netflix, Crunchyroll, and YouTube while English subs stay on.",
     ctaLabel: "See pricing",
     ctaHref: "#slide-pricing",
+    overlayWord: { ja: "眩しい", romaji: "mabushii", gloss: "dazzling" },
   },
   {
     id: "coach",
@@ -67,6 +74,7 @@ export const heroSlides: HeroSlide[] = [
     body: "Ask what any word means in the exact line it was spoken, or chat about grammar and nuance — built in, no API key needed.",
     ctaLabel: "Add to Chrome",
     ctaHref: installUrl(),
+    overlayBadge: "Ask the coach · no API key",
   },
   {
     id: "mist",
@@ -79,6 +87,7 @@ export const heroSlides: HeroSlide[] = [
     body: "Cards lead with taikutsu, not 退屈. You can start on episode one without reading hiragana.",
     ctaLabel: "Install free",
     ctaHref: installUrl(),
+    overlayWord: { ja: "ずっと", romaji: "zutto", gloss: "the whole time" },
   },
   {
     id: "sakura",
@@ -91,6 +100,7 @@ export const heroSlides: HeroSlide[] = [
     body: "Spaced repetition resurfaces words right before you would forget them. No Anki session required.",
     ctaLabel: "Compare tools",
     ctaHref: "/learn-japanese-with-anime",
+    overlayBadge: "Due now · 1 review",
   },
   {
     id: "cards",
@@ -103,6 +113,7 @@ export const heroSlides: HeroSlide[] = [
     body: "Every word you learn is XP. Level up to unlock hand-illustrated original character cards across 15 anime art styles.",
     ctaLabel: "Start collecting",
     ctaHref: installUrl(),
+    overlayBadge: "+40 XP · Lv 4 unlocked",
   },
   {
     id: "manga",
@@ -115,10 +126,12 @@ export const heroSlides: HeroSlide[] = [
     body: "An original saga — dialogue you can read in Japanese, romaji, or English. New chapters unlock as you level up.",
     ctaLabel: "Add to Chrome",
     ctaHref: installUrl(),
+    overlayBadge: "Chapter 3 · unlocked",
   },
   {
     id: "studio",
     tone: "radial-gradient(115% 100% at 24% 16%, rgba(214,86,142,0.42), transparent 52%), radial-gradient(90% 85% at 82% 88%, rgba(224,120,86,0.4), transparent 55%), linear-gradient(158deg, #1d1522 0%, #131019 60%, #08070d 100%)",
+    image: "/manga/ch1_p4.webp",
     navLabel: "Studio",
     tag: "Manga Studio",
     kicker: "08 · studio",
@@ -126,6 +139,7 @@ export const heroSlides: HeroSlide[] = [
     body: "Pick up to three words, choose an art style, and the studio writes and draws a 4-panel manga that teaches them — in Japanese, romaji, and English. In your browser, no extension needed.",
     ctaLabel: "Open Manga Studio",
     ctaHref: "/studio",
+    overlayBadge: "Your words, your manga",
   },
   {
     id: "night",
@@ -138,6 +152,7 @@ export const heroSlides: HeroSlide[] = [
     body: "Words stay on your device — no account needed to start. Free tier includes 8h/mo Listening + the AI coach. Open source under AGPL.",
     ctaLabel: "View on GitHub",
     ctaHref: GITHUB_URL,
+    overlayBadge: "No account needed",
   },
   {
     id: "manifesto",

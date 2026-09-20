@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { FxSlider } from "@/components/fx-slider";
 import { HeroImagePreloader } from "@/components/hero-preload";
-import { SiteFooter } from "@/components/site-chrome";
+import { HomeBrandBar, SiteFooter } from "@/components/site-chrome";
 import {
   defaultOpenGraph,
   defaultTwitter,
@@ -73,6 +73,7 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
       />
       <HeroImagePreloader slides={heroSlides} />
+      <HomeBrandBar />
       {/* Free public front door to the creative Manga Studio + gallery. */}
       <a className="studio-banner" href="/studio">
         <span className="studio-banner__tag">NEW</span>
