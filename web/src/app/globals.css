@@ -1733,6 +1733,16 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   isolation: isolate;
 }
 
+/* The cover slide (split layout with the product mockup) fades the side
+   index rails out — the fold is the product shot, not the nav candy. */
+.hero__index {
+  transition: opacity 500ms ease;
+}
+.hero__stage--cover .hero__index {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* crossfading full-bleed backdrops (cover everything, incl. the old navbar) */
 .hero__bg {
   position: absolute;
@@ -2073,6 +2083,445 @@ table.cmp tr:last-child th, table.cmp tr:last-child td { border-bottom: none; }
   gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+/* Slide 1: headline left, full product mockup right (issue #117). */
+.hero__split {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 3vw, 56px);
+  width: 100%;
+  text-align: left;
+}
+.hero__split .hero__copy {
+  flex: 0 1 430px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.hero__split .hero__title {
+  max-width: 16ch;
+  text-align: left;
+}
+.hero__split .hero__body {
+  text-align: left;
+}
+.hero__split .hero__cta {
+  justify-content: flex-start;
+}
+.shot {
+  max-width: 760px;
+}
+
+@media (max-width: 1080px) {
+  /* narrow desktop: stack copy over the shot, keep both in the first screen */
+  .hero__center:has(.hero__split) {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 20px;
+    padding: 84px clamp(20px, 5vw, 84px) 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .hero__split {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .hero__split .hero__copy,
+  .shot {
+    flex: 0 0 auto;
+  }
+}
+
+/* The split needs the centered-text slide's 16vw gutters gone. */
+@media (min-width: 1081px) {
+  .hero__center:has(.hero__split) {
+    padding: 0 clamp(24px, 4vw, 64px);
+  }
+}
+
+/* ---------- product mockup (issue #117) ----------
+   Pure HTML/CSS recreation of the extension mid-episode: subtitle word
+   highlighted, floating word card, Copilot chat panel. Every string is real
+   text, so the mockup doubles as crawlable product explanation. */
+.shot {
+  position: relative;
+  flex: 1 1 560px;
+  max-width: 880px;
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  grid-template-rows: minmax(380px, auto) auto;
+  align-items: stretch;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #0b0910;
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.shot__scene {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 400px;
+  overflow: hidden;
+}
+.shot__art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.shot__chips {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+}
+.shot__chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(8, 7, 10, 0.66);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(236, 234, 228, 0.78);
+}
+.shot__chip--live {
+  border-color: rgba(227, 186, 99, 0.4);
+  color: var(--accent);
+}
+.shot__subs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 44px 18px 14px;
+  text-align: center;
+  background: linear-gradient(to top, rgba(6, 5, 9, 0.85), rgba(6, 5, 9, 0.35) 70%, transparent);
+  pointer-events: none;
+}
+.shot__sub {
+  font-family: var(--jp);
+  font-size: clamp(15px, 1.6vw, 19px);
+  line-height: 1.5;
+  color: rgba(248, 246, 240, 0.96);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6);
+}
+.shot__sub--romaji {
+  margin-top: 2px;
+  font-family: var(--sans);
+  font-style: italic;
+  font-size: clamp(11px, 1.1vw, 13px);
+  color: rgba(236, 234, 228, 0.62);
+}
+.shot__subs mark,
+.shot__ctx-romaji mark {
+  background: transparent;
+  color: var(--accent);
+  font-weight: 700;
+  text-shadow: 0 0 16px rgba(227, 168, 72, 0.35);
+}
+.shot__sub mark {
+  border-bottom: 2px solid rgba(227, 186, 99, 0.75);
+  padding-bottom: 1px;
+}
+.shot__card {
+  position: absolute;
+  left: 16px;
+  bottom: 92px;
+  width: min(300px, 76%);
+  padding: 11px 13px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(165deg, rgba(6, 5, 9, 0.9) 0%, rgba(6, 5, 9, 0.72) 60%, rgba(6, 5, 9, 0.62) 100%);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  text-align: left;
+}
+.shot__card-chip {
+  color: rgba(227, 186, 99, 0.8);
+  margin-bottom: 8px;
+  display: inline-block;
+}
+.shot__word-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.shot__word {
+  font-family: var(--jp);
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: rgba(255, 252, 245, 0.97);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+.shot__speak {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(236, 234, 228, 0.7);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+.shot__kana {
+  margin-top: 2px;
+  font-family: var(--jp);
+  font-size: 16px;
+  color: rgba(227, 186, 99, 0.85);
+}
+.shot__gloss {
+  margin-top: 3px;
+  font-size: 13.5px;
+  color: rgba(248, 244, 236, 0.9);
+}
+.shot__ctx {
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-radius: 0 6px 6px 0;
+  border-left: 2px solid rgba(227, 186, 99, 0.45);
+  background: rgba(0, 0, 0, 0.28);
+}
+.shot__label {
+  display: block;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(236, 234, 228, 0.4);
+  margin-bottom: 3px;
+}
+.shot__ctx-ja {
+  font-family: var(--jp);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(240, 237, 230, 0.85);
+}
+.shot__ctx-romaji {
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(236, 234, 228, 0.58);
+}
+.shot__foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+}
+.shot__know {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(248, 244, 236, 0.92);
+  font-size: 11px;
+  font-weight: 600;
+}
+.shot__ignore {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(236, 234, 228, 0.62);
+  font-size: 11px;
+}
+.shot__xp {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.shot__panel {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(10, 8, 14, 0.96), rgba(8, 6, 11, 0.98));
+  text-align: left;
+}
+.shot__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.shot__brand {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(227, 186, 99, 0.75);
+  font-weight: 700;
+}
+.shot__mode {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 10px;
+  color: rgba(236, 234, 228, 0.75);
+}
+.shot__chat {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+}
+.shot__msg {
+  font-size: 11.5px;
+  line-height: 1.55;
+  padding: 8px 11px;
+  border-radius: 10px;
+  max-width: 94%;
+}
+.shot__msg--user {
+  align-self: flex-end;
+  border: 1px solid rgba(227, 186, 99, 0.2);
+  background: rgba(227, 186, 99, 0.1);
+  color: rgba(248, 244, 236, 0.85);
+  border-bottom-right-radius: 3px;
+}
+.shot__msg--ai {
+  align-self: flex-start;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(236, 234, 228, 0.76);
+  border-bottom-left-radius: 3px;
+}
+.shot__msg-word {
+  color: var(--accent);
+  font-weight: 600;
+}
+.shot__stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 14px 10px;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: rgba(227, 186, 99, 0.65);
+}
+.shot__composer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.shot__input {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 10.5px;
+  color: rgba(236, 234, 228, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.shot__send {
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 10.5px;
+  color: rgba(236, 234, 228, 0.8);
+}
+.shot__caption {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  padding: 10px 16px 11px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 7, 10, 0.6);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+@media (max-width: 900px) {
+  /* Stacked split: shot auto-sized; the word card docks under the scene so
+     it never clips (flex-basis heights would force phantom heights in the
+     column direction). */
+  .shot {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+  }
+  .shot__scene {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .shot__art {
+    position: static;
+    order: 1;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+  .shot__subs {
+    position: static;
+    order: 2;
+    padding: 10px 16px 12px;
+    text-align: left;
+  }
+  .shot__card {
+    position: static;
+    order: 3;
+    width: auto;
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: none;
+  }
+  .shot__panel {
+    grid-column: 1;
+    grid-row: auto;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+  }
+  .shot__caption {
+    grid-column: auto;
+    grid-row: auto;
+    order: 4;
+  }
+}
+@media (max-width: 640px) {
+  /* phones: the chat panel drops */
+  .shot__panel {
+    display: none;
+  }
+  .shot__chips {
+    top: 10px;
+  }
+  .shot__caption {
+    font-size: 11px;
+  }
+  .hero__split .hero__title {
+    font-size: clamp(24px, 6.4vw, 30px);
+  }
+  /* clear the fixed studio banner (top: 60px on phones) + brand row */
+  .hero__center:has(.hero__split) {
+    padding: 116px 20px 28px;
+    gap: 14px;
+  }
 }
 
 @media (max-width: 768px) {

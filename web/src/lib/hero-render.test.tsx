@@ -83,3 +83,37 @@ describe("FxSlider server render (crawlable hero, #115)", () => {
     expect(html).toContain("id=\"slide-watch\"");
   });
 });
+
+describe("Product shot (product visual above the fold, #117)", () => {
+  const html = renderHero().replace(/&#x27;/g, "'");
+
+  it("renders the full-screen mockup inside the first slide", () => {
+    expect(html).toContain("hero__split");
+    expect(html).toContain("hero__copy");
+    expect(html).toContain("class=\"shot\"");
+    expect(html).toContain("hero__cta");
+  });
+
+  it("shows the demo word with romaji and meaning as real text", () => {
+    expect(html).toContain("退屈");
+    expect(html).toContain("たいくつ");
+    expect(html).toContain("taikutsu");
+    expect(html).toContain("<strong>boredom</strong>");
+    expect(html).toContain("In this line");
+    expect(html).toContain("Know it");
+  });
+
+  it("shows the scene image with descriptive alt text", () => {
+    expect(html).toMatch(/<img[^>]*shot__art[^>]*alt="Anime scene[^"]*"/);
+  });
+
+  it("shows the AI coach exchange explaining the word", () => {
+    expect(html).toContain("What does 退屈 mean here?");
+    expect(html).toContain("(taikutsu) — “boredom”");
+    expect(html).toContain("退屈な夜 = “a boring night”");
+  });
+
+  it("carries a caption explaining how the product works", () => {
+    expect(html).toContain("One word per line, in romaji");
+  });
+});

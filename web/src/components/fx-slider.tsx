@@ -10,6 +10,7 @@ import { hasLocalizedPricing } from "@/lib/localized-pricing";
 import { useVisitorCountry } from "@/lib/use-visitor-country";
 import { AuthControls } from "@/components/site-chrome";
 import { BillingToggle, PlanCards } from "@/components/plan-cards";
+import { ProductShot } from "@/components/product-shot";
 
 function slideBgStyle(image?: string, tone?: string): CSSProperties {
   if (!image) return { background: tone };
@@ -142,7 +143,7 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
       style={{ ["--slides" as string]: slides.length }}
       aria-label="AnimeVocab"
     >
-      <div className="hero__stage">
+      <div className={`hero__stage${index === 0 ? " hero__stage--cover" : ""}`}>
         {slides.map((s, i) => (
           <div
             key={s.id}
@@ -209,9 +210,9 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
               aria-hidden={!active}
               inert={!active}
             >
-              {heading(i)}
               {s.kind === "pricing" ? (
                 <>
+                  {heading(i)}
                   <p className="hero__body">{s.body}</p>
                   {localized ? (
                     <p className="hero__body" style={{ fontSize: "0.85em", opacity: 0.85 }}>
@@ -233,6 +234,7 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
                 </>
               ) : s.kind === "faq" ? (
                 <>
+                  {heading(i)}
                   <div className="hero__faq">
                     <details>
                       <summary>Can I learn Japanese just by watching anime?</summary>
@@ -271,8 +273,30 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
                     <a href="/privacy">Privacy</a>
                   </p>
                 </>
+              ) : i === 0 ? (
+                // The product visual above the fold (issue #117): headline
+                // and CTA on the left, a full-screen HTML mockup of the
+                // extension working on the right.
+                <div className="hero__split">
+                  <div className="hero__copy">
+                    {heading(i)}
+                    <p className="hero__body">{s.body}</p>
+                    <div className="hero__cta">
+                      <a
+                        className="btn btn-line hero__cta-btn"
+                        href={s.ctaHref ?? installUrl()}
+                        rel="noopener noreferrer"
+                        onClick={(e) => onCtaClick(e, s)}
+                      >
+                        {s.ctaLabel ?? "Add to Chrome · free"}
+                      </a>
+                    </div>
+                  </div>
+                  <ProductShot />
+                </div>
               ) : (
                 <>
+                  {heading(i)}
                   <p className="hero__body">{s.body}</p>
                   <div className="hero__cta">
                     <a
