@@ -2,6 +2,7 @@ import { getOpenAiKey, getCachedResult, putCachedResult } from "./ai-store";
 import { completionTuning, DEFAULT_COACH_MODEL } from "./ai-coach";
 import { parseUsage } from "./llm-pricing";
 import { recordLlmCall, type LlmContext } from "./telemetry";
+import { animeContextCacheBasis, seriesTitle } from "./anime-title";
 
 /**
  * Event name and outcome tags for the anime-context cache panel (#113).
@@ -13,7 +14,6 @@ import { recordLlmCall, type LlmContext } from "./telemetry";
 export const ANIME_CONTEXT_EVENT = "anime_context";
 export type AnimeContextCacheOutcome = "hit" | "miss";
 
-export const MAX_ANIME_TITLE_LEN = 120;
 export const MAX_ANIME_CONTEXT_LEN = 600;
 const CACHE_TTL_SECONDS = 60 * 24 * 3600; // 60 days — show context is stable
 
@@ -22,15 +22,30 @@ export interface AnimeContextResult {
   context: string;
 }
 
+/**
+ * The title as the CACHE and the MODEL should both see it: the series, without
+ * the episode the learner happens to be on.
+ *
+ * Both uses want the same thing. The cache wants one entry per show rather than
+ * one per episode (see anime-title.ts), and the prompt asks for notes about a
+ * show — handing it "Naruto Shippuden Episode 42 – The Promise" invites notes
+ * about that episode instead.
+ */
 function normalizeTitle(title: string): string {
-  return title.trim().slice(0, MAX_ANIME_TITLE_LEN);
+  return seriesTitle(title);
 }
 
+/**
+ * v2: the basis changed from the raw title to the series, so a v1 key can never
+ * collide with a v2 one. Old entries are simply unreachable and age out on
+ * their own 60-day TTL — there were 3 live hits when this changed, so there is
+ * nothing worth migrating.
+ */
 export async function animeContextCacheKey(title: string): Promise<string> {
-  const basis = normalizeTitle(title).toLowerCase();
+  const basis = animeContextCacheBasis(title);
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(basis));
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
-  return `anime:ctx:v1:${hex}`;
+  return `anime:ctx:v2:${hex}`;
 }
 
 export async function getAnimeContext(title: string): Promise<AnimeContextResult | null> {
