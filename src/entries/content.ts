@@ -45,6 +45,8 @@ const MAX_EARLY_HOLD_SEC = 10;
 /** After kuromoji or the dictionary fails to load, wait this long before the
  * next line tries again, so a persistent failure is not refetched per line. */
 const JA_RETRY_MS = 30_000;
+/** Most lines the card pipeline holds while a card is up; older ones go. */
+const MAX_PENDING_LINES = 40;
 
 declare global {
   interface Window {
@@ -82,13 +84,16 @@ declare global {
   let hourlyCapNotified = false;
   /** One subtitle line processed at a time; see onLine. */
   let lineInFlight = false;
-  let queuedLine: { text: string; context?: LineContext } | null = null;
+  /** Lines waiting for the card pipeline, oldest first; see onLine. */
+  const pendingLines: { text: string; context?: LineContext; lensSeq: number }[] = [];
   /** Newest line the Lens was asked to show. A render still tokenizing when a
    * newer line arrives must not paint over it. */
   let lensSeq = 0;
-  /** The line a Subtitle Lens judgment was made on. The automatic card for that
-   * same line stands down: a deliberate Lens action wins. */
-  let lensJudgedLine = "";
+  /** Lens renders the learner judged a word on. The automatic card for the
+   * line(s) behind that render stands down: a deliberate Lens action wins. Keyed
+   * by render, not by text, so the same dialogue coming round again later
+   * ("わかった", "本当？") still gets its card. */
+  const judgedLensSeqs = new Set<number>();
   /** Last tokenization, shared by the Lens and the card pipeline, which both
    * need the same line tokenized within milliseconds of each other. */
   let tokenMemo: { text: string; tokens: Token[] } | null = null;
@@ -121,7 +126,7 @@ declare global {
    * extraction, target pick, stats) and the video can change under it; that
    * line belongs to the video it was spoken on, so a card or a Lens render for
    * it must not land on the next one. Same bleed as issue #125, one gate
-   * further in than the dropped `queuedLine` — and the watcher's poll is too
+   * further in than the dropped pending lines — and the watcher's poll is too
    * slow to catch it, since a line can finish well inside those 2 seconds. */
   function currentSessionId(): string {
     const a = adapter;
@@ -293,12 +298,16 @@ declare global {
   function startContextSampling(): void {
     if (contextSampleTimer) return;
     contextSubs.clear();
-    contextSampleTimer = setInterval(() => {
+    const sample = (): void => {
       const a = adapter;
       const video = a?.getVideo();
       if (!a || !video) return;
       contextSubs.record(video.currentTime, a.getVisibleText());
-    }, 200);
+    };
+    // Now, not 200ms from now: a line heard at the very start of the session
+    // would otherwise predate the history and fall back to "on screen now".
+    sample();
+    contextSampleTimer = setInterval(sample, 200);
   }
 
   function stopContextSampling(): void {
@@ -515,7 +524,11 @@ declare global {
       getVideo: () => (adapter ? adapter.getVideo() : null),
       getTitle: currentTitle,
       onJudgeStart: () => {
-        lensJudgedLine = line;
+        judgedLensSeqs.add(seq);
+        if (judgedLensSeqs.size > MAX_PENDING_LINES) {
+          const oldest = judgedLensSeqs.values().next().value;
+          if (oldest !== undefined) judgedLensSeqs.delete(oldest);
+        }
         // A deliberate Lens action wins over an automatic card, including one
         // that opened while the user was hovering.
         overlay.dismissAgent();
@@ -530,32 +543,43 @@ declare global {
    * decides anything. Left unserialized, several lines could each clear the
    * `overlay.isOpen()` check while the others were awaiting, each spend quota,
    * and then each replace the previous card — `presentWord()` dismisses whatever
-   * is up. So: one line in flight at a time, and while one is running only the
-   * newest arrival is held. Older queued lines are dropped on purpose; their
-   * moment on screen has passed, and showing a card for them would be wrong
-   * even if it were free.
+   * is up. So: one line in flight at a time.
    *
+   * Every line is still counted. They wait in order and each one reaches
+   * `recordSeen`, so the sentences of one utterance, or of one cached chunk,
+   * all register as exposure. Only the card is newest-wins: a line with a newer
+   * one already waiting behind it does not pick a word (see processLine), since
+   * its moment on screen has passed.
+   *
+   * `lensSeq` ties the line to the Lens render that showed it, or -1.
    * Returns immediately: nothing a caller does next should wait on a card.
    */
-  function onLine(text: string, context?: LineContext, opts: { lens?: boolean } = {}): void {
+  function onLine(
+    text: string,
+    context?: LineContext,
+    opts: { lens?: boolean; lensSeq?: number } = {}
+  ): void {
     if (pipelineDisabled) return;
     const line = text.replace(/\s+/g, " ").trim();
     if (!line) return;
+    let seq = opts.lensSeq ?? -1;
     if (opts.lens !== false) {
       renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
+      seq = lensSeq; // renderLens claims its sequence number synchronously
     }
-    queuedLine = { text: line, context };
+    pendingLines.push({ text: line, context, lensSeq: seq });
+    // Bounded: a card can hold the pipeline for most of a minute.
+    if (pendingLines.length > MAX_PENDING_LINES) pendingLines.splice(0, pendingLines.length - MAX_PENDING_LINES);
     if (!lineInFlight) void drainLines();
   }
 
   async function drainLines(): Promise<void> {
     lineInFlight = true;
     try {
-      while (queuedLine) {
-        const next = queuedLine;
-        queuedLine = null;
+      let next: (typeof pendingLines)[number] | undefined;
+      while ((next = pendingLines.shift())) {
         try {
-          await processLine(next.text, next.context);
+          await processLine(next.text, next.context, next.lensSeq);
         } catch (err) {
           warn("line processing failed:", err);
         }
@@ -565,7 +589,7 @@ declare global {
     }
   }
 
-  async function processLine(text: string, context?: LineContext): Promise<void> {
+  async function processLine(text: string, context?: LineContext, lineLensSeq = -1): Promise<void> {
     // Read once: every `staleSession()` below asks whether the video has changed
     // since this line was spoken, not since the last await.
     const lineSessionId = currentSessionId();
@@ -595,8 +619,7 @@ declare global {
 
     let tokens: Token[];
     let dictOverlay: Record<string, DictEntry> | null = null;
-    // includes(): a transcript is mirrored whole but carded sentence by sentence.
-    const lensJudged = (): boolean => !!lensJudgedLine && lensJudgedLine.includes(normalized);
+    const lensJudged = (): boolean => lineLensSeq >= 0 && judgedLensSeqs.has(lineLensSeq);
 
     if (direction === "ja-en") {
       tokens = tokenizeEnglish(normalized);
@@ -635,6 +658,13 @@ declare global {
     wordStates = await storage.getVocab();
     if (lensJudged() || staleSession()) return;
     if (settings.pauseMode === "off") return;
+    // Newest wins for cards. Checked here, before the word pick, and not after
+    // it: lines arrive faster than a pick round-trips, and re-checking there
+    // would mean no card ever shows.
+    if (pendingLines.length) {
+      log("no card for a line with a newer one waiting:", normalized.slice(0, 40));
+      return;
+    }
     if (overlay.isClosedByUser()) return; // they closed the copilot; cards live in it
 
     if (overlay.isOpen()) {
@@ -795,15 +825,17 @@ declare global {
     const context: LineContext = { en: contextForAudio(a, start), fromAudio: true };
     // The Lens shows the utterance whole, the way a subtitle would, and only
     // while it is still the scene on screen.
+    let seq = -1;
     if (audioLineIsCurrent(video, start, end)) {
       renderLens(rawTranscript.replace(/\s+/g, " "), context).catch((err) => warn("sub-lens render failed:", err));
+      seq = lensSeq;
     }
     const direction = normalizeDirection(settings?.learningDirection);
     const segments = rawTranscript
       .split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/)
       .map((s) => s.trim())
       .filter(Boolean);
-    for (const seg of segments) onLine(seg, context, { lens: false });
+    for (const seg of segments) onLine(seg, context, { lens: false, lensSeq: seq });
   }
 
   /**
@@ -925,8 +957,8 @@ declare global {
       // a playlist used to leave both standing, so the new video opened with
       // the previous clip's word on screen (issue #125).
       overlay.dismissAgent();
-      queuedLine = null;
-      lensJudgedLine = "";
+      pendingLines.length = 0;
+      judgedLensSeqs.clear();
       contextSubs.clear();
       emittedCueKeys.clear();
       lastContextTitle = "";

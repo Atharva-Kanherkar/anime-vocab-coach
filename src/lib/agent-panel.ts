@@ -139,6 +139,13 @@ const CHAT_ENGAGED_MS = 30_000;
 const CHAT_DRAFT_HOLD_MS = 120_000;
 let chatActiveAt = 0;
 let chatStreaming = false;
+let chatStreamStartedAt = 0;
+/** A reply that sends nothing for this long is treated as dead: the composer
+ * comes back and the card hold lets go. The worker has its own, shorter,
+ * timeout on the request; this covers the worker itself going away. */
+const CHAT_STREAM_IDLE_MS = 30_000;
+/** However the stream behaves, it holds cards back no longer than this. */
+const CHAT_STREAM_MAX_MS = 150_000;
 
 const PANEL_MIN_W = 280;
 const PANEL_MAX_W = 560;
@@ -1194,7 +1201,7 @@ function dismissUnlessChatting(timer: PausableTimer): void {
 /** True while the learner is typing to, waiting on, or reading the copilot. */
 export function isChatEngaged(): boolean {
   if (!shell || !mounted) return false;
-  if (chatStreaming) return true;
+  if (chatStreaming && Date.now() - chatStreamStartedAt < CHAT_STREAM_MAX_MS) return true;
   // Time-bounded on purpose. Focus alone is no signal: the composer keeps it
   // after every reply, and holding on focus would stop cards indefinitely.
   const since = Date.now() - chatActiveAt;
@@ -1229,7 +1236,7 @@ async function submitChat(): Promise<void> {
   shell.chatSend.disabled = true;
   shell.chatInput.disabled = true;
   chatStreaming = true;
-  chatActiveAt = Date.now();
+  chatStreamStartedAt = chatActiveAt = Date.now();
 
   const streamBubble = appendChatBubble(shell.chatLog, "assistant", "", true);
   let full = "";
@@ -1241,8 +1248,22 @@ async function submitChat(): Promise<void> {
 
   try {
     const port = chrome.runtime.connect({ name: "avc-chat-stream" });
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
     await new Promise<void>((resolve, reject) => {
+      // A stalled stream must not keep the composer disabled, or the card
+      // hold engaged, forever. Settling twice is a no-op, so this can race the
+      // real messages safely.
+      const armIdle = (): void => {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          try { port.disconnect(); } catch { /* already gone */ }
+          if (full) resolve();
+          else reject(new Error("timeout"));
+        }, CHAT_STREAM_IDLE_MS);
+      };
+      armIdle();
       port.onMessage.addListener((msg: { type?: string; delta?: string; error?: string; done?: boolean }) => {
+        armIdle();
         if (msg.type === "chunk" && typeof msg.delta === "string") {
           full += msg.delta;
           if (!raf) raf = requestAnimationFrame(flush);
@@ -1268,6 +1289,8 @@ async function submitChat(): Promise<void> {
         history: chatHistory.slice(0, -1),
         payload,
       });
+    }).finally(() => {
+      if (idleTimer) clearTimeout(idleTimer);
     });
     if (raf) cancelAnimationFrame(raf);
     if (!full.trim()) {
@@ -2177,7 +2200,10 @@ export function presentWord(
   // the video for a word the learner cannot see is a worse interruption than
   // the overlap collapsing exists to escape (issue #132), so a collapsed panel
   // behaves as ambient: the card waits on the rail, playback carries on.
-  if (options.interaction === "focus" && wasPlaying && video && !collapsed) {
+  // A hidden tab is the same case: Listening Mode keeps feeding lines while
+  // the learner is in another window, and a Focus card there stopped the audio
+  // they were listening to for a card they could not see.
+  if (options.interaction === "focus" && wasPlaying && video && !collapsed && !document.hidden) {
     // Taking the hold *is* the pause: the hold records that the pause event
     // about to be queued is ours, so it does not read as the learner's and
     // freeze the dismissal clock.
@@ -2214,6 +2240,9 @@ export function presentWord(
     // panel, say) is the same pause-to-study case: hold it until playback.
     // `wasPlaying` is already false here, so there is nothing to resume.
     if (video.paused && !cardHold.owned()) freezeAutoTimers();
+    // Mounted into a tab that is already hidden: no visibility event will come
+    // to stop the clock, so stop it now. It runs once the learner is back.
+    if (document.hidden) freezeAutoTimers();
 
     // Stop the clock while the tab is hidden. Left running, a Focus card timed
     // out in a background tab and resumed the video there; now it waits for the

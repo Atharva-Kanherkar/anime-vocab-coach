@@ -56,6 +56,11 @@ export async function fetchChat(
   return postCoach({ mode: "chat", message, history, ...payload });
 }
 
+/** No bytes for this long and the reply is abandoned. */
+const STREAM_IDLE_MS = 20_000;
+/** A whole reply, however steadily it trickles. */
+const STREAM_MAX_MS = 120_000;
+
 export async function streamChat(
   message: string,
   history: ChatMessage[],
@@ -64,11 +69,24 @@ export async function streamChat(
 ): Promise<{ ok: boolean; error?: string }> {
   const token = await getSyncToken();
   if (!token) return { ok: false, error: "not_linked" };
+  // A connection that stalls — before the headers or mid-stream — used to hang
+  // here forever, holding the copilot's composer disabled. Abort when nothing
+  // has arrived for a while, and cap the whole reply.
+  const abort = new AbortController();
+  let idle: ReturnType<typeof setTimeout> | null = null;
+  const armIdle = (): void => {
+    if (idle) clearTimeout(idle);
+    idle = setTimeout(() => abort.abort(), STREAM_IDLE_MS);
+  };
+  const cap = setTimeout(() => abort.abort(), STREAM_MAX_MS);
+  armIdle();
+  let received = false;
   try {
     const res = await fetch(WEB_URL + "/api/ai/coach/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
       body: JSON.stringify({ mode: "chat", message, history, ...payload }),
+      signal: abort.signal,
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -79,10 +97,10 @@ export async function streamChat(
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let received = false;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      armIdle();
       buffer += decoder.decode(value, { stream: true });
       const parts = buffer.split("\n\n");
       buffer = parts.pop() || "";
@@ -108,6 +126,11 @@ export async function streamChat(
     }
     return { ok: true };
   } catch {
-    return { ok: false, error: "network" };
+    // Keep what already streamed; the panel shows it rather than an error.
+    if (received) return { ok: true };
+    return { ok: false, error: abort.signal.aborted ? "timeout" : "network" };
+  } finally {
+    if (idle) clearTimeout(idle);
+    clearTimeout(cap);
   }
 }

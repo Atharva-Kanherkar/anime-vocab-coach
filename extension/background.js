@@ -256,6 +256,7 @@
   }
   function withDefaults(stored) {
     const merged = { ...DEFAULTS, ...stored };
+    if (merged.pauseMode === "notify") merged.pauseMode = "copilot";
     if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
       merged.learningDirection = "ja-en";
     }
@@ -648,14 +649,26 @@
   async function fetchChat(message, history, payload) {
     return postCoach({ mode: "chat", message, history, ...payload });
   }
+  var STREAM_IDLE_MS = 2e4;
+  var STREAM_MAX_MS = 12e4;
   async function streamChat(message, history, payload, onChunk) {
     const token = await getSyncToken();
     if (!token) return { ok: false, error: "not_linked" };
+    const abort = new AbortController();
+    let idle = null;
+    const armIdle = () => {
+      if (idle) clearTimeout(idle);
+      idle = setTimeout(() => abort.abort(), STREAM_IDLE_MS);
+    };
+    const cap = setTimeout(() => abort.abort(), STREAM_MAX_MS);
+    armIdle();
+    let received = false;
     try {
       const res = await fetch(WEB_URL + "/api/ai/coach/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify({ mode: "chat", message, history, ...payload })
+        body: JSON.stringify({ mode: "chat", message, history, ...payload }),
+        signal: abort.signal
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -665,10 +678,10 @@
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let received = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        armIdle();
         buffer += decoder.decode(value, { stream: true });
         const parts = buffer.split("\n\n");
         buffer = parts.pop() || "";
@@ -691,7 +704,11 @@
       }
       return { ok: true };
     } catch {
-      return { ok: false, error: "network" };
+      if (received) return { ok: true };
+      return { ok: false, error: abort.signal.aborted ? "timeout" : "network" };
+    } finally {
+      if (idle) clearTimeout(idle);
+      clearTimeout(cap);
     }
   }
 

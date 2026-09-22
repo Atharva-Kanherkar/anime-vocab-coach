@@ -321,6 +321,7 @@
   }
   function withDefaults(stored) {
     const merged = { ...DEFAULTS, ...stored };
+    if (merged.pauseMode === "notify") merged.pauseMode = "copilot";
     if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
       merged.learningDirection = "ja-en";
     }
@@ -869,7 +870,7 @@
         modeState.captionDetail || cardDetail,
         settings.pauseMode === "off" ? "off" : modeState.captionsMissing ? "warn" : "on"
       );
-      cardsSelect.value = settings.pauseMode === "pause" || settings.pauseMode === "off" ? settings.pauseMode : "copilot";
+      cardsSelect.value = settings.pauseMode;
       cardsSelect.title = `Auto cards: ${cardStatus}`;
       setModeRow("mode-listen", modeState.listening ? "Live" : "Off", "", modeState.listening ? "on" : "off");
       setModeRow("mode-copilot", modeState.copilot ? "Open" : "Closed", "", modeState.copilot ? "on" : "off");

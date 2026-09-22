@@ -71,6 +71,7 @@
   }
   function withDefaults(stored) {
     const merged = { ...DEFAULTS, ...stored };
+    if (merged.pauseMode === "notify") merged.pauseMode = "copilot";
     if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
       merged.learningDirection = "ja-en";
     }

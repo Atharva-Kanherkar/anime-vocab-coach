@@ -68,7 +68,7 @@ describe("#125 playlist advance drops the previous video's context", () => {
     const reset = content.slice(content.indexOf("if (sid !== lastSessionId)"));
     const body = reset.slice(0, reset.indexOf("}, 2000);"));
     expect(body).toMatch(/overlay\.dismissAgent\(\)/);
-    expect(body).toMatch(/queuedLine = null/);
+    expect(body).toMatch(/pendingLines\.length = 0/);
     expect(body).toMatch(/hideLens\(\)/);
     expect(body).toMatch(/resetCaptions\(\)/);
     expect(body).toMatch(/captionNoticeShown = false/);

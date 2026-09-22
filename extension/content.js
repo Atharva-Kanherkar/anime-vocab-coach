@@ -588,6 +588,7 @@
   }
   function withDefaults(stored) {
     const merged = { ...DEFAULTS, ...stored };
+    if (merged.pauseMode === "notify") merged.pauseMode = "copilot";
     if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
       merged.learningDirection = "ja-en";
     }
@@ -1724,6 +1725,9 @@
   var CHAT_DRAFT_HOLD_MS = 12e4;
   var chatActiveAt = 0;
   var chatStreaming = false;
+  var chatStreamStartedAt = 0;
+  var CHAT_STREAM_IDLE_MS = 3e4;
+  var CHAT_STREAM_MAX_MS = 15e4;
   var PANEL_MIN_W = 280;
   var PANEL_MAX_W = 560;
   var PANEL_DEFAULT_W = 340;
@@ -2674,7 +2678,7 @@
   }
   function isChatEngaged() {
     if (!shell || !mounted) return false;
-    if (chatStreaming) return true;
+    if (chatStreaming && Date.now() - chatStreamStartedAt < CHAT_STREAM_MAX_MS) return true;
     const since = Date.now() - chatActiveAt;
     if (since < CHAT_ENGAGED_MS) return true;
     return since < CHAT_DRAFT_HOLD_MS && shell.chatInput.value.trim() !== "";
@@ -2703,7 +2707,7 @@
     shell.chatSend.disabled = true;
     shell.chatInput.disabled = true;
     chatStreaming = true;
-    chatActiveAt = Date.now();
+    chatStreamStartedAt = chatActiveAt = Date.now();
     const streamBubble = appendChatBubble(shell.chatLog, "assistant", "", true);
     let full = "";
     let raf = 0;
@@ -2713,8 +2717,22 @@
     };
     try {
       const port = chrome.runtime.connect({ name: "avc-chat-stream" });
+      let idleTimer = null;
       await new Promise((resolve, reject) => {
+        const armIdle = () => {
+          if (idleTimer) clearTimeout(idleTimer);
+          idleTimer = setTimeout(() => {
+            try {
+              port.disconnect();
+            } catch {
+            }
+            if (full) resolve();
+            else reject(new Error("timeout"));
+          }, CHAT_STREAM_IDLE_MS);
+        };
+        armIdle();
         port.onMessage.addListener((msg) => {
+          armIdle();
           if (msg.type === "chunk" && typeof msg.delta === "string") {
             full += msg.delta;
             if (!raf) raf = requestAnimationFrame(flush);
@@ -2733,6 +2751,8 @@
           history: chatHistory.slice(0, -1),
           payload
         });
+      }).finally(() => {
+        if (idleTimer) clearTimeout(idleTimer);
       });
       if (raf) cancelAnimationFrame(raf);
       if (!full.trim()) {
@@ -3457,7 +3477,7 @@
     wasPlaying = !!(video && !video.paused && !video.ended);
     activeVideo = video;
     userResumed = false;
-    if (options.interaction === "focus" && wasPlaying && video && !collapsed) {
+    if (options.interaction === "focus" && wasPlaying && video && !collapsed && !document.hidden) {
       cardHold.hold(video, () => video.pause());
     }
     if (video) {
@@ -3477,6 +3497,7 @@
       on("seeking", () => cardHold.noticeSeek(video.paused));
       on("seeked", () => cardHold.noticeSeek(video.paused));
       if (video.paused && !cardHold.owned()) freezeAutoTimers();
+      if (document.hidden) freezeAutoTimers();
       const onVisibility = () => {
         if (document.hidden) {
           freezeAutoTimers();
@@ -4706,6 +4727,7 @@
   var EARLY_LINE_TOLERANCE_SEC = 0.3;
   var MAX_EARLY_HOLD_SEC = 10;
   var JA_RETRY_MS = 3e4;
+  var MAX_PENDING_LINES = 40;
   (function main() {
     if (window.__avcMainLoaded) {
       log("main already loaded, skipping re-init");
@@ -4728,9 +4750,9 @@
     let listeningActive = false;
     let hourlyCapNotified = false;
     let lineInFlight = false;
-    let queuedLine = null;
+    const pendingLines = [];
     let lensSeq = 0;
-    let lensJudgedLine = "";
+    const judgedLensSeqs = /* @__PURE__ */ new Set();
     let tokenMemo = null;
     let initPromise2 = null;
     let jaReady = false;
@@ -4879,12 +4901,14 @@
     function startContextSampling() {
       if (contextSampleTimer) return;
       contextSubs.clear();
-      contextSampleTimer = setInterval(() => {
+      const sample = () => {
         const a = adapter;
         const video = a?.getVideo();
         if (!a || !video) return;
         contextSubs.record(video.currentTime, a.getVisibleText());
-      }, 200);
+      };
+      sample();
+      contextSampleTimer = setInterval(sample, 200);
     }
     function stopContextSampling() {
       if (contextSampleTimer) clearInterval(contextSampleTimer);
@@ -5036,7 +5060,11 @@
         getVideo: () => adapter ? adapter.getVideo() : null,
         getTitle: currentTitle,
         onJudgeStart: () => {
-          lensJudgedLine = line;
+          judgedLensSeqs.add(seq);
+          if (judgedLensSeqs.size > MAX_PENDING_LINES) {
+            const oldest = judgedLensSeqs.values().next().value;
+            if (oldest !== void 0) judgedLensSeqs.delete(oldest);
+          }
           dismissAgent();
         },
         onJudged: () => {
@@ -5048,20 +5076,22 @@
       if (pipelineDisabled) return;
       const line = text.replace(/\s+/g, " ").trim();
       if (!line) return;
+      let seq = opts2.lensSeq ?? -1;
       if (opts2.lens !== false) {
         renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
+        seq = lensSeq;
       }
-      queuedLine = { text: line, context };
+      pendingLines.push({ text: line, context, lensSeq: seq });
+      if (pendingLines.length > MAX_PENDING_LINES) pendingLines.splice(0, pendingLines.length - MAX_PENDING_LINES);
       if (!lineInFlight) void drainLines();
     }
     async function drainLines() {
       lineInFlight = true;
       try {
-        while (queuedLine) {
-          const next = queuedLine;
-          queuedLine = null;
+        let next;
+        while (next = pendingLines.shift()) {
           try {
-            await processLine(next.text, next.context);
+            await processLine(next.text, next.context, next.lensSeq);
           } catch (err) {
             warn("line processing failed:", err);
           }
@@ -5070,7 +5100,7 @@
         lineInFlight = false;
       }
     }
-    async function processLine(text, context) {
+    async function processLine(text, context, lineLensSeq = -1) {
       const lineSessionId = currentSessionId();
       const staleSession = () => {
         if (currentSessionId() === lineSessionId) return false;
@@ -5091,7 +5121,7 @@
       lastLine = normalized;
       let tokens;
       let dictOverlay = null;
-      const lensJudged = () => !!lensJudgedLine && lensJudgedLine.includes(normalized);
+      const lensJudged = () => lineLensSeq >= 0 && judgedLensSeqs.has(lineLensSeq);
       if (direction === "ja-en") {
         tokens = tokenizeEnglish(normalized);
         const extracted = await requestExtractWords({
@@ -5126,6 +5156,10 @@
       wordStates = await getVocab();
       if (lensJudged() || staleSession()) return;
       if (settings.pauseMode === "off") return;
+      if (pendingLines.length) {
+        log("no card for a line with a newer one waiting:", normalized.slice(0, 40));
+        return;
+      }
       if (isClosedByUser()) return;
       if (isOpen()) {
         log("skipped line (word card still open):", normalized.slice(0, 40));
@@ -5263,12 +5297,14 @@
       log("transcript received:", rawTranscript);
       if (typeof start === "number" && !emittedCueKeys.remember(`${start}:${rawTranscript}`)) return;
       const context = { en: contextForAudio(a, start), fromAudio: true };
+      let seq = -1;
       if (audioLineIsCurrent(video, start, end)) {
         renderLens(rawTranscript.replace(/\s+/g, " "), context).catch((err) => warn("sub-lens render failed:", err));
+        seq = lensSeq;
       }
       const direction = normalizeDirection(settings?.learningDirection);
       const segments = rawTranscript.split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
-      for (const seg of segments) onLine(seg, context, { lens: false });
+      for (const seg of segments) onLine(seg, context, { lens: false, lensSeq: seq });
     }
     async function maybeExplainMissingCaptions() {
       if (captionNoticeShown) return;
@@ -5350,8 +5386,8 @@
         lastLine = "";
         hideLens();
         dismissAgent();
-        queuedLine = null;
-        lensJudgedLine = "";
+        pendingLines.length = 0;
+        judgedLensSeqs.clear();
         contextSubs.clear();
         emittedCueKeys.clear();
         lastContextTitle = "";

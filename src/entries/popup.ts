@@ -435,8 +435,7 @@ async function initModeControls(): Promise<void> {
       modeState.captionDetail || cardDetail,
       settings.pauseMode === "off" ? "off" : modeState.captionsMissing ? "warn" : "on"
     );
-    // A legacy "notify" is Ambient everywhere else (content.ts maps it too).
-    cardsSelect.value = settings.pauseMode === "pause" || settings.pauseMode === "off" ? settings.pauseMode : "copilot";
+    cardsSelect.value = settings.pauseMode; // legacy "notify" is normalized in storage
     cardsSelect.title = `Auto cards: ${cardStatus}`;
     setModeRow("mode-listen", modeState.listening ? "Live" : "Off", "", modeState.listening ? "on" : "off");
     setModeRow("mode-copilot", modeState.copilot ? "Open" : "Closed", "", modeState.copilot ? "on" : "off");

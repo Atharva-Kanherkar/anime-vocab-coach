@@ -65,6 +65,10 @@ function sendBadge(stats: Pick<Stats, "daily">): void {
 // sync disagree about learningDirection for ja-UI users with no explicit choice.
 function withDefaults(stored: Partial<Settings>): Settings {
   const merged: Settings = { ...DEFAULTS, ...stored };
+  // Old installs still store the retired "notify" mode, which is Ambient now.
+  // Normalized on read so no screen has to know: the popup showed it as "Off"
+  // and the copilot's mode select matched no option at all.
+  if ((merged.pauseMode as string) === "notify") merged.pauseMode = "copilot";
   if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
     merged.learningDirection = "ja-en";
   }

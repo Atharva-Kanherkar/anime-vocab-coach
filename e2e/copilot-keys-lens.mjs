@@ -162,9 +162,10 @@ try {
     `${afterTyping.pauses} pause(s)`);
   const value = await page.locator(CHAT).inputValue();
   check("the chat received every character, spaces included", value === typed, JSON.stringify(value));
-  if (cardBefore) {
-    check("typing '2' in the chat did not judge the card", (await page.locator(CARD).count()) > 0);
-  }
+  // The card is a precondition, not an option: without it this check would
+  // quietly vanish and the judge-key coverage with it.
+  check("a card was open to be judged by a stray '2'", cardBefore);
+  check("typing '2' in the chat did not judge the card", cardBefore && (await page.locator(CARD).count()) > 0);
 
   // ── The page's own shortcuts still work when focus is on the page ──────────
   await page.evaluate(() => {
@@ -180,6 +181,28 @@ try {
   }));
   check("Space on the page still reaches the player", pageSpace.pageKeys.includes(" "),
     JSON.stringify(pageSpace));
+
+  // ── Every sentence of a heard utterance counts as seen ─────────────────────
+  // Listening Mode delivers an utterance whole and it is split per sentence.
+  // A newest-wins queue once kept only the first and last of them. The open
+  // card holds the pipeline for its lifetime, so skip it first.
+  await page.locator("#avc-overlay-host .avc-agent-foot.avc-active button").last().click();
+  await page.waitForSelector(CARD, { state: "detached", timeout: 5000 }).catch(() => {});
+  const SENTENCES = ["犬が走る。", "猫が寝る。", "鳥が歌う。", "魚が泳ぐ。"];
+  const WORDS = ["犬", "猫", "鳥", "魚"];
+  await sw.evaluate(async (text) => {
+    const [tab] = await chrome.tabs.query({ url: "https://www.netflix.com/*" });
+    await chrome.tabs.sendMessage(tab.id, { type: "avc-transcript", text });
+  }, SENTENCES.join(""));
+  let seenWords = [];
+  for (let waited = 0; waited <= 8000; waited += 250) {
+    const vocab = await sw.evaluate(async () => (await chrome.storage.local.get("vocab")).vocab || {});
+    seenWords = WORDS.filter((w) => vocab[w] && vocab[w].seenCount > 0);
+    if (seenWords.length === WORDS.length) break;
+    await page.waitForTimeout(250);
+  }
+  check("every sentence of a multi-sentence transcript is counted as seen",
+    seenWords.length === WORDS.length, `seen ${JSON.stringify(seenWords)} of ${JSON.stringify(WORDS)}`);
 } catch (err) {
   console.error(err);
   results.push(false);
