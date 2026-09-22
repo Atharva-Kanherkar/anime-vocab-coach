@@ -118,7 +118,9 @@ export interface SiteAdapter {
   getVideo(): HTMLVideoElement | null;
   /** Whatever subtitle text is on screen right now, any language. */
   getVisibleText(): string;
-  start(onLine: (text: string, context: LineContext) => void): void;
+  /** `onClear` fires when the study-language subtitle leaves the screen, so
+   * the Subtitle Lens can follow the native line off instead of lingering. */
+  start(onLine: (text: string, context: LineContext) => void, onClear?: () => void): void;
 }
 
 export const DEFAULTS: Settings = {

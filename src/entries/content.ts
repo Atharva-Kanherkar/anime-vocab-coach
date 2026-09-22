@@ -7,7 +7,9 @@ import * as tokenizer from "../lib/tokenizer";
 import { tokenizeEnglish } from "../lib/english-tokenize";
 import { pickTargetSmart } from "../lib/pick-target";
 import * as overlay from "../lib/overlay";
-import { showLensLine, hideLens } from "../lib/sub-lens";
+import { showLensLine, hideLens, clearLensLine } from "../lib/sub-lens";
+import { installKeyShield } from "../lib/key-shield";
+import { SubtitleHistory } from "../lib/subtitle-history";
 import { requestAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
@@ -28,6 +30,22 @@ import {
 } from "../lib/caption-status";
 import type { DictEntry, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
 
+/** An audio line whose speech began longer ago than this is too late for the
+ * Subtitle Lens: by then the scene has moved on. It still reaches the card
+ * pipeline. Covers a long realtime utterance (speech, the VAD's silence wait,
+ * transcription) without admitting a line from a couple of lines back. */
+const AUDIO_LENS_MAX_LAG_SEC = 7;
+/** The same limit measured from when the line finished, when that is known. */
+const AUDIO_LENS_MAX_LAG_AFTER_END_SEC = 4;
+/** A cached line may arrive this far ahead of its moment and show at once. */
+const EARLY_LINE_TOLERANCE_SEC = 0.3;
+/** Further ahead than this is not a line arriving early but a stale window
+ * (a seek, a long pause); drop it and let the cache poll emit it on time. */
+const MAX_EARLY_HOLD_SEC = 10;
+/** After kuromoji or the dictionary fails to load, wait this long before the
+ * next line tries again, so a persistent failure is not refetched per line. */
+const JA_RETRY_MS = 30_000;
+
 declare global {
   interface Window {
     __avcMainLoaded?: boolean;
@@ -41,6 +59,9 @@ declare global {
   // into a tab that was open before the extension loaded. Wire the pipeline once.
   if (window.__avcMainLoaded) { log("main already loaded, skipping re-init"); return; }
   window.__avcMainLoaded = true;
+  // Normally installed at document_start by key-shield.js; this covers a tab
+  // Listening Mode injected into after the fact.
+  installKeyShield();
 
   // Order matters: generic matches almost anything with a <video>, so it goes last.
   const adapters: SiteAdapter[] = [youtubeAdapter, netflixAdapter, genericAdapter];
@@ -62,13 +83,31 @@ declare global {
   /** One subtitle line processed at a time; see onLine. */
   let lineInFlight = false;
   let queuedLine: { text: string; context?: LineContext } | null = null;
+  /** Newest line the Lens was asked to show. A render still tokenizing when a
+   * newer line arrives must not paint over it. */
+  let lensSeq = 0;
+  /** The line a Subtitle Lens judgment was made on. The automatic card for that
+   * same line stands down: a deliberate Lens action wins. */
+  let lensJudgedLine = "";
+  /** Last tokenization, shared by the Lens and the card pipeline, which both
+   * need the same line tokenized within milliseconds of each other. */
+  let tokenMemo: { text: string; tokens: Token[] } | null = null;
+  let initPromise: Promise<void> | null = null;
+  let jaReady = false;
+  let jaPromise: Promise<boolean> | null = null;
+  let jaFailedAt = 0;
+  /** What the page showed as the context-language subtitle, by video time, so
+   * a line heard from the audio is paired with the subtitle that was on screen
+   * while it was spoken — not whichever one is up when the transcript lands. */
+  const contextSubs = new SubtitleHistory();
+  let contextSampleTimer: ReturnType<typeof setInterval> | null = null;
   let cachePollTimer: ReturnType<typeof setInterval> | null = null;
   /** Cues already fed to onLine, so overlapping polls can never re-card a
    * line. The old single-slot "last cue" only blocked immediate repeats: a
    * poll returning [A,B,C] left the slot at C, and the next poll re-emitted A. */
   const emittedCueKeys = new CueLedger();
-  /** pollCacheHit awaits the card's whole lifetime; without this, 800ms ticks
-   * stack overlapping runs. Scoped to a generation so a hung obsolete lookup
+  /** One lookup at a time; without this, 800ms ticks stack overlapping runs
+   * behind a slow network. Scoped to a generation so a hung obsolete lookup
    * cannot block polling forever after Listening restarts. */
   let cachePollInFlight: number | null = null;
   /** Invalidates async polls across stop/restart and episode-key transitions,
@@ -97,29 +136,68 @@ declare global {
     if (adapter && !started) {
       started = true;
       log("adapter chosen:", adapter.name);
-      adapter.start(onLine);
+      adapter.start(onLine, clearLensLine);
+      // Load kuromoji and the dictionary now, not on the first subtitle line:
+      // lazily, the first lines of every episode waited seconds for a cold
+      // dictionary load before anything could appear.
+      void ensureInit();
     }
     return adapter;
   }
 
-  async function ensureInit(): Promise<void> {
-    if (initialized || pipelineDisabled) return;
+  function ensureInit(): Promise<void> {
+    if (initialized || pipelineDisabled) return Promise.resolve();
+    // One load, however many callers: the Lens and the card pipeline both ask
+    // on the first line, and two concurrent inits would load everything twice.
+    if (!initPromise) initPromise = runInit().finally(() => { initPromise = null; });
+    return initPromise;
+  }
+
+  async function runInit(): Promise<void> {
     try {
       settings = await storage.getSettings();
       setAdapterDirection(normalizeDirection(settings.learningDirection));
-      // Japanese path needs kuromoji + JMdict; English path tokenizes locally.
-      if (normalizeDirection(settings.learningDirection) === "en-ja") {
-        await tokenizer.init();
-        const data = await dict.load();
-        log("dictionary loaded:", Object.keys(data).length, "entries");
-      }
       wordStates = await storage.getVocab();
       initialized = true;
       startWatchInterval();
     } catch (err) {
       pipelineDisabled = true;
       warn("pipeline init failed:", err);
+      return;
     }
+    // Japanese path needs kuromoji + JMdict; English path tokenizes locally.
+    if (normalizeDirection(settings.learningDirection) === "en-ja") await ensureJa();
+  }
+
+  /**
+   * kuromoji and the dictionary, loaded on demand and retried after a failure.
+   *
+   * These used to load only at init, and only if the learner was studying
+   * Japanese at that moment: switching direction mid-tab left the Lens and the
+   * cards dead until a reload, and one failed kuromoji load disabled the whole
+   * pipeline for the tab although both loaders were written to be retried.
+   */
+  function ensureJa(): Promise<boolean> {
+    if (jaReady) return Promise.resolve(true);
+    if (jaPromise) return jaPromise;
+    if (Date.now() - jaFailedAt < JA_RETRY_MS) return Promise.resolve(false);
+    jaPromise = (async () => {
+      try {
+        await tokenizer.init();
+        const data = await dict.load();
+        const entries = Object.keys(data).length;
+        if (!entries) throw new Error("dictionary is empty");
+        log("dictionary loaded:", entries, "entries");
+        jaReady = true;
+      } catch (err) {
+        jaFailedAt = Date.now();
+        warn("japanese resources failed to load, will retry:", err);
+      } finally {
+        jaPromise = null;
+      }
+      return jaReady;
+    })();
+    return jaPromise;
   }
 
   function platformForAdapter(a: SiteAdapter): PlatformId {
@@ -184,9 +262,8 @@ declare global {
         const lang = studyLang();
         if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
         if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
-        const en = a?.getVisibleText() || "";
-        await onLine(seg.text, { en, fromAudio: true });
-        if (stale()) return;
+        const en = a ? contextForAudio(a, seg.start) : "";
+        onLine(seg.text, { en, fromAudio: true }, { lens: audioLineIsCurrent(video, seg.start, seg.end) });
       }
     } catch (err) {
       warn("cache poll failed:", err);
@@ -212,8 +289,59 @@ declare global {
     emittedCueKeys.clear();
   }
 
+  /** Sample the on-screen context subtitle while Listening Mode is on. */
+  function startContextSampling(): void {
+    if (contextSampleTimer) return;
+    contextSubs.clear();
+    contextSampleTimer = setInterval(() => {
+      const a = adapter;
+      const video = a?.getVideo();
+      if (!a || !video) return;
+      contextSubs.record(video.currentTime, a.getVisibleText());
+    }, 200);
+  }
+
+  function stopContextSampling(): void {
+    if (contextSampleTimer) clearInterval(contextSampleTimer);
+    contextSampleTimer = null;
+    contextSubs.clear();
+  }
+
+  /** The context subtitle for a line heard from the audio at `start` (video
+   * seconds), or what is on screen now when the start is unknown. */
+  function contextForAudio(a: SiteAdapter, start: number | undefined): string {
+    if (typeof start === "number") {
+      const at = contextSubs.textAt(start);
+      if (at !== null) return at;
+    }
+    return a.getVisibleText();
+  }
+
+  /**
+   * Whether a line heard from the audio is still current enough to mirror.
+   *
+   * A transcript lands seconds after the words were spoken — a realtime
+   * utterance once the speaker stops, a cached chunk once the whole chunk is
+   * back. The Lens is a subtitle: showing a line from a scene that has already
+   * passed is worse than showing none, so late ones go to the card pipeline
+   * only.
+   */
+  function audioLineIsCurrent(
+    video: HTMLVideoElement | null,
+    start: number | undefined,
+    end?: number
+  ): boolean {
+    if (!video) return true;
+    // Time since the line finished is the honest measure: a long line that
+    // ended a moment ago is current, however long ago it began.
+    if (typeof end === "number") return video.currentTime - end < AUDIO_LENS_MAX_LAG_AFTER_END_SEC;
+    if (typeof start === "number") return video.currentTime - start < AUDIO_LENS_MAX_LAG_SEC;
+    return true;
+  }
+
   function startPlaybackRelay(): void {
     if (playbackRelayTimer) return;
+    startContextSampling();
     playbackRelayTimer = setInterval(() => {
       if (!listeningActive) return;
       const video = adapter?.getVideo();
@@ -229,6 +357,7 @@ declare global {
   function stopPlaybackRelay(): void {
     if (playbackRelayTimer) clearInterval(playbackRelayTimer);
     playbackRelayTimer = null;
+    stopContextSampling();
   }
 
   function startWatchInterval(): void {
@@ -241,6 +370,22 @@ declare global {
   }
 
   let lastContextTitle = "";
+
+  function lensOn(s: Settings): boolean {
+    return normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
+  }
+
+  function siteEnabled(s: Settings): boolean {
+    const siteKey = adapter ? adapter.name : "generic";
+    return !(s.sites && s.sites[siteKey] === false);
+  }
+
+  async function tokenizeJa(text: string): Promise<Token[]> {
+    if (tokenMemo && tokenMemo.text === text) return tokenMemo.tokens;
+    const tokens = await tokenizer.tokenize(text);
+    tokenMemo = { text, tokens };
+    return tokens;
+  }
 
   function countProgress(vocab: VocabMap): number {
     let n = 0;
@@ -341,6 +486,45 @@ declare global {
   }
 
   /**
+   * Mirror a subtitle line in the Subtitle Lens, now.
+   *
+   * This used to happen inside the card pipeline below, which holds a line for
+   * a word-picking round-trip and then for the card's whole lifetime — up to
+   * 45 seconds. Every line spoken meanwhile queued behind it, so the Lens sat
+   * on a line from scenes ago and caught up only when the card closed. The Lens
+   * needs nothing but a local tokenization, so it runs on its own, newest line
+   * wins, and the cards keep their one-at-a-time pacing.
+   */
+  async function renderLens(line: string, context?: LineContext): Promise<void> {
+    const seq = ++lensSeq;
+    const sessionId = currentSessionId();
+    const stale = (): boolean => seq !== lensSeq || currentSessionId() !== sessionId;
+    const current = settings || (await storage.getSettings());
+    if (stale()) return;
+    if (!siteEnabled(current) || !lensOn(current)) {
+      hideLens();
+      return;
+    }
+    await ensureInit();
+    if (!initialized || stale()) return;
+    if (!(await ensureJa()) || stale()) return;
+    const tokens = await tokenizeJa(line);
+    if (stale() || !tokens.length) return;
+    showLensLine(line, context?.en || "", tokens, wordStates, {
+      peekPause: current.subLensPeek !== false,
+      getVideo: () => (adapter ? adapter.getVideo() : null),
+      getTitle: currentTitle,
+      onJudgeStart: () => {
+        lensJudgedLine = line;
+        // A deliberate Lens action wins over an automatic card, including one
+        // that opened while the user was hovering.
+        overlay.dismissAgent();
+      },
+      onJudged: () => { void refreshState(); },
+    });
+  }
+
+  /**
    * Subtitle lines arrive faster than a line takes to process, and processing
    * now makes background round-trips (word extraction, word picking) before it
    * decides anything. Left unserialized, several lines could each clear the
@@ -350,22 +534,35 @@ declare global {
    * newest arrival is held. Older queued lines are dropped on purpose; their
    * moment on screen has passed, and showing a card for them would be wrong
    * even if it were free.
+   *
+   * Returns immediately: nothing a caller does next should wait on a card.
    */
-  async function onLine(text: string, context?: LineContext): Promise<void> {
+  function onLine(text: string, context?: LineContext, opts: { lens?: boolean } = {}): void {
     if (pipelineDisabled) return;
-    if (lineInFlight) {
-      queuedLine = { text, context };
-      return;
+    const line = text.replace(/\s+/g, " ").trim();
+    if (!line) return;
+    if (opts.lens !== false) {
+      renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
     }
+    queuedLine = { text: line, context };
+    if (!lineInFlight) void drainLines();
+  }
+
+  async function drainLines(): Promise<void> {
     lineInFlight = true;
     try {
-      await processLine(text, context);
+      while (queuedLine) {
+        const next = queuedLine;
+        queuedLine = null;
+        try {
+          await processLine(next.text, next.context);
+        } catch (err) {
+          warn("line processing failed:", err);
+        }
+      }
     } finally {
       lineInFlight = false;
     }
-    const next = queuedLine;
-    queuedLine = null;
-    if (next) await onLine(next.text, next.context);
   }
 
   async function processLine(text: string, context?: LineContext): Promise<void> {
@@ -380,19 +577,13 @@ declare global {
 
     settings = await storage.getSettings();
     if (staleSession()) return;
-
-    const siteKey = adapter ? adapter.name : "generic";
-    if (settings.sites && settings.sites[siteKey] === false) {
-      hideLens();
-      return;
-    }
+    if (!siteEnabled(settings)) return;
 
     const direction = normalizeDirection(settings.learningDirection);
     setAdapterDirection(direction);
-    const lensEnabled = direction === "en-ja" && settings.subLens !== false;
-    if (!lensEnabled) hideLens();
-    // Subtitle Lens is independent of automatic cards. Turning auto cards off
-    // must not silently disable the interactive subtitle mode too.
+    const lensEnabled = lensOn(settings);
+    // With both the Lens and automatic cards off there is nothing to feed, not
+    // even exposure counts — the learner asked for a quiet screen.
     if (settings.pauseMode === "off" && !lensEnabled) return;
 
     await ensureInit();
@@ -404,7 +595,8 @@ declare global {
 
     let tokens: Token[];
     let dictOverlay: Record<string, DictEntry> | null = null;
-    let lensJudged = false;
+    // includes(): a transcript is mirrored whole but carded sentence by sentence.
+    const lensJudged = (): boolean => !!lensJudgedLine && lensJudgedLine.includes(normalized);
 
     if (direction === "ja-en") {
       tokens = tokenizeEnglish(normalized);
@@ -432,39 +624,26 @@ declare global {
         }
       }
     } else {
-      tokens = await tokenizer.tokenize(normalized);
+      if (!(await ensureJa())) return;
+      // The Lens (renderLens) mirrored this line already, off the same memo.
+      tokens = await tokenizeJa(normalized);
     }
 
     if (staleSession()) return;
 
-    // Subtitle Lens: user-initiated hover/click cards, independent of the
-    // auto-card pipeline below (no cooldown, no hourly cap, no AI quota).
-    if (lensEnabled && tokens.length) {
-      try {
-        showLensLine(normalized, context?.en || "", tokens, wordStates, {
-          peekPause: settings.subLensPeek !== false,
-          getVideo: () => (adapter ? adapter.getVideo() : null),
-          getTitle: currentTitle,
-          onJudgeStart: () => {
-            lensJudged = true;
-            // A deliberate Lens action wins over an automatic card for this
-            // subtitle, including one that opened while the user was hovering.
-            overlay.dismissAgent();
-          },
-          onJudged: () => { void refreshState(); },
-        });
-      } catch (err) {
-        warn("sub-lens render failed:", err);
-      }
-    }
-
     await storage.recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
     wordStates = await storage.getVocab();
-    if (lensJudged || staleSession()) return;
+    if (lensJudged() || staleSession()) return;
     if (settings.pauseMode === "off") return;
+    if (overlay.isClosedByUser()) return; // they closed the copilot; cards live in it
 
     if (overlay.isOpen()) {
       log("skipped line (word card still open):", normalized.slice(0, 40));
+      return;
+    }
+    // A new card resets the copilot chat to its word. Never mid-conversation.
+    if (overlay.isChatEngaged()) {
+      log("skipped line (learner is chatting with the copilot):", normalized.slice(0, 40));
       return;
     }
 
@@ -477,19 +656,20 @@ declare global {
       currentTitle(),
       dictOverlay
     );
-    if (lensJudged || staleSession()) return;
+    if (lensJudged() || staleSession()) return;
     if (!target) { log("no target word in:", normalized); return; }
 
     // pickTargetSmart just awaited a network round-trip; a card may have opened
-    // in the meantime (a review can be triggered from the panel). Re-check
-    // rather than trusting the read from before the await.
-    if (overlay.isOpen()) {
-      log("skipped line (card opened while picking):", normalized.slice(0, 40));
+    // in the meantime (a review can be triggered from the panel), or the
+    // learner may have started typing to the copilot. Re-check rather than
+    // trusting the read from before the await.
+    if (overlay.isOpen() || overlay.isChatEngaged()) {
+      log("skipped line (card opened or chat started while picking):", normalized.slice(0, 40));
       return;
     }
 
     const stats = await storage.getStats();
-    if (lensJudged || staleSession()) return;
+    if (lensJudged() || staleSession()) return;
     const now = Date.now();
     const cardTimestamps = stats.cardTimestamps || [];
 
@@ -524,7 +704,7 @@ declare global {
     // up to the moment it mounts. Previously this was fire-and-forget, leaving a
     // window where the next line was already picking a word before the card had
     // rendered and `overlay.isOpen()` could see it.
-    await handleCard(target, normalized, tokens, context, () => lensJudged).catch((err) => {
+    await handleCard(target, normalized, tokens, context, lensJudged).catch((err) => {
       warn("handleCard failed:", err);
       overlay.dismissAgent();
     });
@@ -533,7 +713,7 @@ declare global {
   // Listening mode: the offscreen document transcribes this tab's audio and the
   // background forwards Japanese text here. Only the frame that owns the video
   // handles it (matters on sites whose player lives in an iframe).
-  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; start?: number; active?: boolean; kind?: string }, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((msg: { type: string; text?: string; start?: number; end?: number; active?: boolean; kind?: string }, _sender, sendResponse) => {
     if (msg.type === "avc-toast") {
       overlay.showToast(msg.text || "", msg.kind === "error" ? "error" : "info");
       return;
@@ -548,12 +728,12 @@ declare global {
       return true;
     }
     if (msg.type === "avc-agent-show") {
-      overlay.ensureAgentMounted();
+      overlay.openAgent();
       sendResponse({ ok: true, visible: true });
       return true;
     }
     if (msg.type === "avc-agent-hide") {
-      overlay.hideAgent();
+      overlay.closeAgentByUser();
       sendResponse({ ok: true, visible: false });
       return true;
     }
@@ -578,26 +758,53 @@ declare global {
       return;
     }
     if (msg.type !== "avc-transcript") return;
+    handleTranscript(msg.text || "", typeof msg.start === "number" ? msg.start : undefined,
+      typeof msg.end === "number" ? msg.end : undefined);
+  });
+
+  /**
+   * A line heard from the tab's audio (Listening Mode).
+   *
+   * `start`/`end` are video seconds when known. A warm cache answers for the
+   * whole chunk ahead, so a line can arrive before it is spoken; it waits for
+   * its moment rather than spoiling it. A line that arrives long after it was
+   * spoken goes to the cards but not the Lens (see audioLineIsCurrent).
+   */
+  function handleTranscript(text: string, start: number | undefined, end: number | undefined): void {
     const a = pickAdapter();
     if (!a) { warn("transcript arrived but no adapter matched this frame"); return; }
-    if (!a.getVideo()) { log("transcript ignored (no video in this frame)"); return; }
-    log("transcript received:", msg.text);
-    const rawTranscript = (msg.text || "").trim();
-    if (typeof msg.start === "number" && !emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)) {
+    const video = a.getVideo();
+    if (!video) { log("transcript ignored (no video in this frame)"); return; }
+    const rawTranscript = text.trim();
+    if (pipelineDisabled || !rawTranscript) return;
+
+    const ahead = typeof start === "number" ? start - video.currentTime : 0;
+    if (ahead > EARLY_LINE_TOLERANCE_SEC) {
+      if (ahead > MAX_EARLY_HOLD_SEC) return; // a seek or a stale window; the cache poll covers it
+      const sessionId = currentSessionId();
+      const generation = cachePollGeneration;
+      setTimeout(() => {
+        if (currentSessionId() !== sessionId || cachePollGeneration !== generation) return;
+        handleTranscript(text, start, end);
+      }, (ahead * 1000) / (video.playbackRate || 1));
       return;
     }
-    const en = a.getVisibleText();
+
+    log("transcript received:", rawTranscript);
+    if (typeof start === "number" && !emittedCueKeys.remember(`${start}:${rawTranscript}`)) return;
+    const context: LineContext = { en: contextForAudio(a, start), fromAudio: true };
+    // The Lens shows the utterance whole, the way a subtitle would, and only
+    // while it is still the scene on screen.
+    if (audioLineIsCurrent(video, start, end)) {
+      renderLens(rawTranscript.replace(/\s+/g, " "), context).catch((err) => warn("sub-lens render failed:", err));
+    }
     const direction = normalizeDirection(settings?.learningDirection);
     const segments = rawTranscript
       .split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/)
       .map((s) => s.trim())
       .filter(Boolean);
-    (async () => {
-      for (const seg of segments) {
-        await onLine(seg, { en, fromAudio: true });
-      }
-    })().catch((err) => warn("transcript handling failed:", err));
-  });
+    for (const seg of segments) onLine(seg, context, { lens: false });
+  }
 
   /**
    * Say something when the video has no usable study-language captions.
@@ -630,6 +837,19 @@ declare global {
 
   onCaptions(() => {
     void maybeExplainMissingCaptions();
+  });
+
+  // Settings apply the moment they change — from the popup, the copilot's own
+  // controls, or the options page — instead of at the next subtitle line.
+  // Turning the Lens off has to take it off the screen now.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes.settings) return;
+    storage.getSettings().then((next) => {
+      settings = next;
+      setAdapterDirection(normalizeDirection(next.learningDirection));
+      if (!lensOn(next) || !siteEnabled(next)) hideLens();
+      overlay.applyPanelSettings(next);
+    }).catch(() => {});
   });
 
   /**
@@ -672,7 +892,7 @@ declare global {
       return; // background asleep or extension reloading; nothing to restore
     }
     if (!state) return;
-    if (state.copilot) overlay.ensureAgentMounted();
+    if (state.copilot) overlay.openAgent();
     if (state.listening && !listeningActive) {
       log("restoring listening session after reload");
       listeningActive = true;
@@ -706,6 +926,8 @@ declare global {
       // the previous clip's word on screen (issue #125).
       overlay.dismissAgent();
       queuedLine = null;
+      lensJudgedLine = "";
+      contextSubs.clear();
       emittedCueKeys.clear();
       lastContextTitle = "";
       resetCaptions();

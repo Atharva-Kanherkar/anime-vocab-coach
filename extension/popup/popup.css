@@ -387,6 +387,31 @@ body.av {
 }
 .av-mode-row strong { color: var(--av-ink-2); font-size: 10px; }
 
+/* The Lens and Auto cards rows are controls, not just status: the only other
+   way to turn them off was a settings page signed-in learners never reached. */
+.av-mode-switch,
+.av-mode-select {
+  min-width: 58px;
+  padding: 3px 7px;
+  border: 1.5px solid var(--av-line-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--av-ink-2);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.av-mode-switch[aria-checked="true"] {
+  border-color: var(--av-accent);
+  background: var(--av-accent);
+  color: #fff;
+}
+.av-mode-switch:disabled { cursor: not-allowed; opacity: 0.55; }
+.av-mode-select { border-radius: 8px; }
+.av-mode-switch:focus-visible,
+.av-mode-select:focus-visible { outline: 2px solid var(--av-accent); outline-offset: 2px; }
+
 .av-mode-dot {
   width: 8px;
   height: 8px;

@@ -1,5 +1,5 @@
 import { log, warn } from "../log";
-import { normalize, hasJapanese, matchesTargetScript, getAdapterDirection, setAdapterDirection } from "./util";
+import { coalesce, normalize, hasJapanese, matchesTargetScript, getAdapterDirection, setAdapterDirection } from "./util";
 import { audioLang, contextLang, normalizeDirection } from "../direction";
 import { deriveContentId } from "../cache-key";
 import { reportCaptions, resetCaptions } from "../caption-status";
@@ -28,6 +28,7 @@ type OnLine = (text: string, context: LineContext) => void;
 const CAPTION_SETTLE_MS = 1000;
 
 let onLineCb: OnLine | null = null;
+let onClearCb: (() => void) | null = null;
 
 // Hidden caption-track mode: study-language track is fetched and synced to
 // playback even while the viewer displays the other language.
@@ -158,7 +159,14 @@ function onTimeUpdate(): void {
   if (!targetCues.length || !onLineCb || !attachedVideo) return;
   const t = attachedVideo.currentTime;
   const cue = cueAt(targetCues, t);
-  if (!cue) return;
+  if (!cue) {
+    // Between cues: the line we mirrored has ended.
+    if (lastCueKey) {
+      lastCueKey = "";
+      onClearCb?.();
+    }
+    return;
+  }
   const key = `${cue.start}:${cue.text}`;
   if (key === lastCueKey) return;
   lastCueKey = key;
@@ -183,8 +191,9 @@ export const youtubeAdapter: SiteAdapter = {
   },
   getVideo,
   getVisibleText,
-  start(onLine) {
+  start(onLine, onClear) {
     onLineCb = onLine;
+    onClearCb = onClear || null;
 
     window.addEventListener("message", (e: MessageEvent) => {
       if (e.source !== window) return;
@@ -205,7 +214,6 @@ export const youtubeAdapter: SiteAdapter = {
     let lastText = "";
     let lastTextVideoId = "";
     let settleUntil = 0;
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const check = () => {
       try {
@@ -223,8 +231,12 @@ export const youtubeAdapter: SiteAdapter = {
         }
         if (Date.now() < settleUntil) return;
         const text = getVisibleText();
-        if (!text || text === lastText) return;
-        if (!matchesTargetScript(text, getAdapterDirection())) return;
+        if (text === lastText) return;
+        if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+          if (lastText) onClear?.();
+          lastText = "";
+          return;
+        }
         lastText = text;
         onLine(text, { en: "" });
       } catch (err) {
@@ -232,10 +244,7 @@ export const youtubeAdapter: SiteAdapter = {
       }
     };
 
-    const observer = new MutationObserver(() => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(check, 100);
-    });
+    const observer = new MutationObserver(coalesce(check, 50));
 
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   },

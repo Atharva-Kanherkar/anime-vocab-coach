@@ -23,8 +23,9 @@ import {
   type LearningDirection,
 } from "./direction";
 import type { Meter, TierOffer, UsageSnapshot } from "./usage-client";
-import type { DictEntry, DisplayScript, Judgment, PauseMode, Target, Token } from "../types";
+import type { DictEntry, DisplayScript, Judgment, PauseMode, Settings, Target, Token } from "../types";
 import { trackExtensionEvent } from "./extension-events";
+import { UI_HOST_ATTR, isTypingEvent, keepFocusOnMouseClick } from "./key-shield";
 
 export type InteractionMode = "ambient" | "focus";
 
@@ -78,6 +79,7 @@ interface Shell {
   sidebar: HTMLElement;
   panel: HTMLElement;
   modeSelect: HTMLSelectElement;
+  lensBtn: HTMLButtonElement;
   wordSection: HTMLElement;
   scrollArea: HTMLElement;
   wordIdle: HTMLElement;
@@ -124,6 +126,19 @@ let currentJudgments: { val: Judgment; key: string }[] = [];
 
 /** Whether the panel currently sits collapsed to its rail. */
 let collapsed = false;
+
+/**
+ * The learner is mid-conversation with the copilot. While this holds, no new
+ * card may take the panel over: a new card resets the chat to the new word, so
+ * one arriving on the video's own clock wiped the question being typed, or the
+ * reply being read, every twenty seconds or so.
+ */
+const CHAT_ENGAGED_MS = 30_000;
+/** An unsent draft holds the panel longer, but not forever: an abandoned one
+ * must not stop cards for the rest of the episode. */
+const CHAT_DRAFT_HOLD_MS = 120_000;
+let chatActiveAt = 0;
+let chatStreaming = false;
 
 const PANEL_MIN_W = 280;
 const PANEL_MAX_W = 560;
@@ -338,6 +353,22 @@ const STYLES = `
   .avc-agent-mode-select:focus {
     outline: none; border-color: rgba(227, 186, 99, 0.3);
   }
+  .avc-agent-lens-toggle {
+    height: 26px; padding: 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(236, 234, 228, 0.45);
+    font-size: 11px; line-height: 1; letter-spacing: 0.04em;
+    cursor: pointer; font-family: inherit;
+    text-decoration: line-through;
+  }
+  .avc-agent-lens-toggle[aria-pressed="true"] {
+    color: rgba(227, 186, 99, 0.95);
+    border-color: rgba(227, 186, 99, 0.35);
+    text-decoration: none;
+  }
+  .avc-agent-lens-toggle:hover { border-color: rgba(255, 255, 255, 0.22); }
   .avc-agent-head-actions {
     display: flex; align-items: center; gap: 6px; flex-shrink: 0;
   }
@@ -757,6 +788,8 @@ function mountHost(): ShadowRoot {
     host = document.createElement("div");
     host.id = "avc-overlay-host";
     host.style.cssText = "all:initial; position:fixed; inset:0; z-index:2147483647; pointer-events:none;";
+    // Keystrokes inside this host are ours, not the player's (lib/key-shield).
+    host.setAttribute(UI_HOST_ATTR, "");
     host.attachShadow({ mode: "open" });
   }
   if (host.parentElement !== parent) parent.appendChild(host);
@@ -1085,6 +1118,7 @@ function clearWordTimers(): void {
   videoWatchers = [];
   if (keyHandler) {
     window.removeEventListener("keydown", keyHandler, true);
+    shell?.root.removeEventListener("keydown", keyHandler as EventListener);
     keyHandler = null;
   }
 }
@@ -1097,7 +1131,9 @@ function resumeVideoIfNeeded(): void {
   // focus-mode card pauses and resumes when the card resolves, which is the
   // point of Focus mode, but if the learner paused (issue #127) or seeked
   // (issue #130) while the card was up then the stop is theirs.
-  if (held && held === activeVideo && wasPlaying && !userResumed && held.paused) {
+  // Never into a hidden tab: that is audio starting in a window the learner
+  // has left (the Lens already forfeits its pause the same way).
+  if (held && held === activeVideo && wasPlaying && !userResumed && held.paused && !document.hidden) {
     held.play().catch(() => {});
   }
   activeVideo = null;
@@ -1129,16 +1165,41 @@ function effectiveAutoDismissSec(opts: AgentPanelOptions): number {
   return opts.interaction === "focus" ? FOCUS_AUTO_DISMISS_SEC : AMBIENT_AUTO_DISMISS_SEC;
 }
 
+/** Re-check interval while a conversation keeps a card open past its time. */
+const CHAT_HOLD_RECHECK_MS = 5_000;
+
 function bumpAutoTimer(opts: AgentPanelOptions): void {
   const sec = effectiveAutoDismissSec(opts);
-  autoTimer.arm(sec * 1000, () => finishWord("dismiss"));
+  autoTimer.arm(sec * 1000, () => dismissUnlessChatting(autoTimer));
   // Hard cap: never block the next word indefinitely (e.g. mouse parked on
   // sidebar). Frozen with the main clock while paused, which is safe because a
   // paused video produces no new lines to block.
   if (!autoTimerMax.armed) {
     const capSec = Math.max(sec + 10, 45);
-    autoTimerMax.arm(capSec * 1000, () => finishWord("dismiss"));
+    autoTimerMax.arm(capSec * 1000, () => dismissUnlessChatting(autoTimerMax));
   }
+}
+
+/** Time out a card, unless the learner is talking to the copilot about it:
+ * the card is the chat's subject, and closing it mid-question is exactly the
+ * interruption the chat exists to avoid. The cap still applies once they stop. */
+function dismissUnlessChatting(timer: PausableTimer): void {
+  if (isChatEngaged()) {
+    timer.arm(CHAT_HOLD_RECHECK_MS, () => dismissUnlessChatting(timer));
+    return;
+  }
+  finishWord("dismiss");
+}
+
+/** True while the learner is typing to, waiting on, or reading the copilot. */
+export function isChatEngaged(): boolean {
+  if (!shell || !mounted) return false;
+  if (chatStreaming) return true;
+  // Time-bounded on purpose. Focus alone is no signal: the composer keeps it
+  // after every reply, and holding on focus would stop cards indefinitely.
+  const since = Date.now() - chatActiveAt;
+  if (since < CHAT_ENGAGED_MS) return true;
+  return since < CHAT_DRAFT_HOLD_MS && shell.chatInput.value.trim() !== "";
 }
 
 /** Freeze both dismissal clocks while the learner studies a paused frame. */
@@ -1167,6 +1228,8 @@ async function submitChat(): Promise<void> {
   chatHistory.push({ role: "user", content: text });
   shell.chatSend.disabled = true;
   shell.chatInput.disabled = true;
+  chatStreaming = true;
+  chatActiveAt = Date.now();
 
   const streamBubble = appendChatBubble(shell.chatLog, "assistant", "", true);
   let full = "";
@@ -1226,9 +1289,15 @@ async function submitChat(): Promise<void> {
       surfaceQuotaError({ ok: false, error: msg });
     }
   } finally {
-    shell.chatSend.disabled = false;
-    shell.chatInput.disabled = false;
-    shell.chatInput.focus();
+    chatStreaming = false;
+    // The reply has only just landed; give the learner time to read it.
+    chatActiveAt = Date.now();
+    // The panel may have been closed while the reply streamed.
+    if (shell) {
+      shell.chatSend.disabled = false;
+      shell.chatInput.disabled = false;
+      shell.chatInput.focus();
+    }
   }
 }
 
@@ -1444,6 +1513,19 @@ function buildShell(root: ShadowRoot): Shell {
   });
   modeSelect.addEventListener("click", (e) => e.stopPropagation());
 
+  // The Subtitle Lens, on or off, from where the learner already is. Turning
+  // our subtitles off to just listen used to mean finding a settings page.
+  const lensBtn = document.createElement("button");
+  lensBtn.className = "avc-agent-lens-toggle";
+  lensBtn.type = "button";
+  lensBtn.textContent = "CC";
+  lensBtn.setAttribute("aria-label", "Subtitle Lens");
+  lensBtn.setAttribute("aria-pressed", "true");
+  lensBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    void getSettings().then((s) => setSettings({ subLens: s.subLens === false }));
+  });
+
   const closeBtn = document.createElement("button");
   closeBtn.className = "avc-agent-close";
   closeBtn.type = "button";
@@ -1452,7 +1534,7 @@ function buildShell(root: ShadowRoot): Shell {
   closeBtn.textContent = "×";
   closeBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    hideAgent();
+    closeAgentByUser();
   });
 
   // Collapse is not close: the card survives it. Labels and titles say so,
@@ -1472,6 +1554,7 @@ function buildShell(root: ShadowRoot): Shell {
 
   const headActions = document.createElement("div");
   headActions.className = "avc-agent-head-actions";
+  headActions.appendChild(lensBtn);
   headActions.appendChild(modeSelect);
   headActions.appendChild(collapseBtn);
   headActions.appendChild(closeBtn);
@@ -1548,12 +1631,19 @@ function buildShell(root: ShadowRoot): Shell {
   chatSend.textContent = "Send";
   chatSend.addEventListener("click", (e) => { e.stopPropagation(); void submitChat(); });
   chatInput.addEventListener("keydown", (e) => {
+    // Fallback for a tab without the document_start shield; see lib/key-shield.
     e.stopPropagation();
+    // Enter while an IME is composing (typing Japanese) confirms the
+    // conversion; it must not send a half-typed message.
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void submitChat();
     }
   });
+  chatInput.addEventListener("input", () => { chatActiveAt = Date.now(); });
+  // Clicking into the composer is the start of a question.
+  chatInput.addEventListener("focus", () => { chatActiveAt = Date.now(); });
   chatInput.addEventListener("click", (e) => e.stopPropagation());
   chatRow.appendChild(chatInput);
   chatRow.appendChild(chatSend);
@@ -1599,13 +1689,17 @@ function buildShell(root: ShadowRoot): Shell {
   root.appendChild(layer);
 
   sidebar.addEventListener("click", (e) => e.stopPropagation());
+  keepFocusOnMouseClick(root);
+  // In fullscreen the host sits inside the player, whose double-click toggles
+  // fullscreen; selecting a word in the chat must not throw the learner out.
+  sidebar.addEventListener("dblclick", (e) => e.stopPropagation());
 
   document.addEventListener("fullscreenchange", () => {
     if (mounted) mountHost();
   });
 
   return {
-    root, ambient, sidebar, panel, modeSelect, wordSection: scrollArea, scrollArea,
+    root, ambient, sidebar, panel, modeSelect, lensBtn, wordSection: scrollArea, scrollArea,
     wordIdle, wordActive, foot, buttons, hint, chatLog, chatInput, chatSend,
     aiOut, explainBtn, hookBtn, collapseBtn, rail,
   };
@@ -1693,6 +1787,8 @@ export type LimitKind = "ai" | "auto" | "listening";
 const limitShown = new Set<LimitKind>();
 let paywallEl: HTMLElement | null = null;
 let paywallKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+/** The shadow root the sheet's key handler also listens on. */
+let paywallRoot: ShadowRoot | null = null;
 
 function planLabel(plan: string): string {
   if (plan === "max") return "Max";
@@ -1791,7 +1887,9 @@ function buildPlanButton(tier: TierOffer, featured: boolean): HTMLElement | null
 export function dismissLimitSheet(): void {
   if (paywallKeyHandler) {
     window.removeEventListener("keydown", paywallKeyHandler, true);
+    paywallRoot?.removeEventListener("keydown", paywallKeyHandler as EventListener);
     paywallKeyHandler = null;
+    paywallRoot = null;
   }
   const el = paywallEl;
   if (!el) return;
@@ -1901,6 +1999,10 @@ export function showLimitSheet(kind: LimitKind, usage: UsageSnapshot | null): vo
     dismissLimitSheet();
   };
   window.addEventListener("keydown", paywallKeyHandler, true);
+  // Focus is on the sheet's own button, so the key shield keeps Escape inside
+  // our shadow root; listen there too.
+  paywallRoot = root;
+  root.addEventListener("keydown", paywallKeyHandler as EventListener);
 
   requestAnimationFrame(() => overlay.classList.add("avc-visible"));
   dismiss.focus();
@@ -1965,13 +2067,53 @@ export function ensureAgentMounted(): void {
   void Promise.all([getSettings(), getAgentPanelWidth(), getAgentPanelCollapsed()]).then(
     ([s, w, collapsed]) => {
       if (!shell) return;
-      shell.modeSelect.value = s.pauseMode;
-      applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+      applyPanelSettings(s);
       setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
       // Re-applying the learner's own choice, so it is not written back.
       if (collapsed) setCollapsed(true, false);
     }
   );
+}
+
+/**
+ * Reflect settings in the panel's own controls. Called on mount and whenever
+ * settings change anywhere (popup, options page, this panel), so the header
+ * never shows a mode the extension is no longer in.
+ */
+export function applyPanelSettings(s: Settings): void {
+  if (!shell) return;
+  shell.modeSelect.value = s.pauseMode;
+  // Mid-card, the card keeps the interaction it opened with; a Focus card that
+  // stopped the video still owns that pause and still resumes it.
+  if (!wordPending) applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+  const lensOn = normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
+  shell.lensBtn.setAttribute("aria-pressed", String(lensOn));
+  shell.lensBtn.title = lensOn
+    ? "Subtitle Lens on — click to hide our subtitles and just listen"
+    : "Subtitle Lens off — click to show interactive subtitles";
+  shell.lensBtn.hidden = normalizeDirection(s.learningDirection) !== "en-ja";
+}
+
+/**
+ * The learner closed the copilot on this tab. Automatic cards used to mount it
+ * straight back — the next word reopened the panel they had just closed, and
+ * recorded it as open for the next reload. Now only an explicit open (the
+ * popup, or a reload restoring a panel that was open) brings it back.
+ */
+let closedByUser = false;
+
+export function closeAgentByUser(): void {
+  closedByUser = true;
+  hideAgent();
+}
+
+export function openAgent(): void {
+  closedByUser = false;
+  ensureAgentMounted();
+}
+
+export function isClosedByUser(): boolean {
+  return closedByUser;
 }
 
 /** Remove the sidebar from this tab until opened again. */
@@ -2072,6 +2214,20 @@ export function presentWord(
     // panel, say) is the same pause-to-study case: hold it until playback.
     // `wasPlaying` is already false here, so there is nothing to resume.
     if (video.paused && !cardHold.owned()) freezeAutoTimers();
+
+    // Stop the clock while the tab is hidden. Left running, a Focus card timed
+    // out in a background tab and resumed the video there; now it waits for the
+    // learner to come back to it.
+    const onVisibility = (): void => {
+      if (document.hidden) {
+        freezeAutoTimers();
+        return;
+      }
+      // Back: run again unless the stop is the learner's own.
+      if (!video.paused || cardHold.owned()) thawAutoTimers();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    videoWatchers.push(() => document.removeEventListener("visibilitychange", onVisibility));
   }
 
   wordCtx = ctx;
@@ -2084,16 +2240,12 @@ export function presentWord(
 
   keyHandler = (e: KeyboardEvent) => {
     if (!wordPending) return;
-    // Never hijack 1/2/3 (or any judge key) while the user is typing into a page
-    // field — a YouTube search box is an <input>, and contenteditable/select
-    // count too. Check both the event target and the focused element.
-    const isEditable = (el: EventTarget | null): boolean => {
-      const node = el as HTMLElement | null;
-      if (!node) return false;
-      const tag = node.tagName;
-      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable === true;
-    };
-    if (isEditable(e.target) || isEditable(document.activeElement)) return;
+    // Never hijack 1/2/3 (or any judge key) while the user is typing — into a
+    // page field (a YouTube search box) or into our own chat. The chat lives in
+    // a shadow root, so a window listener sees the event retargeted to the host
+    // <div>; isTypingEvent looks through that. Typing "2" in a question used to
+    // save the word as Learn and swallow the digit.
+    if (e.metaKey || e.ctrlKey || e.altKey || isTypingEvent(e)) return;
     const match = currentJudgments.find((j) => j.key === e.key);
     if (match) {
       e.preventDefault();
@@ -2102,6 +2254,9 @@ export function presentWord(
     }
   };
   window.addEventListener("keydown", keyHandler, true);
+  // With focus on one of the panel's buttons the key shield keeps the key in
+  // our shadow root, so the judge keys have to be heard there as well.
+  shell?.root.addEventListener("keydown", keyHandler as EventListener);
 
   return new Promise((resolve) => {
     wordResolve = resolve;

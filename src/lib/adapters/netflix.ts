@@ -1,5 +1,5 @@
 import { warn } from "../log";
-import { normalize, matchesTargetScript, getAdapterDirection } from "./util";
+import { coalesce, normalize, matchesTargetScript, getAdapterDirection } from "./util";
 import type { SiteAdapter } from "../../types";
 
 function getVisibleText(): string {
@@ -16,15 +16,19 @@ export const netflixAdapter: SiteAdapter = {
     return document.querySelector<HTMLVideoElement>("video");
   },
   getVisibleText,
-  start(onLine) {
+  start(onLine, onClear) {
     let lastText = "";
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const check = () => {
       try {
         const text = getVisibleText();
-        if (!text || text === lastText) return;
-        if (!matchesTargetScript(text, getAdapterDirection())) return;
+        if (text === lastText) return;
+        if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+          // The study-language line is gone (blank, or the other language).
+          if (lastText) onClear?.();
+          lastText = "";
+          return;
+        }
         lastText = text;
         onLine(text, { en: "" });
       } catch (err) {
@@ -32,10 +36,7 @@ export const netflixAdapter: SiteAdapter = {
       }
     };
 
-    const observer = new MutationObserver(() => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(check, 100);
-    });
+    const observer = new MutationObserver(coalesce(check, 50));
 
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   },

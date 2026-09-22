@@ -333,6 +333,14 @@
       });
     });
   }
+  function setSettings(partial) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["settings"]);
+      const settings = { ...withDefaults(r.settings || {}), ...partial };
+      await chrome.storage.local.set({ settings });
+      return settings;
+    });
+  }
   function getVocab() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["vocab"], (r) => resolve(r.vocab || {}));
@@ -803,7 +811,7 @@
     });
   }
   function setModeRow(id, status, detail, state) {
-    byId(`${id}-status`).textContent = status;
+    if (status !== null) byId(`${id}-status`).textContent = status;
     const detailEl = document.getElementById(`${id}-detail`);
     if (detailEl) detailEl.textContent = detail;
     const dot = byId(`${id}-dot`);
@@ -813,6 +821,8 @@
     const copilotBtn = byId("copilot-btn");
     const listeningBtn = byId("listening-btn");
     const sessionBtn = byId("study-session-btn");
+    const lensToggle = byId("mode-lens-status");
+    const cardsSelect = byId("mode-cards-select");
     const errEl = byId("listen-error");
     const tabId = await activeTabId();
     if (tabId == null) {
@@ -842,20 +852,25 @@
       };
       const lensConfigured = settings.subLens !== false;
       const lensSupported = settings.learningDirection === "en-ja";
+      const lensLive = lensConfigured && lensSupported;
       setModeRow(
         "mode-lens",
-        lensConfigured && lensSupported ? "On" : "Off",
-        !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Hover or click subtitle words" : "Enable in Settings",
-        lensConfigured && lensSupported ? "on" : lensConfigured ? "warn" : "off"
+        lensLive ? "On" : "Off",
+        !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Hover or click subtitle words" : "Off \u2014 no subtitles of ours on screen",
+        lensLive ? "on" : lensConfigured ? "warn" : "off"
       );
+      lensToggle.setAttribute("aria-checked", String(lensLive));
+      lensToggle.disabled = !lensSupported;
       const cardStatus = settings.pauseMode === "pause" ? "Focus" : settings.pauseMode === "copilot" ? "Ambient" : "Off";
       const cardDetail = settings.pauseMode === "pause" ? "Pauses for each automatic card" : settings.pauseMode === "copilot" ? "Shows automatic cards without pausing" : "Subtitle Lens can still run";
       setModeRow(
         "mode-cards",
-        cardStatus,
+        null,
         modeState.captionDetail || cardDetail,
         settings.pauseMode === "off" ? "off" : modeState.captionsMissing ? "warn" : "on"
       );
+      cardsSelect.value = settings.pauseMode === "pause" || settings.pauseMode === "off" ? settings.pauseMode : "copilot";
+      cardsSelect.title = `Auto cards: ${cardStatus}`;
       setModeRow("mode-listen", modeState.listening ? "Live" : "Off", "", modeState.listening ? "on" : "off");
       setModeRow("mode-copilot", modeState.copilot ? "Open" : "Closed", "", modeState.copilot ? "on" : "off");
       listeningBtn.textContent = modeState.listening ? "Stop Listening" : "Start Listening";
@@ -878,6 +893,19 @@
     const setCopilot = async (active) => {
       await runtimeMessage({ type: active ? "avc-agent-show" : "avc-agent-hide", tabId });
     };
+    lensToggle.addEventListener("click", () => {
+      void (async () => {
+        const current = await getSettings();
+        await setSettings({ subLens: current.subLens === false });
+        await refresh();
+      })();
+    });
+    cardsSelect.addEventListener("change", () => {
+      void (async () => {
+        await setSettings({ pauseMode: cardsSelect.value });
+        await refresh();
+      })();
+    });
     listeningBtn.addEventListener("click", () => {
       void (async () => {
         await setListening(!modeState?.listening);
@@ -929,12 +957,7 @@
     });
     byId("settings-link").addEventListener("click", async (e) => {
       e.preventDefault();
-      const token = await getSyncToken();
-      if (token) {
-        chrome.tabs.create({ url: ownedWebUrl("/app#settings", "popup_settings") });
-      } else {
-        chrome.runtime.openOptionsPage();
-      }
+      chrome.runtime.openOptionsPage();
     });
     byId("export-link").addEventListener("click", async (e) => {
       e.preventDefault();

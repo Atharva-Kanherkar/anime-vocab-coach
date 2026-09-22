@@ -193,6 +193,7 @@
         const detail = String(err && err.message || err);
         const code = err instanceof CodedError ? err.code : "capture-failed";
         olog("START FAILED:", detail);
+        stop(msg.tabId);
         report(msg.tabId, code, detail);
         sendResponse({ ok: false, error: detail });
       });
@@ -267,7 +268,11 @@
     return chunks.reduce((n, c) => n + c.length, 0);
   }
   async function flushChunk(session) {
-    if (session.transcribingGeneration === session.modeGeneration || !session.cacheKey || session.auth.kind !== "cloud") return;
+    if (session.transcribingGeneration === session.modeGeneration) {
+      session.flushDeferred = true;
+      return;
+    }
+    if (!session.cacheKey || session.auth.kind !== "cloud") return;
     if (session.playbackPaused) return;
     if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
     const pcm = concatPcm(session.pcmBuffer);
@@ -301,14 +306,20 @@
           const cue = `${seg.start ?? "?"}:${t}`;
           if (!session.sentCues.remember(cue)) continue;
           olog(data.hit ? "cache hit:" : "transcribed:", t);
-          chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: seg.start }).catch(() => {
+          chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: seg.start, end: seg.end }).catch(() => {
           });
         }
       }
     } catch (err) {
       olog("chunk transcribe failed:", String(err));
     } finally {
-      if (session.transcribingGeneration === generation) session.transcribingGeneration = null;
+      if (session.transcribingGeneration === generation) {
+        session.transcribingGeneration = null;
+        if (session.flushDeferred && session.active && session.modeGeneration === generation) {
+          session.flushDeferred = false;
+          flushChunk(session).catch((err) => olog("flush error:", String(err)));
+        }
+      }
     }
   }
   async function start({ streamId, tabId, auth, model, language, cacheKey }) {
@@ -368,7 +379,9 @@
       sentCues: new CueLedger(),
       billedFromMs: null,
       pendingBillMs: 0,
-      modeGeneration: 0
+      modeGeneration: 0,
+      flushDeferred: false,
+      speechTimes: /* @__PURE__ */ new Map()
     };
     sessions[tabId] = session;
     proc.onaudioprocess = (e) => {
@@ -440,12 +453,23 @@
         session.ready = true;
         session.reconnects = 0;
         olog("realtime session ready \u2014 streaming audio");
+      } else if (msg.type === "input_audio_buffer.speech_started" && msg.item_id) {
+        session.speechTimes.set(msg.item_id, { start: session.playbackTime });
+        if (session.speechTimes.size > 50) {
+          const oldest = session.speechTimes.keys().next().value;
+          if (oldest !== void 0) session.speechTimes.delete(oldest);
+        }
+      } else if (msg.type === "input_audio_buffer.speech_stopped" && msg.item_id) {
+        const times = session.speechTimes.get(msg.item_id);
+        if (times) times.end = session.playbackTime;
       } else if (msg.type === "conversation.item.input_audio_transcription.completed") {
         const t = (msg.transcript || "").trim();
+        const times = msg.item_id ? session.speechTimes.get(msg.item_id) : void 0;
+        if (msg.item_id) session.speechTimes.delete(msg.item_id);
         const langOk = session.language === "en" ? /[A-Za-z]{2,}/.test(t) : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
         if (t && langOk) {
           olog("transcript:", t);
-          chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {
+          chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: times?.start, end: times?.end }).catch(() => {
           });
         }
       } else if (msg.type === "error") {
@@ -453,6 +477,9 @@
         olog("realtime error:", String(detail).slice(0, 300));
         if (/api key|invalid_?api|unauthor|authentication/i.test(detail)) {
           report(session.tabId, "invalid-key", detail);
+          stop(session.tabId);
+        } else if (!session.ready) {
+          report(session.tabId, "capture-failed", detail);
           stop(session.tabId);
         }
       }

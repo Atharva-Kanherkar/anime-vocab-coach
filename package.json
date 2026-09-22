@@ -19,6 +19,7 @@
     "test:unit": "vitest run",
     "test:e2e": "node e2e/extension-review.mjs",
     "test:e2e:cues": "node e2e/generic-cues.mjs",
+    "test:e2e:copilot-keys": "node e2e/copilot-keys-lens.mjs",
     "test:e2e:onboarding": "node e2e/onboarding.mjs",
     "test:e2e:youtube": "node e2e/youtube-session.mjs",
     "test:e2e:youtube:followups": "node e2e/youtube-followups.mjs",

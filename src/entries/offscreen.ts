@@ -53,6 +53,13 @@ interface Session {
   /** Bumped on every mode change so work resumed after an await can tell that
    * the session moved on while it was suspended. */
   modeGeneration: number;
+  /** A chunk tick that landed while a transcription was in flight. Flushed the
+   * moment that request returns, instead of waiting for the next tick with a
+   * double-length chunk — which put lines up to 12s behind the video. */
+  flushDeferred: boolean;
+  /** Video time at which the realtime VAD heard each utterance start and stop,
+   * by conversation item, so its transcript can say when it was spoken. */
+  speechTimes: Map<string, { start: number; end?: number }>;
 }
 
 async function getWsKey(session: Session): Promise<string> {
@@ -297,6 +304,10 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, send
         const detail = String((err && err.message) || err);
         const code = err instanceof CodedError ? err.code : "capture-failed";
         olog("START FAILED:", detail);
+        // Release the tab capture a half-started session is still holding.
+        // Left open, Chrome refused every later capture of this tab ("active
+        // stream"), so Listening could not be restarted without a reload.
+        stop(msg.tabId);
         report(msg.tabId, code, detail);
         sendResponse({ ok: false, error: detail });
       });
@@ -380,7 +391,11 @@ function pcmSampleCount(chunks: Int16Array[]): number {
 }
 
 async function flushChunk(session: Session): Promise<void> {
-  if (session.transcribingGeneration === session.modeGeneration || !session.cacheKey || session.auth.kind !== "cloud") return;
+  if (session.transcribingGeneration === session.modeGeneration) {
+    session.flushDeferred = true;
+    return;
+  }
+  if (!session.cacheKey || session.auth.kind !== "cloud") return;
   if (session.playbackPaused) return;
   if (!session.chunkStarted || pcmSampleCount(session.pcmBuffer) < MIN_PCM_SAMPLES) return;
 
@@ -403,7 +418,7 @@ async function flushChunk(session: Session): Promise<void> {
     });
     const data = (await res.json().catch(() => ({}))) as {
       hit?: boolean;
-      segments?: { start?: number; text: string }[];
+      segments?: { start?: number; end?: number; text: string }[];
       error?: string;
     };
     // A cache-key or mode change clears sentCues. Discard the old response so it
@@ -424,14 +439,22 @@ async function flushChunk(session: Session): Promise<void> {
         const cue = `${seg.start ?? "?"}:${t}`;
         if (!session.sentCues.remember(cue)) continue;
         olog(data.hit ? "cache hit:" : "transcribed:", t);
-        chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: seg.start }).catch(() => {});
+        chrome.runtime
+          .sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: seg.start, end: seg.end })
+          .catch(() => {});
       }
     }
   } catch (err) {
     olog("chunk transcribe failed:", String(err));
   } finally {
     // An obsolete request must never unlock the replacement generation's poll.
-    if (session.transcribingGeneration === generation) session.transcribingGeneration = null;
+    if (session.transcribingGeneration === generation) {
+      session.transcribingGeneration = null;
+      if (session.flushDeferred && session.active && session.modeGeneration === generation) {
+        session.flushDeferred = false;
+        flushChunk(session).catch((err) => olog("flush error:", String(err)));
+      }
+    }
   }
 }
 
@@ -484,7 +507,9 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
     sentCues: new CueLedger(),
     billedFromMs: null,
     pendingBillMs: 0,
-    modeGeneration: 0
+    modeGeneration: 0,
+    flushDeferred: false,
+    speechTimes: new Map()
   };
   sessions[tabId] = session;
 
@@ -545,7 +570,7 @@ async function connectWS(session: Session): Promise<void> {
   ws.onopen = () => olog("realtime WS open");
 
   ws.onmessage = (e) => {
-    let msg: { type?: string; transcript?: string; error?: { message?: string } };
+    let msg: { type?: string; transcript?: string; item_id?: string; error?: { message?: string } };
     try { msg = JSON.parse(e.data); } catch { return; }
 
     if (msg.type === "session.created") {
@@ -566,20 +591,42 @@ async function connectWS(session: Session): Promise<void> {
       session.ready = true;
       session.reconnects = 0;
       olog("realtime session ready — streaming audio");
+    } else if (msg.type === "input_audio_buffer.speech_started" && msg.item_id) {
+      // The relayed playback time runs up to half a second stale, and the VAD
+      // reports a beat after the voice starts; good enough to find the subtitle
+      // that was on screen, which is all the tab uses it for.
+      session.speechTimes.set(msg.item_id, { start: session.playbackTime });
+      if (session.speechTimes.size > 50) {
+        const oldest = session.speechTimes.keys().next().value;
+        if (oldest !== undefined) session.speechTimes.delete(oldest);
+      }
+    } else if (msg.type === "input_audio_buffer.speech_stopped" && msg.item_id) {
+      const times = session.speechTimes.get(msg.item_id);
+      if (times) times.end = session.playbackTime;
     } else if (msg.type === "conversation.item.input_audio_transcription.completed") {
       const t = (msg.transcript || "").trim();
+      const times = msg.item_id ? session.speechTimes.get(msg.item_id) : undefined;
+      if (msg.item_id) session.speechTimes.delete(msg.item_id);
       const langOk = session.language === "en"
         ? /[A-Za-z]{2,}/.test(t)
         : /[\u3040-\u30FF\u4E00-\u9FFF]/.test(t);
       if (t && langOk) {
         olog("transcript:", t);
-        chrome.runtime.sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t }).catch(() => {});
+        chrome.runtime
+          .sendMessage({ type: "avc-transcript", tabId: session.tabId, text: t, start: times?.start, end: times?.end })
+          .catch(() => {});
       }
     } else if (msg.type === "error") {
       const detail = (msg.error && msg.error.message) || JSON.stringify(msg);
       olog("realtime error:", String(detail).slice(0, 300));
       if (/api key|invalid_?api|unauthor|authentication/i.test(detail)) {
         report(session.tabId, "invalid-key", detail);
+        stop(session.tabId);
+      } else if (!session.ready) {
+        // An error before the session is configured (session.update refused)
+        // means no audio will ever be sent: the tab showed "Live" and the
+        // heartbeat billed while nothing was transcribed. Say so and stop.
+        report(session.tabId, "capture-failed", detail);
         stop(session.tabId);
       }
     }

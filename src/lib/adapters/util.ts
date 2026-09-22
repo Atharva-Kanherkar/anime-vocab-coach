@@ -1,5 +1,27 @@
 import { normalizeDirection, type LearningDirection } from "../direction";
 
+/**
+ * Schedule `fn` at most once per `ms`, and never later than `ms` after the
+ * first request.
+ *
+ * The adapters used to debounce their MutationObserver: every mutation pushed
+ * the check back another 100ms. A streaming player's DOM is never quiet — the
+ * progress bar, the clock and the control fades all mutate the body several
+ * times a second — so the check kept being pushed back and the subtitle was
+ * read late, sometimes a whole line late. Coalescing keeps the batching and
+ * drops the starvation: the check always runs within `ms`.
+ */
+export function coalesce(fn: () => void, ms: number): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return () => {
+    if (timer) return;
+    timer = setTimeout(() => {
+      timer = null;
+      fn();
+    }, ms);
+  };
+}
+
 export function normalize(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }

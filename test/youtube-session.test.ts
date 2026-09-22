@@ -98,7 +98,8 @@ describe("#126 a reload restores the whole session, not half of it", () => {
   it("restores both sides on boot", () => {
     const restore = functionBody(content, "restoreTabSession");
     expect(restore).toMatch(/avc-session-state/);
-    expect(restore).toMatch(/ensureAgentMounted\(\)/);
+    expect(restore).toMatch(/openAgent\(\)/);
+    expect(functionBody(panel, "openAgent")).toMatch(/ensureAgentMounted\(\)/);
     expect(restore).toMatch(/listeningActive = true/);
     expect(restore).toMatch(/startCachePolling\(\)/);
     expect(restore).toMatch(/startPlaybackRelay\(\)/);
@@ -218,11 +219,14 @@ describe("#125 a line in flight belongs to the video it came from", () => {
 
   it("re-checks it after every await that can outlive the video", () => {
     const body = functionBody(content, "processLine");
-    expect(body.match(/staleSession\(\)/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(body.match(/staleSession\(\)/g)?.length).toBeGreaterThanOrEqual(4);
     // Nothing may reach the screen after a change: not the card, not the Lens.
-    const lens = body.indexOf("showLensLine(");
     const card = body.indexOf("await handleCard(");
-    expect(body.lastIndexOf("staleSession()", lens)).toBeGreaterThan(-1);
     expect(body.lastIndexOf("staleSession()", card)).toBeGreaterThan(-1);
+    // The Lens renders on its own path, gated on the same live session id.
+    const lensBody = functionBody(content, "renderLens");
+    expect(lensBody).toMatch(/currentSessionId\(\) !== sessionId/);
+    const lens = lensBody.indexOf("showLensLine(");
+    expect(lensBody.lastIndexOf("stale()", lens)).toBeGreaterThan(-1);
   });
 });

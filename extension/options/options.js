@@ -40,13 +40,6 @@
 
   // src/config.ts
   var WEB_URL = "https://animevocab.com";
-  function ownedWebUrl(path, campaign) {
-    const url = new URL(path, WEB_URL);
-    url.searchParams.set("utm_source", "animevocab_extension");
-    url.searchParams.set("utm_medium", "extension");
-    url.searchParams.set("utm_campaign", campaign);
-    return url.toString();
-  }
 
   // src/lib/feature-events.ts
   var TRACK_URL = WEB_URL + "/api/track";
@@ -108,11 +101,6 @@
           exportedAt: (/* @__PURE__ */ new Date()).toISOString()
         });
       });
-    });
-  }
-  function getSyncToken() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
     });
   }
   function resetProgress() {
@@ -213,11 +201,6 @@
     });
   }
   document.addEventListener("DOMContentLoaded", async () => {
-    const token = await getSyncToken();
-    if (token) {
-      window.location.replace(ownedWebUrl("/app#settings", "options_redirect"));
-      return;
-    }
     initTheme();
     await loadSettingsForm();
     maybeShowJaEnBanner();

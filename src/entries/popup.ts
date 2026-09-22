@@ -5,7 +5,7 @@ import { mountReviewPrompt } from "../lib/review-prompt-ui";
 import { mountOnboarding } from "../lib/onboarding-ui";
 import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
 import { trackExtensionEvent } from "../lib/extension-events";
-import type { DailyStats } from "../types";
+import type { DailyStats, PauseMode } from "../types";
 
 type Theme = "dark" | "light";
 
@@ -366,8 +366,8 @@ function runtimeMessage<T>(message: object): Promise<T | undefined> {
   });
 }
 
-function setModeRow(id: string, status: string, detail: string, state: "on" | "off" | "warn"): void {
-  byId(`${id}-status`).textContent = status;
+function setModeRow(id: string, status: string | null, detail: string, state: "on" | "off" | "warn"): void {
+  if (status !== null) byId(`${id}-status`).textContent = status;
   const detailEl = document.getElementById(`${id}-detail`);
   if (detailEl) detailEl.textContent = detail;
   const dot = byId(`${id}-dot`);
@@ -378,6 +378,8 @@ async function initModeControls(): Promise<void> {
   const copilotBtn = byId<HTMLButtonElement>("copilot-btn");
   const listeningBtn = byId<HTMLButtonElement>("listening-btn");
   const sessionBtn = byId<HTMLButtonElement>("study-session-btn");
+  const lensToggle = byId<HTMLButtonElement>("mode-lens-status");
+  const cardsSelect = byId<HTMLSelectElement>("mode-cards-select");
   const errEl = byId<HTMLParagraphElement>("listen-error");
   const tabId = await activeTabId();
   if (tabId == null) {
@@ -410,12 +412,15 @@ async function initModeControls(): Promise<void> {
 
     const lensConfigured = settings.subLens !== false;
     const lensSupported = settings.learningDirection === "en-ja";
+    const lensLive = lensConfigured && lensSupported;
     setModeRow(
       "mode-lens",
-      lensConfigured && lensSupported ? "On" : "Off",
-      !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Hover or click subtitle words" : "Enable in Settings",
-      lensConfigured && lensSupported ? "on" : lensConfigured ? "warn" : "off"
+      lensLive ? "On" : "Off",
+      !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Hover or click subtitle words" : "Off — no subtitles of ours on screen",
+      lensLive ? "on" : lensConfigured ? "warn" : "off"
     );
+    lensToggle.setAttribute("aria-checked", String(lensLive));
+    lensToggle.disabled = !lensSupported;
     const cardStatus = settings.pauseMode === "pause" ? "Focus" : settings.pauseMode === "copilot" ? "Ambient" : "Off";
     const cardDetail = settings.pauseMode === "pause"
       ? "Pauses for each automatic card"
@@ -426,10 +431,13 @@ async function initModeControls(): Promise<void> {
     // so that fact outranks the mode description on this row.
     setModeRow(
       "mode-cards",
-      cardStatus,
+      null,
       modeState.captionDetail || cardDetail,
       settings.pauseMode === "off" ? "off" : modeState.captionsMissing ? "warn" : "on"
     );
+    // A legacy "notify" is Ambient everywhere else (content.ts maps it too).
+    cardsSelect.value = settings.pauseMode === "pause" || settings.pauseMode === "off" ? settings.pauseMode : "copilot";
+    cardsSelect.title = `Auto cards: ${cardStatus}`;
     setModeRow("mode-listen", modeState.listening ? "Live" : "Off", "", modeState.listening ? "on" : "off");
     setModeRow("mode-copilot", modeState.copilot ? "Open" : "Closed", "", modeState.copilot ? "on" : "off");
 
@@ -457,6 +465,23 @@ async function initModeControls(): Promise<void> {
   const setCopilot = async (active: boolean): Promise<void> => {
     await runtimeMessage({ type: active ? "avc-agent-show" : "avc-agent-hide", tabId });
   };
+
+  // Settings changes reach the tab through storage: the content script applies
+  // them the moment they land, so the Lens leaves the screen right away.
+  lensToggle.addEventListener("click", () => {
+    void (async () => {
+      const current = await storage.getSettings();
+      await storage.setSettings({ subLens: current.subLens === false });
+      await refresh();
+    })();
+  });
+
+  cardsSelect.addEventListener("change", () => {
+    void (async () => {
+      await storage.setSettings({ pauseMode: cardsSelect.value as PauseMode });
+      await refresh();
+    })();
+  });
 
   listeningBtn.addEventListener("click", () => {
     void (async () => {
@@ -524,12 +549,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   byId("settings-link").addEventListener("click", async (e) => {
     e.preventDefault();
-    const token = await storage.getSyncToken();
-    if (token) {
-      chrome.tabs.create({ url: ownedWebUrl("/app#settings", "popup_settings") });
-    } else {
-      chrome.runtime.openOptionsPage();
-    }
+    // Always the extension's own settings. Signed-in learners used to be sent
+    // to the web app, whose form covers only some settings (not the Subtitle
+    // Lens) and whose saves the extension never pulled back down — its next
+    // sync pushed the old values over them.
+    chrome.runtime.openOptionsPage();
   });
 
   byId("export-link").addEventListener("click", async (e) => {
