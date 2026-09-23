@@ -596,6 +596,7 @@
   }
   function withDefaults(stored) {
     const merged = { ...DEFAULTS, ...stored };
+    if (merged.pauseMode === "notify") merged.pauseMode = "copilot";
     if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
       merged.learningDirection = "ja-en";
     }
@@ -1643,6 +1644,71 @@
     }
   };
 
+  // src/lib/key-shield.ts
+  var UI_HOST_ATTR = "data-avc-ui";
+  var KEY_EVENTS = ["keydown", "keyup", "keypress"];
+  function fromOurUi(e) {
+    for (const node of e.composedPath()) {
+      if (node instanceof Element && node.hasAttribute(UI_HOST_ATTR)) return true;
+    }
+    return false;
+  }
+  function originalTarget(e) {
+    const path = e.composedPath();
+    return path.length ? path[0] : e.target;
+  }
+  function isEditableTarget(node) {
+    const el = node;
+    if (!el || typeof el.tagName !== "string") return false;
+    const tag = el.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
+  }
+  function isTypingEvent(e) {
+    if (isEditableTarget(originalTarget(e))) return true;
+    let active = document.activeElement;
+    while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+    return isEditableTarget(active);
+  }
+  function keepFocusOnMouseClick(root2) {
+    root2.addEventListener("mousedown", (e) => {
+      const el = e.composedPath()[0];
+      if (!el || typeof el.closest !== "function") return;
+      if (el.closest("input, textarea, select, [contenteditable]")) return;
+      if (el.closest("button, [role='button']")) e.preventDefault();
+    });
+  }
+  function relay(e) {
+    const target = originalTarget(e);
+    if (!(target instanceof Node) || !(target.getRootNode() instanceof ShadowRoot)) return;
+    const copy = new KeyboardEvent(e.type, {
+      key: e.key,
+      code: e.code,
+      location: e.location,
+      repeat: e.repeat,
+      isComposing: e.isComposing,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+      altKey: e.altKey,
+      metaKey: e.metaKey,
+      bubbles: true,
+      cancelable: true,
+      composed: false
+    });
+    if (!target.dispatchEvent(copy)) e.preventDefault();
+  }
+  function shield(e) {
+    if (!e.isTrusted || !fromOurUi(e)) return;
+    e.stopImmediatePropagation();
+    relay(e);
+  }
+  function installKeyShield(win = window) {
+    const w = win;
+    if (w.__avcKeyShield) return false;
+    w.__avcKeyShield = true;
+    for (const type of KEY_EVENTS) win.addEventListener(type, shield, true);
+    return true;
+  }
+
   // src/lib/agent-panel.ts
   var AMBIENT_AUTO_DISMISS_SEC = 15;
   var FOCUS_AUTO_DISMISS_SEC = 30;
@@ -1663,6 +1729,13 @@
   var videoWatchers = [];
   var currentJudgments = [];
   var collapsed = false;
+  var CHAT_ENGAGED_MS = 3e4;
+  var CHAT_DRAFT_HOLD_MS = 12e4;
+  var chatActiveAt = 0;
+  var chatStreaming = false;
+  var chatStreamStartedAt = 0;
+  var CHAT_STREAM_IDLE_MS = 3e4;
+  var CHAT_STREAM_MAX_MS = 15e4;
   var PANEL_MIN_W = 280;
   var PANEL_MAX_W = 560;
   var PANEL_DEFAULT_W = 340;
@@ -1849,6 +1922,22 @@
   .avc-agent-mode-select:focus {
     outline: none; border-color: rgba(227, 186, 99, 0.3);
   }
+  .avc-agent-lens-toggle {
+    height: 26px; padding: 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(236, 234, 228, 0.45);
+    font-size: 11px; line-height: 1; letter-spacing: 0.04em;
+    cursor: pointer; font-family: inherit;
+    text-decoration: line-through;
+  }
+  .avc-agent-lens-toggle[aria-pressed="true"] {
+    color: rgba(227, 186, 99, 0.95);
+    border-color: rgba(227, 186, 99, 0.35);
+    text-decoration: none;
+  }
+  .avc-agent-lens-toggle:hover { border-color: rgba(255, 255, 255, 0.22); }
   .avc-agent-head-actions {
     display: flex; align-items: center; gap: 6px; flex-shrink: 0;
   }
@@ -2267,6 +2356,7 @@
       host2 = document.createElement("div");
       host2.id = "avc-overlay-host";
       host2.style.cssText = "all:initial; position:fixed; inset:0; z-index:2147483647; pointer-events:none;";
+      host2.setAttribute(UI_HOST_ATTR, "");
       host2.attachShadow({ mode: "open" });
     }
     if (host2.parentElement !== parent) parent.appendChild(host2);
@@ -2542,12 +2632,13 @@
     videoWatchers = [];
     if (keyHandler) {
       window.removeEventListener("keydown", keyHandler, true);
+      shell?.root.removeEventListener("keydown", keyHandler);
       keyHandler = null;
     }
   }
   function resumeVideoIfNeeded() {
     const held = cardHold.release();
-    if (held && held === activeVideo && wasPlaying && !userResumed && held.paused) {
+    if (held && held === activeVideo && wasPlaying && !userResumed && held.paused && !document.hidden) {
       held.play().catch(() => {
       });
     }
@@ -2577,13 +2668,28 @@
     if (configured > 0) return configured;
     return opts2.interaction === "focus" ? FOCUS_AUTO_DISMISS_SEC : AMBIENT_AUTO_DISMISS_SEC;
   }
+  var CHAT_HOLD_RECHECK_MS = 5e3;
   function bumpAutoTimer(opts2) {
     const sec = effectiveAutoDismissSec(opts2);
-    autoTimer.arm(sec * 1e3, () => finishWord("dismiss"));
+    autoTimer.arm(sec * 1e3, () => dismissUnlessChatting(autoTimer));
     if (!autoTimerMax.armed) {
       const capSec = Math.max(sec + 10, 45);
-      autoTimerMax.arm(capSec * 1e3, () => finishWord("dismiss"));
+      autoTimerMax.arm(capSec * 1e3, () => dismissUnlessChatting(autoTimerMax));
     }
+  }
+  function dismissUnlessChatting(timer) {
+    if (isChatEngaged()) {
+      timer.arm(CHAT_HOLD_RECHECK_MS, () => dismissUnlessChatting(timer));
+      return;
+    }
+    finishWord("dismiss");
+  }
+  function isChatEngaged() {
+    if (!shell || !mounted) return false;
+    if (chatStreaming && Date.now() - chatStreamStartedAt < CHAT_STREAM_MAX_MS) return true;
+    const since = Date.now() - chatActiveAt;
+    if (since < CHAT_ENGAGED_MS) return true;
+    return since < CHAT_DRAFT_HOLD_MS && shell.chatInput.value.trim() !== "";
   }
   function freezeAutoTimers() {
     autoTimer.freeze();
@@ -2608,6 +2714,8 @@
     chatHistory.push({ role: "user", content: text });
     shell.chatSend.disabled = true;
     shell.chatInput.disabled = true;
+    chatStreaming = true;
+    chatStreamStartedAt = chatActiveAt = Date.now();
     const streamBubble = appendChatBubble(shell.chatLog, "assistant", "", true);
     let full = "";
     let raf = 0;
@@ -2617,8 +2725,22 @@
     };
     try {
       const port = chrome.runtime.connect({ name: "avc-chat-stream" });
+      let idleTimer = null;
       await new Promise((resolve, reject) => {
+        const armIdle = () => {
+          if (idleTimer) clearTimeout(idleTimer);
+          idleTimer = setTimeout(() => {
+            try {
+              port.disconnect();
+            } catch {
+            }
+            if (full) resolve();
+            else reject(new Error("timeout"));
+          }, CHAT_STREAM_IDLE_MS);
+        };
+        armIdle();
         port.onMessage.addListener((msg) => {
+          armIdle();
           if (msg.type === "chunk" && typeof msg.delta === "string") {
             full += msg.delta;
             if (!raf) raf = requestAnimationFrame(flush);
@@ -2637,6 +2759,8 @@
           history: chatHistory.slice(0, -1),
           payload
         });
+      }).finally(() => {
+        if (idleTimer) clearTimeout(idleTimer);
       });
       if (raf) cancelAnimationFrame(raf);
       if (!full.trim()) {
@@ -2656,9 +2780,13 @@
         surfaceQuotaError({ ok: false, error: msg });
       }
     } finally {
-      shell.chatSend.disabled = false;
-      shell.chatInput.disabled = false;
-      shell.chatInput.focus();
+      chatStreaming = false;
+      chatActiveAt = Date.now();
+      if (shell) {
+        shell.chatSend.disabled = false;
+        shell.chatInput.disabled = false;
+        shell.chatInput.focus();
+      }
     }
   }
   async function askCoach(mode) {
@@ -2844,6 +2972,16 @@
       applyInteractionMode(pauseModeToInteraction(mode));
     });
     modeSelect.addEventListener("click", (e) => e.stopPropagation());
+    const lensBtn = document.createElement("button");
+    lensBtn.className = "avc-agent-lens-toggle";
+    lensBtn.type = "button";
+    lensBtn.textContent = "CC";
+    lensBtn.setAttribute("aria-label", "Subtitle Lens");
+    lensBtn.setAttribute("aria-pressed", "true");
+    lensBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void getSettings().then((s) => setSettings({ subLens: s.subLens === false }));
+    });
     const closeBtn = document.createElement("button");
     closeBtn.className = "avc-agent-close";
     closeBtn.type = "button";
@@ -2852,7 +2990,7 @@
     closeBtn.textContent = "\xD7";
     closeBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      hideAgent();
+      closeAgentByUser();
     });
     const collapseBtn = document.createElement("button");
     collapseBtn.className = "avc-agent-collapse";
@@ -2867,6 +3005,7 @@
     });
     const headActions = document.createElement("div");
     headActions.className = "avc-agent-head-actions";
+    headActions.appendChild(lensBtn);
     headActions.appendChild(modeSelect);
     headActions.appendChild(collapseBtn);
     headActions.appendChild(closeBtn);
@@ -2944,10 +3083,17 @@
     });
     chatInput.addEventListener("keydown", (e) => {
       e.stopPropagation();
+      if (e.isComposing || e.keyCode === 229) return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         void submitChat();
       }
+    });
+    chatInput.addEventListener("input", () => {
+      chatActiveAt = Date.now();
+    });
+    chatInput.addEventListener("focus", () => {
+      chatActiveAt = Date.now();
     });
     chatInput.addEventListener("click", (e) => e.stopPropagation());
     chatRow.appendChild(chatInput);
@@ -2989,6 +3135,8 @@
     layer.appendChild(sidebar);
     root2.appendChild(layer);
     sidebar.addEventListener("click", (e) => e.stopPropagation());
+    keepFocusOnMouseClick(root2);
+    sidebar.addEventListener("dblclick", (e) => e.stopPropagation());
     document.addEventListener("fullscreenchange", () => {
       if (mounted) mountHost();
     });
@@ -2998,6 +3146,7 @@
       sidebar,
       panel,
       modeSelect,
+      lensBtn,
       wordSection: scrollArea,
       scrollArea,
       wordIdle,
@@ -3056,6 +3205,7 @@
   var limitShown = /* @__PURE__ */ new Set();
   var paywallEl = null;
   var paywallKeyHandler = null;
+  var paywallRoot = null;
   function planLabel(plan) {
     if (plan === "max") return "Max";
     if (plan === "pro") return "Pro";
@@ -3140,7 +3290,9 @@
   function dismissLimitSheet() {
     if (paywallKeyHandler) {
       window.removeEventListener("keydown", paywallKeyHandler, true);
+      paywallRoot?.removeEventListener("keydown", paywallKeyHandler);
       paywallKeyHandler = null;
+      paywallRoot = null;
     }
     const el = paywallEl;
     if (!el) return;
@@ -3227,6 +3379,8 @@
       dismissLimitSheet();
     };
     window.addEventListener("keydown", paywallKeyHandler, true);
+    paywallRoot = root2;
+    root2.addEventListener("keydown", paywallKeyHandler);
     requestAnimationFrame(() => overlay.classList.add("avc-visible"));
     dismiss.focus();
   }
@@ -3266,12 +3420,32 @@
     void Promise.all([getSettings(), getAgentPanelWidth(), getAgentPanelCollapsed()]).then(
       ([s, w, collapsed2]) => {
         if (!shell) return;
-        shell.modeSelect.value = s.pauseMode;
-        applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+        applyPanelSettings(s);
         setPanelWidth(shell.sidebar, w || PANEL_DEFAULT_W);
         if (collapsed2) setCollapsed(true, false);
       }
     );
+  }
+  function applyPanelSettings(s) {
+    if (!shell) return;
+    shell.modeSelect.value = s.pauseMode;
+    if (!wordPending) applyInteractionMode(pauseModeToInteraction(s.pauseMode));
+    const lensOn = normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
+    shell.lensBtn.setAttribute("aria-pressed", String(lensOn));
+    shell.lensBtn.title = lensOn ? "Subtitle Lens on \u2014 click to hide our subtitles and just listen" : "Subtitle Lens off \u2014 click to show interactive subtitles";
+    shell.lensBtn.hidden = normalizeDirection(s.learningDirection) !== "en-ja";
+  }
+  var closedByUser = false;
+  function closeAgentByUser() {
+    closedByUser = true;
+    hideAgent();
+  }
+  function openAgent() {
+    closedByUser = false;
+    ensureAgentMounted();
+  }
+  function isClosedByUser() {
+    return closedByUser;
   }
   function hideAgent() {
     if (wordPending) finishWord("dismiss");
@@ -3311,7 +3485,7 @@
     wasPlaying = !!(video && !video.paused && !video.ended);
     activeVideo = video;
     userResumed = false;
-    if (options.interaction === "focus" && wasPlaying && video && !collapsed) {
+    if (options.interaction === "focus" && wasPlaying && video && !collapsed && !document.hidden) {
       cardHold.hold(video, () => video.pause());
     }
     if (video) {
@@ -3331,6 +3505,16 @@
       on("seeking", () => cardHold.noticeSeek(video.paused));
       on("seeked", () => cardHold.noticeSeek(video.paused));
       if (video.paused && !cardHold.owned()) freezeAutoTimers();
+      if (document.hidden) freezeAutoTimers();
+      const onVisibility = () => {
+        if (document.hidden) {
+          freezeAutoTimers();
+          return;
+        }
+        if (!video.paused || cardHold.owned()) thawAutoTimers();
+      };
+      document.addEventListener("visibilitychange", onVisibility);
+      videoWatchers.push(() => document.removeEventListener("visibilitychange", onVisibility));
     }
     wordCtx = ctx;
     wordPending = true;
@@ -3339,13 +3523,7 @@
     applyInteractionMode(options.interaction);
     keyHandler = (e) => {
       if (!wordPending) return;
-      const isEditable = (el) => {
-        const node = el;
-        if (!node) return false;
-        const tag = node.tagName;
-        return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable === true;
-      };
-      if (isEditable(e.target) || isEditable(document.activeElement)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingEvent(e)) return;
       const match = currentJudgments.find((j) => j.key === e.key);
       if (match) {
         e.preventDefault();
@@ -3354,6 +3532,7 @@
       }
     };
     window.addEventListener("keydown", keyHandler, true);
+    shell?.root.addEventListener("keydown", keyHandler);
     return new Promise((resolve) => {
       wordResolve = resolve;
     });
@@ -3494,7 +3673,9 @@
 
   // src/lib/sub-lens.ts
   var AUTO_HIDE_MS = 12e3;
+  var CLEAR_GRACE_MS = 250;
   var POINTER_LEAVE_DELAY_MS = 150;
+  var PEEK_INTENT_MS = 250;
   var RESUME_DELAY_MS = 220;
   var STYLES2 = `
   :host { all: initial; }
@@ -3581,6 +3762,14 @@
   var pointerLeaveTimer = null;
   var resumeTimer = null;
   var positionTimer = null;
+  var clearTimer = null;
+  var peekTimer = null;
+  function cancelPeekIntent() {
+    if (peekTimer) {
+      clearTimeout(peekTimer);
+      peekTimer = null;
+    }
+  }
   var peekHold = new PlaybackHold();
   var watchedVideo = null;
   var unwatch = null;
@@ -3593,6 +3782,7 @@
     if (!host) {
       host = document.createElement("div");
       host.setAttribute("data-avc-sub-lens", "");
+      host.setAttribute(UI_HOST_ATTR, "");
       root = host.attachShadow({ mode: "open" });
       const style = document.createElement("style");
       style.textContent = STYLES2;
@@ -3607,6 +3797,8 @@
       tipEl.addEventListener("mouseenter", onLensEnter);
       tipEl.addEventListener("mouseleave", onLensLeave);
       root.appendChild(tipEl);
+      root.addEventListener("keydown", onKeyDown);
+      keepFocusOnMouseClick(root);
       document.addEventListener("fullscreenchange", ensureMounted);
     }
     parent.appendChild(host);
@@ -3632,6 +3824,24 @@
       lensEl?.classList.remove("on");
       currentLine = "";
     }, AUTO_HIDE_MS);
+  }
+  function cancelPendingClear() {
+    if (clearTimer) {
+      clearTimeout(clearTimer);
+      clearTimer = null;
+    }
+  }
+  function clearLensLine() {
+    if (!currentLine || clearTimer) return;
+    clearTimer = setTimeout(function tryClear() {
+      if (hover) {
+        clearTimer = setTimeout(tryClear, CLEAR_GRACE_MS);
+        return;
+      }
+      clearTimer = null;
+      lensEl?.classList.remove("on");
+      currentLine = "";
+    }, CLEAR_GRACE_MS);
   }
   function watchVideo(video) {
     if (!video || video === watchedVideo) return;
@@ -3669,14 +3879,19 @@
       clearTimeout(resumeTimer);
       resumeTimer = null;
     }
-    if (!opts?.peekPause) return;
-    const video = opts.getVideo();
-    watchVideo(video);
-    if (video && !video.paused) {
-      peekHold.hold(video, () => video.pause());
-    }
+    if (!opts?.peekPause || peekTimer || peekHold.owned()) return;
+    peekTimer = setTimeout(() => {
+      peekTimer = null;
+      if (!opts?.peekPause) return;
+      const video = opts.getVideo();
+      watchVideo(video);
+      if (video && !video.paused) {
+        peekHold.hold(video, () => video.pause());
+      }
+    }, PEEK_INTENT_MS);
   }
   function onLensLeave() {
+    cancelPeekIntent();
     if (pointerLeaveTimer) clearTimeout(pointerLeaveTimer);
     pointerLeaveTimer = setTimeout(() => {
       pointerLeaveTimer = null;
@@ -3794,8 +4009,7 @@
   }
   function onKeyDown(e) {
     if (!hover || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-    const t = e.target;
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (isTypingEvent(e)) return;
     const key = e.key.toLowerCase();
     const judgment = key === "q" ? "learn" : key === "k" ? "know" : key === "x" ? "ignore" : null;
     if (!judgment) return;
@@ -3812,6 +4026,7 @@
   function showLensLine(text, en, tokens, vocab, options) {
     opts = options;
     vocabSnapshot = vocab;
+    cancelPendingClear();
     if (text === currentLine) return;
     currentLine = text;
     ensureMounted();
@@ -3902,11 +4117,13 @@
       keysBound = true;
       window.addEventListener("keydown", onKeyDown, true);
       window.addEventListener("blur", () => {
+        cancelPeekIntent();
         hideTip();
         releasePeekPause();
       });
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
+          cancelPeekIntent();
           hideTip();
           peekHold.forfeit();
         }
@@ -3915,6 +4132,8 @@
   }
   function hideLens() {
     currentLine = "";
+    cancelPendingClear();
+    cancelPeekIntent();
     if (pointerLeaveTimer) {
       clearTimeout(pointerLeaveTimer);
       pointerLeaveTimer = null;
@@ -3928,7 +4147,56 @@
     releasePeekPause();
   }
 
+  // src/lib/subtitle-history.ts
+  var MAX_ENTRIES = 300;
+  var SubtitleHistory = class {
+    constructor() {
+      this.entries = [];
+    }
+    /** Note what is on screen at video time `t` (seconds). */
+    record(t, text) {
+      if (!Number.isFinite(t)) return;
+      const last = this.entries[this.entries.length - 1];
+      if (last && t < last.t) {
+        this.entries = this.entries.filter((e) => e.t <= t);
+      }
+      const tail = this.entries[this.entries.length - 1];
+      if (tail && tail.text === text) return;
+      this.entries.push({ t, text });
+      if (this.entries.length > MAX_ENTRIES) this.entries.splice(0, this.entries.length - MAX_ENTRIES);
+    }
+    /**
+     * The subtitle for speech that began at `t`: the one on screen then, or —
+     * when the screen was blank at that instant, since a subtitle often appears
+     * a beat after the voice — the first one shown within `lookahead` seconds.
+     * `null` when `t` is outside what was sampled, so the caller can fall back.
+     */
+    textAt(t, lookahead = 1.5) {
+      if (!this.entries.length || !Number.isFinite(t) || t < this.entries[0].t) return null;
+      let i = this.entries.length - 1;
+      while (i > 0 && this.entries[i].t > t) i--;
+      if (this.entries[i].text) return this.entries[i].text;
+      for (let j = i + 1; j < this.entries.length && this.entries[j].t <= t + lookahead; j++) {
+        if (this.entries[j].text) return this.entries[j].text;
+      }
+      return "";
+    }
+    clear() {
+      this.entries = [];
+    }
+  };
+
   // src/lib/adapters/util.ts
+  function coalesce(fn, ms) {
+    let timer = null;
+    return () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        fn();
+      }, ms);
+    };
+  }
   function normalize(text) {
     return text.replace(/\s+/g, " ").trim();
   }
@@ -4063,6 +4331,7 @@
   // src/lib/adapters/youtube.ts
   var CAPTION_SETTLE_MS = 1e3;
   var onLineCb = null;
+  var onClearCb = null;
   var targetCues = [];
   var contextCues = [];
   var currentVideoId = "";
@@ -4164,7 +4433,13 @@
     if (!targetCues.length || !onLineCb || !attachedVideo) return;
     const t = attachedVideo.currentTime;
     const cue = cueAt(targetCues, t);
-    if (!cue) return;
+    if (!cue) {
+      if (lastCueKey) {
+        lastCueKey = "";
+        onClearCb?.();
+      }
+      return;
+    }
     const key = `${cue.start}:${cue.text}`;
     if (key === lastCueKey) return;
     lastCueKey = key;
@@ -4186,8 +4461,9 @@
     },
     getVideo,
     getVisibleText,
-    start(onLine) {
+    start(onLine, onClear) {
       onLineCb = onLine;
+      onClearCb = onClear || null;
       window.addEventListener("message", (e) => {
         if (e.source !== window) return;
         if (e.data?.source !== "avc" || e.data.type !== "avc-caption-tracks") return;
@@ -4205,7 +4481,6 @@
       let lastText = "";
       let lastTextVideoId = "";
       let settleUntil = 0;
-      let debounceTimer = null;
       const check = () => {
         try {
           dropCuesFromOtherVideo();
@@ -4219,18 +4494,19 @@
           }
           if (Date.now() < settleUntil) return;
           const text = getVisibleText();
-          if (!text || text === lastText) return;
-          if (!matchesTargetScript(text, getAdapterDirection())) return;
+          if (text === lastText) return;
+          if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+            if (lastText) onClear?.();
+            lastText = "";
+            return;
+          }
           lastText = text;
           onLine(text, { en: "" });
         } catch (err) {
           warn("youtube adapter error:", err);
         }
       };
-      const observer = new MutationObserver(() => {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(check, 100);
-      });
+      const observer = new MutationObserver(coalesce(check, 50));
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     }
   };
@@ -4249,24 +4525,24 @@
       return document.querySelector("video");
     },
     getVisibleText: getVisibleText2,
-    start(onLine) {
+    start(onLine, onClear) {
       let lastText = "";
-      let debounceTimer = null;
       const check = () => {
         try {
           const text = getVisibleText2();
-          if (!text || text === lastText) return;
-          if (!matchesTargetScript(text, getAdapterDirection())) return;
+          if (text === lastText) return;
+          if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+            if (lastText) onClear?.();
+            lastText = "";
+            return;
+          }
           lastText = text;
           onLine(text, { en: "" });
         } catch (err) {
           warn("netflix adapter error:", err);
         }
       };
-      const observer = new MutationObserver(() => {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(check, 100);
-      });
+      const observer = new MutationObserver(coalesce(check, 50));
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     }
   };
@@ -4298,7 +4574,7 @@
       }
       return normalize(parts.join(" "));
     },
-    start(onLine) {
+    start(onLine, onClear) {
       const hooked = /* @__PURE__ */ new WeakSet();
       const lastByTrack = /* @__PURE__ */ new WeakMap();
       const contextFromVideo = (video) => {
@@ -4331,7 +4607,13 @@
               track.addEventListener("cuechange", () => {
                 try {
                   const cues = track.activeCues;
-                  if (!cues || !cues.length) return;
+                  if (!cues || !cues.length) {
+                    if (lastByTrack.get(track)) {
+                      lastByTrack.set(track, "");
+                      onClear?.();
+                    }
+                    return;
+                  }
                   const text = normalize(
                     Array.from(cues).map((c) => stripCueTags(c.text)).join(" ")
                   );
@@ -4448,12 +4730,19 @@
   };
 
   // src/entries/content.ts
+  var AUDIO_LENS_MAX_LAG_SEC = 7;
+  var AUDIO_LENS_MAX_LAG_AFTER_END_SEC = 4;
+  var EARLY_LINE_TOLERANCE_SEC = 0.3;
+  var MAX_EARLY_HOLD_SEC = 10;
+  var JA_RETRY_MS = 3e4;
+  var MAX_PENDING_LINES = 40;
   (function main() {
     if (window.__avcMainLoaded) {
       log("main already loaded, skipping re-init");
       return;
     }
     window.__avcMainLoaded = true;
+    installKeyShield();
     const adapters = [youtubeAdapter, netflixAdapter, genericAdapter];
     let adapter = null;
     let started = false;
@@ -4469,7 +4758,16 @@
     let listeningActive = false;
     let hourlyCapNotified = false;
     let lineInFlight = false;
-    let queuedLine = null;
+    const pendingLines = [];
+    let lensSeq = 0;
+    const judgedLensSeqs = /* @__PURE__ */ new Set();
+    let tokenMemo = null;
+    let initPromise2 = null;
+    let jaReady = false;
+    let jaPromise = null;
+    let jaFailedAt = 0;
+    const contextSubs = new SubtitleHistory();
+    let contextSampleTimer = null;
     let cachePollTimer = null;
     const emittedCueKeys = new CueLedger();
     let cachePollInFlight = null;
@@ -4486,27 +4784,53 @@
       if (adapter && !started) {
         started = true;
         log("adapter chosen:", adapter.name);
-        adapter.start(onLine);
+        adapter.start(onLine, clearLensLine);
+        void ensureInit();
       }
       return adapter;
     }
-    async function ensureInit() {
-      if (initialized || pipelineDisabled) return;
+    function ensureInit() {
+      if (initialized || pipelineDisabled) return Promise.resolve();
+      if (!initPromise2) initPromise2 = runInit().finally(() => {
+        initPromise2 = null;
+      });
+      return initPromise2;
+    }
+    async function runInit() {
       try {
         settings = await getSettings();
         setAdapterDirection(normalizeDirection(settings.learningDirection));
-        if (normalizeDirection(settings.learningDirection) === "en-ja") {
-          await init();
-          const data2 = await load();
-          log("dictionary loaded:", Object.keys(data2).length, "entries");
-        }
         wordStates = await getVocab();
         initialized = true;
         startWatchInterval();
       } catch (err) {
         pipelineDisabled = true;
         warn("pipeline init failed:", err);
+        return;
       }
+      if (normalizeDirection(settings.learningDirection) === "en-ja") await ensureJa();
+    }
+    function ensureJa() {
+      if (jaReady) return Promise.resolve(true);
+      if (jaPromise) return jaPromise;
+      if (Date.now() - jaFailedAt < JA_RETRY_MS) return Promise.resolve(false);
+      jaPromise = (async () => {
+        try {
+          await init();
+          const data2 = await load();
+          const entries = Object.keys(data2).length;
+          if (!entries) throw new Error("dictionary is empty");
+          log("dictionary loaded:", entries, "entries");
+          jaReady = true;
+        } catch (err) {
+          jaFailedAt = Date.now();
+          warn("japanese resources failed to load, will retry:", err);
+        } finally {
+          jaPromise = null;
+        }
+        return jaReady;
+      })();
+      return jaPromise;
     }
     function platformForAdapter(a) {
       if (a.name === "youtube") return "youtube";
@@ -4559,9 +4883,8 @@
           const lang = studyLang();
           if (lang === "ja" && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(seg.text)) continue;
           if (lang === "en" && !/[A-Za-z]{2,}/.test(seg.text)) continue;
-          const en = a?.getVisibleText() || "";
-          await onLine(seg.text, { en, fromAudio: true });
-          if (stale()) return;
+          const en = a ? contextForAudio(a, seg.start) : "";
+          onLine(seg.text, { en, fromAudio: true }, { lens: audioLineIsCurrent(video, seg.start, seg.end) });
         }
       } catch (err) {
         warn("cache poll failed:", err);
@@ -4583,8 +4906,39 @@
       cachePollTimer = null;
       emittedCueKeys.clear();
     }
+    function startContextSampling() {
+      if (contextSampleTimer) return;
+      contextSubs.clear();
+      const sample = () => {
+        const a = adapter;
+        const video = a?.getVideo();
+        if (!a || !video) return;
+        contextSubs.record(video.currentTime, a.getVisibleText());
+      };
+      sample();
+      contextSampleTimer = setInterval(sample, 200);
+    }
+    function stopContextSampling() {
+      if (contextSampleTimer) clearInterval(contextSampleTimer);
+      contextSampleTimer = null;
+      contextSubs.clear();
+    }
+    function contextForAudio(a, start) {
+      if (typeof start === "number") {
+        const at = contextSubs.textAt(start);
+        if (at !== null) return at;
+      }
+      return a.getVisibleText();
+    }
+    function audioLineIsCurrent(video, start, end) {
+      if (!video) return true;
+      if (typeof end === "number") return video.currentTime - end < AUDIO_LENS_MAX_LAG_AFTER_END_SEC;
+      if (typeof start === "number") return video.currentTime - start < AUDIO_LENS_MAX_LAG_SEC;
+      return true;
+    }
     function startPlaybackRelay() {
       if (playbackRelayTimer) return;
+      startContextSampling();
       playbackRelayTimer = setInterval(() => {
         if (!listeningActive) return;
         const video = adapter?.getVideo();
@@ -4600,6 +4954,7 @@
     function stopPlaybackRelay() {
       if (playbackRelayTimer) clearInterval(playbackRelayTimer);
       playbackRelayTimer = null;
+      stopContextSampling();
     }
     function startWatchInterval() {
       if (watchInterval) return;
@@ -4610,6 +4965,19 @@
       }, 6e4);
     }
     let lastContextTitle = "";
+    function lensOn(s) {
+      return normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
+    }
+    function siteEnabled(s) {
+      const siteKey = adapter ? adapter.name : "generic";
+      return !(s.sites && s.sites[siteKey] === false);
+    }
+    async function tokenizeJa(text) {
+      if (tokenMemo && tokenMemo.text === text) return tokenMemo.tokens;
+      const tokens = await tokenize(text);
+      tokenMemo = { text, tokens };
+      return tokens;
+    }
     function countProgress2(vocab) {
       let n = 0;
       for (const rec of Object.values(vocab)) {
@@ -4680,23 +5048,67 @@
       if (/^(youtube|netflix|crunchyroll)$/i.test(candidate)) return null;
       return candidate;
     }
-    async function onLine(text, context) {
-      if (pipelineDisabled) return;
-      if (lineInFlight) {
-        queuedLine = { text, context };
+    async function renderLens(line, context) {
+      const seq = ++lensSeq;
+      const sessionId = currentSessionId();
+      const stale = () => seq !== lensSeq || currentSessionId() !== sessionId;
+      const current2 = settings || await getSettings();
+      if (stale()) return;
+      if (!siteEnabled(current2) || !lensOn(current2)) {
+        hideLens();
         return;
       }
+      await ensureInit();
+      if (!initialized || stale()) return;
+      if (!await ensureJa() || stale()) return;
+      const tokens = await tokenizeJa(line);
+      if (stale() || !tokens.length) return;
+      showLensLine(line, context?.en || "", tokens, wordStates, {
+        peekPause: current2.subLensPeek !== false,
+        getVideo: () => adapter ? adapter.getVideo() : null,
+        getTitle: currentTitle,
+        onJudgeStart: () => {
+          judgedLensSeqs.add(seq);
+          if (judgedLensSeqs.size > MAX_PENDING_LINES) {
+            const oldest = judgedLensSeqs.values().next().value;
+            if (oldest !== void 0) judgedLensSeqs.delete(oldest);
+          }
+          dismissAgent();
+        },
+        onJudged: () => {
+          void refreshState();
+        }
+      });
+    }
+    function onLine(text, context, opts2 = {}) {
+      if (pipelineDisabled) return;
+      const line = text.replace(/\s+/g, " ").trim();
+      if (!line) return;
+      let seq = opts2.lensSeq ?? -1;
+      if (opts2.lens !== false) {
+        renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
+        seq = lensSeq;
+      }
+      pendingLines.push({ text: line, context, lensSeq: seq });
+      if (pendingLines.length > MAX_PENDING_LINES) pendingLines.splice(0, pendingLines.length - MAX_PENDING_LINES);
+      if (!lineInFlight) void drainLines();
+    }
+    async function drainLines() {
       lineInFlight = true;
       try {
-        await processLine(text, context);
+        let next;
+        while (next = pendingLines.shift()) {
+          try {
+            await processLine(next.text, next.context, next.lensSeq);
+          } catch (err) {
+            warn("line processing failed:", err);
+          }
+        }
       } finally {
         lineInFlight = false;
       }
-      const next = queuedLine;
-      queuedLine = null;
-      if (next) await onLine(next.text, next.context);
     }
-    async function processLine(text, context) {
+    async function processLine(text, context, lineLensSeq = -1) {
       const lineSessionId = currentSessionId();
       const staleSession = () => {
         if (currentSessionId() === lineSessionId) return false;
@@ -4705,15 +5117,10 @@
       };
       settings = await getSettings();
       if (staleSession()) return;
-      const siteKey = adapter ? adapter.name : "generic";
-      if (settings.sites && settings.sites[siteKey] === false) {
-        hideLens();
-        return;
-      }
+      if (!siteEnabled(settings)) return;
       const direction = normalizeDirection(settings.learningDirection);
       setAdapterDirection(direction);
-      const lensEnabled = direction === "en-ja" && settings.subLens !== false;
-      if (!lensEnabled) hideLens();
+      const lensEnabled = lensOn(settings);
       if (settings.pauseMode === "off" && !lensEnabled) return;
       await ensureInit();
       if (!initialized) return;
@@ -4722,7 +5129,7 @@
       lastLine = normalized;
       let tokens;
       let dictOverlay = null;
-      let lensJudged = false;
+      const lensJudged = () => lineLensSeq >= 0 && judgedLensSeqs.has(lineLensSeq);
       if (direction === "ja-en") {
         tokens = tokenizeEnglish(normalized);
         const extracted = await requestExtractWords({
@@ -4749,33 +5156,25 @@
           }
         }
       } else {
-        tokens = await tokenize(normalized);
+        if (!await ensureJa()) return;
+        tokens = await tokenizeJa(normalized);
       }
       if (staleSession()) return;
-      if (lensEnabled && tokens.length) {
-        try {
-          showLensLine(normalized, context?.en || "", tokens, wordStates, {
-            peekPause: settings.subLensPeek !== false,
-            getVideo: () => adapter ? adapter.getVideo() : null,
-            getTitle: currentTitle,
-            onJudgeStart: () => {
-              lensJudged = true;
-              dismissAgent();
-            },
-            onJudged: () => {
-              void refreshState();
-            }
-          });
-        } catch (err) {
-          warn("sub-lens render failed:", err);
-        }
-      }
       await recordSeen(tokens, wordStates, targetedThisSession, direction, dictOverlay);
       wordStates = await getVocab();
-      if (lensJudged || staleSession()) return;
+      if (lensJudged() || staleSession()) return;
       if (settings.pauseMode === "off") return;
+      if (pendingLines.length) {
+        log("no card for a line with a newer one waiting:", normalized.slice(0, 40));
+        return;
+      }
+      if (isClosedByUser()) return;
       if (isOpen()) {
         log("skipped line (word card still open):", normalized.slice(0, 40));
+        return;
+      }
+      if (isChatEngaged()) {
+        log("skipped line (learner is chatting with the copilot):", normalized.slice(0, 40));
         return;
       }
       const target = await pickTargetSmart(
@@ -4787,17 +5186,17 @@
         currentTitle(),
         dictOverlay
       );
-      if (lensJudged || staleSession()) return;
+      if (lensJudged() || staleSession()) return;
       if (!target) {
         log("no target word in:", normalized);
         return;
       }
-      if (isOpen()) {
-        log("skipped line (card opened while picking):", normalized.slice(0, 40));
+      if (isOpen() || isChatEngaged()) {
+        log("skipped line (card opened or chat started while picking):", normalized.slice(0, 40));
         return;
       }
       const stats = await getStats();
-      if (lensJudged || staleSession()) return;
+      if (lensJudged() || staleSession()) return;
       const now = Date.now();
       const cardTimestamps = stats.cardTimestamps || [];
       if (!target.isReview) {
@@ -4823,7 +5222,7 @@
         }
       }
       log("showing card for:", target.token.base);
-      await handleCard(target, normalized, tokens, context, () => lensJudged).catch((err) => {
+      await handleCard(target, normalized, tokens, context, lensJudged).catch((err) => {
         warn("handleCard failed:", err);
         dismissAgent();
       });
@@ -4843,12 +5242,12 @@
         return true;
       }
       if (msg.type === "avc-agent-show") {
-        ensureAgentMounted();
+        openAgent();
         sendResponse({ ok: true, visible: true });
         return true;
       }
       if (msg.type === "avc-agent-hide") {
-        hideAgent();
+        closeAgentByUser();
         sendResponse({ ok: true, visible: false });
         return true;
       }
@@ -4873,29 +5272,48 @@
         return;
       }
       if (msg.type !== "avc-transcript") return;
+      handleTranscript(
+        msg.text || "",
+        typeof msg.start === "number" ? msg.start : void 0,
+        typeof msg.end === "number" ? msg.end : void 0
+      );
+    });
+    function handleTranscript(text, start, end) {
       const a = pickAdapter();
       if (!a) {
         warn("transcript arrived but no adapter matched this frame");
         return;
       }
-      if (!a.getVideo()) {
+      const video = a.getVideo();
+      if (!video) {
         log("transcript ignored (no video in this frame)");
         return;
       }
-      log("transcript received:", msg.text);
-      const rawTranscript = (msg.text || "").trim();
-      if (typeof msg.start === "number" && !emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)) {
+      const rawTranscript = text.trim();
+      if (pipelineDisabled || !rawTranscript) return;
+      const ahead = typeof start === "number" ? start - video.currentTime : 0;
+      if (ahead > EARLY_LINE_TOLERANCE_SEC) {
+        if (ahead > MAX_EARLY_HOLD_SEC) return;
+        const sessionId = currentSessionId();
+        const generation = cachePollGeneration;
+        setTimeout(() => {
+          if (currentSessionId() !== sessionId || cachePollGeneration !== generation) return;
+          handleTranscript(text, start, end);
+        }, ahead * 1e3 / (video.playbackRate || 1));
         return;
       }
-      const en = a.getVisibleText();
+      log("transcript received:", rawTranscript);
+      if (typeof start === "number" && !emittedCueKeys.remember(`${start}:${rawTranscript}`)) return;
+      const context = { en: contextForAudio(a, start), fromAudio: true };
+      let seq = -1;
+      if (audioLineIsCurrent(video, start, end)) {
+        renderLens(rawTranscript.replace(/\s+/g, " "), context).catch((err) => warn("sub-lens render failed:", err));
+        seq = lensSeq;
+      }
       const direction = normalizeDirection(settings?.learningDirection);
       const segments = rawTranscript.split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
-      (async () => {
-        for (const seg of segments) {
-          await onLine(seg, { en, fromAudio: true });
-        }
-      })().catch((err) => warn("transcript handling failed:", err));
-    });
+      for (const seg of segments) onLine(seg, context, { lens: false, lensSeq: seq });
+    }
     async function maybeExplainMissingCaptions() {
       if (captionNoticeShown) return;
       const report = captionReport();
@@ -4920,6 +5338,16 @@
       void maybeExplainMissingCaptions();
     });
     chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local" || !changes.settings) return;
+      getSettings().then((next) => {
+        settings = next;
+        setAdapterDirection(normalizeDirection(next.learningDirection));
+        if (!lensOn(next) || !siteEnabled(next)) hideLens();
+        applyPanelSettings(next);
+      }).catch(() => {
+      });
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local") return;
       const change = changes[ONBOARDING_STORAGE_KEY];
       if (!change) return;
@@ -4940,7 +5368,7 @@
         return;
       }
       if (!state) return;
-      if (state.copilot) ensureAgentMounted();
+      if (state.copilot) openAgent();
       if (state.listening && !listeningActive) {
         log("restoring listening session after reload");
         listeningActive = true;
@@ -4966,7 +5394,9 @@
         lastLine = "";
         hideLens();
         dismissAgent();
-        queuedLine = null;
+        pendingLines.length = 0;
+        judgedLensSeqs.clear();
+        contextSubs.clear();
         emittedCueKeys.clear();
         lastContextTitle = "";
         resetCaptions();

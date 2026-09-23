@@ -264,6 +264,7 @@
   }
   function withDefaults(stored) {
     const merged = { ...DEFAULTS, ...stored };
+    if (merged.pauseMode === "notify") merged.pauseMode = "copilot";
     if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
       merged.learningDirection = "ja-en";
     }
@@ -274,6 +275,14 @@
       chrome.storage.local.get(["settings"], (r) => {
         resolve(withDefaults(r.settings || {}));
       });
+    });
+  }
+  function setSettings(partial) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["settings"]);
+      const settings = { ...withDefaults(r.settings || {}), ...partial };
+      await chrome.storage.local.set({ settings });
+      return settings;
     });
   }
   function exportAll() {
@@ -443,6 +452,28 @@
       return data.envelope?.revision ?? null;
     } catch {
       return null;
+    }
+  }
+  async function pullSettingsFromCloud() {
+    const token = await getSyncToken();
+    if (!token) return;
+    try {
+      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+      if (res.status === 401) {
+        await noteAuthFailure();
+        return;
+      }
+      if (!res.ok) return;
+      await noteSyncSuccess();
+      const data = await res.json();
+      const raw = data.envelope?.snapshot?.settings;
+      if (!raw || typeof raw !== "object") return;
+      const partial = { ...raw };
+      if (partial.pauseMode === "notify") partial.pauseMode = "copilot";
+      await setSettings(partial);
+      log("cloud settings pulled");
+    } catch (err) {
+      warn("cloud settings pull error:", err);
     }
   }
   async function syncWithCloud() {
@@ -626,14 +657,26 @@
   async function fetchChat(message, history, payload) {
     return postCoach({ mode: "chat", message, history, ...payload });
   }
+  var STREAM_IDLE_MS = 2e4;
+  var STREAM_MAX_MS = 12e4;
   async function streamChat(message, history, payload, onChunk) {
     const token = await getSyncToken();
     if (!token) return { ok: false, error: "not_linked" };
+    const abort = new AbortController();
+    let idle = null;
+    const armIdle = () => {
+      if (idle) clearTimeout(idle);
+      idle = setTimeout(() => abort.abort(), STREAM_IDLE_MS);
+    };
+    const cap = setTimeout(() => abort.abort(), STREAM_MAX_MS);
+    armIdle();
+    let received = false;
     try {
       const res = await fetch(WEB_URL + "/api/ai/coach/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify({ mode: "chat", message, history, ...payload })
+        body: JSON.stringify({ mode: "chat", message, history, ...payload }),
+        signal: abort.signal
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -643,10 +686,10 @@
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let received = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        armIdle();
         buffer += decoder.decode(value, { stream: true });
         const parts = buffer.split("\n\n");
         buffer = parts.pop() || "";
@@ -669,7 +712,11 @@
       }
       return { ok: true };
     } catch {
-      return { ok: false, error: "network" };
+      if (received) return { ok: true };
+      return { ok: false, error: abort.signal.aborted ? "timeout" : "network" };
+    } finally {
+      if (idle) clearTimeout(idle);
+      clearTimeout(cap);
     }
   }
 
@@ -972,7 +1019,7 @@
     }
     throw new Error("offscreen document never acknowledged (audio capture could not start)");
   }
-  var CONTENT_SCRIPTS = ["vendor/kuromoji.js", "content.js"];
+  var CONTENT_SCRIPTS = ["key-shield.js", "vendor/kuromoji.js", "content.js"];
   async function tabNeedsAllFrames(tabId) {
     try {
       const tab = await chrome.tabs.get(tabId);
@@ -981,8 +1028,13 @@
       return false;
     }
   }
-  async function deliverTranscript(tabId, text, start) {
-    const payload = { type: "avc-transcript", text, ...typeof start === "number" ? { start } : {} };
+  async function deliverTranscript(tabId, text, start, end) {
+    const payload = {
+      type: "avc-transcript",
+      text,
+      ...typeof start === "number" ? { start } : {},
+      ...typeof end === "number" ? { end } : {}
+    };
     let delivered = false;
     try {
       const frames = await chrome.webNavigation.getAllFrames({ tabId });
@@ -1157,6 +1209,10 @@
       linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true }).then((result) => sendResponse({ ok: true, ...result })).catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
       return true;
     }
+    if (msg.type === "avc-pull-settings") {
+      pullSettingsFromCloud().then(() => sendResponse({ ok: true })).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
     if (msg.type === "avc-sync-now") {
       syncWithCloud().then(() => sendResponse({ ok: true })).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true;
@@ -1228,7 +1284,7 @@
     }
     if (msg.type === "avc-transcript") {
       console.log("[AVC] relaying transcript to tab", msg.tabId, "\u2192", msg.text);
-      void deliverTranscript(msg.tabId, msg.text, msg.start);
+      void deliverTranscript(msg.tabId, msg.text, msg.start, msg.end);
       return;
     }
     if (msg.type === "avc-update-cache-key" && sender.tab?.id != null) {
@@ -1257,6 +1313,10 @@
         if (stopCodes.includes(msg.code || "")) {
           delete tabs[msg.tabId];
           await setListening(tabs);
+          if (msg.tabId != null) {
+            chrome.tabs.sendMessage(msg.tabId, { type: "avc-listening-state", active: false }).catch(() => {
+            });
+          }
           chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });
           chrome.action.setBadgeBackgroundColor({ tabId: msg.tabId, color: "#f87171" });
           if (msg.tabId != null) {

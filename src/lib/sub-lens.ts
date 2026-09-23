@@ -15,6 +15,7 @@ import { buildGlossIndex, linkEnglishWord } from "./gloss-link";
 import { PlaybackHold } from "./playback-hold";
 import * as storage from "./storage";
 import { log, warn } from "./log";
+import { UI_HOST_ATTR, isTypingEvent, keepFocusOnMouseClick } from "./key-shield";
 import type { Judgment, Token, VocabMap, WordSource } from "../types";
 
 export interface SubLensOptions {
@@ -36,7 +37,16 @@ interface HoverContext {
 }
 
 const AUTO_HIDE_MS = 12_000;
+/** How long an emptied native subtitle must stay empty before the Lens goes.
+ * Players re-render a cue now and then (a resize, a style change) and blank it
+ * for a frame; hiding on that blink would flicker the Lens. */
+const CLEAR_GRACE_MS = 250;
 const POINTER_LEAVE_DELAY_MS = 150;
+/** Hover this long before the peek-pause stops the video. Without it, merely
+ * crossing the Lens on the way to the player controls or the copilot paused
+ * the video and resumed it a moment later — a stutter that read as the player
+ * pausing and playing on its own. */
+const PEEK_INTENT_MS = 250;
 const RESUME_DELAY_MS = 220;
 
 const STYLES = `
@@ -125,6 +135,12 @@ let hideTimer: ReturnType<typeof setTimeout> | null = null;
 let pointerLeaveTimer: ReturnType<typeof setTimeout> | null = null;
 let resumeTimer: ReturnType<typeof setTimeout> | null = null;
 let positionTimer: ReturnType<typeof setInterval> | null = null;
+let clearTimer: ReturnType<typeof setTimeout> | null = null;
+let peekTimer: ReturnType<typeof setTimeout> | null = null;
+
+function cancelPeekIntent(): void {
+  if (peekTimer) { clearTimeout(peekTimer); peekTimer = null; }
+}
 /**
  * Ownership of the peek-pause. Replaces a bare `wePaused` boolean, which could
  * not tell our pause from the learner's: seeking from a deliberate stop got
@@ -145,6 +161,8 @@ function ensureMounted(): void {
   if (!host) {
     host = document.createElement("div");
     host.setAttribute("data-avc-sub-lens", "");
+    // Keystrokes inside the Lens are ours, not the player's (lib/key-shield).
+    host.setAttribute(UI_HOST_ATTR, "");
     root = host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = STYLES;
@@ -159,6 +177,11 @@ function ensureMounted(): void {
     tipEl.addEventListener("mouseenter", onLensEnter);
     tipEl.addEventListener("mouseleave", onLensLeave);
     root.appendChild(tipEl);
+    // After a click on a tooltip button focus sits inside this root, where the
+    // key shield keeps Q/K/X; the window listener below would never hear them.
+    root.addEventListener("keydown", onKeyDown as EventListener);
+    // Learn / Know / Skip are mouse targets; the keyboard stays with the page.
+    keepFocusOnMouseClick(root);
     document.addEventListener("fullscreenchange", ensureMounted);
   }
   parent.appendChild(host);
@@ -184,6 +207,28 @@ function armAutoHide(): void {
     lensEl?.classList.remove("on");
     currentLine = "";
   }, AUTO_HIDE_MS);
+}
+
+function cancelPendingClear(): void {
+  if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
+}
+
+/**
+ * The native subtitle left the screen: take the mirrored line down with it.
+ *
+ * The Lens used to stay up for its full 12s auto-hide after the line it
+ * mirrored was gone, so it sat over the next scene — often next to the next
+ * native line — and read as subtitles out of sync with the video. A line the
+ * learner is hovering stays until they let go, like the auto-hide.
+ */
+export function clearLensLine(): void {
+  if (!currentLine || clearTimer) return;
+  clearTimer = setTimeout(function tryClear() {
+    if (hover) { clearTimer = setTimeout(tryClear, CLEAR_GRACE_MS); return; }
+    clearTimer = null;
+    lensEl?.classList.remove("on");
+    currentLine = "";
+  }, CLEAR_GRACE_MS);
 }
 
 /**
@@ -230,15 +275,20 @@ function releasePeekPause(): void {
 function onLensEnter(): void {
   if (pointerLeaveTimer) { clearTimeout(pointerLeaveTimer); pointerLeaveTimer = null; }
   if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
-  if (!opts?.peekPause) return;
-  const video = opts.getVideo();
-  watchVideo(video);
-  if (video && !video.paused) {
-    peekHold.hold(video, () => video.pause());
-  }
+  if (!opts?.peekPause || peekTimer || peekHold.owned()) return;
+  peekTimer = setTimeout(() => {
+    peekTimer = null;
+    if (!opts?.peekPause) return;
+    const video = opts.getVideo();
+    watchVideo(video);
+    if (video && !video.paused) {
+      peekHold.hold(video, () => video.pause());
+    }
+  }, PEEK_INTENT_MS);
 }
 
 function onLensLeave(): void {
+  cancelPeekIntent();
   if (pointerLeaveTimer) clearTimeout(pointerLeaveTimer);
   // The tooltip is a sibling of the subtitle line. Give the pointer enough
   // time to cross the small gap between them; entering the tooltip cancels
@@ -376,8 +426,9 @@ async function judgeHovered(judgment: Judgment): Promise<void> {
 
 function onKeyDown(e: KeyboardEvent): void {
   if (!hover || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-  const t = e.target as HTMLElement | null;
-  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  // Looks through shadow roots: a Q typed into the copilot chat is typing,
+  // even though a window listener sees it arrive from the panel's host <div>.
+  if (isTypingEvent(e)) return;
   const key = e.key.toLowerCase();
   const judgment: Judgment | null = key === "q" ? "learn" : key === "k" ? "know" : key === "x" ? "ignore" : null;
   if (!judgment) return;
@@ -403,6 +454,7 @@ export function showLensLine(
 ): void {
   opts = options;
   vocabSnapshot = vocab;
+  cancelPendingClear();
   if (text === currentLine) return;
   currentLine = text;
   ensureMounted();
@@ -494,6 +546,7 @@ export function showLensLine(
     // pointer-leave path never runs and the video used to sit paused until the
     // pointer came back (issue #131). Losing focus gives the pause back now.
     window.addEventListener("blur", () => {
+      cancelPeekIntent();
       hideTip();
       releasePeekPause();
     });
@@ -502,6 +555,7 @@ export function showLensLine(
     // have left. Drop the claim instead and leave the video where it is.
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
+        cancelPeekIntent();
         hideTip();
         peekHold.forfeit();
       }
@@ -512,6 +566,8 @@ export function showLensLine(
 /** Hide the lens (session reset / feature toggled off). */
 export function hideLens(): void {
   currentLine = "";
+  cancelPendingClear();
+  cancelPeekIntent();
   if (pointerLeaveTimer) { clearTimeout(pointerLeaveTimer); pointerLeaveTimer = null; }
   if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
   hideTip();

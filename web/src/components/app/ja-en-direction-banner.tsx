@@ -18,9 +18,11 @@ import {
 import { useCloudSnapshot, persistCloudEnvelope, useCloudSyncMeta } from "@/lib/cloud-snapshot-store";
 import type { CloudSyncEnvelope } from "@/lib/sync";
 
+/** Ask the extension to pull the settings just saved. Not `avc-sync-now`: that
+ * makes the extension push its own copy, which overwrote this save. */
 function notifyExtensionSync(): void {
   try {
-    window.postMessage({ source: "avc-web", type: "avc-sync-now" }, window.location.origin);
+    window.postMessage({ source: "avc-web", type: "avc-settings-updated" }, window.location.origin);
   } catch {
     /* ignore */
   }

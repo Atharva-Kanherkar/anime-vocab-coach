@@ -39,12 +39,16 @@
       <div class="av-mode-row">
         <span class="av-mode-dot" id="mode-lens-dot"></span>
         <div><b>Subtitle Lens</b><span id="mode-lens-detail">Checking…</span></div>
-        <strong id="mode-lens-status">—</strong>
+        <button type="button" class="av-mode-switch" id="mode-lens-status" role="switch" aria-checked="false" aria-label="Subtitle Lens">—</button>
       </div>
       <div class="av-mode-row">
         <span class="av-mode-dot" id="mode-cards-dot"></span>
         <div><b>Auto cards</b><span id="mode-cards-detail">Checking…</span></div>
-        <strong id="mode-cards-status">—</strong>
+        <select class="av-mode-select" id="mode-cards-select" aria-label="Auto cards">
+          <option value="copilot">Ambient</option>
+          <option value="pause">Focus</option>
+          <option value="off">Off</option>
+        </select>
       </div>
       <div class="av-mode-row">
         <span class="av-mode-dot" id="mode-listen-dot"></span>
@@ -59,6 +63,7 @@
       <details class="av-mode-help">
         <summary>How the modes work together</summary>
         <p>Subtitle Lens and Auto cards read subtitle tracks. Listening adds words from spoken audio. Copilot explains either kind of card. Start both Listening and Copilot for the full study session, or run each separately.</p>
+        <p>Just want to listen? Turn Subtitle Lens and Auto cards off here; the video plays with nothing of ours on screen, and Listening can keep running for the copilot.</p>
       </details>
     </section>
 

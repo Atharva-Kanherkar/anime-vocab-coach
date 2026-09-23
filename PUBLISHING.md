@@ -57,8 +57,17 @@ upload file is already built for you: **`dist/anime-vocab-coach.zip`**.
      transcription."
    - youtube/netflix/crunchyroll hosts: "Detect on-screen subtitles and the video player."
 9. **Data-use disclosures:** declare that audio is sent to a third party (OpenAI) only
-   in Listening Mode; no data is sold; aggregate rating-prompt counters only
-   (see `PRIVACY.md`).
+   in Listening Mode; that no data is sold; and — **as of 0.6.0** — that the extension
+   reports allowlisted activity counters (bare event names such as `card_shown`, never
+   the word, subtitle line, show title or page URL), which are associated with an account
+   id when the extension is linked and anonymous when it is not. See `PRIVACY.md`
+   § Product counters.
+
+   > ⚠️ Earlier versions of this file said "aggregate rating-prompt counters only". That
+   > was true through 0.5.6 and is **not** true from 0.6.0. The Chrome Web Store listing's
+   > privacy disclosures must be updated in the dashboard *before* submitting 0.6.0 —
+   > shipping account-linked activity against a listing that claims anonymous aggregates
+   > is the kind of mismatch that gets an extension pulled, not just rejected.
 10. Submit for review.
 
 ### Reality check on review

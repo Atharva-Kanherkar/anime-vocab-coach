@@ -38,8 +38,8 @@
   the sync route with no version and are excluded, or every current learner would
   read as an old build. It honours the focus-user filter like the Learning loop
   panel, and is included in the AI-insights digest.
-- The extension version is bumped to **0.5.7** so the package can be uploaded over
-  whatever is pending on the store item.
+- The extension ships as **0.6.0** (release PR #144). This branch originally bumped
+  to 0.5.7; that was dropped in favour of 0.6.0 when #144 merged first.
 
 ## Unit Tests
 
@@ -66,18 +66,18 @@
 
 - Root: `npm run typecheck`, `npm run test:unit`, `npm run build`.
 - `web/`: `npm run test:unit` (or `npx vitest run`), `npm run lint`, typecheck.
-- `extension/manifest.json` is valid JSON with version `0.5.7`.
+- `extension/manifest.json` is valid JSON with version `0.6.0`.
 
 ## E2E Tests
 
 - `npm run test:e2e:learning-loop` — existing real-Chromium run: Know/Learn on a
   card and a dashboard review arrive at the server as `word_saved` / `review_done`
-  with the bearer; extended to assert the body carries `v: "0.5.7"`.
+  with the bearer; extended to assert the body carries `v` equal to the manifest version.
 
 ## Manual / cURL Tests
 
 - `curl -X POST https://animevocab.com/api/track -H 'content-type: application/json' -d '{"kind":"feature","name":"word_saved","v":"0.5.7"}'` → 204 (after web deploy).
-- After publishing 0.5.7: link an install, save + review a word, open
+- After publishing 0.6.0: link an install, save + review a word, open
   `/owner?user=<id>` → "Learning loop" shows `word_saved`/`review_done` for that
-  user and "Extension builds" shows `0.5.7`. **Requires the store release — cannot
+  user and "Extension builds" shows `0.6.0`. **Requires the store release — cannot
   be run from this PR.**
