@@ -14,9 +14,11 @@ import { directionLabel, type LearningDirection } from "@/lib/direction";
 import { useSiteLocale } from "@/components/locale-provider";
 import type { CloudSyncEnvelope } from "@/lib/sync";
 
+/** Ask the extension to pull the settings just saved. Not `avc-sync-now`: that
+ * makes the extension push its own copy, which overwrote this save. */
 function notifyExtensionSync(): void {
   try {
-    window.postMessage({ source: "avc-web", type: "avc-sync-now" }, window.location.origin);
+    window.postMessage({ source: "avc-web", type: "avc-settings-updated" }, window.location.origin);
   } catch {
     /* ignore */
   }
@@ -61,7 +63,7 @@ export function SettingsPanel() {
       }
       if (!res.ok || !data.envelope) throw new Error(data.error || `Save failed (${res.status}).`);
       persistCloudEnvelope(data.envelope);
-      setMessage("Saved — your extension will pick this up on the next sync.");
+      setMessage("Saved — your extension applies this right away.");
       notifyExtensionSync();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Couldn't save settings.");

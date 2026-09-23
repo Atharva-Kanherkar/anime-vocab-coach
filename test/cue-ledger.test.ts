@@ -46,8 +46,8 @@ describe("CueLedger", () => {
     );
 
     expect(offscreen).toMatch(/type:\s*"avc-transcript"[\s\S]{0,100}?start:\s*seg\.start/);
-    expect(background).toContain("deliverTranscript(msg.tabId!, msg.text!, msg.start)");
-    expect(content).toContain('emittedCueKeys.remember(`${msg.start}:${rawTranscript}`)');
+    expect(background).toContain("deliverTranscript(msg.tabId!, msg.text!, msg.start, msg.end)");
+    expect(content).toContain('emittedCueKeys.remember(`${start}:${rawTranscript}`)');
     expect(content).toMatch(/if \(next !== cacheKey\)[\s\S]{0,260}?emittedCueKeys\.clear\(\)/);
     expect(offscreen).toContain("session.sentCues.clear()");
     expect(content).toContain("cachePollGeneration !== generation");
@@ -55,10 +55,16 @@ describe("CueLedger", () => {
     expect(content).toContain("if (cachePollInFlight === generation) cachePollInFlight = null");
     expect(content).toMatch(/settings = await storage\.getSettings\(\);\s+if \(stale\(\)\) return/);
     expect(content).toMatch(/await lookupTranscript[\s\S]{0,300}?if \(stale\(\)\) return/);
-    expect(content).toMatch(/await onLine[\s\S]{0,100}?if \(stale\(\)\) return/);
+    // Every cached segment is re-checked against the generation before it is
+    // emitted; onLine itself returns at once and never waits on a card.
+    expect(content).toMatch(/for \(const seg of result\.segments\) \{\s+if \(stale\(\)\) return/);
     expect(offscreen).toContain("session.cacheKey !== requestKey");
     expect(offscreen).toContain("session.modeGeneration !== generation");
     expect(offscreen).toContain("session.transcribingGeneration === session.modeGeneration");
-    expect(offscreen).toContain("if (session.transcribingGeneration === generation) session.transcribingGeneration = null");
+    expect(offscreen).toMatch(
+      /if \(session\.transcribingGeneration === generation\) \{\s+session\.transcribingGeneration = null;/
+    );
+    // A tick that landed mid-request flushes on return, only for that generation.
+    expect(offscreen).toMatch(/session\.flushDeferred && session\.active && session\.modeGeneration === generation/);
   });
 });

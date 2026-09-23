@@ -1,6 +1,6 @@
 import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
-import { syncWithCloud } from "../lib/cloud-sync";
+import { pullSettingsFromCloud, syncWithCloud } from "../lib/cloud-sync";
 import { attemptAutoLink } from "../lib/account-link";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
@@ -223,7 +223,7 @@ async function sendToOffscreen(msg: object, tries = 15): Promise<Ack> {
 // The content scripts, in manifest load order. Injected on demand so
 // Listening Mode works even in a tab that was open before the extension
 // loaded (Chrome only auto-injects on navigation after install).
-const CONTENT_SCRIPTS = ["vendor/kuromoji.js", "content.js"];
+const CONTENT_SCRIPTS = ["key-shield.js", "vendor/kuromoji.js", "content.js"];
 
 async function tabNeedsAllFrames(tabId: number): Promise<boolean> {
   try {
@@ -234,8 +234,13 @@ async function tabNeedsAllFrames(tabId: number): Promise<boolean> {
   }
 }
 
-async function deliverTranscript(tabId: number, text: string, start?: number): Promise<void> {
-  const payload = { type: "avc-transcript", text, ...(typeof start === "number" ? { start } : {}) };
+async function deliverTranscript(tabId: number, text: string, start?: number, end?: number): Promise<void> {
+  const payload = {
+    type: "avc-transcript",
+    text,
+    ...(typeof start === "number" ? { start } : {}),
+    ...(typeof end === "number" ? { end } : {}),
+  };
   let delivered = false;
   try {
     const frames = await chrome.webNavigation.getAllFrames({ tabId });
@@ -383,6 +388,7 @@ interface RuntimeMsg {
   detail?: string;
   time?: number;
   start?: number;
+  end?: number;
   paused?: boolean;
   mode?: "explain" | "hooks";
   message?: string;
@@ -474,6 +480,15 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true })
       .then((result) => sendResponse({ ok: true, ...result }))
       .catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
+    return true;
+  }
+
+  // A deliberate save on the site's settings page: the one time settings flow
+  // cloud → extension (see pullSettingsFromCloud).
+  if (msg.type === "avc-pull-settings") {
+    pullSettingsFromCloud()
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
     return true;
   }
 
@@ -590,7 +605,7 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
 
   if (msg.type === "avc-transcript") {
     console.log("[AVC] relaying transcript to tab", msg.tabId, "→", msg.text);
-    void deliverTranscript(msg.tabId!, msg.text!, msg.start);
+    void deliverTranscript(msg.tabId!, msg.text!, msg.start, msg.end);
     return;
   }
 
@@ -624,6 +639,11 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
       if (stopCodes.includes(msg.code || "")) {
         delete tabs[msg.tabId!];
         await setListening(tabs);
+        // The page has to hear it too: it kept polling the transcript cache
+        // and relaying playback time for a session that no longer existed.
+        if (msg.tabId != null) {
+          chrome.tabs.sendMessage(msg.tabId, { type: "avc-listening-state", active: false }).catch(() => {});
+        }
         chrome.action.setBadgeText({ tabId: msg.tabId, text: "ERR" });
         chrome.action.setBadgeBackgroundColor({ tabId: msg.tabId, color: "#f87171" });
         // Surface it on the page too — the toolbar badge is invisible while the

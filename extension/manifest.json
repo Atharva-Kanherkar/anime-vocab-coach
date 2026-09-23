@@ -24,6 +24,18 @@
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*", "*://*.netflix.com/*"],
+      "js": ["key-shield.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": ["*://*.crunchyroll.com/*"],
+      "js": ["key-shield.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*.youtube.com/*", "*://*.netflix.com/*"],
       "js": ["vendor/kuromoji.js", "content.js"],
       "run_at": "document_idle",
       "all_frames": false

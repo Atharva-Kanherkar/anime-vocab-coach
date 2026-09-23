@@ -58,6 +58,11 @@
         });
         return;
       }
+      if (data.type === "avc-settings-updated") {
+        chrome.runtime.sendMessage({ type: "avc-pull-settings" }).catch(() => {
+        });
+        return;
+      }
       if (data.type === "avc-sign-out") {
         chrome.storage.local.set({
           syncToken: "",

@@ -30,7 +30,7 @@ export const genericAdapter: SiteAdapter = {
     }
     return normalize(parts.join(" "));
   },
-  start(onLine) {
+  start(onLine, onClear) {
     const hooked = new WeakSet<TextTrack>();
     const lastByTrack = new WeakMap<TextTrack, string>();
 
@@ -71,7 +71,15 @@ export const genericAdapter: SiteAdapter = {
             track.addEventListener("cuechange", () => {
               try {
                 const cues = track.activeCues;
-                if (!cues || !cues.length) return;
+                if (!cues || !cues.length) {
+                  // The cue ended. Only the track we last read a line from
+                  // speaks for the screen; a quiet context track does not.
+                  if (lastByTrack.get(track)) {
+                    lastByTrack.set(track, "");
+                    onClear?.();
+                  }
+                  return;
+                }
                 const text = normalize(
                   Array.from(cues)
                     .map((c) => stripCueTags((c as VTTCue).text))

@@ -94,6 +94,14 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  // The learner saved extension settings on the site. Routine sync only pushes
+  // (a pull there once reverted in-panel changes), so without an explicit pull
+  // the next push overwrote the save and the site's settings never applied.
+  if (data.type === "avc-settings-updated") {
+    chrome.runtime.sendMessage({ type: "avc-pull-settings" }).catch(() => {});
+    return;
+  }
+
   if (data.type === "avc-sign-out") {
     // The user signed out on the site — immediately invalidate the extension's
     // stored credential instead of waiting for the token's TTL or the next 401.

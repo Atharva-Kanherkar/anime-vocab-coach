@@ -1,5 +1,4 @@
 import * as storage from "../lib/storage";
-import { ownedWebUrl } from "../config";
 import { isJapaneseUiLocale } from "../lib/locale-direction";
 import type { DisplayScript, LearningDirection, PauseMode, Settings } from "../types";
 
@@ -115,12 +114,11 @@ function maybeShowJaEnBanner(): void {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const token = await storage.getSyncToken();
-  if (token) {
-    window.location.replace(ownedWebUrl("/app#settings", "options_redirect"));
-    return;
-  }
-
+  // Signed-in learners used to be redirected to the web app here. Its form
+  // covers only some settings (no Subtitle Lens, no API key) and the extension
+  // never pulls web edits back — its next sync pushes the local values over
+  // them — so signed-in learners had no working way to change a setting. The
+  // extension's settings live in the extension; this page is where they are.
   initTheme();
   await loadSettingsForm();
   maybeShowJaEnBanner();

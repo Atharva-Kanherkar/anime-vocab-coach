@@ -7,6 +7,7 @@ const watch = process.argv.includes("--watch");
 
 const entries = [
   { in: "src/entries/content.ts", out: "extension/content.js" },
+  { in: "src/entries/key-shield.ts", out: "extension/key-shield.js" },
   { in: "src/entries/background.ts", out: "extension/background.js" },
   { in: "src/entries/offscreen.ts", out: "extension/offscreen/offscreen.js" },
   { in: "src/entries/youtube-main.ts", out: "extension/page/youtube-main.js" },
