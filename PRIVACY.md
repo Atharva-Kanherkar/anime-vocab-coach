@@ -38,7 +38,8 @@ whether they are tied to an account.
 
 **Anonymous counters.** When the extension shows the in-product Chrome Web Store
 rating prompt (or you click Rate), it sends an event name (e.g.
-`review_prompt_shown`) plus the extension id. These are aggregate counters only
+`review_prompt_shown`) plus the extension id and its version number (e.g.
+`0.5.7`). These are aggregate counters only
 — no account id, vocabulary, or browsing history. Dismissing the prompt
 ("No thanks" / Rate) stops further prompts and thus further beacons. That
 endpoint rate-limits by IP and only accepts requests that present as our Chrome
@@ -47,7 +48,8 @@ extension (a public id in a header, not a secret credential).
 **Learning-activity counters.** The extension also reports when a card was
 shown, kept, or reviewed, when Listening Mode started, when it was first
 installed, and when it was linked to an account — as a bare event name such as
-`card_shown`, and nothing else. **The word, the subtitle line, the show you are
+`card_shown`, plus the extension's version number so we can tell which release
+sent it. **The word, the subtitle line, the show you are
 watching, and the page URL are never sent with these.** They exist so we can
 tell "nobody is getting cards" apart from "nobody has installed it", which
 previously could not be distinguished at all.
