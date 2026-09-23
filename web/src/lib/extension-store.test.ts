@@ -45,9 +45,14 @@ describe("extension funnel Analytics Engine + gate", () => {
   it("trackExtensionEvent appends an Analytics Engine data point (no KV RMW)", async () => {
     await trackExtensionEvent("review_prompt_shown");
     expect(points).toEqual([
-      { blobs: ["review_prompt_shown"], doubles: [1], indexes: ["review_prompt_shown"] },
+      { blobs: ["review_prompt_shown", ""], doubles: [1], indexes: ["review_prompt_shown"] },
     ]);
     expect([...kv.keys()].every((k) => k.startsWith("extrate:"))).toBe(true);
+  });
+
+  it("keeps the event in blob1 and puts the build version in blob2 (#159)", async () => {
+    await trackExtensionEvent("first_srs_review", "0.5.7");
+    expect(points[0]!.blobs).toEqual(["first_srs_review", "0.5.7"]);
   });
 
   it("parseExtensionId accepts Origin and raw ids", () => {

@@ -1,4 +1,5 @@
 import { isExtensionEvent } from "@/lib/extension-funnel";
+import { normalizeClientVersion } from "@/lib/track-events";
 import {
   EXTENSION_TRACK_MAX_BODY_BYTES,
   allowExtensionTrack,
@@ -27,8 +28,11 @@ export async function POST(req: Request) {
     }
 
     let event: unknown;
+    let version = "";
     try {
-      event = (JSON.parse(text) as { event?: unknown }).event;
+      const body = JSON.parse(text) as { event?: unknown; v?: unknown };
+      event = body.event;
+      version = normalizeClientVersion(body.v);
     } catch {
       return new Response(null, { status: 204 });
     }
@@ -42,7 +46,7 @@ export async function POST(req: Request) {
       return new Response(null, { status: 204 });
     }
 
-    await trackExtensionEvent(event);
+    await trackExtensionEvent(event, version);
   } catch {
     // infra — ignore
   }

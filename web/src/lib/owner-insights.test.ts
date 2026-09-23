@@ -42,6 +42,7 @@ function baseData(over: Partial<OwnerDashboardData> = {}): OwnerDashboardData {
     transcribe: EMPTY_TRANSCRIBE,
     eventUserCount: 0,
     learningLoop: [],
+    extensionBuilds: [],
     animeContextCache: EMPTY_CACHE,
     ...over,
   };
@@ -65,6 +66,21 @@ describe("buildInsightsDigest", () => {
     const digest = buildInsightsDigest(WIN, baseData(), null);
     expect(digest).toContain("Window: last 12h");
     expect(digest).toContain("all users");
+  });
+
+  it("tells the model which builds the learning loop came from (#159)", () => {
+    const digest = buildInsightsDigest(
+      WIN,
+      baseData({
+        extensionBuilds: [
+          { label: "unstamped (≤ 0.5.6)", events: 3, users: 1, anonEvents: 2, identifiedEvents: 1 },
+        ],
+      }),
+      null
+    );
+    expect(digest).toContain("Extension builds sending learning-loop events");
+    expect(digest).toContain("unstamped (≤ 0.5.6): 3 events, 1 learners");
+    expect(buildInsightsDigest(WIN, baseData(), null)).not.toContain("Extension builds");
   });
 
   it("names the focus user instead of 'all users' on a drill-down", () => {

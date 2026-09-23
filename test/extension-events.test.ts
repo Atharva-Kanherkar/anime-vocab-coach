@@ -16,7 +16,7 @@ describe("extension funnel events", () => {
     for (const key of Object.keys(state)) delete state[key];
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
     vi.stubGlobal("chrome", {
-      runtime: { id: "lkjbomofgfonjjbemobacegffepbdnel" },
+      runtime: { id: "lkjbomofgfonjjbemobacegffepbdnel", getManifest: () => ({ version: "0.5.7" }) },
       storage: {
         local: {
           get: vi.fn(async () => ({ ...state })),
@@ -69,6 +69,12 @@ describe("extension funnel events", () => {
     });
     expect(fetch).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("sends the build version with the event so a stale package is visible (#159)", () => {
+    trackExtensionEvent("first_srs_review");
+    const [, init] = (fetch as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]!;
+    expect(JSON.parse(String(init.body))).toEqual({ event: "first_srs_review", v: "0.5.7" });
   });
 
   it("drops a name that is not on the allowlist before it reaches the relay", () => {

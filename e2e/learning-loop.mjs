@@ -132,10 +132,10 @@ const server = createServer(
         body = { unparseable: raw };
       }
       if (req.url === "/api/track" && req.method === "POST") {
-        beacons.push({ ...entry, kind: body.kind, name: body.name, at: Date.now() });
+        beacons.push({ ...entry, kind: body.kind, name: body.name, v: body.v, at: Date.now() });
       } else {
         // `event` is the extension-funnel beacon's field name (/api/extension/track).
-        otherCalls.push({ ...entry, event: body.event });
+        otherCalls.push({ ...entry, event: body.event, v: body.v });
       }
       // Production's answer: 204, empty, and no Access-Control-* of any kind.
       res.writeHead(204).end();
@@ -437,6 +437,23 @@ try {
       );
     }
     await dash.close();
+  }
+
+  // ── #159: every beacon names the build that sent it ───────────────────────
+  {
+    const version = JSON.parse(readFileSync(join(EXT, "manifest.json"), "utf8")).version;
+    const unstamped = beacons.filter((b) => b.v !== version);
+    check(
+      `#159 every learning-loop beacon carries the build version (${version})`,
+      beacons.length > 0 && unstamped.length === 0,
+      JSON.stringify(unstamped.map((b) => `${b.name}:${b.v}`))
+    );
+    const funnel = otherCalls.filter((c) => c.event);
+    check(
+      "#159 funnel beacons carry the build version too",
+      funnel.every((c) => c.v === version),
+      JSON.stringify(funnel.map((c) => `${c.event}:${c.v}`))
+    );
   }
 
   // ── 7. extension_linked, and the bearer that makes rows attributable ──────

@@ -24,6 +24,14 @@
   function inServiceWorker() {
     return typeof window === "undefined";
   }
+  function extensionVersion() {
+    try {
+      const v = chrome.runtime.getManifest().version;
+      return typeof v === "string" ? v : "";
+    } catch {
+      return "";
+    }
+  }
 
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
@@ -52,7 +60,7 @@
     if (!isExtensionEvent(event)) return;
     try {
       const url = `${WEB_URL}/api/extension/track`;
-      const payload = JSON.stringify({ event });
+      const payload = JSON.stringify({ event, v: extensionVersion() });
       void fetch(url, {
         method: "POST",
         headers: {

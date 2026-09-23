@@ -31,6 +31,8 @@ import {
   eventGroupSql,
   eventsByUserSql,
   extensionFunnelSql,
+  featureBuildsSql,
+  featureEventsSql,
   llmByUserSql,
   llmErrorsSql,
   llmFacetsSql,
@@ -43,7 +45,7 @@ import {
   sqlString,
   runQuery,
 } from "./telemetry-query";
-import { isTrackableEvent, normalizeTrackPath } from "./track-events";
+import { isTrackableEvent, normalizeClientVersion, normalizeTrackPath } from "./track-events";
 import {
   attributionFromSearch,
   isPublicLandingPath,
@@ -179,6 +181,30 @@ describe("telemetry schema", () => {
     expect(EVENT_DOUBLES.length).toBeLessThanOrEqual(20);
   });
 
+  /**
+   * Historical rows keep their positions forever, so a new field may only be
+   * appended. Pinning the old thirteen is what stops a tidy-up reorder from
+   * silently re-labelling two months of data.
+   */
+  it("appends clientVersion without moving any existing column (#159)", () => {
+    expect(EVENT_BLOBS.slice(0, 13)).toEqual([
+      "kind",
+      "name",
+      "userId",
+      "plan",
+      "country",
+      "city",
+      "referrerHost",
+      "device",
+      "authKind",
+      "status",
+      "utmSource",
+      "utmMedium",
+      "utmCampaign",
+    ]);
+    expect(eventColumn("clientVersion")).toBe("blob14");
+  });
+
   it("throws on an unknown field rather than silently mis-addressing", () => {
     expect(() => llmColumn("nope" as never)).toThrow(/unknown telemetry field/);
   });
@@ -297,6 +323,40 @@ describe("recordUserEvent", () => {
     expect(blobOf(w, "country", EVENT_BLOBS)).toBe("IN");
     expect(blobOf(w, "status", EVENT_BLOBS)).toBe("200");
     expect(w.indexes).toEqual(["pageview"]);
+    expect(blobOf(w, "clientVersion", EVENT_BLOBS)).toBe("");
+  });
+
+  it("writes the extension build version on a feature row", async () => {
+    const { ae, writes } = sink();
+    setTelemetrySinksForTests(null, ae);
+    await recordUserEvent({ kind: "feature", name: "word_saved", userId: "user_9", clientVersion: "0.5.7" });
+    expect(blobOf(writes[0]!, "clientVersion", EVENT_BLOBS)).toBe("0.5.7");
+    expect(blobOf(writes[0]!, "userId", EVENT_BLOBS)).toBe("user_9");
+  });
+});
+
+describe("normalizeClientVersion", () => {
+  it("keeps a manifest-shaped version", () => {
+    for (const v of ["0.5.7", "1", "1.2.3.4", "10.0.12"]) expect(normalizeClientVersion(v)).toBe(v);
+  });
+
+  it("collapses anything else to empty, since it becomes a GROUP BY label", () => {
+    for (const v of [
+      "",
+      "1.0.0-beta",
+      "1..2",
+      "1.2.3.4.5",
+      "123456.1",
+      " 0.5.7",
+      "<script>",
+      "'; DROP TABLE avc_events; --",
+      42,
+      null,
+      undefined,
+      {},
+    ]) {
+      expect(normalizeClientVersion(v)).toBe("");
+    }
   });
 });
 
@@ -686,6 +746,8 @@ describe("generated SQL matches the Analytics Engine dialect", () => {
     { label: "apiRoutes", sql: apiRoutesSql(24) },
     { label: "eventUsers", sql: eventsByUserSql(24) },
     { label: "funnel", sql: extensionFunnelSql(24) },
+    { label: "learningLoop", sql: featureEventsSql(24) },
+    { label: "extensionBuilds", sql: featureBuildsSql(24, "u_1") },
   ];
 
   it("never calls min/max on a blob (String) column", () => {
@@ -712,6 +774,9 @@ describe("generated SQL matches the Analytics Engine dialect", () => {
       "topkweighted", "countif", "sumif", "avgif",
       // non-aggregate helpers used in SELECT/GROUP BY
       "if", "tostartofhour", "todate", "interval", "now",
+      // `name IN (...)` is an operator, not a call, but reads like one to the
+      // pattern below; the learning-loop queries have used it since #111.
+      "in",
     ]);
     for (const { label, sql } of allQueries()) {
       for (const m of sql.matchAll(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g)) {

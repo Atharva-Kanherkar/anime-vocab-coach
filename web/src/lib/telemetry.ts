@@ -160,6 +160,8 @@ export interface UserEventRecord {
   utmSource?: string | null;
   utmMedium?: string | null;
   utmCampaign?: string | null;
+  /** Extension manifest version, already normalized (see normalizeClientVersion). */
+  clientVersion?: string | null;
 }
 
 export async function recordUserEvent(record: UserEventRecord): Promise<void> {
@@ -181,6 +183,7 @@ export async function recordUserEvent(record: UserEventRecord): Promise<void> {
       utmSource: record.utmSource || "",
       utmMedium: record.utmMedium || "",
       utmCampaign: record.utmCampaign || "",
+      clientVersion: record.clientVersion || "",
     };
     const numbers: Record<(typeof EVENT_DOUBLES)[number], number> = {
       durationMs: finite(record.durationMs),

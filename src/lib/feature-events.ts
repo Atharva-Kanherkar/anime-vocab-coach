@@ -12,7 +12,7 @@
 // that can throw is a beacon that can break mining or playback.
 
 import { WEB_URL } from "../config";
-import { inServiceWorker } from "./run-context";
+import { extensionVersion, inServiceWorker } from "./run-context";
 
 /**
  * The learning-loop events this extension emits.
@@ -81,7 +81,7 @@ export async function sendFeatureBeacon(event: FeatureEvent): Promise<void> {
     void fetch(TRACK_URL, {
       method: "POST",
       headers,
-      body: JSON.stringify({ kind: "feature", name: event }),
+      body: JSON.stringify({ kind: "feature", name: event, v: extensionVersion() }),
       keepalive: true,
     }).catch(() => {});
   } catch {

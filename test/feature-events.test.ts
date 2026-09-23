@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FEATURE_EVENTS, TRACK_FEATURE_MESSAGE, trackFeature } from "../src/lib/feature-events";
-import { LEARNING_LOOP_EVENTS, TRACKABLE_EVENTS } from "../web/src/lib/track-events";
+import {
+  EXTENSION_LEARNING_LOOP_EVENTS,
+  LEARNING_LOOP_EVENTS,
+  TRACKABLE_EVENTS,
+} from "../web/src/lib/track-events";
 import * as storage from "../src/lib/storage";
 import type { DictEntry, JudgmentMeta, Token } from "../src/types";
 
@@ -28,7 +32,11 @@ beforeEach(() => {
   for (const key of Object.keys(local)) delete local[key];
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
   vi.stubGlobal("chrome", {
-    runtime: { id: "lkjbomofgfonjjbemobacegffepbdnel", sendMessage: vi.fn(async () => undefined) },
+    runtime: {
+      id: "lkjbomofgfonjjbemobacegffepbdnel",
+      sendMessage: vi.fn(async () => undefined),
+      getManifest: () => ({ version: "0.5.7" }),
+    },
     storage: {
       local: {
         get: vi.fn((keys: string[], cb?: (v: Record<string, unknown>) => void) => {
@@ -67,6 +75,10 @@ describe("feature event allowlist", () => {
     }
   });
 
+  it("matches the server's list of extension-fired events, so /owner's builds panel sees them all", () => {
+    expect([...FEATURE_EVENTS].sort()).toEqual([...EXTENSION_LEARNING_LOOP_EVENTS].sort());
+  });
+
   it("covers every learning-loop moment the extension owns", () => {
     expect([...FEATURE_EVENTS].sort()).toEqual(
       [
@@ -92,7 +104,27 @@ describe("trackFeature", () => {
     expect((call!.init.headers as Record<string, string>).authorization).toBe(
       "Bearer avc_st_abc123"
     );
-    expect(JSON.parse(String(call!.init.body))).toEqual({ kind: "feature", name: "card_shown" });
+    expect(JSON.parse(String(call!.init.body))).toEqual({
+      kind: "feature",
+      name: "card_shown",
+      v: "0.5.7",
+    });
+  });
+
+  /**
+   * #159: the Web Store served a package that predated every one of these
+   * events, and the dashboard could not tell that apart from nobody using the
+   * product. The version on each row is what makes a stale build visible.
+   */
+  it("stamps the build version, and still sends when the runtime has none", async () => {
+    await trackFeature("word_saved");
+    expect(bodies()[0]).toMatchObject({ name: "word_saved", v: "0.5.7" });
+
+    (chrome.runtime as unknown as { getManifest: () => never }).getManifest = () => {
+      throw new Error("context invalidated");
+    };
+    await trackFeature("review_done");
+    expect(bodies()[1]).toMatchObject({ name: "review_done", v: "" });
   });
 
   it("still reports for an unlinked install, unauthenticated", async () => {

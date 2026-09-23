@@ -1,5 +1,5 @@
 import { CWS_EXTENSION_ID, WEB_URL } from "../config";
-import { inServiceWorker } from "./run-context";
+import { extensionVersion, inServiceWorker } from "./run-context";
 
 /** Allowlisted extension product-funnel events (aggregate counters only). */
 export const EXTENSION_EVENTS = [
@@ -36,7 +36,8 @@ export const TRACK_EXTENSION_EVENT_MESSAGE = "avc-track-extension-event";
 /**
  * Send the counter. Only ever called in the service worker — see below.
  *
- * Sends the extension id so the server can reject non-extension callers.
+ * Sends the extension id so the server can reject non-extension callers, and
+ * the build version so the dashboard can tell which package is reporting.
  * fetch-only (sendBeacon cannot set the id header and is not CORS-safelisted
  * for application/json).
  */
@@ -44,7 +45,7 @@ export function sendExtensionEventBeacon(event: ExtensionEvent): void {
   if (!isExtensionEvent(event)) return;
   try {
     const url = `${WEB_URL}/api/extension/track`;
-    const payload = JSON.stringify({ event });
+    const payload = JSON.stringify({ event, v: extensionVersion() });
     void fetch(url, {
       method: "POST",
       headers: {

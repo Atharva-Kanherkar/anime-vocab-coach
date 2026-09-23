@@ -101,13 +101,18 @@ export async function hashTrackIp(ip: string): Promise<string> {
     .slice(0, 32);
 }
 
-/** Append-only Analytics Engine write. No-op if the binding is missing. */
-export async function trackExtensionEvent(event: ExtensionEvent): Promise<void> {
+/**
+ * Append-only Analytics Engine write. No-op if the binding is missing.
+ *
+ * blob1 is the event and stays so (extensionFunnelSql reads it); blob2 is the
+ * sending build's version (#159), "" for packages older than 0.5.7.
+ */
+export async function trackExtensionEvent(event: ExtensionEvent, version = ""): Promise<void> {
   const ae = await getAE();
   if (!ae) return;
   // Fire-and-forget — writeDataPoint is non-blocking by design.
   ae.writeDataPoint({
-    blobs: [event],
+    blobs: [event, version],
     doubles: [1],
     indexes: [event],
   });

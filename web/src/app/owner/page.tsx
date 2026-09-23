@@ -603,6 +603,31 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
             </table>
           </div>
         </Panel>
+        {/* #159: the store shipped a build that predated all of the above for
+            two months, and the panel above just read zero. This says which
+            package the rows are coming from. */}
+        <Panel title="Extension builds" empty={data.extensionBuilds.length === 0}>
+          <div className="ow-scroll">
+            <table className="ow-table">
+              <thead>
+                <tr>
+                  <th>Build</th>
+                  <th className="ow-num">Events</th>
+                  <th className="ow-num">Learners</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.extensionBuilds.map((r) => (
+                  <tr key={r.label}>
+                    <td className="ow-label ow-mono">{r.label}</td>
+                    <td className="ow-num">{fmtInt(r.events)}</td>
+                    <td className="ow-num">{fmtInt(r.users)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       </div>
 
       <div className="ow-grid">

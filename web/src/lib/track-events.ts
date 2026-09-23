@@ -31,6 +31,21 @@ export const LEARNING_LOOP_EVENTS = [
 export type LearningLoopEvent = (typeof LEARNING_LOOP_EVENTS)[number];
 
 /**
+ * Learning-loop events the SERVER writes (the sync route), not the extension.
+ *
+ * They never carry an extension version, so the Extension builds panel (#159)
+ * must leave them out or every 0.5.7 learner's streak would read as an
+ * unidentifiable old build.
+ */
+export const SERVER_LEARNING_LOOP_EVENTS = ["streak_day", "card_unlocked"] as const satisfies
+  readonly LearningLoopEvent[];
+
+/** The learning-loop events the extension fires — mirrored in src/lib/feature-events.ts. */
+export const EXTENSION_LEARNING_LOOP_EVENTS = LEARNING_LOOP_EVENTS.filter(
+  (e) => !(SERVER_LEARNING_LOOP_EVENTS as readonly string[]).includes(e)
+);
+
+/**
  * Feature invocations worth a row. Anything not listed is dropped.
  *
  * The learning-loop block is the one the product is actually judged on: until
@@ -72,6 +87,20 @@ const EVENT_SET = new Set<string>(TRACKABLE_EVENTS);
 
 export function isTrackableEvent(value: unknown): value is TrackableEvent {
   return typeof value === "string" && EVENT_SET.has(value);
+}
+
+/**
+ * A client-reported extension version, or "" when it is not one (#159).
+ *
+ * Only dotted numerics — the shape Chrome itself enforces for a manifest
+ * version (1–4 parts). The value is attacker-controlled like every field on
+ * this beacon, and it becomes a GROUP BY label on /owner, so anything else
+ * collapses to "" rather than minting a new row. Never a reason to drop the
+ * event: the row is still worth counting when its build is unknown.
+ */
+export function normalizeClientVersion(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  return /^\d{1,5}(\.\d{1,5}){0,3}$/.test(raw) ? raw : "";
 }
 
 /**
