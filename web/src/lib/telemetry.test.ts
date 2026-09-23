@@ -205,6 +205,26 @@ describe("telemetry schema", () => {
     expect(eventColumn("clientVersion")).toBe("blob14");
   });
 
+  it("appends errorCode after clientVersion, moving nothing (#160)", () => {
+    expect(EVENT_BLOBS.slice(0, 14)).toEqual([
+      "kind",
+      "name",
+      "userId",
+      "plan",
+      "country",
+      "city",
+      "referrerHost",
+      "device",
+      "authKind",
+      "status",
+      "utmSource",
+      "utmMedium",
+      "utmCampaign",
+      "clientVersion",
+    ]);
+    expect(eventColumn("errorCode")).toBe("blob15");
+  });
+
   it("throws on an unknown field rather than silently mis-addressing", () => {
     expect(() => llmColumn("nope" as never)).toThrow(/unknown telemetry field/);
   });
@@ -324,6 +344,16 @@ describe("recordUserEvent", () => {
     expect(blobOf(w, "status", EVENT_BLOBS)).toBe("200");
     expect(w.indexes).toEqual(["pageview"]);
     expect(blobOf(w, "clientVersion", EVENT_BLOBS)).toBe("");
+    expect(blobOf(w, "errorCode", EVENT_BLOBS)).toBe("");
+  });
+
+  it("writes the reason on a failed api row (#160)", async () => {
+    const { ae, writes } = sink();
+    setTelemetrySinksForTests(null, ae);
+    await recordUserEvent({ kind: "api", name: "/api/anime/context", status: 401, errorCode: "token_unknown" });
+    expect(blobOf(writes[0]!, "status", EVENT_BLOBS)).toBe("401");
+    expect(blobOf(writes[0]!, "errorCode", EVENT_BLOBS)).toBe("token_unknown");
+    expect(writes[0]!.blobs).toHaveLength(EVENT_BLOBS.length);
   });
 
   it("writes the extension build version on a feature row", async () => {

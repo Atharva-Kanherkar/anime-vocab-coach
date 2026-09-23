@@ -162,6 +162,8 @@ export interface UserEventRecord {
   utmCampaign?: string | null;
   /** Extension manifest version, already normalized (see normalizeClientVersion). */
   clientVersion?: string | null;
+  /** Why an api call failed, already normalized (see apiErrorCode). */
+  errorCode?: string | null;
 }
 
 export async function recordUserEvent(record: UserEventRecord): Promise<void> {
@@ -184,6 +186,7 @@ export async function recordUserEvent(record: UserEventRecord): Promise<void> {
       utmMedium: record.utmMedium || "",
       utmCampaign: record.utmCampaign || "",
       clientVersion: record.clientVersion || "",
+      errorCode: record.errorCode || "",
     };
     const numbers: Record<(typeof EVENT_DOUBLES)[number], number> = {
       durationMs: finite(record.durationMs),

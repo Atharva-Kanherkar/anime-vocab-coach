@@ -55,6 +55,11 @@ export const EVENT_BLOBS = [
   // packages older than 0.5.7, which never sent one — so "" on a learning-loop
   // row means "a build we cannot identify", not "no build".
   "clientVersion",
+  // Why a 4xx/5xx api row failed (#160): the reason resolveProfile recorded for
+  // a rejected sync token, else the `error` the route put in its body. "" on
+  // every other row, and on every row written before it existed, which /owner
+  // shows as "not recorded".
+  "errorCode",
 ] as const;
 
 export const EVENT_DOUBLES = ["durationMs"] as const;
