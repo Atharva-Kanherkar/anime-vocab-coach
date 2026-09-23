@@ -75,6 +75,20 @@ export function isTrackableEvent(value: unknown): value is TrackableEvent {
 }
 
 /**
+ * A client-reported extension version, or "" when it is not one (#159).
+ *
+ * Only dotted numerics — the shape Chrome itself enforces for a manifest
+ * version (1–4 parts). The value is attacker-controlled like every field on
+ * this beacon, and it becomes a GROUP BY label on /owner, so anything else
+ * collapses to "" rather than minting a new row. Never a reason to drop the
+ * event: the row is still worth counting when its build is unknown.
+ */
+export function normalizeClientVersion(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  return /^\d{1,5}(\.\d{1,5}){0,3}$/.test(raw) ? raw : "";
+}
+
+/**
  * Segments whose CHILD is a record id, mirroring the app's `[id]` routes
  * (/m, /wm, /e, /end, /app/cards, /app/notebooks).
  *

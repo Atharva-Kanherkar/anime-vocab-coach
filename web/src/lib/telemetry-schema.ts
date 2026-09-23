@@ -51,6 +51,10 @@ export const EVENT_BLOBS = [
   "utmSource",
   "utmMedium",
   "utmCampaign",
+  // The extension build that sent the row (#159). "" for the website and for
+  // packages older than 0.5.7, which never sent one — so "" on a learning-loop
+  // row means "a build we cannot identify", not "no build".
+  "clientVersion",
 ] as const;
 
 export const EVENT_DOUBLES = ["durationMs"] as const;

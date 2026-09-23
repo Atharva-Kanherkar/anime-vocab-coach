@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
-import { isTrackableEvent, normalizeTrackPath } from "@/lib/track-events";
+import { isTrackableEvent, normalizeClientVersion, normalizeTrackPath } from "@/lib/track-events";
 import {
   authKindOf,
   externalReferrerHost,
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
       utm_source?: unknown;
       utm_medium?: unknown;
       utm_campaign?: unknown;
+      v?: unknown;
     };
     try {
       body = JSON.parse(text) as typeof body;
@@ -90,6 +91,10 @@ export async function POST(req: Request) {
       device: facts.device,
       authKind: authKindOf(req),
       status: "200",
+      // Which extension package sent this (#159). The store served a build
+      // that predated every learning-loop event for two months and nothing
+      // here could tell; the website sends none, so its rows stay "".
+      clientVersion: normalizeClientVersion(body.v),
       ...attribution,
     });
   } catch {
