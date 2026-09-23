@@ -17,6 +17,39 @@ const SQL_PATH = /\/client\/v4\/accounts\/[^/]+\/analytics_engine\/sql/;
 
 /** Rows per query, chosen by a distinctive fragment of the SQL. */
 function rowsFor(sql) {
+  // #160: failed API calls by route, status, auth kind and reason. First,
+  // because it also matches the distinct-user check below. The anime-context
+  // rows are the shape of the real problem: 401s from the extension's token,
+  // written before the reason existed, plus a 502 that is KV, not OpenAI.
+  // 250 + 45 = 295, the route's 4xx/5xx cell in the routes query below.
+  if (sql.includes("AS authKind")) {
+    return [
+      {
+        route: "/api/anime/context", status: "401", authKind: "sync_token", errorCode: "",
+        events: "250", users: "1", anonEvents: "250",
+        firstSeen: "2026-08-07 10:00:00", lastSeen: "2026-09-22 18:00:00",
+      },
+      {
+        route: "/api/anime/context", status: "502", authKind: "sync_token",
+        errorCode: "kv_get_failed:_429_too_many_requests",
+        events: "45", users: "3", anonEvents: "0",
+        firstSeen: "2026-09-01 09:00:00", lastSeen: "2026-09-21 23:00:00",
+      },
+      {
+        route: "/api/ai/pick-word", status: "429", authKind: "sync_token",
+        errorCode: "auto_quota_exhausted",
+        events: "12", users: "1", anonEvents: "0",
+        firstSeen: "2026-08-24 20:00:00", lastSeen: "2026-08-25 21:00:00",
+      },
+    ];
+  }
+  if (sql.includes("= 'api'") && sql.includes("AS label")) {
+    return [
+      { label: "/api/anime/context", events: "4338", latencySum: "13881600", errors: "295" },
+      { label: "/api/ai/pick-word", events: "2071", latencySum: "2071000", errors: "12" },
+    ];
+  }
+
   // #113 — the anime-context cache, which previously had no telemetry at all.
   // 17 hits / 83 misses is the real-world hit rate quoted in the issue.
   if (sql.includes("'anime_context'")) return [{ hits: "17", misses: "83" }];

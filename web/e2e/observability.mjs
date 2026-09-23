@@ -194,7 +194,52 @@ try {
     JSON.stringify(installRow)
   );
 
+  // #160: the API errors breakdown under API routes.
+  const panelTitled = (title) =>
+    page.locator(".ow-panel", { has: page.locator("h2", { hasText: new RegExp(`^${title}$`) }) });
+  const apiErrors = panelTitled("API errors");
+  check("the API errors panel exists", (await apiErrors.count()) === 1);
+  const errRows = (await apiErrors.locator("tbody tr").allInnerTexts()).map((r) => r.split("\t"));
+  const deadLink = errRows.find((c) => c[0] === "/api/anime/context" && c[1]?.startsWith("401"));
+  check(
+    "the extension's 401s are their own row, read as unauthorized",
+    deadLink?.[1] === "401 unauthorized" && deadLink?.[3] === "sync_token" && deadLink?.[4] === "250",
+    JSON.stringify(deadLink)
+  );
+  check("rows from before the reason existed say so", deadLink?.[2] === "not recorded", JSON.stringify(deadLink));
+  check("an all-anonymous 401 reports no learners", deadLink?.[5] === "0", JSON.stringify(deadLink));
+  const kvRow = errRows.find((c) => c[1]?.startsWith("502"));
+  check(
+    "a 502 carries its KV reason, not an OpenAI one",
+    kvRow?.[1] === "502 upstream failed" && kvRow?.[2] === "kv_get_failed:_429_too_many_requests",
+    JSON.stringify(kvRow)
+  );
+  const capRow = errRows.find((c) => c[0] === "/api/ai/pick-word");
+  check(
+    "an auto-cap 429 is visible with its reason",
+    capRow?.[1] === "429 quota or rate limit" && capRow?.[2] === "auto_quota_exhausted",
+    JSON.stringify(capRow)
+  );
+  const routeRow = (await panelTitled("API routes").locator("tbody tr").allInnerTexts())
+    .map((r) => r.split("\t"))
+    .find((c) => c[0] === "/api/anime/context");
+  check(
+    "the anime-context error rows sum to its 4xx/5xx cell (250 + 45 = 295)",
+    routeRow?.[3] === "295",
+    JSON.stringify(routeRow)
+  );
+
   await page.screenshot({ path: join(SHOTS, "owner-observability.png"), fullPage: true });
+  await apiErrors.screenshot({ path: join(SHOTS, "owner-api-errors.png") });
+
+  // One learner's view says what it cannot show: a dead link's 401 has no user.
+  await page.goto(`${BASE}/owner?h=24&user=user_42`, { waitUntil: "networkidle" });
+  const drillCaption = await panelTitled("API errors").locator(".ow-sub").innerText().catch(() => "");
+  check(
+    "the single-user API errors panel explains the missing 401s",
+    drillCaption.includes("This learner's failures only"),
+    JSON.stringify(drillCaption)
+  );
   check("no console errors on /owner", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 
   // ── the routes the extension actually calls ───────────────────────────────

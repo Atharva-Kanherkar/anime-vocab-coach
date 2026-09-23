@@ -657,6 +657,53 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         </Panel>
       </div>
 
+      {/* #160: the 4xx/5xx column above said /api/anime/context failed 6.8% of
+          the time and nothing about why. A 429, a 401 from a sync token and a
+          502 with no LLM error behind it are three different fixes. */}
+      <div className="ow-grid">
+        <Panel title="API errors" wide empty={data.apiErrors.length === 0}>
+          <p className="ow-sub">
+            {focusUser
+              ? "This learner's failures only. A 401 from a dead link has no user, so those show only for all users."
+              : `token_unknown: the extension's link is gone · token_lookup_failed: our KV read failed · "not recorded": written before reasons were`}
+          </p>
+          <div className="ow-scroll">
+            <table className="ow-table">
+              <thead>
+                <tr>
+                  <th>Route</th>
+                  <th>Status</th>
+                  <th>Reason</th>
+                  <th>Auth</th>
+                  <th className="ow-num">Calls</th>
+                  <th className="ow-num">Learners</th>
+                  <th className="ow-num">First seen</th>
+                  <th className="ow-num">Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.apiErrors.map((r) => (
+                  <tr key={`${r.route}:${r.status}:${r.authKind}:${r.reason}`}>
+                    <td className="ow-label ow-mono">{r.route}</td>
+                    <td className="ow-label">
+                      <span className="ow-mono ow-bad">{r.status}</span> {r.meaning}
+                    </td>
+                    <td className="ow-label ow-mono">{r.reason}</td>
+                    <td>
+                      <span className="ow-tag">{r.authKind}</span>
+                    </td>
+                    <td className="ow-num">{fmtInt(r.calls)}</td>
+                    <td className="ow-num">{fmtInt(r.users)}</td>
+                    <td className="ow-num">{fmtWhen(r.firstSeen)}</td>
+                    <td className="ow-num">{fmtWhen(r.lastSeen)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
+
       <h2 className="ow-section">Listening Mode (transcription)</h2>
       <p className="ow-sub">
         Written by the avc-api Worker, which is a separate deploy from this app. Cache hits are

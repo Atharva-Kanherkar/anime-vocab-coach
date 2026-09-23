@@ -1,6 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { getSyncTokenProfile } from "./sync-store";
-import { rememberRequestIdentity } from "./request-identity";
+import { rememberAuthFailure, rememberRequestIdentity } from "./request-identity";
 import { syncTokenOf } from "./telemetry";
 import { DEV_NO_CLERK, DEV_PROFILE } from "./dev-auth";
 import type { CloudUserProfile } from "./sync";
@@ -55,12 +55,18 @@ async function resolveProfileUncached(req: Request): Promise<CloudUserProfile | 
   if (token) {
     // A KV read hiccup here must not 500 every extension-authenticated request —
     // treat a lookup failure as "no valid session" so the caller gets a clean 401.
+    // Both nulls are the same 401 to the caller, so each records which one it
+    // was for the route telemetry (#160); the answer itself is unchanged.
     try {
       const profile = await getSyncTokenProfile(token);
-      if (!profile) return null;
+      if (!profile) {
+        rememberAuthFailure(req, "token_unknown");
+        return null;
+      }
       return { ...profile, plan: planFromProfile(profile) };
     } catch (err) {
       console.warn("[auth] sync-token lookup failed", err);
+      rememberAuthFailure(req, "token_lookup_failed");
       return null;
     }
   }

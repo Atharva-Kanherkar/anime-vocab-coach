@@ -458,17 +458,79 @@ export interface ApiRouteRow {
   errors: number;
 }
 
-export function apiRoutesSql(hours: number, limit = 25): string {
+/**
+ * The one definition of "this API call failed" (#160).
+ *
+ * API routes counts it and API errors breaks it down, so they must share it or
+ * the breakdown stops summing to the column it explains. A string comparison
+ * because status is a blob: "401" >= "400" holds for every three-digit code,
+ * and api rows never carry anything else there.
+ */
+export const API_ERROR_CONDITION = `${eventColumn("status")} >= '400'`;
+
+/** kind='api', plus the focus user when the page is one learner's view. */
+function apiFilters(hours: number, userId?: string): string[] {
+  const filters = [since(hours), `${eventColumn("kind")} = 'api'`];
+  if (userId) filters.push(`${eventColumn("userId")} = ${sqlString(userId)}`);
+  return filters;
+}
+
+export function apiRoutesSql(hours: number, userId?: string, limit = 25): string {
   return `SELECT
     ${eventColumn("name")} AS label,
     SUM(_sample_interval) AS events,
     ${weighted(eventColumn("durationMs"), "latencySum")},
-    SUM(if(${eventColumn("status")} >= '400', 1, 0) * _sample_interval) AS errors
+    SUM(if(${API_ERROR_CONDITION}, 1, 0) * _sample_interval) AS errors
   FROM ${EVENT_DATASET}
-  WHERE ${since(hours)} AND ${eventColumn("kind")} = 'api'
+  WHERE ${apiFilters(hours, userId).join(" AND ")}
   GROUP BY label
   ORDER BY events DESC
   LIMIT ${Math.max(1, Math.min(100, Math.round(limit)))}`;
+}
+
+export interface ApiErrorQueryRow {
+  route: string;
+  status: string;
+  authKind: string;
+  errorCode: string;
+  events: number;
+  /** Distinct userIds INCLUDING the single "anon" bucket, as in learningLoopSql. */
+  users: number;
+  anonEvents: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+/**
+ * Failed API calls by route, status, auth kind and reason (#160).
+ *
+ * The API routes panel could say /api/anime/context failed 295 times in 90
+ * days and nothing about why. The status was on every row; the only query
+ * reading it folded it into one 4xx/5xx number. But a 429 is a quota wall, a
+ * 401 from a sync token is a dead link or our own KV, and a 502 with no LLM
+ * error behind it is not OpenAI, and each of those is a different fix.
+ *
+ * Rows from before errorCode existed group under an empty reason, so the whole
+ * 90-day history still breaks down by status and auth kind.
+ */
+export function apiErrorsSql(hours: number, userId?: string, limit = 50): string {
+  const userCol = eventColumn("userId");
+  const filters = [...apiFilters(hours, userId), API_ERROR_CONDITION];
+  return `SELECT
+    ${eventColumn("name")} AS route,
+    ${eventColumn("status")} AS status,
+    ${eventColumn("authKind")} AS authKind,
+    ${eventColumn("errorCode")} AS errorCode,
+    SUM(_sample_interval) AS events,
+    COUNT(DISTINCT ${userCol}) AS users,
+    ${countIf(`${userCol} = 'anon' OR ${userCol} = ''`, "anonEvents")},
+    MIN(timestamp) AS firstSeen,
+    MAX(timestamp) AS lastSeen
+  FROM ${EVENT_DATASET}
+  WHERE ${filters.join("\n    AND ")}
+  GROUP BY route, status, authKind, errorCode
+  ORDER BY events DESC
+  LIMIT ${Math.max(1, Math.min(200, Math.round(limit)))}`;
 }
 
 export interface ExtensionFunnelRow {

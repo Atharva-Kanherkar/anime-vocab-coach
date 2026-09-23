@@ -12,6 +12,7 @@ import {
   fmtMs,
   fmtPct,
   fmtUsd,
+  fmtWhen,
   type GroupRow,
   type OwnerDashboardData,
   type SeriesPoint,
@@ -202,6 +203,22 @@ export function buildInsightsDigest(
     lines.push(
       take(data.apiRoutes, 8)
         .map((r) => `  - ${r.label}: ${fmtInt(r.events)} calls, ${fmtMs(r.avgLatencyMs)} avg, ${fmtInt(r.errors)} 4xx/5xx`)
+        .join("\n")
+    );
+  }
+
+  if (data.apiErrors.length) {
+    // #160: the 4xx/5xx count above says how often a route failed, this says
+    // why. Without it the model can only guess, and "401 from a sync token"
+    // and "429 on the auto meter" call for opposite actions.
+    lines.push("\n## API errors by status");
+    lines.push(
+      take(data.apiErrors, 10)
+        .map(
+          (r) =>
+            `  - ${r.route} ${r.status} ${r.meaning} (auth ${r.authKind}, reason ${r.reason}): ` +
+            `${fmtInt(r.calls)} calls, ${fmtInt(r.users)} learners, last ${fmtWhen(r.lastSeen)}`
+        )
         .join("\n")
     );
   }
