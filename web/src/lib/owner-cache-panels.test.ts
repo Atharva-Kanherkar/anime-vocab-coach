@@ -1,9 +1,24 @@
-import { describe, expect, it } from "vitest";
-import { foldCacheOutcome, foldFeatureEvents } from "./owner-dashboard";
-import { animeContextCacheSql, featureEventsSql, type FeatureEventRow } from "./telemetry-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  UNSTAMPED_BUILD,
+  foldCacheOutcome,
+  foldExtensionBuilds,
+  foldFeatureEvents,
+  loadOwnerDashboard,
+} from "./owner-dashboard";
+import {
+  animeContextCacheSql,
+  featureBuildsSql,
+  featureEventsSql,
+  type FeatureEventRow,
+} from "./telemetry-query";
 import { EVENT_BLOBS, eventColumn } from "./telemetry-schema";
 import { ANIME_CONTEXT_EVENT } from "./anime-context";
-import { LEARNING_LOOP_EVENTS } from "./track-events";
+import {
+  EXTENSION_LEARNING_LOOP_EVENTS,
+  LEARNING_LOOP_EVENTS,
+  SERVER_LEARNING_LOOP_EVENTS,
+} from "./track-events";
 
 /**
  * Issue #113: /owner carried one cache number under a label that named a
@@ -150,5 +165,103 @@ describe("foldFeatureEvents", () => {
 
   it("drops an unnamed row rather than rendering a blank label", () => {
     expect(foldFeatureEvents([row({ label: "" })])).toEqual([]);
+  });
+});
+
+/**
+ * #159: the Learning loop panel read near-zero for two months because the
+ * Web Store package predated the events, and nothing on /owner could say so.
+ */
+describe("extension builds panel", () => {
+  const row = (over: Partial<FeatureEventRow>): FeatureEventRow => ({
+    label: "0.5.7",
+    events: 0,
+    users: 0,
+    anonEvents: 0,
+    ...over,
+  });
+
+  it("groups the same learning-loop rows by clientVersion", () => {
+    const sql = featureBuildsSql(24);
+    expect(sql).toContain(`${eventColumn("clientVersion")} AS label`);
+    expect(sql).toContain(`${eventColumn("kind")} = 'feature'`);
+    for (const name of EXTENSION_LEARNING_LOOP_EVENTS) expect(sql).toContain(`'${name}'`);
+    expect(sql).not.toContain("'landing_view'");
+  });
+
+  it("leaves out the sync route's rows, which never carry a version", () => {
+    for (const name of SERVER_LEARNING_LOOP_EVENTS) {
+      expect(featureBuildsSql(24)).not.toContain(`'${name}'`);
+      expect(featureEventsSql(24)).toContain(`'${name}'`);
+    }
+  });
+
+  it("honours the focus user like the Learning loop panel", () => {
+    expect(featureBuildsSql(24, "user_42")).toContain(`${eventColumn("userId")} = 'user_42'`);
+    expect(featureBuildsSql(24)).not.toContain("= 'user_42'");
+  });
+
+  it("names the unstamped bucket instead of dropping it — it is the finding", () => {
+    const folded = foldExtensionBuilds([
+      row({ label: "0.5.7", events: 40, users: 3, anonEvents: 10 }),
+      row({ label: "", events: 12, users: 2, anonEvents: 12 }),
+    ]);
+    expect(folded.map((r) => r.label)).toEqual(["0.5.7", UNSTAMPED_BUILD]);
+    expect(folded[0]!.users).toBe(2);
+    expect(folded[1]!.users).toBe(1);
+  });
+});
+
+describe("loadOwnerDashboard with the builds query", () => {
+  afterEach(() => {
+    delete process.env.CF_ACCOUNT_ID;
+    delete process.env.CF_ANALYTICS_API_TOKEN;
+    vi.unstubAllGlobals();
+  });
+
+  const serve = (builds: "rows" | "fail") => {
+    process.env.CF_ACCOUNT_ID = "acct";
+    process.env.CF_ANALYTICS_API_TOKEN = "tok";
+    const buildsLabel = `${eventColumn("clientVersion")} AS label`;
+    const loopLabel = `${eventColumn("name")} AS label`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const sql = String(init.body);
+        if (sql.includes(buildsLabel)) {
+          if (builds === "fail") return new Response("bad query", { status: 400 });
+          return Response.json({
+            data: [
+              { label: "0.5.7", events: "5", users: "2", anonEvents: "0" },
+              { label: "", events: "3", users: "1", anonEvents: "3" },
+            ],
+          });
+        }
+        if (sql.includes(loopLabel) && sql.includes("'word_saved'")) {
+          return Response.json({
+            data: [{ label: "word_saved", events: "5", users: "2", anonEvents: "0" }],
+          });
+        }
+        return Response.json({ data: [] });
+      })
+    );
+  };
+
+  it("shows which builds the learning loop came from", async () => {
+    serve("rows");
+    const data = await loadOwnerDashboard(24);
+    expect(data.extensionBuilds.map((r) => [r.label, r.events, r.users])).toEqual([
+      ["0.5.7", 5, 2],
+      [UNSTAMPED_BUILD, 3, 0],
+    ]);
+    expect(data.learningLoop.map((r) => r.label)).toEqual(["word_saved"]);
+  });
+
+  it("a failing builds query leaves the Learning loop panel intact", async () => {
+    serve("fail");
+    const data = await loadOwnerDashboard(24);
+    expect(data.extensionBuilds).toEqual([]);
+    expect(data.learningLoop.map((r) => r.label)).toEqual(["word_saved"]);
+    expect(data.queryError).toContain("extension builds");
   });
 });

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FEATURE_EVENTS, TRACK_FEATURE_MESSAGE, trackFeature } from "../src/lib/feature-events";
-import { LEARNING_LOOP_EVENTS, TRACKABLE_EVENTS } from "../web/src/lib/track-events";
+import {
+  EXTENSION_LEARNING_LOOP_EVENTS,
+  LEARNING_LOOP_EVENTS,
+  TRACKABLE_EVENTS,
+} from "../web/src/lib/track-events";
 import * as storage from "../src/lib/storage";
 import type { DictEntry, JudgmentMeta, Token } from "../src/types";
 
@@ -69,6 +73,10 @@ describe("feature event allowlist", () => {
     for (const event of FEATURE_EVENTS) {
       expect(LEARNING_LOOP_EVENTS as readonly string[]).toContain(event);
     }
+  });
+
+  it("matches the server's list of extension-fired events, so /owner's builds panel sees them all", () => {
+    expect([...FEATURE_EVENTS].sort()).toEqual([...EXTENSION_LEARNING_LOOP_EVENTS].sort());
   });
 
   it("covers every learning-loop moment the extension owns", () => {

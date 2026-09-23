@@ -186,6 +186,17 @@ export function buildInsightsDigest(
     );
   }
 
+  if (data.extensionBuilds.length) {
+    // #159: without this the model sees a near-empty learning loop and blames
+    // the product, when the real cause was a store package too old to report.
+    lines.push("\n## Extension builds sending learning-loop events");
+    lines.push(
+      data.extensionBuilds
+        .map((r) => `  - ${r.label}: ${fmtInt(r.events)} events, ${fmtInt(r.users)} learners`)
+        .join("\n")
+    );
+  }
+
   if (data.apiRoutes.length) {
     lines.push("\n## API routes");
     lines.push(

@@ -36,6 +36,7 @@ import {
   type TimeBucketRow,
   animeContextCacheSql,
   eventDistinctUsersSql,
+  featureBuildsSql,
   featureEventsSql,
   llmDistinctUsersSql,
   type CacheOutcomeRow,
@@ -317,6 +318,8 @@ export interface OwnerDashboardData {
   eventUserCount: number;
   /** Learning-loop `feature` events (#111): card shown, saved, reviewed, … */
   learningLoop: FeatureRow[];
+  /** The same events by sending extension build (#159); see featureBuildsSql. */
+  extensionBuilds: FeatureRow[];
   /** The anime-context KV cache, which used to have no panel at all (#113). */
   animeContextCache: CacheSummary;
 }
@@ -376,6 +379,17 @@ export function foldFeatureEvents(rows: FeatureEventRow[]): FeatureRow[] {
         identifiedEvents: Math.max(0, events - anonEvents),
       };
     });
+}
+
+/** Label for rows from a package too old to send its version (#159). */
+export const UNSTAMPED_BUILD = "unstamped (≤ 0.5.6)";
+
+/**
+ * Learning-loop rows by build. The empty version is the finding, not noise —
+ * foldFeatureEvents drops empty labels, so name it before folding.
+ */
+export function foldExtensionBuilds(rows: FeatureEventRow[]): FeatureRow[] {
+  return foldFeatureEvents(rows.map((r) => ({ ...r, label: r.label || UNSTAMPED_BUILD })));
 }
 
 /** Hits over real lookups. No lookups means "not asked yet", not "0% hit rate". */
@@ -463,6 +477,7 @@ const UNCONFIGURED: OwnerDashboardData = {
   transcribe: EMPTY_TRANSCRIBE,
   eventUserCount: 0,
   learningLoop: [],
+  extensionBuilds: [],
   animeContextCache: EMPTY_CACHE,
 };
 
@@ -515,6 +530,7 @@ export async function loadOwnerDashboard(
     // rather than a page where some panels quietly show everybody.
     { label: "learning loop", sql: featureEventsSql(hours, userId) },
     { label: "anime context cache", sql: animeContextCacheSql(hours, userId) },
+    { label: "extension builds", sql: featureBuildsSql(hours, userId) },
   ];
 
   const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {
@@ -551,6 +567,7 @@ export async function loadOwnerDashboard(
     const eventUsersCount = at<DistinctUsersRow>(19)[0];
     const featureRows = at<FeatureEventRow>(20);
     const animeCacheRow = at<CacheOutcomeRow>(21)[0];
+    const buildRows = at<FeatureEventRow>(22);
 
     const txCalls = num(txTotals?.calls);
     const txHits = num(txTotals?.hits);
@@ -604,6 +621,7 @@ export async function loadOwnerDashboard(
     const totals = { ...facets.totals, users: num(llmUsers?.users) };
 
     const learningLoop = foldFeatureEvents(featureRows);
+    const extensionBuilds = foldExtensionBuilds(buildRows);
     const animeContextCache = foldCacheOutcome(animeCacheRow);
 
     return {
@@ -662,6 +680,7 @@ export async function loadOwnerDashboard(
       transcribe,
       eventUserCount: num(eventUsersCount?.users),
       learningLoop,
+      extensionBuilds,
       animeContextCache,
     };
   }

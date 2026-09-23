@@ -31,6 +31,21 @@ export const LEARNING_LOOP_EVENTS = [
 export type LearningLoopEvent = (typeof LEARNING_LOOP_EVENTS)[number];
 
 /**
+ * Learning-loop events the SERVER writes (the sync route), not the extension.
+ *
+ * They never carry an extension version, so the Extension builds panel (#159)
+ * must leave them out or every 0.5.7 learner's streak would read as an
+ * unidentifiable old build.
+ */
+export const SERVER_LEARNING_LOOP_EVENTS = ["streak_day", "card_unlocked"] as const satisfies
+  readonly LearningLoopEvent[];
+
+/** The learning-loop events the extension fires — mirrored in src/lib/feature-events.ts. */
+export const EXTENSION_LEARNING_LOOP_EVENTS = LEARNING_LOOP_EVENTS.filter(
+  (e) => !(SERVER_LEARNING_LOOP_EVENTS as readonly string[]).includes(e)
+);
+
+/**
  * Feature invocations worth a row. Anything not listed is dropped.
  *
  * The learning-loop block is the one the product is actually judged on: until

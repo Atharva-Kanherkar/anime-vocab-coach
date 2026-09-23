@@ -31,6 +31,8 @@ import {
   eventGroupSql,
   eventsByUserSql,
   extensionFunnelSql,
+  featureBuildsSql,
+  featureEventsSql,
   llmByUserSql,
   llmErrorsSql,
   llmFacetsSql,
@@ -744,6 +746,8 @@ describe("generated SQL matches the Analytics Engine dialect", () => {
     { label: "apiRoutes", sql: apiRoutesSql(24) },
     { label: "eventUsers", sql: eventsByUserSql(24) },
     { label: "funnel", sql: extensionFunnelSql(24) },
+    { label: "learningLoop", sql: featureEventsSql(24) },
+    { label: "extensionBuilds", sql: featureBuildsSql(24, "u_1") },
   ];
 
   it("never calls min/max on a blob (String) column", () => {
@@ -770,6 +774,9 @@ describe("generated SQL matches the Analytics Engine dialect", () => {
       "topkweighted", "countif", "sumif", "avgif",
       // non-aggregate helpers used in SELECT/GROUP BY
       "if", "tostartofhour", "todate", "interval", "now",
+      // `name IN (...)` is an operator, not a call, but reads like one to the
+      // pattern below; the learning-loop queries have used it since #111.
+      "in",
     ]);
     for (const { label, sql } of allQueries()) {
       for (const m of sql.matchAll(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g)) {

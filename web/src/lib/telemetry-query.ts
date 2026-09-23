@@ -12,7 +12,7 @@
 // so the numbers stay true if sampling ever kicks in. Averages divide two
 // weighted sums, which is correct for the same reason.
 
-import { LEARNING_LOOP_EVENTS } from "./track-events";
+import { EXTENSION_LEARNING_LOOP_EVENTS, LEARNING_LOOP_EVENTS } from "./track-events";
 import {
   EVENT_BLOBS,
   EVENT_DATASET,
@@ -730,8 +730,33 @@ export interface FeatureEventRow {
  * is reported alongside and subtracted by the caller.
  */
 export function featureEventsSql(hours: number, userId?: string, limit = 30): string {
+  return learningLoopSql("name", LEARNING_LOOP_EVENTS, hours, userId, limit);
+}
+
+/**
+ * The same learning-loop rows, grouped by the extension build that sent them
+ * (#159).
+ *
+ * The Web Store served 0.5.5 for two months after every one of these events
+ * was instrumented, and the Learning loop panel read near-zero with nothing to
+ * say why. This is the panel that says it: an empty label is a package too old
+ * to stamp its version, so a table that is all "" is a release problem, not a
+ * product one. Only the events the extension itself sends: the sync route's
+ * rows have no version and would read as an old build.
+ */
+export function featureBuildsSql(hours: number, userId?: string, limit = 20): string {
+  return learningLoopSql("clientVersion", EXTENSION_LEARNING_LOOP_EVENTS, hours, userId, limit);
+}
+
+function learningLoopSql(
+  groupBy: "name" | "clientVersion",
+  events: readonly string[],
+  hours: number,
+  userId: string | undefined,
+  limit: number
+): string {
   const userCol = eventColumn("userId");
-  const names = LEARNING_LOOP_EVENTS.map(sqlString).join(", ");
+  const names = events.map(sqlString).join(", ");
   const filters = [
     since(hours),
     `${eventColumn("kind")} = 'feature'`,
@@ -743,7 +768,7 @@ export function featureEventsSql(hours: number, userId?: string, limit = 30): st
   ];
   if (userId) filters.push(`${userCol} = ${sqlString(userId)}`);
   return `SELECT
-    ${eventColumn("name")} AS label,
+    ${eventColumn(groupBy)} AS label,
     SUM(_sample_interval) AS events,
     COUNT(DISTINCT ${userCol}) AS users,
     ${countIf(`${userCol} = 'anon' OR ${userCol} = ''`, "anonEvents")}
