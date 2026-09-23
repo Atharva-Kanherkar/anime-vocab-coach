@@ -32,9 +32,12 @@
   stays 256 bytes and fits the longest event + version.
 - Linked installs keep sending the sync-token bearer, so learning-loop rows carry
   the learner's userId (#112 path unchanged).
-- `/owner` gains an "Extension builds" panel: learning-loop events grouped by
-  `clientVersion`, with distinct learners; `""` is labelled as unstamped (pre-0.5.7).
-  It honours the focus-user filter like the Learning loop panel.
+- `/owner` gains an "Extension builds" panel: the learning-loop events the
+  EXTENSION fires, grouped by `clientVersion`, with distinct learners; `""` is
+  labelled as unstamped (pre-0.5.7). `streak_day` / `card_unlocked` are written by
+  the sync route with no version and are excluded, or every current learner would
+  read as an old build. It honours the focus-user filter like the Learning loop
+  panel, and is included in the AI-insights digest.
 - The extension version is bumped to **0.5.7** so the package can be uploaded over
   whatever is pending on the store item.
 
