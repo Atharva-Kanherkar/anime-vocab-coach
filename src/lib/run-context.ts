@@ -19,3 +19,21 @@ export function inServiceWorker(): boolean {
   // no DOM global at all, while content scripts and extension pages do.
   return typeof window === "undefined";
 }
+
+/**
+ * This build's manifest version, for stamping on telemetry beacons (#159).
+ *
+ * Without it every row looks the same regardless of which build sent it, so a
+ * store package that predates an event is indistinguishable from a product
+ * nobody uses: the Web Store served 0.5.5 for two months after the learning
+ * loop was instrumented, and the dashboard just read zero. "" when the runtime
+ * is unavailable, which the server stores as unstamped rather than dropping.
+ */
+export function extensionVersion(): string {
+  try {
+    const v = chrome.runtime.getManifest().version;
+    return typeof v === "string" ? v : "";
+  } catch {
+    return "";
+  }
+}
