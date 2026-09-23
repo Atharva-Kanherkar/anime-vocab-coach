@@ -2,10 +2,11 @@ import { resolveProfile, resolvePlan } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/entitlements";
 import { currentMonth, quotaFor, reserveUsage, type Reservation } from "@/lib/ai-store";
 import { runTts } from "@/lib/tts";
+import { withApiTelemetry } from "@/lib/api-telemetry";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const profile = await resolveProfile(req);
   if (!profile) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
 
@@ -57,3 +58,8 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: detail }), { status });
   }
 }
+
+// Wrapped for #160. TTS spends the same "auto" allowance as word picking and
+// extraction, and it was the one auto route with no row at all, so a learner
+// walking into the auto cap here never showed up on /owner.
+export const POST = withApiTelemetry("/api/tts", handlePOST);

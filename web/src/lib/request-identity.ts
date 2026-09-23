@@ -45,6 +45,34 @@ export function rememberRequestIdentity(
 }
 
 /**
+ * Why a presented sync token did not authenticate (#160).
+ *
+ * resolveProfile answers null for both, and every route turns that into the
+ * same 401 `unauthorized`, but they are different problems with opposite
+ * fixes: `token_unknown` is a link that is gone (expired, purged, never
+ * issued) and needs the learner to relink, while `token_lookup_failed` is our
+ * own KV read failing under a link that may be perfectly good. Keyed on the
+ * Request like the identity memo, so it dies with the request.
+ */
+export type AuthFailure = "token_unknown" | "token_lookup_failed";
+
+const authFailures = new WeakMap<Request, AuthFailure>();
+
+/** Record why a presented token was rejected. Never an authorization input. */
+export function rememberAuthFailure(req: Request, reason: AuthFailure): void {
+  try {
+    authFailures.set(req, reason);
+  } catch {
+    // As above: a non-object key is not worth a throw.
+  }
+}
+
+/** The recorded rejection, or null when the request's token was never rejected. */
+export function authFailureOf(req: Request): AuthFailure | null {
+  return authFailures.get(req) ?? null;
+}
+
+/**
  * Per-IP ceiling on UNCACHED lookups, per minute.
  *
  * /api/track is a public, unauthenticated beacon, and the only thing that
