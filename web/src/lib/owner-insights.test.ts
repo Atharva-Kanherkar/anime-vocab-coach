@@ -44,6 +44,7 @@ function baseData(over: Partial<OwnerDashboardData> = {}): OwnerDashboardData {
     learningLoop: [],
     extensionBuilds: [],
     animeContextCache: EMPTY_CACHE,
+    apiErrors: [],
     ...over,
   };
 }
@@ -81,6 +82,34 @@ describe("buildInsightsDigest", () => {
     expect(digest).toContain("Extension builds sending learning-loop events");
     expect(digest).toContain("unstamped (≤ 0.5.6): 3 events, 1 learners");
     expect(buildInsightsDigest(WIN, baseData(), null)).not.toContain("Extension builds");
+  });
+
+  it("tells the model why routes failed, not just how often (#160)", () => {
+    const digest = buildInsightsDigest(
+      WIN,
+      baseData({
+        apiErrors: [
+          {
+            route: "/api/anime/context",
+            status: "401",
+            meaning: "unauthorized",
+            authKind: "sync_token",
+            reason: "token_unknown",
+            calls: 250,
+            users: 0,
+            anonCalls: 250,
+            firstSeen: "2026-08-07 10:00:00",
+            lastSeen: "2026-09-22 18:00:00",
+          },
+        ],
+      }),
+      null
+    );
+    expect(digest).toContain("## API errors by status");
+    expect(digest).toContain(
+      "/api/anime/context 401 unauthorized (auth sync_token, reason token_unknown): 250 calls, 0 learners, last 2026-09-22 18:00"
+    );
+    expect(buildInsightsDigest(WIN, baseData(), null)).not.toContain("API errors by status");
   });
 
   it("names the focus user instead of 'all users' on a drill-down", () => {

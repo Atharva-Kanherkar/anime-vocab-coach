@@ -180,6 +180,11 @@
   font-weight: 600;
 }
 
+/* A one-line caption under a panel title. */
+.ow-panel > .ow-sub {
+  margin: 0 0 10px;
+}
+
 .ow-empty {
   color: var(--ow-dim);
   font-size: 0.85rem;

@@ -27,6 +27,7 @@ import {
   llmColumn,
 } from "./telemetry-schema";
 import {
+  apiErrorsSql,
   apiRoutesSql,
   eventGroupSql,
   eventsByUserSql,
@@ -774,6 +775,9 @@ describe("generated SQL matches the Analytics Engine dialect", () => {
     { label: "group", sql: llmGroupSql("model", 24) },
     { label: "events", sql: eventGroupSql("name", 24, "pageview") },
     { label: "apiRoutes", sql: apiRoutesSql(24) },
+    { label: "apiRoutes/user", sql: apiRoutesSql(24, "u_1") },
+    { label: "apiErrors", sql: apiErrorsSql(24) },
+    { label: "apiErrors/user", sql: apiErrorsSql(24, "u_1") },
     { label: "eventUsers", sql: eventsByUserSql(24) },
     { label: "funnel", sql: extensionFunnelSql(24) },
     { label: "learningLoop", sql: featureEventsSql(24) },

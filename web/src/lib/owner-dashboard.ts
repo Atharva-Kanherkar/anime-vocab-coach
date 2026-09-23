@@ -9,6 +9,7 @@
 import {
   QUERY_CONCURRENCY,
   analyticsCredentials,
+  apiErrorsSql,
   apiRoutesSql,
   eventGroupSql,
   llmFacetsSql,
@@ -25,6 +26,7 @@ import {
   num,
   runQuery,
   sqlHours,
+  type ApiErrorQueryRow,
   type ApiRouteRow,
   type EventGroupRow,
   type EventUserRow,
@@ -322,6 +324,8 @@ export interface OwnerDashboardData {
   extensionBuilds: FeatureRow[];
   /** The anime-context KV cache, which used to have no panel at all (#113). */
   animeContextCache: CacheSummary;
+  /** Failed API calls by route, status, auth kind and reason (#160). */
+  apiErrors: ApiErrorRow[];
 }
 
 /** One learning-loop event: how often, and how many learners. */
@@ -398,6 +402,75 @@ export function foldCacheOutcome(row: CacheOutcomeRow | undefined): CacheSummary
   const misses = num(row?.misses);
   const lookups = hits + misses;
   return { present: lookups > 0, hits, misses, hitRate: lookups > 0 ? hits / lookups : 0 };
+}
+
+/** One bucket of failed API calls: a route, a status, an auth kind, a reason (#160). */
+export interface ApiErrorRow {
+  route: string;
+  status: string;
+  /** What the status means from these routes, e.g. "quota or rate limit". */
+  meaning: string;
+  authKind: string;
+  /** Why it failed; UNRECORDED_REASON for rows older than errorCode. */
+  reason: string;
+  calls: number;
+  /** Distinct identified learners; the shared anonymous bucket is not one. */
+  users: number;
+  anonCalls: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+/** The reason on a row written before errorCode existed (#160). */
+export const UNRECORDED_REASON = "not recorded";
+
+/**
+ * What each status means coming from THESE routes, not the RFC's wording: a
+ * 503 here is always ai_not_configured, and a 429 is either an AI meter or a
+ * rate limit, which the reason column then says.
+ */
+const STATUS_MEANINGS = new Map<string, string>([
+  ["400", "bad request"],
+  ["401", "unauthorized"],
+  ["403", "forbidden"],
+  ["404", "not found"],
+  ["413", "too large"],
+  ["429", "quota or rate limit"],
+  ["500", "server error"],
+  ["502", "upstream failed"],
+  ["503", "not configured"],
+]);
+
+export function statusMeaning(status: string): string {
+  const known = STATUS_MEANINGS.get(status);
+  if (known) return known;
+  if (/^4\d\d$/.test(status)) return "client error";
+  if (/^5\d\d$/.test(status)) return "server error";
+  return "unknown";
+}
+
+/**
+ * Failed-call buckets, readable. Same anonymous-bucket discount as
+ * foldFeatureEvents: a dead link's 401 has no user, so without it every
+ * all-anonymous row would claim one learner.
+ */
+export function foldApiErrors(rows: ApiErrorQueryRow[]): ApiErrorRow[] {
+  return rows.map((r) => {
+    const status = String(r.status ?? "");
+    const anonCalls = num(r.anonEvents);
+    return {
+      route: r.route || "(none)",
+      status,
+      meaning: statusMeaning(status),
+      authKind: r.authKind || "none",
+      reason: r.errorCode || UNRECORDED_REASON,
+      calls: num(r.events),
+      users: Math.max(0, num(r.users) - (anonCalls > 0 ? 1 : 0)),
+      anonCalls,
+      firstSeen: String(r.firstSeen ?? ""),
+      lastSeen: String(r.lastSeen ?? ""),
+    };
+  });
 }
 
 /**
@@ -479,6 +552,7 @@ const UNCONFIGURED: OwnerDashboardData = {
   learningLoop: [],
   extensionBuilds: [],
   animeContextCache: EMPTY_CACHE,
+  apiErrors: [],
 };
 
 const simple = (rows: EventGroupRow[]): SimpleRow[] =>
@@ -506,7 +580,7 @@ export async function loadOwnerDashboard(
     { label: "countries", sql: eventGroupSql("country", hours, undefined, 20, userId) },
     { label: "referrers", sql: eventGroupSql("referrerHost", hours, "pageview", 15, userId) },
     { label: "devices", sql: eventGroupSql("device", hours, undefined, 6, userId) },
-    { label: "api routes", sql: apiRoutesSql(hours) },
+    { label: "api routes", sql: apiRoutesSql(hours, userId) },
     { label: "event users", sql: eventsByUserSql(hours) },
     { label: "extension funnel", sql: extensionFunnelSql(hours) },
     // Listening Mode lives in a different Worker's dataset. Until it has been
@@ -531,6 +605,9 @@ export async function loadOwnerDashboard(
     { label: "learning loop", sql: featureEventsSql(hours, userId) },
     { label: "anime context cache", sql: animeContextCacheSql(hours, userId) },
     { label: "extension builds", sql: featureBuildsSql(hours, userId) },
+    // #160: the same api rows as "api routes", broken down by why they failed.
+    // Last in the list so every index above keeps its position.
+    { label: "api errors", sql: apiErrorsSql(hours, userId) },
   ];
 
   const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {
@@ -568,6 +645,7 @@ export async function loadOwnerDashboard(
     const featureRows = at<FeatureEventRow>(20);
     const animeCacheRow = at<CacheOutcomeRow>(21)[0];
     const buildRows = at<FeatureEventRow>(22);
+    const apiErrorRows = at<ApiErrorQueryRow>(23);
 
     const txCalls = num(txTotals?.calls);
     const txHits = num(txTotals?.hits);
@@ -682,6 +760,7 @@ export async function loadOwnerDashboard(
       learningLoop,
       extensionBuilds,
       animeContextCache,
+      apiErrors: foldApiErrors(apiErrorRows),
     };
   }
 }
