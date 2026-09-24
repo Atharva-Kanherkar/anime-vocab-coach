@@ -22,6 +22,8 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
+import { effectivePlan, isPaidSubscription, isPlanId, parseEntitlement, type PlanId } from "@/lib/plans";
+import { mapLimit } from "@/lib/telemetry-query";
 
 /**
  * KV list page size. `use:` and `synctoken:user:` are both small (one key per
@@ -63,9 +65,16 @@ export interface OwnerHistory {
   signupsByMonth: SignupPoint[];
   /** Users whose lastActiveAt is within 30 days of now. */
   activeLast30: number | null;
-  /** Users who have never been active since signing up. */
+  /** Signups with no saved word: never linked, or linked with no card (#163). */
   neverActive: number | null;
+  neverLinked: number | null;
+  linkedNoCard: number | null;
+  /** By where the plan comes from: paid, gift, expired gift, free (#163). */
   usersByPlan: { label: string; value: number }[];
+  /** Every signup whose metadata names a paid plan, expired or not (#163). */
+  planAccounts: ClerkUserRow[];
+  /** Accounts left out of every count here. */
+  excludedCount: number;
 
   // ---- KV (all time, pre-AE) ----
   listeningByMonth: MonthlyListening[];
@@ -87,7 +96,11 @@ export const EMPTY_HISTORY: OwnerHistory = {
   signupsByMonth: [],
   activeLast30: null,
   neverActive: null,
+  neverLinked: null,
+  linkedNoCard: null,
   usersByPlan: [],
+  planAccounts: [],
+  excludedCount: 0,
   listeningByMonth: [],
   topListeners: [],
   totalListeningMinutes: 0,
@@ -144,7 +157,7 @@ const MONTH_RE = /^use:(user_[A-Za-z0-9]+):(\d{4}-\d{2})$/;
  * 40-day TTL, so this is "recent history" rather than all of time; it still
  * reaches a month or two further back than AE does, which is the point.
  */
-async function loadListening(kv: KvLike): Promise<{
+async function loadListening(kv: KvLike, exclude: ReadonlySet<string> = new Set()): Promise<{
   byMonth: MonthlyListening[];
   top: ListeningUserTotal[];
   total: number;
@@ -162,6 +175,7 @@ async function loadListening(kv: KvLike): Promise<{
     const m = MONTH_RE.exec(name);
     if (!m) continue;
     const [, userId, month] = m as unknown as [string, string, string];
+    if (exclude.has(userId)) continue;
     const raw = await kv.get(name);
     const minutes = Number.parseFloat(raw || "0");
     if (!Number.isFinite(minutes) || minutes <= 0) continue;
@@ -193,42 +207,124 @@ async function loadListening(kv: KvLike): Promise<{
 
 const MS_PER_DAY = 86_400_000;
 
-/** Clerk history: signup curve, plan mix, and how many ever came back. */
-async function loadClerk(): Promise<{
-  totalUsers: number | null;
-  signupsByMonth: SignupPoint[];
-  activeLast30: number | null;
-  neverActive: number | null;
-  usersByPlan: { label: string; value: number }[];
+// ------------------------------------------------------------- Plan buckets
+
+/**
+ * Where a user's plan comes from, not just which plan it names (#163).
+ *
+ * "Users by plan" used to count raw `publicMetadata.plan`, so an expired gift
+ * still read as Max while every call that user made was (correctly) tagged
+ * free. Buckets are derived from the same effective plan the meters use.
+ */
+export type PlanBucket =
+  | "free"
+  | "pro · paid"
+  | "max · paid"
+  | "pro · gift"
+  | "max · gift"
+  | "gift expired";
+
+export interface PlanInfo {
+  bucket: PlanBucket;
+  /** The plan the meters and the telemetry apply today. */
+  effective: PlanId;
+  /** The plan the metadata names, expired or not. */
+  raw: PlanId;
+  /** Gift end, ISO; null for paid and free. */
+  expiresAt: string | null;
+}
+
+export function planBucket(metadata: unknown, now = Date.now()): PlanInfo {
+  const meta = (metadata && typeof metadata === "object" ? metadata : {}) as { plan?: unknown };
+  const raw: PlanId = isPlanId(meta.plan) ? meta.plan : "free";
+  const entitlement = parseEntitlement(metadata);
+  const effective = effectivePlan(entitlement, now);
+  if (raw === "free") return { bucket: "free", effective, raw, expiresAt: null };
+  if (effective === "free") {
+    // Expired, or an expiry so malformed that parseEntitlement failed closed.
+    return { bucket: "gift expired", effective, raw, expiresAt: entitlement.planExpiresAt };
+  }
+  if (isPaidSubscription(entitlement)) {
+    return { bucket: `${effective} · paid` as PlanBucket, effective, raw, expiresAt: null };
+  }
+  return { bucket: `${effective} · gift` as PlanBucket, effective, raw, expiresAt: entitlement.planExpiresAt };
+}
+
+// ---------------------------------------------------------------- Activity
+
+/** What we know about one signup's use of the product. */
+export interface ActivityInput {
+  /** Holds a live extension link (`synctoken:user:<id>`). */
+  linked: boolean;
+  /** Has a cloud backup at all. */
+  hasBackup: boolean;
+  /** Saved words in that backup; null when the backup was not read. */
+  words: number | null;
+}
+
+export interface ActivitySummary {
+  /** Never linked, or linked and never saved a card. */
+  neverActive: number;
+  neverLinked: number;
+  linkedNoCard: number;
+  /** Signups whose backup was not read (cap or error): not counted either way. */
+  unknown: number;
+}
+
+/**
+ * "Never active" is no saved word, not "never signed in" (#163).
+ *
+ * Clerk's lastActiveAt is set on the first session, so nearly every signup has
+ * one and the old definition read 0 while half of them had never linked. A
+ * backup is permanent where the link pointer expires after 30 idle days, so a
+ * backup counts as having linked once.
+ */
+export function foldActivity(users: ActivityInput[]): ActivitySummary {
+  const out: ActivitySummary = { neverActive: 0, neverLinked: 0, linkedNoCard: 0, unknown: 0 };
+  for (const u of users) {
+    if (!u.linked && !u.hasBackup) {
+      out.neverLinked++;
+      continue;
+    }
+    if (u.hasBackup && u.words === null) {
+      out.unknown++;
+      continue;
+    }
+    if (!u.words) out.linkedNoCard++;
+  }
+  out.neverActive = out.neverLinked + out.linkedNoCard;
+  return out;
+}
+
+/** One Clerk user, as the history needs them. */
+export interface ClerkUserRow {
+  id: string;
+  createdAt: number;
+  lastActiveAt: number | null;
+  plan: PlanInfo;
+  email?: string;
+}
+
+/** Clerk history: every signup, excluded accounts already removed. */
+async function loadClerk(exclude: ReadonlySet<string>): Promise<{
+  users: ClerkUserRow[] | null;
   emails: Map<string, string>;
   note?: string;
 }> {
-  const empty = {
-    totalUsers: null,
-    signupsByMonth: [],
-    activeLast30: null,
-    neverActive: null,
-    usersByPlan: [],
-    emails: new Map<string, string>(),
-  };
+  const empty = { users: null, emails: new Map<string, string>() };
   if (DEV_NO_CLERK) return { ...empty, note: "Clerk disabled in dev." };
 
   try {
     const client = await clerkClient();
-    const total = await client.users.getCount();
 
     // Page through every user. At this scale (tens to low thousands) the whole
     // list is cheap and gives an exact cohort curve rather than a sample.
     const PAGE = 500;
     const MAX_PAGES = 20;
-    const all: {
-      id: string;
-      createdAt: number;
-      lastActiveAt: number | null;
-      plan: string;
-      email?: string;
-    }[] = [];
+    const all: ClerkUserRow[] = [];
+    const emails = new Map<string, string>();
     let truncated = false;
+    const now = Date.now();
     for (let page = 0; page < MAX_PAGES; page++) {
       const res = await client.users.getUserList({
         limit: PAGE,
@@ -236,46 +332,24 @@ async function loadClerk(): Promise<{
         orderBy: "-created_at",
       });
       for (const u of res.data) {
-        const meta = (u.publicMetadata ?? {}) as { plan?: unknown };
+        const email = u.primaryEmailAddress?.emailAddress ?? undefined;
+        if (email) emails.set(u.id, email);
+        if (exclude.has(u.id)) continue;
         all.push({
           id: u.id,
           createdAt: u.createdAt,
           lastActiveAt: u.lastActiveAt ?? null,
-          plan: typeof meta.plan === "string" && meta.plan ? meta.plan : "free",
-          email: u.primaryEmailAddress?.emailAddress ?? undefined,
+          plan: planBucket(u.publicMetadata, now),
+          email,
         });
       }
       if (res.data.length < PAGE) break;
       if (page === MAX_PAGES - 1) truncated = true;
     }
 
-    const byMonth = new Map<string, number>();
-    const byPlan = new Map<string, number>();
-    const cutoff = Date.now() - 30 * MS_PER_DAY;
-    let activeLast30 = 0;
-    let neverActive = 0;
-
-    for (const u of all) {
-      const month = new Date(u.createdAt).toISOString().slice(0, 7);
-      byMonth.set(month, (byMonth.get(month) ?? 0) + 1);
-      byPlan.set(u.plan, (byPlan.get(u.plan) ?? 0) + 1);
-      if (u.lastActiveAt && u.lastActiveAt >= cutoff) activeLast30++;
-      // Clerk sets lastActiveAt on first session, so a null here really does
-      // mean the account was created and never used.
-      if (!u.lastActiveAt) neverActive++;
-    }
-
     return {
-      totalUsers: total,
-      signupsByMonth: [...byMonth.entries()]
-        .map(([month, signups]) => ({ month, signups }))
-        .sort((a, b) => a.month.localeCompare(b.month)),
-      activeLast30,
-      neverActive,
-      usersByPlan: [...byPlan.entries()]
-        .map(([label, value]) => ({ label, value }))
-        .sort((a, b) => b.value - a.value),
-      emails: new Map(all.filter((u) => u.email).map((u) => [u.id, u.email!])),
+      users: all,
+      emails,
       note: truncated ? "Clerk user list hit the page cap; cohort counts are a lower bound." : undefined,
     };
   } catch (err) {
@@ -286,38 +360,103 @@ async function loadClerk(): Promise<{
   }
 }
 
+/** Signup curve, plan mix and 30-day activity from the Clerk rows. */
+export function foldClerk(users: ClerkUserRow[], now = Date.now()): {
+  signupsByMonth: SignupPoint[];
+  activeLast30: number;
+  usersByPlan: { label: string; value: number }[];
+} {
+  const byMonth = new Map<string, number>();
+  const byPlan = new Map<string, number>();
+  const cutoff = now - 30 * MS_PER_DAY;
+  let activeLast30 = 0;
+  for (const u of users) {
+    const month = new Date(u.createdAt).toISOString().slice(0, 7);
+    byMonth.set(month, (byMonth.get(month) ?? 0) + 1);
+    byPlan.set(u.plan.bucket, (byPlan.get(u.plan.bucket) ?? 0) + 1);
+    if (u.lastActiveAt && u.lastActiveAt >= cutoff) activeLast30++;
+  }
+  return {
+    signupsByMonth: [...byMonth.entries()]
+      .map(([month, signups]) => ({ month, signups }))
+      .sort((a, b) => a.month.localeCompare(b.month)),
+    activeLast30,
+    usersByPlan: [...byPlan.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value),
+  };
+}
+
+/** Backups read for "never active", at most. Past this the count is a lower bound. */
+export const MAX_BACKUP_READS = 500;
+const BACKUP_RE = /^sync:user:(user_[A-Za-z0-9]+):snapshot:v1$/;
+const LINK_RE = /^synctoken:user:(.+)$/;
+
+/** Saved words in one backup, or null when it cannot be read. */
+async function backupWords(kv: KvLike, userId: string): Promise<number | null> {
+  try {
+    const raw = await kv.get(`sync:user:${userId}:snapshot:v1`);
+    if (!raw) return 0;
+    const env = JSON.parse(raw) as { snapshot?: { words?: unknown[] } };
+    return Array.isArray(env.snapshot?.words) ? env.snapshot!.words!.length : 0;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Load the all-time view.
  *
  * Clerk and KV are independent: one failing still leaves the other's panels
  * populated, and `notes` explains any gap rather than rendering a silent zero.
+ * Accounts in `exclude` (the owner and test accounts, #163) are left out of
+ * every count here, the same as on the Analytics Engine panels.
  */
-export async function loadOwnerHistory(): Promise<OwnerHistory> {
+export async function loadOwnerHistory(
+  opts: { exclude?: readonly string[] } = {}
+): Promise<OwnerHistory> {
   const notes: string[] = [];
+  const exclude = new Set(opts.exclude ?? []);
 
-  const [clerk, kv] = await Promise.all([loadClerk(), syncKv()]);
+  const [clerk, kv] = await Promise.all([loadClerk(exclude), syncKv()]);
   if (clerk.note) notes.push(clerk.note);
 
   let listening = { byMonth: [] as MonthlyListening[], top: [] as ListeningUserTotal[], total: 0, truncated: false };
-  let linkedUsers: number | null = null;
+  let linkedIds: Set<string> | null = null;
+  let backupIds: Set<string> | null = null;
 
   if (!kv) {
     notes.push("KV binding AVC_SYNC_KV not available, so listening history is hidden.");
   } else {
     try {
-      listening = await loadListening(kv);
+      listening = await loadListening(kv, exclude);
     } catch (err) {
       notes.push(`Listening history failed: ${err instanceof Error ? err.message : "unknown error"}`);
     }
     try {
       // One pointer key per user, 30-day sliding TTL: a live extension link.
       const linked = await listPrefix(kv, "synctoken:user:");
-      linkedUsers = linked.names.length;
+      linkedIds = new Set(
+        linked.names
+          .map((n) => LINK_RE.exec(n)?.[1])
+          .filter((id): id is string => !!id && !exclude.has(id))
+      );
       if (linked.truncated) {
         notes.push("Linked-user listing hit the page cap; the count is a lower bound.");
       }
     } catch (err) {
       notes.push(`Linked-user count failed: ${err instanceof Error ? err.message : "unknown error"}`);
+    }
+    try {
+      const backups = await listPrefix(kv, "sync:user:");
+      backupIds = new Set(
+        backups.names
+          .map((n) => BACKUP_RE.exec(n)?.[1])
+          .filter((id): id is string => !!id && !exclude.has(id))
+      );
+      if (backups.truncated) notes.push("Backup listing hit the page cap; never active is a lower bound.");
+    } catch (err) {
+      notes.push(`Backup listing failed: ${err instanceof Error ? err.message : "unknown error"}`);
     }
   }
 
@@ -325,24 +464,56 @@ export async function loadOwnerHistory(): Promise<OwnerHistory> {
     notes.push("Listening-usage listing hit the page cap; minutes are a lower bound.");
   }
 
+  const users = clerk.users;
+  const folded = users ? foldClerk(users) : null;
+
+  // Never active needs both halves: the signups (Clerk) and their link and
+  // backup (KV). Without either it is unknown, never a 0.
+  let activity: ActivitySummary | null = null;
+  if (users && kv && linkedIds && backupIds) {
+    const toRead = users.filter((u) => backupIds!.has(u.id)).slice(0, MAX_BACKUP_READS);
+    const words = new Map<string, number | null>();
+    await mapLimit(toRead, 8, async (u) => {
+      words.set(u.id, await backupWords(kv, u.id));
+    });
+    activity = foldActivity(
+      users.map((u) => ({
+        linked: linkedIds!.has(u.id),
+        hasBackup: backupIds!.has(u.id),
+        words: backupIds!.has(u.id) ? (words.has(u.id) ? words.get(u.id)! : null) : 0,
+      }))
+    );
+    if (activity.unknown > 0) {
+      notes.push(
+        `${activity.unknown} backup${activity.unknown === 1 ? "" : "s"} could not be read; never active is a lower bound.`
+      );
+    }
+  } else if (users) {
+    notes.push("Never active needs KV (links and backups) and is hidden.");
+  }
+
   const topListeners = listening.top.map((t) => ({ ...t, email: clerk.emails.get(t.userId) }));
+  const totalUsers = users ? users.length : null;
+  const linkedUsers = linkedIds ? linkedIds.size : null;
 
   return {
-    available: clerk.totalUsers !== null || listening.byMonth.length > 0 || linkedUsers !== null,
+    available: totalUsers !== null || listening.byMonth.length > 0 || linkedUsers !== null,
     notes,
-    totalUsers: clerk.totalUsers,
-    signupsByMonth: clerk.signupsByMonth,
-    activeLast30: clerk.activeLast30,
-    neverActive: clerk.neverActive,
-    usersByPlan: clerk.usersByPlan,
+    totalUsers,
+    signupsByMonth: folded?.signupsByMonth ?? [],
+    activeLast30: folded?.activeLast30 ?? null,
+    neverActive: activity?.neverActive ?? null,
+    neverLinked: activity?.neverLinked ?? null,
+    linkedNoCard: activity?.linkedNoCard ?? null,
+    usersByPlan: folded?.usersByPlan ?? [],
+    planAccounts: (users ?? []).filter((u) => u.plan.raw !== "free"),
+    excludedCount: exclude.size,
     listeningByMonth: listening.byMonth,
     topListeners,
     totalListeningMinutes: listening.total,
     linkedUsers,
     activationRate:
-      clerk.totalUsers && clerk.totalUsers > 0 && linkedUsers !== null
-        ? linkedUsers / clerk.totalUsers
-        : null,
+      totalUsers && totalUsers > 0 && linkedUsers !== null ? linkedUsers / totalUsers : null,
     truncated: listening.truncated,
   };
 }

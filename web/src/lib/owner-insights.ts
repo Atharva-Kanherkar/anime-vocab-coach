@@ -259,8 +259,14 @@ export function buildInsightsDigest(
     lines.push("\n## All-time (Clerk + KV, not windowed by the period above)");
     lines.push(
       `  ${history.totalUsers ?? "n/a"} total signups · ${history.activeLast30 ?? "n/a"} active in last 30d · ` +
-        `${history.neverActive ?? "n/a"} signed up and never used the product`
+        `${history.neverActive ?? "n/a"} never active (no saved word: ${history.neverLinked ?? "n/a"} never linked, ` +
+        `${history.linkedNoCard ?? "n/a"} linked with no card)`
     );
+    if (history.usersByPlan.length) {
+      lines.push(
+        `  users by plan: ${history.usersByPlan.map((p) => `${p.label} ${fmtInt(p.value)}`).join(", ")}`
+      );
+    }
     if (history.activationRate !== null) {
       lines.push(`  activation (signup → linked the extension): ${fmtPct(history.activationRate)}`);
     }

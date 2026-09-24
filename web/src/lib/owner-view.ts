@@ -23,7 +23,9 @@ export async function loadOwnerView(opts: {
   const scope = ownerScope({ ...opts, exclusions });
   const [data, history] = await Promise.all([
     loadOwnerDashboard(opts.hours, scope),
-    opts.focusUser ? Promise.resolve(null) : loadOwnerHistory(),
+    opts.focusUser
+      ? Promise.resolve(null)
+      : loadOwnerHistory({ exclude: opts.includeUs ? [] : exclusions.ids }),
   ]);
   return {
     data,

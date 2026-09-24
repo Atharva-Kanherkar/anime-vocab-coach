@@ -139,7 +139,7 @@ function HistorySection({ history }: { history: OwnerHistory }) {
         <Stat
           label="Total signups"
           value={h.totalUsers === null ? "n/a" : fmtInt(h.totalUsers)}
-          foot="Clerk, all time"
+          foot={h.excludedCount ? `Clerk, all time, without ${fmtInt(h.excludedCount)} of us` : "Clerk, all time"}
         />
         <Stat
           label="Linked extension"
@@ -172,7 +172,11 @@ function HistorySection({ history }: { history: OwnerHistory }) {
         <Stat
           label="Never active"
           value={h.neverActive === null ? "n/a" : fmtInt(h.neverActive)}
-          foot="signed up, never used"
+          foot={
+            h.neverLinked !== null && h.linkedNoCard !== null
+              ? `${fmtInt(h.neverLinked)} never linked · ${fmtInt(h.linkedNoCard)} linked, no card`
+              : "no saved word yet"
+          }
           tone={
             h.neverActive !== null && h.totalUsers && h.neverActive / h.totalUsers > 0.3
               ? "warn"
@@ -194,6 +198,9 @@ function HistorySection({ history }: { history: OwnerHistory }) {
           <BarList rows={listeningRows} unit="min" />
         </Panel>
         <Panel title="Users by plan" empty={h.usersByPlan.length === 0}>
+          {/* #163: by effective plan and its source. Raw metadata counted an
+              expired gift as Max while its calls were tagged free. */}
+          <p className="ow-sub">paid: a Dodo subscription · gift: granted, still running · gift expired: now free</p>
           <BarList rows={h.usersByPlan} unit="users" />
         </Panel>
         <Panel title="Listening leaders (all time)" empty={h.topListeners.length === 0}>
