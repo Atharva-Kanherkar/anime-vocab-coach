@@ -20,6 +20,7 @@ import {
   type WindowOption,
 } from "./owner-dashboard";
 import type { OwnerHistory } from "./owner-history";
+import type { PlanTagCheck } from "./owner-plan-tags";
 
 export interface OwnerInsights {
   summary: string;
@@ -94,7 +95,10 @@ export function buildInsightsDigest(
   win: WindowOption,
   data: OwnerDashboardData,
   history: OwnerHistory | null,
-  focusUser?: string
+  focusUser?: string,
+  /** Whose numbers these are (#163), e.g. "excluding 2 owner/test accounts". */
+  scope?: string,
+  planTags?: PlanTagCheck | null
 ): string {
   const t = data.totals;
   const tx = data.transcribe;
@@ -102,7 +106,9 @@ export function buildInsightsDigest(
   const lines: string[] = [];
 
   lines.push(
-    `Window: last ${win.label}${focusUser ? ` · single user ${focusUser}` : " · all users"}. All times UTC.`
+    `Window: last ${win.label}${focusUser ? ` · single user ${focusUser}` : " · all users"}${
+      scope ? ` · ${scope}` : ""
+    }. All times UTC.`
   );
 
   lines.push("\n## LLM usage");
@@ -251,12 +257,38 @@ export function buildInsightsDigest(
     );
   }
 
+  if (planTags?.rows.length) {
+    // #163: whether a paid account's calls carried its plan. "mismatch" is a
+    // tagging bug; "ok" and "no calls" mean the free-heavy plan column is real.
+    lines.push("\n## Paid & gifted accounts (plan today vs plan on their calls, this window)");
+    lines.push(
+      take(planTags.rows, 12)
+        .map(
+          (r) =>
+            `  - ${r.email || r.userId}: ${r.bucket}${r.expiresAt ? ` until ${r.expiresAt.slice(0, 10)}` : ""}, ` +
+            `effective ${r.effective}, ${r.verdict}` +
+            (r.wrong.length
+              ? ` [${r.wrong.map((w) => `${w.source} ${w.plan} where ${w.expected} ${fmtInt(w.calls)}`).join(", ")}]`
+              : "") +
+            (r.unjudgedCalls ? ` {${fmtInt(r.unjudgedCalls)} calls before the last plan change, not judged}` : "") +
+            (r.tags.length ? ` (${r.tags.map((t) => `${t.source} ${t.plan} ${fmtInt(t.calls)}`).join(", ")})` : "")
+        )
+        .join("\n")
+    );
+  }
+
   if (history?.available) {
     lines.push("\n## All-time (Clerk + KV, not windowed by the period above)");
     lines.push(
       `  ${history.totalUsers ?? "n/a"} total signups · ${history.activeLast30 ?? "n/a"} active in last 30d · ` +
-        `${history.neverActive ?? "n/a"} signed up and never used the product`
+        `${history.neverActive ?? "n/a"} never active (no saved word: ${history.neverLinked ?? "n/a"} never linked, ` +
+        `${history.linkedNoCard ?? "n/a"} linked with no card)`
     );
+    if (history.usersByPlan.length) {
+      lines.push(
+        `  users by plan: ${history.usersByPlan.map((p) => `${p.label} ${fmtInt(p.value)}`).join(", ")}`
+      );
+    }
     if (history.activationRate !== null) {
       lines.push(`  activation (signup → linked the extension): ${fmtPct(history.activationRate)}`);
     }

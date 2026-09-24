@@ -299,3 +299,45 @@ describe("Pro funnel in the digest (#162)", () => {
     expect(buildInsightsDigest(WIN, baseData(), null)).not.toContain("## Pro funnel");
   });
 });
+
+describe("whose numbers the digest describes (#163)", () => {
+  it("names the mode on the window line", () => {
+    const digest = buildInsightsDigest(WIN, baseData(), null, undefined, "excluding 2 owner/test accounts");
+    expect(digest.split("\n")[0]).toContain("excluding 2 owner/test accounts");
+  });
+
+  it("matches the page's sentence for each mode", async () => {
+    const { scopeSentence } = await import("./owner-view");
+    const exclusions = { ids: ["user_a", "user_b"], emails: [] };
+    expect(scopeSentence({ excluding: true, exclusions })).toBe("excluding 2 owner/test accounts");
+    expect(scopeSentence({ excluding: false, exclusions })).toMatch(/including the owner/);
+    expect(scopeSentence({ excluding: false, exclusions }, "user_a")).toMatch(/single learner/);
+  });
+});
+
+describe("paid & gifted accounts in the digest (#163)", () => {
+  it("lists each account with its verdict and tags", () => {
+    const digest = buildInsightsDigest(WIN, baseData(), null, undefined, undefined, {
+      rows: [
+        {
+          userId: "user_gift",
+          email: "gift@x.io",
+          bucket: "max · gift",
+          expiresAt: "2026-10-04T00:00:00.000Z",
+          effective: "max",
+          tags: [{ source: "llm", plan: "free", calls: 12 }],
+          unjudgedCalls: 3,
+          wrong: [{ source: "llm", plan: "free", expected: "max", calls: 9 }],
+          verdict: "mismatch",
+        },
+      ],
+      failed: [],
+      skipped: 0,
+    });
+    expect(digest).toContain("## Paid & gifted accounts");
+    expect(digest).toContain(
+      "gift@x.io: max · gift until 2026-10-04, effective max, mismatch [llm free where max 9] " +
+        "{3 calls before the last plan change, not judged} (llm free 12)"
+    );
+  });
+});

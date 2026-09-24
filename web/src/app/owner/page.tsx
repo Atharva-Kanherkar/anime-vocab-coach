@@ -10,13 +10,15 @@ import {
   fmtPct,
   fmtUsd,
   fmtWhen,
-  loadOwnerDashboard,
   resolveWindow,
   type GroupRow,
   type SimpleRow,
   type UserRow,
 } from "@/lib/owner-dashboard";
-import { fmtMinutes, loadOwnerHistory, type OwnerHistory } from "@/lib/owner-history";
+import { fmtMinutes, type OwnerHistory } from "@/lib/owner-history";
+import { includeUsParam } from "@/lib/owner-exclusions";
+import { loadOwnerView } from "@/lib/owner-view";
+import type { PlanTagCheck, PlanTagRow } from "@/lib/owner-plan-tags";
 import { AiInsights } from "./ai-insights";
 import { BarList, Chart, Panel, Stat } from "./ui";
 
@@ -138,7 +140,7 @@ function HistorySection({ history }: { history: OwnerHistory }) {
         <Stat
           label="Total signups"
           value={h.totalUsers === null ? "n/a" : fmtInt(h.totalUsers)}
-          foot="Clerk, all time"
+          foot={h.excludedCount ? `Clerk, all time, without ${fmtInt(h.excludedCount)} of us` : "Clerk, all time"}
         />
         <Stat
           label="Linked extension"
@@ -171,7 +173,11 @@ function HistorySection({ history }: { history: OwnerHistory }) {
         <Stat
           label="Never active"
           value={h.neverActive === null ? "n/a" : fmtInt(h.neverActive)}
-          foot="signed up, never used"
+          foot={
+            h.neverLinked !== null && h.linkedNoCard !== null
+              ? `${fmtInt(h.neverLinked)} never linked · ${fmtInt(h.linkedNoCard)} linked, no card`
+              : "no saved word yet"
+          }
           tone={
             h.neverActive !== null && h.totalUsers && h.neverActive / h.totalUsers > 0.3
               ? "warn"
@@ -193,6 +199,9 @@ function HistorySection({ history }: { history: OwnerHistory }) {
           <BarList rows={listeningRows} unit="min" />
         </Panel>
         <Panel title="Users by plan" empty={h.usersByPlan.length === 0}>
+          {/* #163: by effective plan and its source. Raw metadata counted an
+              expired gift as Max while its calls were tagged free. */}
+          <p className="ow-sub">paid: a Dodo subscription · gift: granted, still running · gift expired: now free</p>
           <BarList rows={h.usersByPlan} unit="users" />
         </Panel>
         <Panel title="Listening leaders (all time)" empty={h.topListeners.length === 0}>
@@ -223,6 +232,77 @@ function HistorySection({ history }: { history: OwnerHistory }) {
   );
 }
 
+const VERDICT_CLASS: Record<PlanTagRow["verdict"], string> = {
+  ok: "ow-good",
+  mismatch: "ow-bad",
+  unclear: "ow-warn",
+  "no calls": "ow-dim",
+};
+
+/**
+ * #163: Clerk said 5 Max and 2 Pro while every call read free. This is the
+ * check: each paid or gifted account, the plan it has today, and the plan its
+ * calls in this window actually carried.
+ */
+function PlanTagsPanel({ check, windowLabel }: { check: PlanTagCheck; windowLabel: string }) {
+  return (
+    <div className="ow-grid">
+      <Panel title="Paid & gifted accounts" wide empty={check.rows.length === 0}>
+        <p className="ow-sub">
+          Plan today next to the plan on their AI and Listening calls, last {windowLabel}. Each day is
+          judged against the plan the account had that day: its gift before expiry, free after, and
+          only after the account&apos;s last Clerk update, since the plan may have changed before.
+          mismatch: a judged day carried another plan, a tagging bug · ok: every judged day matched ·
+          unclear: every call predates the last plan change · owner is tagged on purpose.
+          {check.skipped ? ` ${fmtInt(check.skipped)} more accounts not checked.` : ""}
+        </p>
+        <div className="ow-scroll">
+          <table className="ow-table">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Plan</th>
+                <th>Today</th>
+                <th>Tags on calls</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              {check.rows.map((r) => (
+                <tr key={r.userId}>
+                  <td className="ow-label">{r.email || <span className="ow-mono">{r.userId}</span>}</td>
+                  <td className="ow-label">
+                    {r.bucket}
+                    {r.expiresAt ? <span className="ow-dim"> · until {r.expiresAt.slice(0, 10)}</span> : null}
+                  </td>
+                  <td className="ow-mono">{r.effective}</td>
+                  <td className="ow-label ow-mono">
+                    {r.tags.length
+                      ? r.tags.map((t) => `${t.source} ${t.plan} ×${fmtInt(t.calls)}`).join(" · ")
+                      : "none"}
+                  </td>
+                  <td className={VERDICT_CLASS[r.verdict]}>
+                    {r.verdict}
+                    {r.wrong.length ? (
+                      <span className="ow-dim">
+                        {" "}
+                        · {r.wrong.map((w) => `${w.plan} where ${w.expected} ×${fmtInt(w.calls)}`).join(", ")}
+                      </span>
+                    ) : null}
+                    {r.unjudgedCalls && r.verdict !== "unclear" ? (
+                      <span className="ow-dim"> · {fmtInt(r.unjudgedCalls)} not judged</span>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 export default async function OwnerPage({ searchParams }: { searchParams: SearchParams }) {
   // Gate first, before any query runs. notFound() rather than a 403 so the
   // route's existence is not confirmed to anyone who is not the owner.
@@ -234,21 +314,23 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
   const params = await searchParams;
   const win = resolveWindow(one(params.h));
   const focusUser = one(params.user)?.trim() || undefined;
+  // #163: the owner and test accounts are left out unless ?all=1.
+  const includeUs = includeUsParam(one(params.all));
 
   // History reads Clerk + KV, not Analytics Engine, so it is independent of the
   // window and of the SQL API being reachable. Loaded in parallel; the panel
   // degrades on its own if either source is unavailable.
-  const [data, history] = await Promise.all([
-    loadOwnerDashboard(win.hours, focusUser),
-    focusUser ? Promise.resolve(null) : loadOwnerHistory(),
-  ]);
+  const view = await loadOwnerView({ hours: win.hours, focusUser, includeUs });
+  const { data, history, exclusions } = view;
   const t = data.totals;
   const tx = data.transcribe;
   const ctx = data.animeContextCache;
   const topUsers = await withEmails(data.topUsers);
 
-  const href = (h: number) =>
-    focusUser ? `/owner?h=${h}&user=${encodeURIComponent(focusUser)}` : `/owner?h=${h}`;
+  const href = (h: number, all = includeUs) =>
+    focusUser
+      ? `/owner?h=${h}&user=${encodeURIComponent(focusUser)}`
+      : `/owner?h=${h}${all ? "&all=1" : ""}`;
 
   return (
     <>
@@ -278,6 +360,29 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         )}
         all times UTC · counts are sample-weighted
       </p>
+
+      {/* #163: say whose numbers these are, every time. */}
+      {focusUser ? null : (
+        <p className="ow-sub" data-testid="owner-scope">
+          {view.excluding ? (
+            <>
+              Excluding {exclusions.ids.length} owner/test account
+              {exclusions.ids.length === 1 ? "" : "s"}
+              {exclusions.emails.length ? ` (${exclusions.emails.join(", ")})` : ""}. Anonymous rows
+              and the extension funnel cannot be attributed and still include us.{" "}
+              <Link href={href(win.hours, true)}>Show everyone</Link>
+            </>
+          ) : (
+            <>
+              Including everyone, the owner and test accounts too.{" "}
+              <Link href={href(win.hours, false)}>Exclude us</Link>
+            </>
+          )}
+        </p>
+      )}
+      {exclusions.note && !focusUser && !includeUs ? (
+        <div className="ow-note is-bad">{exclusions.note}</div>
+      ) : null}
 
       {!data.configured ? (
         <div className="ow-note">
@@ -346,10 +451,11 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         <div className="ow-grid">
           <Panel title="AI insights" wide empty={false}>
             <AiInsights
-              key={`${win.hours}:${focusUser ?? ""}`}
+              key={`${win.hours}:${focusUser ?? ""}:${includeUs ? "all" : "ex"}`}
               hours={win.hours}
               label={win.label}
               focusUser={focusUser}
+              includeUs={includeUs}
             />
           </Panel>
         </div>
@@ -562,6 +668,8 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
             </div>
           </Panel>
           <Panel title="Extension funnel" empty={data.extensionFunnel.length === 0}>
+            {/* #163: these counters carry no user, so no exclusion can reach them. */}
+            <p className="ow-sub">No user on these rows, so this panel always includes us.</p>
             <BarList rows={data.extensionFunnel} unit="events" />
           </Panel>
         </div>
@@ -872,6 +980,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
       )}
 
       {history ? <HistorySection history={history} /> : null}
+      {view.planTags ? <PlanTagsPanel check={view.planTags} windowLabel={win.label} /> : null}
     </>
   );
 }

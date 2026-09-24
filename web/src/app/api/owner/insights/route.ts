@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import { isOwnerEmail } from "@/lib/entitlements";
-import { loadOwnerDashboard, resolveWindow } from "@/lib/owner-dashboard";
-import { loadOwnerHistory } from "@/lib/owner-history";
+import { resolveWindow } from "@/lib/owner-dashboard";
+import { includeUsParam } from "@/lib/owner-exclusions";
+import { loadOwnerView, scopeSentence } from "@/lib/owner-view";
 import { buildInsightsDigest, runOwnerInsights } from "@/lib/owner-insights";
 import { getCoachConfig, getOpenAiKey } from "@/lib/ai-store";
 import { EMPTY_USAGE, type TokenUsage } from "@/lib/llm-pricing";
@@ -31,7 +32,11 @@ async function handlePOST(req: Request) {
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
-  const { hours: rawHours, user: rawUser } = (body ?? {}) as { hours?: unknown; user?: unknown };
+  const {
+    hours: rawHours,
+    user: rawUser,
+    all: rawAll,
+  } = (body ?? {}) as { hours?: unknown; user?: unknown; all?: unknown };
   const win = resolveWindow(rawHours === undefined || rawHours === null ? undefined : String(rawHours));
   const focusUser = typeof rawUser === "string" && rawUser.trim() ? rawUser.trim() : undefined;
 
@@ -42,16 +47,21 @@ async function handlePOST(req: Request) {
   // what the page itself would render for this window/user, from the same
   // function, so "insights on what I can see" is literally true rather than
   // a client-serialized copy that could drift or be tampered with.
-  const [data, history] = await Promise.all([
-    loadOwnerDashboard(win.hours, focusUser),
-    focusUser ? Promise.resolve(null) : loadOwnerHistory(),
-  ]);
+  const view = await loadOwnerView({ hours: win.hours, focusUser, includeUs: includeUsParam(rawAll) });
+  const { data, history } = view;
 
   if (!data.configured) {
     return NextResponse.json({ error: "analytics_not_configured" }, { status: 503 });
   }
 
-  const digest = buildInsightsDigest(win, data, history, focusUser);
+  const digest = buildInsightsDigest(
+    win,
+    data,
+    history,
+    focusUser,
+    scopeSentence(view, focusUser),
+    view.planTags
+  );
   const { model } = await getCoachConfig();
   const facts = requestFacts(req);
 
