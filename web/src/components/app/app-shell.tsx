@@ -21,6 +21,7 @@ import { HelpPanel } from "@/components/app/help-panel";
 import { JaEnDirectionBanner } from "@/components/app/ja-en-direction-banner";
 import { SettingsPanel } from "@/components/app/settings-panel";
 import { BillingPanel, type BillingPanelProps } from "@/components/app/billing-panel";
+import { ProHeaderEntry, UnlockMoment } from "@/components/app/pro-prompts";
 
 type SectionId =
   | "today"
@@ -66,6 +67,13 @@ export function AppShell({
   billing: BillingPanelProps;
 }) {
   const [section, setSection] = useState<SectionId>("today");
+  // Pro prompts are for the free plan only: Pro, Max and gifted accounts
+  // already have it (#162).
+  const offerPro = billing.plan === "free";
+  const openBilling = () => {
+    setSection("billing");
+    window.location.hash = "billing";
+  };
 
   useEffect(() => {
     const fromHash = sectionFromHash();
@@ -118,6 +126,7 @@ export function AppShell({
           </nav>
 
           <span className="ml-auto flex items-center gap-2 md:ml-0">
+            {offerPro && <ProHeaderEntry onOpenBilling={openBilling} />}
             <ThemeToggle />
             {!DEV_NO_CLERK && <UserButton />}
           </span>
@@ -126,6 +135,8 @@ export function AppShell({
         <div className="mt-2.5 flex justify-end">
           <ConnectionStatus />
         </div>
+
+        {offerPro && <UnlockMoment onOpenBilling={openBilling} />}
 
         <main id="main" className="mt-8 md:mt-10">
           <div hidden={section !== "today"}>

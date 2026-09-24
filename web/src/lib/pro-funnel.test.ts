@@ -12,6 +12,8 @@ import {
   trackProShownOnce,
 } from "./pro-funnel";
 import { isTrackableEvent } from "./track-events";
+import { newlyUnlocked, parseSeenLevel } from "./pro-moment";
+import { CARDS } from "./cards";
 
 describe("Pro funnel allowlists (#162)", () => {
   it("accepts exactly the three funnel events", () => {
@@ -106,5 +108,45 @@ describe("journey attribution (#162)", () => {
       ["pro_prompt_clicked", "app_billing"],
       ["pro_checkout_started", "app_billing"],
     ]);
+  });
+});
+
+describe("newlyUnlocked (#162 card-unlock moment)", () => {
+  const byLevel = (lvl: number) => CARDS.filter((c) => c.level === lvl);
+
+  it("stores the first level silently", () => {
+    expect(newlyUnlocked(null, 12)).toEqual({ store: 12, card: null });
+  });
+
+  it("shows nothing at the same level", () => {
+    expect(newlyUnlocked(5, 5)).toEqual({ store: 5, card: null });
+  });
+
+  it("names the newest card crossed", () => {
+    const { store, card } = newlyUnlocked(1, 3);
+    expect(store).toBe(3);
+    expect(card).not.toBeNull();
+    expect(card!.level).toBeGreaterThan(1);
+    expect(card!.level).toBeLessThanOrEqual(3);
+    // Newest: no card between it and the new level.
+    expect(CARDS.some((c) => c.level > card!.level && c.level <= 3)).toBe(false);
+  });
+
+  it("returns a card that actually unlocks at that level", () => {
+    const lvl = CARDS[5]!.level;
+    const { card } = newlyUnlocked(lvl - 1, lvl);
+    expect(byLevel(lvl)).toContain(card);
+  });
+
+  it("never lowers the stored level on a regression", () => {
+    expect(newlyUnlocked(9, 4)).toEqual({ store: 9, card: null });
+  });
+
+  it("treats a garbage stored value as never seen", () => {
+    expect(parseSeenLevel(null)).toBeNull();
+    expect(parseSeenLevel("abc")).toBeNull();
+    expect(parseSeenLevel("-1")).toBeNull();
+    expect(parseSeenLevel("2.5")).toBeNull();
+    expect(parseSeenLevel("7")).toBe(7);
   });
 });
