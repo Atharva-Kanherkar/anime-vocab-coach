@@ -326,6 +326,8 @@ describe("paid & gifted accounts in the digest (#163)", () => {
           expiresAt: "2026-10-04T00:00:00.000Z",
           effective: "max",
           tags: [{ source: "llm", plan: "free", calls: 12 }],
+          unjudgedCalls: 3,
+          wrong: [{ source: "llm", plan: "free", expected: "max", calls: 9 }],
           verdict: "mismatch",
         },
       ],
@@ -333,6 +335,9 @@ describe("paid & gifted accounts in the digest (#163)", () => {
       skipped: 0,
     });
     expect(digest).toContain("## Paid & gifted accounts");
-    expect(digest).toContain("gift@x.io: max · gift until 2026-10-04, effective max, mismatch (llm free 12)");
+    expect(digest).toContain(
+      "gift@x.io: max · gift until 2026-10-04, effective max, mismatch [llm free where max 9] " +
+        "{3 calls before the last plan change, not judged} (llm free 12)"
+    );
   });
 });

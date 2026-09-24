@@ -267,6 +267,10 @@ export function buildInsightsDigest(
           (r) =>
             `  - ${r.email || r.userId}: ${r.bucket}${r.expiresAt ? ` until ${r.expiresAt.slice(0, 10)}` : ""}, ` +
             `effective ${r.effective}, ${r.verdict}` +
+            (r.wrong.length
+              ? ` [${r.wrong.map((w) => `${w.source} ${w.plan} where ${w.expected} ${fmtInt(w.calls)}`).join(", ")}]`
+              : "") +
+            (r.unjudgedCalls ? ` {${fmtInt(r.unjudgedCalls)} calls before the last plan change, not judged}` : "") +
             (r.tags.length ? ` (${r.tags.map((t) => `${t.source} ${t.plan} ${fmtInt(t.calls)}`).join(", ")})` : "")
         )
         .join("\n")

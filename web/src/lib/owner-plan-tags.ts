@@ -28,6 +28,8 @@ export type PlanTagSource = "llm" | "transcribe";
 export interface PlanTagQueryRow {
   userId: string;
   plan: string;
+  /** UTC day, `YYYY-MM-DD`. */
+  day: string;
   calls: number;
 }
 
@@ -35,8 +37,12 @@ export interface PlanTagQueryRow {
 export const MAX_PLAN_ACCOUNTS = 100;
 
 /**
- * Plan tags per account on one dataset. null when there is nobody to ask
- * about: an empty OR is not a query.
+ * Plan tags per account and UTC day on one dataset. null when there is nobody
+ * to ask about: an empty OR is not a query.
+ *
+ * By day, not just by tag, because a tag is only wrong against the plan the
+ * account had WHEN the call was made. A gift that expired mid-window has
+ * correct `max` calls before and correct `free` calls after (#169 review).
  */
 export function planTagsSql(source: PlanTagSource, hours: number, ids: readonly string[]): string | null {
   const unique = [...new Set(ids)].filter(Boolean).slice(0, MAX_PLAN_ACCOUNTS);
@@ -47,16 +53,17 @@ export function planTagsSql(source: PlanTagSource, hours: number, ids: readonly 
   return `SELECT
     ${user} AS userId,
     ${col("plan")} AS plan,
+    toDate(timestamp) AS day,
     SUM(_sample_interval) AS calls
   FROM ${dataset}
   WHERE timestamp > NOW() - INTERVAL '${sqlHours(hours)}' HOUR
     AND (${unique.map((id) => `${user} = ${sqlString(id)}`).join(" OR ")})
-  GROUP BY userId, plan
-  ORDER BY calls DESC
-  LIMIT 1000`;
+  GROUP BY userId, plan, day
+  ORDER BY day
+  LIMIT 10000`;
 }
 
-export type PlanTagVerdict = "ok" | "mismatch" | "no calls";
+export type PlanTagVerdict = "ok" | "mismatch" | "unclear" | "no calls";
 
 export interface PlanTagRow {
   userId: string;
@@ -65,28 +72,83 @@ export interface PlanTagRow {
   expiresAt: string | null;
   /** What the meters apply today. */
   effective: string;
+  /** Totals per source and tag across the window. */
   tags: { source: PlanTagSource; plan: string; calls: number }[];
+  /** Calls on days the plan may have changed, so not judged either way. */
+  unjudgedCalls: number;
+  /** The judged tags that did not match the plan of their day. */
+  wrong: { source: PlanTagSource; plan: string; expected: string; calls: number }[];
   verdict: PlanTagVerdict;
+}
+
+const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * The plan an account had on a UTC day, or null when that cannot be known.
+ *
+ * - Nothing is known on or before the day of Clerk's last write to the user:
+ *   the plan may have changed that day or earlier. updatedAt only moves
+ *   forward, so it can make days unjudged but never a wrong call judged.
+ * - After it: the metadata plan until a gift's expiry day, free after. The
+ *   expiry day itself is split and left unjudged. A malformed expiry is free
+ *   throughout, since that is how the meters apply it.
+ */
+export function expectedPlanOn(account: ClerkUserRow, day: string): string | null {
+  if (!account.updatedAt || day <= dayOf(account.updatedAt)) return null;
+  const { raw, bucket, expiresAt } = account.plan;
+  if (bucket === "gift expired" && !expiresAt) return "free";
+  if (expiresAt) {
+    const end = expiresAt.slice(0, 10);
+    if (day === end) return null;
+    return day < end ? raw : "free";
+  }
+  return raw;
 }
 
 /**
  * One row per account. `owner` is a tag the coach routes write for the owner
- * on purpose, so it is never a mismatch.
+ * on purpose, so it is never wrong.
  */
 export function foldPlanTags(
   accounts: ClerkUserRow[],
   rows: { source: PlanTagSource; row: PlanTagQueryRow }[]
 ): PlanTagRow[] {
-  const byUser = new Map<string, PlanTagRow["tags"]>();
-  for (const { source, row } of rows) {
-    const id = String(row.userId ?? "");
-    const tags = byUser.get(id) ?? [];
-    tags.push({ source, plan: String(row.plan ?? "") || "unknown", calls: num(row.calls) });
-    byUser.set(id, tags);
+  const byUser = new Map<string, { source: PlanTagSource; row: PlanTagQueryRow }[]>();
+  for (const r of rows) {
+    const id = String(r.row.userId ?? "");
+    byUser.set(id, [...(byUser.get(id) ?? []), r]);
   }
+
   const out = accounts.map((a): PlanTagRow => {
-    const tags = (byUser.get(a.id) ?? []).sort((x, y) => y.calls - x.calls);
-    const wrong = tags.some((t) => t.plan !== a.plan.effective && t.plan !== "owner");
+    const totals = new Map<string, { source: PlanTagSource; plan: string; calls: number }>();
+    const wrong = new Map<string, PlanTagRow["wrong"][number]>();
+    let judgedOk = 0;
+    let unjudged = 0;
+    for (const { source, row } of byUser.get(a.id) ?? []) {
+      const plan = String(row.plan ?? "") || "unknown";
+      const calls = num(row.calls);
+      const key = `${source}:${plan}`;
+      const t = totals.get(key) ?? { source, plan, calls: 0 };
+      t.calls += calls;
+      totals.set(key, t);
+
+      if (plan === "owner") {
+        judgedOk += calls;
+        continue;
+      }
+      const expected = expectedPlanOn(a, String(row.day ?? ""));
+      if (expected === null) unjudged += calls;
+      else if (expected === plan) judgedOk += calls;
+      else {
+        const wkey = `${key}:${expected}`;
+        const w = wrong.get(wkey) ?? { source, plan, expected, calls: 0 };
+        w.calls += calls;
+        wrong.set(wkey, w);
+      }
+    }
+    const tags = [...totals.values()].sort((x, y) => y.calls - x.calls);
+    const verdict: PlanTagVerdict =
+      tags.length === 0 ? "no calls" : wrong.size ? "mismatch" : judgedOk > 0 ? "ok" : "unclear";
     return {
       userId: a.id,
       email: a.email,
@@ -94,10 +156,12 @@ export function foldPlanTags(
       expiresAt: a.plan.expiresAt,
       effective: a.plan.effective,
       tags,
-      verdict: tags.length === 0 ? "no calls" : wrong ? "mismatch" : "ok",
+      unjudgedCalls: unjudged,
+      wrong: [...wrong.values()].sort((x, y) => y.calls - x.calls),
+      verdict,
     };
   });
-  const rank: Record<PlanTagVerdict, number> = { mismatch: 0, ok: 1, "no calls": 2 };
+  const rank: Record<PlanTagVerdict, number> = { mismatch: 0, ok: 1, unclear: 2, "no calls": 3 };
   const calls = (r: PlanTagRow) => r.tags.reduce((s, t) => s + t.calls, 0);
   return out.sort((a, b) => rank[a.verdict] - rank[b.verdict] || calls(b) - calls(a));
 }

@@ -235,6 +235,7 @@ function HistorySection({ history }: { history: OwnerHistory }) {
 const VERDICT_CLASS: Record<PlanTagRow["verdict"], string> = {
   ok: "ow-good",
   mismatch: "ow-bad",
+  unclear: "ow-warn",
   "no calls": "ow-dim",
 };
 
@@ -248,9 +249,11 @@ function PlanTagsPanel({ check, windowLabel }: { check: PlanTagCheck; windowLabe
     <div className="ow-grid">
       <Panel title="Paid & gifted accounts" wide empty={check.rows.length === 0}>
         <p className="ow-sub">
-          Plan today next to the plan on their AI and Listening calls, last {windowLabel}. mismatch: a call
-          carried a different plan, a tagging bug · ok: every call carried it · owner is tagged on
-          purpose.
+          Plan today next to the plan on their AI and Listening calls, last {windowLabel}. Each day is
+          judged against the plan the account had that day: its gift before expiry, free after, and
+          only after the account&apos;s last Clerk update, since the plan may have changed before.
+          mismatch: a judged day carried another plan, a tagging bug · ok: every judged day matched ·
+          unclear: every call predates the last plan change · owner is tagged on purpose.
           {check.skipped ? ` ${fmtInt(check.skipped)} more accounts not checked.` : ""}
         </p>
         <div className="ow-scroll">
@@ -278,7 +281,18 @@ function PlanTagsPanel({ check, windowLabel }: { check: PlanTagCheck; windowLabe
                       ? r.tags.map((t) => `${t.source} ${t.plan} ×${fmtInt(t.calls)}`).join(" · ")
                       : "none"}
                   </td>
-                  <td className={VERDICT_CLASS[r.verdict]}>{r.verdict}</td>
+                  <td className={VERDICT_CLASS[r.verdict]}>
+                    {r.verdict}
+                    {r.wrong.length ? (
+                      <span className="ow-dim">
+                        {" "}
+                        · {r.wrong.map((w) => `${w.plan} where ${w.expected} ×${fmtInt(w.calls)}`).join(", ")}
+                      </span>
+                    ) : null}
+                    {r.unjudgedCalls && r.verdict !== "unclear" ? (
+                      <span className="ow-dim"> · {fmtInt(r.unjudgedCalls)} not judged</span>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>

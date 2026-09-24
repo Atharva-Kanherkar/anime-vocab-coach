@@ -301,6 +301,9 @@ export interface ClerkUserRow {
   id: string;
   createdAt: number;
   lastActiveAt: number | null;
+  /** Clerk's last write to the user. Grants, gifts and the Dodo webhook all
+   * write metadata, so the plan cannot have changed after this. */
+  updatedAt?: number | null;
   plan: PlanInfo;
   email?: string;
 }
@@ -339,6 +342,7 @@ async function loadClerk(exclude: ReadonlySet<string>): Promise<{
           id: u.id,
           createdAt: u.createdAt,
           lastActiveAt: u.lastActiveAt ?? null,
+          updatedAt: u.updatedAt ?? null,
           plan: planBucket(u.publicMetadata, now),
           email,
         });
