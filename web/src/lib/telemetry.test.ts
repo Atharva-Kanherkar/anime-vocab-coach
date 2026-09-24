@@ -28,6 +28,7 @@ import {
 } from "./telemetry-schema";
 import {
   apiErrorsSql,
+  proFunnelSql,
   apiRoutesSql,
   eventGroupSql,
   eventsByUserSql,
@@ -808,6 +809,8 @@ describe("generated SQL matches the Analytics Engine dialect", () => {
     { label: "apiRoutes/user", sql: apiRoutesSql(24, "u_1") },
     { label: "apiErrors", sql: apiErrorsSql(24) },
     { label: "apiErrors/user", sql: apiErrorsSql(24, "u_1") },
+    { label: "proFunnel", sql: proFunnelSql(24) },
+    { label: "proFunnel/user", sql: proFunnelSql(24, "u_1") },
     { label: "eventUsers", sql: eventsByUserSql(24) },
     { label: "funnel", sql: extensionFunnelSql(24) },
     { label: "learningLoop", sql: featureEventsSql(24) },
