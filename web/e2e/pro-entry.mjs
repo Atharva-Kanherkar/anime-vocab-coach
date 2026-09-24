@@ -208,6 +208,8 @@ try {
 
   // ── /pricing?from=: an extension click keeps its credit ───────────────────
   const fresh = await ctx.newPage();
+  fresh.on("console", (m) => m.type() === "error" && consoleErrors.push(`[pricing] ${m.text()}`));
+  fresh.on("pageerror", (e) => consoleErrors.push(`[pricing] ${String(e)}`));
   fresh.on("request", (req) => {
     if (!req.url().endsWith("/api/track") || req.method() !== "POST") return;
     try {
@@ -229,6 +231,46 @@ try {
     JSON.stringify(beacons)
   );
   await fresh.close();
+
+  // ── the homepage: its plan cards are one slide among many ─────────────────
+  // Every slide is mounted at once, so a view is only a view once the pricing
+  // slide is actually on screen. Landing on the first slide must not count.
+  beacons.length = 0;
+  const home = await ctx.newPage();
+  home.on("console", (m) => m.type() === "error" && consoleErrors.push(`[home] ${m.text()}`));
+  home.on("pageerror", (e) => consoleErrors.push(`[home] ${String(e)}`));
+  home.on("request", (req) => {
+    if (!req.url().endsWith("/api/track") || req.method() !== "POST") return;
+    try {
+      const b = JSON.parse(req.postData() || "{}");
+      if (String(b.name).startsWith("pro_")) beacons.push({ name: b.name, surface: b.surface });
+    } catch {
+      /* ignore */
+    }
+  });
+  const homeRes = await home.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  check("the homepage renders", homeRes?.status() === 200, `HTTP ${homeRes?.status()}`);
+  await home.waitForTimeout(1500);
+  check("its hidden pricing slide is not counted as a view", !saw("pro_prompt_shown", "home"), JSON.stringify(beacons));
+  // Scroll the slider until the pricing slide is the one on screen.
+  for (let i = 0; i < 80 && !(await home.locator(".hero__pricing").isVisible().catch(() => false)); i++) {
+    await home.mouse.wheel(0, 400);
+    await home.waitForTimeout(120);
+  }
+  check("scrolling reaches the pricing slide", await home.locator(".hero__pricing").isVisible());
+  check("and that counts as one home view", await waitFor(() => saw("pro_prompt_shown", "home")), JSON.stringify(beacons));
+  await home.mouse.wheel(0, -1200);
+  await home.waitForTimeout(600);
+  for (let i = 0; i < 20 && !(await home.locator(".hero__pricing").isVisible().catch(() => false)); i++) {
+    await home.mouse.wheel(0, 300);
+    await home.waitForTimeout(120);
+  }
+  check(
+    "scrolling back to it in the same session does not count again",
+    beacons.filter((b) => b.name === "pro_prompt_shown" && b.surface === "home").length === 1,
+    JSON.stringify(beacons)
+  );
+  await home.close();
 
   // ── /owner: the Pro funnel panel ──────────────────────────────────────────
   await page.goto(`${BASE}/owner?h=24`, { waitUntil: "networkidle" });
