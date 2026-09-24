@@ -42,7 +42,7 @@ export function ProHeaderEntry({ onOpenBilling }: { onOpenBilling: () => void })
       type="button"
       data-testid="pro-header-entry"
       onClick={() => openPro("app_header", onOpenBilling)}
-      className="whitespace-nowrap border-2 border-accent px-3 py-1.5 text-[13px] font-extrabold text-accent transition hover:bg-accent hover:text-bg"
+      className="whitespace-nowrap border-2 border-accent px-2.5 py-1 text-[12px] font-extrabold text-accent transition hover:bg-accent hover:text-bg"
     >
       Go Pro
     </button>

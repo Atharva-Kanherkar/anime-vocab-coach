@@ -102,6 +102,10 @@ export function AppShell({
             アニメVocab
           </Link>
 
+          {/* Beside the logo, not with the controls on the right: that row is
+              exactly as wide as the nav allows, and anything more wraps it. */}
+          {offerPro && <ProHeaderEntry onOpenBilling={openBilling} />}
+
           <nav aria-label="Sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto md:order-none md:mx-0 md:ml-auto md:w-auto">
             {NAV.map(({ id, label }) => {
               const active = section === id;
@@ -126,7 +130,6 @@ export function AppShell({
           </nav>
 
           <span className="ml-auto flex items-center gap-2 md:ml-0">
-            {offerPro && <ProHeaderEntry onOpenBilling={openBilling} />}
             <ThemeToggle />
             {!DEV_NO_CLERK && <UserButton />}
           </span>
