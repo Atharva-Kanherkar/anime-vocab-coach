@@ -18,6 +18,7 @@ import {
 import { fmtMinutes, type OwnerHistory } from "@/lib/owner-history";
 import { includeUsParam } from "@/lib/owner-exclusions";
 import { loadOwnerView } from "@/lib/owner-view";
+import type { PlanTagCheck, PlanTagRow } from "@/lib/owner-plan-tags";
 import { AiInsights } from "./ai-insights";
 import { BarList, Chart, Panel, Stat } from "./ui";
 
@@ -228,6 +229,63 @@ function HistorySection({ history }: { history: OwnerHistory }) {
         </Panel>
       </div>
     </>
+  );
+}
+
+const VERDICT_CLASS: Record<PlanTagRow["verdict"], string> = {
+  ok: "ow-good",
+  mismatch: "ow-bad",
+  "no calls": "ow-dim",
+};
+
+/**
+ * #163: Clerk said 5 Max and 2 Pro while every call read free. This is the
+ * check: each paid or gifted account, the plan it has today, and the plan its
+ * calls in this window actually carried.
+ */
+function PlanTagsPanel({ check, windowLabel }: { check: PlanTagCheck; windowLabel: string }) {
+  return (
+    <div className="ow-grid">
+      <Panel title="Paid & gifted accounts" wide empty={check.rows.length === 0}>
+        <p className="ow-sub">
+          Plan today next to the plan on their AI and Listening calls, last {windowLabel}. mismatch: a call
+          carried a different plan, a tagging bug · ok: every call carried it · owner is tagged on
+          purpose.
+          {check.skipped ? ` ${fmtInt(check.skipped)} more accounts not checked.` : ""}
+        </p>
+        <div className="ow-scroll">
+          <table className="ow-table">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Plan</th>
+                <th>Today</th>
+                <th>Tags on calls</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              {check.rows.map((r) => (
+                <tr key={r.userId}>
+                  <td className="ow-label">{r.email || <span className="ow-mono">{r.userId}</span>}</td>
+                  <td className="ow-label">
+                    {r.bucket}
+                    {r.expiresAt ? <span className="ow-dim"> · until {r.expiresAt.slice(0, 10)}</span> : null}
+                  </td>
+                  <td className="ow-mono">{r.effective}</td>
+                  <td className="ow-label ow-mono">
+                    {r.tags.length
+                      ? r.tags.map((t) => `${t.source} ${t.plan} ×${fmtInt(t.calls)}`).join(" · ")
+                      : "none"}
+                  </td>
+                  <td className={VERDICT_CLASS[r.verdict]}>{r.verdict}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
   );
 }
 
@@ -908,6 +966,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
       )}
 
       {history ? <HistorySection history={history} /> : null}
+      {view.planTags ? <PlanTagsPanel check={view.planTags} windowLabel={win.label} /> : null}
     </>
   );
 }

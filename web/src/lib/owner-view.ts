@@ -5,6 +5,7 @@
 import { loadOwnerDashboard, type OwnerDashboardData } from "./owner-dashboard";
 import { loadOwnerHistory, type OwnerHistory } from "./owner-history";
 import { ownerScope, resolveExclusions, type Exclusions } from "./owner-exclusions";
+import { loadPlanTags, type PlanTagCheck } from "./owner-plan-tags";
 
 export interface OwnerView {
   data: OwnerDashboardData;
@@ -12,6 +13,8 @@ export interface OwnerView {
   exclusions: Exclusions;
   /** True when this render leaves the excluded accounts out. */
   excluding: boolean;
+  /** Paid and gifted accounts next to the plan their calls carried (#163). */
+  planTags: PlanTagCheck | null;
 }
 
 export async function loadOwnerView(opts: {
@@ -27,10 +30,20 @@ export async function loadOwnerView(opts: {
       ? Promise.resolve(null)
       : loadOwnerHistory({ exclude: opts.includeUs ? [] : exclusions.ids }),
   ]);
+  // Needs the Clerk accounts, so it runs after history. Two small queries, and
+  // none at all when nobody holds a paid plan.
+  const planTags =
+    history && data.configured ? await loadPlanTags(opts.hours, history.planAccounts) : null;
+  if (planTags?.failed.length) {
+    const named = `query_failed (${planTags.failed.length}: ${planTags.failed.join(", ")})`;
+    data.queryError = data.queryError ? `${data.queryError} · ${named}` : named;
+  }
+
   return {
     data,
     history,
     exclusions,
+    planTags,
     excluding: !opts.focusUser && !opts.includeUs && exclusions.ids.length > 0,
   };
 }

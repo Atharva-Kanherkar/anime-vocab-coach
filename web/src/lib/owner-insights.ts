@@ -20,6 +20,7 @@ import {
   type WindowOption,
 } from "./owner-dashboard";
 import type { OwnerHistory } from "./owner-history";
+import type { PlanTagCheck } from "./owner-plan-tags";
 
 export interface OwnerInsights {
   summary: string;
@@ -96,7 +97,8 @@ export function buildInsightsDigest(
   history: OwnerHistory | null,
   focusUser?: string,
   /** Whose numbers these are (#163), e.g. "excluding 2 owner/test accounts". */
-  scope?: string
+  scope?: string,
+  planTags?: PlanTagCheck | null
 ): string {
   const t = data.totals;
   const tx = data.transcribe;
@@ -252,6 +254,22 @@ export function buildInsightsDigest(
     lines.push(
       `  ${fmtInt(tx.calls)} chunks · ${fmtInt(tx.users)} users · cache hit rate ${fmtPct(tx.hitRate)} · ` +
         `spend ${fmtUsd(tx.cost)} · avg latency ${fmtMs(tx.avgLatencyMs)} · cap rejections ${fmtInt(tx.capHits)} · errors ${fmtInt(tx.errors)}`
+    );
+  }
+
+  if (planTags?.rows.length) {
+    // #163: whether a paid account's calls carried its plan. "mismatch" is a
+    // tagging bug; "ok" and "no calls" mean the free-heavy plan column is real.
+    lines.push("\n## Paid & gifted accounts (plan today vs plan on their calls, this window)");
+    lines.push(
+      take(planTags.rows, 12)
+        .map(
+          (r) =>
+            `  - ${r.email || r.userId}: ${r.bucket}${r.expiresAt ? ` until ${r.expiresAt.slice(0, 10)}` : ""}, ` +
+            `effective ${r.effective}, ${r.verdict}` +
+            (r.tags.length ? ` (${r.tags.map((t) => `${t.source} ${t.plan} ${fmtInt(t.calls)}`).join(", ")})` : "")
+        )
+        .join("\n")
     );
   }
 

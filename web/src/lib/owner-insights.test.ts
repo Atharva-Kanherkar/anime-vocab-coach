@@ -314,3 +314,25 @@ describe("whose numbers the digest describes (#163)", () => {
     expect(scopeSentence({ excluding: false, exclusions }, "user_a")).toMatch(/single learner/);
   });
 });
+
+describe("paid & gifted accounts in the digest (#163)", () => {
+  it("lists each account with its verdict and tags", () => {
+    const digest = buildInsightsDigest(WIN, baseData(), null, undefined, undefined, {
+      rows: [
+        {
+          userId: "user_gift",
+          email: "gift@x.io",
+          bucket: "max · gift",
+          expiresAt: "2026-10-04T00:00:00.000Z",
+          effective: "max",
+          tags: [{ source: "llm", plan: "free", calls: 12 }],
+          verdict: "mismatch",
+        },
+      ],
+      failed: [],
+      skipped: 0,
+    });
+    expect(digest).toContain("## Paid & gifted accounts");
+    expect(digest).toContain("gift@x.io: max · gift until 2026-10-04, effective max, mismatch (llm free 12)");
+  });
+});

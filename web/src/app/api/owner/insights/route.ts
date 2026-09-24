@@ -54,7 +54,14 @@ async function handlePOST(req: Request) {
     return NextResponse.json({ error: "analytics_not_configured" }, { status: 503 });
   }
 
-  const digest = buildInsightsDigest(win, data, history, focusUser, scopeSentence(view, focusUser));
+  const digest = buildInsightsDigest(
+    win,
+    data,
+    history,
+    focusUser,
+    scopeSentence(view, focusUser),
+    view.planTags
+  );
   const { model } = await getCoachConfig();
   const facts = requestFacts(req);
 
