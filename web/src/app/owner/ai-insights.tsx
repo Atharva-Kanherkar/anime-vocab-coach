@@ -11,10 +11,13 @@ export function AiInsights({
   hours,
   label,
   focusUser,
+  includeUs = false,
 }: {
   hours: number;
   label: string;
   focusUser?: string;
+  /** Same mode as the page (#163), so the model reads the numbers you see. */
+  includeUs?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<OwnerInsights | null>(null);
@@ -27,7 +30,7 @@ export function AiInsights({
       const res = await fetch("/api/owner/insights", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ hours, user: focusUser }),
+        body: JSON.stringify({ hours, user: focusUser, all: includeUs }),
       });
       const data = (await res.json()) as { insights?: OwnerInsights; error?: string };
       if (!res.ok || !data.insights) {

@@ -299,3 +299,18 @@ describe("Pro funnel in the digest (#162)", () => {
     expect(buildInsightsDigest(WIN, baseData(), null)).not.toContain("## Pro funnel");
   });
 });
+
+describe("whose numbers the digest describes (#163)", () => {
+  it("names the mode on the window line", () => {
+    const digest = buildInsightsDigest(WIN, baseData(), null, undefined, "excluding 2 owner/test accounts");
+    expect(digest.split("\n")[0]).toContain("excluding 2 owner/test accounts");
+  });
+
+  it("matches the page's sentence for each mode", async () => {
+    const { scopeSentence } = await import("./owner-view");
+    const exclusions = { ids: ["user_a", "user_b"], emails: [] };
+    expect(scopeSentence({ excluding: true, exclusions })).toBe("excluding 2 owner/test accounts");
+    expect(scopeSentence({ excluding: false, exclusions })).toMatch(/including the owner/);
+    expect(scopeSentence({ excluding: false, exclusions }, "user_a")).toMatch(/single learner/);
+  });
+});

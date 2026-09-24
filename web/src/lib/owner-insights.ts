@@ -94,7 +94,9 @@ export function buildInsightsDigest(
   win: WindowOption,
   data: OwnerDashboardData,
   history: OwnerHistory | null,
-  focusUser?: string
+  focusUser?: string,
+  /** Whose numbers these are (#163), e.g. "excluding 2 owner/test accounts". */
+  scope?: string
 ): string {
   const t = data.totals;
   const tx = data.transcribe;
@@ -102,7 +104,9 @@ export function buildInsightsDigest(
   const lines: string[] = [];
 
   lines.push(
-    `Window: last ${win.label}${focusUser ? ` · single user ${focusUser}` : " · all users"}. All times UTC.`
+    `Window: last ${win.label}${focusUser ? ` · single user ${focusUser}` : " · all users"}${
+      scope ? ` · ${scope}` : ""
+    }. All times UTC.`
   );
 
   lines.push("\n## LLM usage");

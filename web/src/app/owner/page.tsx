@@ -10,13 +10,14 @@ import {
   fmtPct,
   fmtUsd,
   fmtWhen,
-  loadOwnerDashboard,
   resolveWindow,
   type GroupRow,
   type SimpleRow,
   type UserRow,
 } from "@/lib/owner-dashboard";
-import { fmtMinutes, loadOwnerHistory, type OwnerHistory } from "@/lib/owner-history";
+import { fmtMinutes, type OwnerHistory } from "@/lib/owner-history";
+import { includeUsParam } from "@/lib/owner-exclusions";
+import { loadOwnerView } from "@/lib/owner-view";
 import { AiInsights } from "./ai-insights";
 import { BarList, Chart, Panel, Stat } from "./ui";
 
@@ -234,21 +235,23 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
   const params = await searchParams;
   const win = resolveWindow(one(params.h));
   const focusUser = one(params.user)?.trim() || undefined;
+  // #163: the owner and test accounts are left out unless ?all=1.
+  const includeUs = includeUsParam(one(params.all));
 
   // History reads Clerk + KV, not Analytics Engine, so it is independent of the
   // window and of the SQL API being reachable. Loaded in parallel; the panel
   // degrades on its own if either source is unavailable.
-  const [data, history] = await Promise.all([
-    loadOwnerDashboard(win.hours, focusUser),
-    focusUser ? Promise.resolve(null) : loadOwnerHistory(),
-  ]);
+  const view = await loadOwnerView({ hours: win.hours, focusUser, includeUs });
+  const { data, history, exclusions } = view;
   const t = data.totals;
   const tx = data.transcribe;
   const ctx = data.animeContextCache;
   const topUsers = await withEmails(data.topUsers);
 
-  const href = (h: number) =>
-    focusUser ? `/owner?h=${h}&user=${encodeURIComponent(focusUser)}` : `/owner?h=${h}`;
+  const href = (h: number, all = includeUs) =>
+    focusUser
+      ? `/owner?h=${h}&user=${encodeURIComponent(focusUser)}`
+      : `/owner?h=${h}${all ? "&all=1" : ""}`;
 
   return (
     <>
@@ -278,6 +281,29 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         )}
         all times UTC · counts are sample-weighted
       </p>
+
+      {/* #163: say whose numbers these are, every time. */}
+      {focusUser ? null : (
+        <p className="ow-sub" data-testid="owner-scope">
+          {view.excluding ? (
+            <>
+              Excluding {exclusions.ids.length} owner/test account
+              {exclusions.ids.length === 1 ? "" : "s"}
+              {exclusions.emails.length ? ` (${exclusions.emails.join(", ")})` : ""}. Anonymous rows
+              and the extension funnel cannot be attributed and still include us.{" "}
+              <Link href={href(win.hours, true)}>Show everyone</Link>
+            </>
+          ) : (
+            <>
+              Including everyone, the owner and test accounts too.{" "}
+              <Link href={href(win.hours, false)}>Exclude us</Link>
+            </>
+          )}
+        </p>
+      )}
+      {exclusions.note && !focusUser && !includeUs ? (
+        <div className="ow-note is-bad">{exclusions.note}</div>
+      ) : null}
 
       {!data.configured ? (
         <div className="ow-note">
@@ -346,10 +372,11 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         <div className="ow-grid">
           <Panel title="AI insights" wide empty={false}>
             <AiInsights
-              key={`${win.hours}:${focusUser ?? ""}`}
+              key={`${win.hours}:${focusUser ?? ""}:${includeUs ? "all" : "ex"}`}
               hours={win.hours}
               label={win.label}
               focusUser={focusUser}
+              includeUs={includeUs}
             />
           </Panel>
         </div>
@@ -562,6 +589,8 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
             </div>
           </Panel>
           <Panel title="Extension funnel" empty={data.extensionFunnel.length === 0}>
+            {/* #163: these counters carry no user, so no exclusion can reach them. */}
+            <p className="ow-sub">No user on these rows, so this panel always includes us.</p>
             <BarList rows={data.extensionFunnel} unit="events" />
           </Panel>
         </div>
