@@ -73,10 +73,18 @@ reads 0 while 54% never linked.
   - effective plan
   - the plan tags on its calls in the current window, from `avc_llm` and `avc_transcribe`,
     with counts
-  - a verdict:
-    - `ok`: every tag is the effective plan, or `owner`
-    - `mismatch`: some tag differs; the tags are listed
-    - `no calls`: nothing in the window
+  - a verdict, judged per UTC day against the plan the account had **that day**, not today
+    (review on PR #169):
+    - Expected plan on a day: the metadata plan before a gift's expiry day, `free` after it.
+      A malformed expiry is `free` throughout, as the meters apply it.
+    - A day is only judged once the plan provably had not changed since, i.e. after the UTC
+      day of Clerk's `updatedAt`. Grants, gifts and the Dodo webhook all write metadata, so
+      `updatedAt` is an upper bound on the last plan change. The expiry day itself and every
+      day up to `updatedAt` are left unjudged.
+    - `mismatch`: some judged day carried a tag other than that day's plan (or `owner`).
+    - `ok`: every judged day matched. Unjudged calls are counted beside it.
+    - `unclear`: calls exist, but every one predates the last plan change.
+    - `no calls`: nothing in the window.
 - One grouped query per dataset, restricted to those ids (an OR of equalities, through
   `sqlString`). No query runs when there are no such accounts. A failing query is named in
   the query-error line; the rest of the page is unaffected.
@@ -119,8 +127,13 @@ reads 0 while 54% never linked.
 - `web/src/lib/owner-plan-tags.test.ts` (new)
   - `planTagsSql`: the dataset's userId and plan columns by schema position, OR of escaped
     ids, grouped by user and plan.
-  - `foldPlanTags`: ok / mismatch / no calls, `owner` tolerated, llm + transcribe merged,
-    mismatches sorted first.
+  - `foldPlanTags`: ok / mismatch / unclear / no calls, `owner` tolerated, llm + transcribe
+    merged, mismatches sorted first.
+  - Calls on both sides of a gift expiry in one window: the earlier `max` tag is ok, and so is
+    the later `free` tag. A `max` tag after expiry is a mismatch.
+  - A recent upgrade: `free` calls before `updatedAt` are unjudged (unclear), not a mismatch.
+    A `free` call after `updatedAt` on a paid account is a mismatch.
+  - `planTagsSql` groups by user, plan and UTC day.
 - `web/src/lib/owner-insights.test.ts`: the digest has a "Paid & gifted accounts" section
   and says which mode it is in.
 
