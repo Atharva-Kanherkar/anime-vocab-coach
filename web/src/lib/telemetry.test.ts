@@ -226,6 +226,27 @@ describe("telemetry schema", () => {
     expect(eventColumn("errorCode")).toBe("blob15");
   });
 
+  it("appends surface after errorCode, moving nothing (#162)", () => {
+    expect(EVENT_BLOBS.slice(0, 15)).toEqual([
+      "kind",
+      "name",
+      "userId",
+      "plan",
+      "country",
+      "city",
+      "referrerHost",
+      "device",
+      "authKind",
+      "status",
+      "utmSource",
+      "utmMedium",
+      "utmCampaign",
+      "clientVersion",
+      "errorCode",
+    ]);
+    expect(eventColumn("surface")).toBe("blob16");
+  });
+
   it("throws on an unknown field rather than silently mis-addressing", () => {
     expect(() => llmColumn("nope" as never)).toThrow(/unknown telemetry field/);
   });
@@ -346,6 +367,15 @@ describe("recordUserEvent", () => {
     expect(w.indexes).toEqual(["pageview"]);
     expect(blobOf(w, "clientVersion", EVENT_BLOBS)).toBe("");
     expect(blobOf(w, "errorCode", EVENT_BLOBS)).toBe("");
+    expect(blobOf(w, "surface", EVENT_BLOBS)).toBe("");
+  });
+
+  it("writes the surface on a Pro funnel row (#162)", async () => {
+    const { ae, writes } = sink();
+    setTelemetrySinksForTests(null, ae);
+    await recordUserEvent({ kind: "feature", name: "pro_prompt_shown", surface: "app_unlock" });
+    expect(blobOf(writes[0]!, "surface", EVENT_BLOBS)).toBe("app_unlock");
+    expect(writes[0]!.blobs).toHaveLength(EVENT_BLOBS.length);
   });
 
   it("writes the reason on a failed api row (#160)", async () => {

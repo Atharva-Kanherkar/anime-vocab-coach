@@ -164,6 +164,8 @@ export interface UserEventRecord {
   clientVersion?: string | null;
   /** Why an api call failed, already normalized (see apiErrorCode). */
   errorCode?: string | null;
+  /** Which Pro prompt a Pro funnel row came from, already normalized (#162). */
+  surface?: string | null;
 }
 
 export async function recordUserEvent(record: UserEventRecord): Promise<void> {
@@ -187,6 +189,7 @@ export async function recordUserEvent(record: UserEventRecord): Promise<void> {
       utmCampaign: record.utmCampaign || "",
       clientVersion: record.clientVersion || "",
       errorCode: record.errorCode || "",
+      surface: record.surface || "",
     };
     const numbers: Record<(typeof EVENT_DOUBLES)[number], number> = {
       durationMs: finite(record.durationMs),
