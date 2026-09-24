@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BillingToggle, PlanCards } from "@/components/plan-cards";
 import { hasLocalizedPricing } from "@/lib/localized-pricing";
 import { useVisitorCountry } from "@/lib/use-visitor-country";
 import type { CheckoutInterval } from "@/lib/site";
+import { proSurfaceFromSearch, rememberProSurface } from "@/lib/pro-funnel";
 
 /**
  * The /pricing plan block: interval toggle plus the shared price cards.
@@ -21,6 +22,13 @@ export function PricingPlans() {
   const localized = hasLocalizedPricing(country);
   const effectiveInterval: CheckoutInterval = localized ? "monthly" : interval;
 
+  // A prompt elsewhere (the extension, /app) that sent the visitor here keeps
+  // the credit for whatever checkout follows (#162).
+  useEffect(() => {
+    const from = proSurfaceFromSearch(window.location.search);
+    if (from) rememberProSurface(from);
+  }, []);
+
   return (
     <>
       {localized ? (
@@ -30,7 +38,7 @@ export function PricingPlans() {
       ) : (
         <BillingToggle interval={interval} onChange={setInterval} />
       )}
-      <PlanCards interval={effectiveInterval} country={country} localized={localized} />
+      <PlanCards surface="pricing" interval={effectiveInterval} country={country} localized={localized} />
     </>
   );
 }

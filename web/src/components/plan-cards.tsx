@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { TIERS, checkoutFor, installUrl, type CheckoutInterval } from "@/lib/site";
 import { localizedMonthlyLabel } from "@/lib/localized-pricing";
 import { PLAN_ORDER } from "@/lib/pricing-page";
+import { trackCheckoutClick, trackProShownOnce, type ProSurface } from "@/lib/pro-funnel";
 
 /** Billing interval switch. Callers hide it for countries with localized
  * pricing, where Dodo has monthly rules only. */
@@ -48,6 +50,7 @@ export function BillingToggle({
  *
  * `interval` must already be resolved to the effective one (monthly in
  * localized countries); `country` drives the regional label per card.
+ * `surface` is the Pro funnel label for this placement (#162).
  */
 export function PlanCards({
   interval,
@@ -55,7 +58,9 @@ export function PlanCards({
   localized,
   perkLimit,
   className,
+  surface,
 }: {
+  surface: ProSurface;
   interval: CheckoutInterval;
   country: string | null;
   /** True when the visitor's country has a Dodo localized monthly rule. */
@@ -64,8 +69,28 @@ export function PlanCards({
   perkLimit?: number;
   className?: string;
 }) {
+  // Shown means seen. The homepage mounts every slide at once, so counting on
+  // mount would credit the pricing slide with every visitor to the site.
+  const grid = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = grid.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          trackProShownOnce(surface);
+          io.disconnect();
+        }
+      },
+      // Low on purpose: stacked on a phone the grid is taller than the screen.
+      { threshold: 0.15 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [surface]);
+
   return (
-    <div className={"price-grid price-grid--three" + (className ? ` ${className}` : "")}>
+    <div ref={grid} className={"price-grid price-grid--three" + (className ? ` ${className}` : "")}>
       {PLAN_ORDER.map((id) => {
         const tier = TIERS[id];
         const isPro = id === "pro";
@@ -108,7 +133,12 @@ export function PlanCards({
                 Add to Chrome
               </a>
             ) : url ? (
-              <a className="btn btn-accent" href={url} rel="noopener noreferrer">
+              <a
+                className="btn btn-accent"
+                href={url}
+                rel="noopener noreferrer"
+                onClick={() => trackCheckoutClick(surface)}
+              >
                 Get {tier.name}
               </a>
             ) : (

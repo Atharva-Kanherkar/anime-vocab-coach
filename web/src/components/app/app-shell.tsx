@@ -159,7 +159,7 @@ export function AppShell({
             <CloudSyncPanel />
           </div>
           <div hidden={section !== "billing"}>
-            <BillingPanel {...billing} />
+            <BillingPanel {...billing} active={section === "billing"} />
           </div>
           <div hidden={section !== "settings"}>
             <SettingsPanel />

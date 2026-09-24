@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DODO_CUSTOMER_PORTAL_URL,
   SITE_URL,
@@ -13,12 +13,15 @@ import {
 import type { BillingInterval } from "@/lib/plans";
 import { hasLocalizedPricing, localizedMonthlyLabel } from "@/lib/localized-pricing";
 import { useVisitorCountry } from "@/lib/use-visitor-country";
+import { trackCheckoutClick, trackProShownOnce } from "@/lib/pro-funnel";
 
 export type BillingPanelProps = {
   plan: PlanId;
   billingInterval: BillingInterval | null;
   planExpiresAt: string | null;
   email: string | null;
+  /** True while the Billing section is the one on screen (#162). */
+  active?: boolean;
 };
 
 function planTitle(plan: PlanId): string {
@@ -47,6 +50,7 @@ export function BillingPanel({
   billingInterval,
   planExpiresAt,
   email,
+  active = false,
 }: BillingPanelProps) {
   const [interval, setInterval] = useState<CheckoutInterval>("yearly");
   const country = useVisitorCountry();
@@ -65,6 +69,12 @@ export function BillingPanel({
     else if (plan === "pro") ids.push("max");
     return ids;
   }, [plan]);
+
+  // The panel is mounted behind `hidden` with every other section, so only
+  // count the upgrade cards as shown once someone actually opens Billing.
+  useEffect(() => {
+    if (active && upgradeTargets.length > 0) trackProShownOnce("app_billing");
+  }, [active, upgradeTargets.length]);
 
   const redirectUrl = `${SITE_URL}/app#billing`;
 
@@ -163,6 +173,7 @@ export function BillingPanel({
                       className="av-btn av-btn-primary mt-4 inline-flex"
                       href={href}
                       rel="noopener noreferrer"
+                      onClick={() => trackCheckoutClick("app_billing")}
                     >
                       Get {tier.name}
                     </a>
