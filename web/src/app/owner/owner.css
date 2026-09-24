@@ -403,3 +403,13 @@
 .ow-dim {
   color: var(--ow-dim);
 }
+
+/* The include-us / exclude-us toggle under the page title (#163). */
+.ow-page .ow-sub a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.ow-page .ow-sub a:hover {
+  text-decoration: underline;
+}

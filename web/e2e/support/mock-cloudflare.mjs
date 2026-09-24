@@ -1,5 +1,5 @@
-// Preloaded into `next dev` (NODE_OPTIONS=--import …) for web/e2e/observability.mjs
-// and web/e2e/pro-entry.mjs.
+// Preloaded into `next dev` (NODE_OPTIONS=--import …) for web/e2e/observability.mjs,
+// web/e2e/pro-entry.mjs and web/e2e/owner-scope.mjs.
 //
 // /owner reads Cloudflare's Analytics Engine SQL API over HTTPS with an
 // account token. A local test has neither, and without rows the page renders
@@ -12,6 +12,11 @@
 // Nothing else is intercepted; every other request (including the dev server's
 // own localhost traffic) passes through untouched.
 import { MockAgent, setGlobalDispatcher } from "undici";
+import { appendFileSync } from "node:fs";
+
+// Set by a suite that asserts on the SQL itself (web/e2e/owner-scope.mjs):
+// every query this server sends is appended there, one JSON string per line.
+const SQL_LOG = process.env.AVC_E2E_SQL_LOG;
 
 const SQL_ORIGIN = "https://api.cloudflare.com";
 const SQL_PATH = /\/client\/v4\/accounts\/[^/]+\/analytics_engine\/sql/;
@@ -60,6 +65,14 @@ function rowsFor(sql) {
     return [
       { label: "/api/anime/context", events: "4338", latencySum: "13881600", errors: "295" },
       { label: "/api/ai/pick-word", events: "2071", latencySum: "2071000", errors: "12" },
+    ];
+  }
+
+  // The pre-#111 extension counters: no user column at all (#163 says so).
+  if (sql.includes("FROM extension_funnel")) {
+    return [
+      { label: "onboarding_shown", events: "31" },
+      { label: "upgrade_prompt_shown", events: "3" },
     ];
   }
 
@@ -121,7 +134,11 @@ agent.enableNetConnect();
 agent
   .get(SQL_ORIGIN)
   .intercept({ path: SQL_PATH, method: "POST" })
-  .reply(200, (opts) => ({ data: rowsFor(String(opts.body ?? "")) }), {
+  .reply(200, (opts) => {
+    const sql = String(opts.body ?? "");
+    if (SQL_LOG) appendFileSync(SQL_LOG, JSON.stringify(sql) + "\n");
+    return { data: rowsFor(sql) };
+  }, {
     headers: { "content-type": "application/json" },
   })
   .persist();
