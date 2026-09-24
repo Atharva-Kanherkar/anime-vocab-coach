@@ -25,6 +25,7 @@ import {
 import type { Meter, TierOffer, UsageSnapshot } from "./usage-client";
 import type { DictEntry, DisplayScript, Judgment, PauseMode, Settings, Target, Token } from "../types";
 import { trackExtensionEvent } from "./extension-events";
+import { trackPro } from "./feature-events";
 import { UI_HOST_ATTR, isTypingEvent, keepFocusOnMouseClick } from "./key-shield";
 
 export type InteractionMode = "ambient" | "focus";
@@ -1901,6 +1902,8 @@ function buildPlanButton(tier: TierOffer, featured: boolean): HTMLElement | null
   btn.addEventListener("click", () => {
     trackExtensionEvent("upgrade_prompt_clicked");
     trackExtensionEvent("checkout_started");
+    void trackPro("pro_prompt_clicked", "ext_limit_sheet");
+    void trackPro("pro_checkout_started", "ext_limit_sheet");
     chrome.runtime.sendMessage({ type: "avc-open-url", url: tier.checkoutUrl }).catch(() => {});
     dismissLimitSheet();
   });
@@ -1988,6 +1991,7 @@ export function showLimitSheet(kind: LimitKind, usage: UsageSnapshot | null): vo
 
   if (upgrades.length) {
     trackExtensionEvent("upgrade_prompt_shown");
+    void trackPro("pro_prompt_shown", "ext_limit_sheet");
     const plans = document.createElement("div");
     plans.className = "avc-agent-plans";
     for (const u of upgrades) plans.appendChild(u);

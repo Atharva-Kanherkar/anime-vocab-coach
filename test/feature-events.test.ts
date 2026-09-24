@@ -1,5 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FEATURE_EVENTS, TRACK_FEATURE_MESSAGE, trackFeature } from "../src/lib/feature-events";
+import {
+  FEATURE_EVENTS,
+  PRO_FUNNEL_EVENTS,
+  PRO_SURFACES,
+  TRACK_FEATURE_MESSAGE,
+  TRACK_PRO_MESSAGE,
+  sendProBeacon,
+  trackFeature,
+  trackPro,
+} from "../src/lib/feature-events";
+import {
+  PRO_FUNNEL_EVENTS as WEB_PRO_EVENTS,
+  PRO_SURFACES as WEB_PRO_SURFACES,
+} from "../web/src/lib/pro-funnel";
 import {
   EXTENSION_LEARNING_LOOP_EVENTS,
   LEARNING_LOOP_EVENTS,
@@ -223,5 +236,63 @@ describe("the learning loop as storage.ts actually runs it", () => {
     await storage.judgeWord("約束", "ignore", META);
     await storage.judgeWord("約束", "dismiss", META);
     expect(bodies().slice(before).map((b) => b.name)).not.toContain("word_saved");
+  });
+});
+
+/**
+ * #162: the Pro funnel only reads per surface, and a surface the server does
+ * not know is written as "", counted but never attributed. Nothing errors.
+ */
+describe("Pro funnel beacon", () => {
+  it("mirrors the web's event list", () => {
+    expect([...PRO_FUNNEL_EVENTS]).toEqual([...WEB_PRO_EVENTS]);
+    for (const e of PRO_FUNNEL_EVENTS) expect(TRACKABLE_EVENTS as readonly string[]).toContain(e);
+  });
+
+  it("mirrors exactly the ext_ half of the web's surfaces", () => {
+    expect([...PRO_SURFACES].sort()).toEqual(WEB_PRO_SURFACES.filter((s) => s.startsWith("ext_")).sort());
+  });
+
+  it("sends the surface with the token and build", async () => {
+    local.syncToken = "avc_st_abc123";
+    await sendProBeacon("pro_prompt_shown", "ext_milestone");
+    const [call] = trackCalls();
+    expect((call!.init.headers as Record<string, string>).authorization).toBe("Bearer avc_st_abc123");
+    expect(JSON.parse(String(call!.init.body))).toEqual({
+      kind: "feature",
+      name: "pro_prompt_shown",
+      surface: "ext_milestone",
+      v: "0.5.7",
+    });
+  });
+
+  it("never puts a surface on a learning-loop row", async () => {
+    await trackFeature("word_saved");
+    expect(JSON.parse(String(trackCalls()[0]!.init.body))).not.toHaveProperty("surface");
+  });
+
+  it("drops an unknown event or surface before the network", async () => {
+    await sendProBeacon("pro_prompt_shown", "app_header" as never);
+    await sendProBeacon("upgrade_prompt_shown" as never, "ext_popup");
+    expect(trackCalls()).toHaveLength(0);
+  });
+
+  it("relays through the service worker from a page or content script", async () => {
+    const sendMessage = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("chrome", {
+      runtime: { id: "lkjbomofgfonjjbemobacegffepbdnel", sendMessage },
+      storage: { local: { get: vi.fn(), set: vi.fn() } },
+    });
+
+    await trackPro("pro_prompt_clicked", "ext_limit_sheet");
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: TRACK_PRO_MESSAGE,
+      event: "pro_prompt_clicked",
+      surface: "ext_limit_sheet",
+    });
+    expect(trackCalls()).toHaveLength(0);
+    vi.unstubAllGlobals();
   });
 });

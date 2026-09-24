@@ -5,6 +5,8 @@
 // every row into its own group and makes the dashboard useless — and lets any
 // visitor write arbitrary strings into the owner's telemetry.
 
+import { PRO_FUNNEL_EVENTS } from "./pro-funnel";
+
 /**
  * The learning loop itself: what a learner does inside the product.
  *
@@ -59,6 +61,9 @@ export const EXTENSION_LEARNING_LOOP_EVENTS = LEARNING_LOOP_EVENTS.filter(
  * `listening_start` / `card_reviewed`: both were declared here when the beacon
  * shipped and neither was ever written, so no historical row carries the old
  * spelling and nothing queries it.
+ *
+ * The Pro funnel block (#162) replaces `upgrade_click` / `checkout_start` for
+ * the same reason: declared, never fired, never queried.
  */
 export const TRACKABLE_EVENTS = [
   "coach_open",
@@ -71,13 +76,12 @@ export const TRACKABLE_EVENTS = [
   "manga_create",
   "ending_create",
   "extension_install_click",
-  "upgrade_click",
-  "checkout_start",
   "signin_start",
   "landing_view",
   "store_cta_click",
   "mobile_capture_shown",
   "mobile_capture_submitted",
+  ...PRO_FUNNEL_EVENTS,
   ...LEARNING_LOOP_EVENTS,
 ] as const;
 

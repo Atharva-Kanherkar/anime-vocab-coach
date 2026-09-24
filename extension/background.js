@@ -159,19 +159,47 @@
       }
     });
   }
+  var PRO_FUNNEL_EVENTS = [
+    "pro_prompt_shown",
+    "pro_prompt_clicked",
+    "pro_checkout_started"
+  ];
+  var PRO_SURFACES = [
+    "ext_popup",
+    "ext_milestone",
+    "ext_popup_limit",
+    "ext_limit_sheet"
+  ];
+  function isProFunnelEvent(v) {
+    return typeof v === "string" && PRO_FUNNEL_EVENTS.includes(v);
+  }
+  function isProSurface(v) {
+    return typeof v === "string" && PRO_SURFACES.includes(v);
+  }
+  var TRACK_PRO_MESSAGE = "avc-track-pro";
+  async function postTrack(body) {
+    const token = await syncToken();
+    const headers = { "content-type": "application/json" };
+    if (token) headers.authorization = "Bearer " + token;
+    void fetch(TRACK_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...body, v: extensionVersion() }),
+      keepalive: true
+    }).catch(() => {
+    });
+  }
   async function sendFeatureBeacon(event) {
     if (!isFeatureEvent(event)) return;
     try {
-      const token = await syncToken();
-      const headers = { "content-type": "application/json" };
-      if (token) headers.authorization = "Bearer " + token;
-      void fetch(TRACK_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ kind: "feature", name: event, v: extensionVersion() }),
-        keepalive: true
-      }).catch(() => {
-      });
+      await postTrack({ kind: "feature", name: event });
+    } catch {
+    }
+  }
+  async function sendProBeacon(event, surface) {
+    if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
+    try {
+      await postTrack({ kind: "feature", name: event, surface });
     } catch {
     }
   }
@@ -1165,6 +1193,12 @@
     }
     if (msg.type === TRACK_FEATURE_MESSAGE) {
       if (isFeatureEvent(msg.event)) void sendFeatureBeacon(msg.event);
+      return;
+    }
+    if (msg.type === TRACK_PRO_MESSAGE) {
+      if (isProFunnelEvent(msg.event) && isProSurface(msg.surface)) {
+        void sendProBeacon(msg.event, msg.surface);
+      }
       return;
     }
     if (msg.type === TRACK_EXTENSION_EVENT_MESSAGE) {

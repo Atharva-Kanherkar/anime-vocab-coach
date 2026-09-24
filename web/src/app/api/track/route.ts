@@ -9,6 +9,7 @@ import {
 } from "@/lib/telemetry";
 import { normalizeAttribution } from "@/lib/funnel-attribution";
 import { requestIdentity } from "@/lib/request-identity";
+import { isProFunnelEvent, normalizeProSurface } from "@/lib/pro-funnel";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       utm_medium?: unknown;
       utm_campaign?: unknown;
       v?: unknown;
+      surface?: unknown;
     };
     try {
       body = JSON.parse(text) as typeof body;
@@ -95,6 +97,9 @@ export async function POST(req: Request) {
       // that predated every learning-loop event for two months and nothing
       // here could tell; the website sends none, so its rows stay "".
       clientVersion: normalizeClientVersion(body.v),
+      // Only a Pro funnel row has a surface (#162). Taking it from any other
+      // row would let a pageview mint /owner labels.
+      surface: isProFunnelEvent(name) ? normalizeProSurface(body.surface) : "",
       ...attribution,
     });
   } catch {

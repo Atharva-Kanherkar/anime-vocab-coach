@@ -630,6 +630,58 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         </Panel>
       </div>
 
+      {/* #162: Pro was invisible, and the old extension_funnel counters above
+          could not say which prompt anyone saw. One row per placement. */}
+      <div className="ow-grid">
+        <Panel title="Pro funnel" wide empty={data.proFunnel.length === 0}>
+          <p className="ow-sub">
+            Shown → clicked → checkout started, per prompt. Checkout is credited to the prompt that
+            started the journey, so an extension click that buys on /pricing counts for the extension.
+            Rates show their n; hold conclusions until n ≥ 100.
+          </p>
+          <div className="ow-scroll">
+            <table className="ow-table">
+              <thead>
+                <tr>
+                  <th>Surface</th>
+                  <th className="ow-num">Shown</th>
+                  <th className="ow-num">Clicked</th>
+                  <th className="ow-num">Checkout</th>
+                  <th className="ow-num">Click rate</th>
+                  <th className="ow-num">Checkout rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.proFunnel.map((r) => (
+                  <tr key={r.surface}>
+                    <td className="ow-label ow-mono">{r.surface}</td>
+                    <td className="ow-num">
+                      {fmtInt(r.shown.events)} <span className="ow-dim">· {fmtInt(r.shown.users)} learners</span>
+                    </td>
+                    <td className="ow-num">
+                      {fmtInt(r.clicked.events)} <span className="ow-dim">· {fmtInt(r.clicked.users)}</span>
+                    </td>
+                    <td className="ow-num">
+                      {fmtInt(r.checkout.events)} <span className="ow-dim">· {fmtInt(r.checkout.users)}</span>
+                    </td>
+                    <td className="ow-num">
+                      {r.clickRate === null
+                        ? "no data yet"
+                        : `${fmtPct(r.clickRate)} (n=${fmtInt(r.shown.events)})`}
+                    </td>
+                    <td className="ow-num">
+                      {r.checkoutRate === null
+                        ? "no data yet"
+                        : `${fmtPct(r.checkoutRate)} (n=${fmtInt(r.clicked.events)})`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
+
       <div className="ow-grid">
         <Panel title="API routes" wide empty={data.apiRoutes.length === 0}>
           <div className="ow-scroll">

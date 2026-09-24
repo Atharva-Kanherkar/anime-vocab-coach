@@ -45,6 +45,7 @@ function baseData(over: Partial<OwnerDashboardData> = {}): OwnerDashboardData {
     extensionBuilds: [],
     animeContextCache: EMPTY_CACHE,
     apiErrors: [],
+    proFunnel: [],
     ...over,
   };
 }
@@ -258,5 +259,43 @@ describe("runOwnerInsights", () => {
     );
     await expect(runOwnerInsights("sk-test", "gpt-4.1-nano", "digest text")).rejects.toThrow("openai_500");
     errorSpy.mockRestore();
+  });
+});
+
+describe("Pro funnel in the digest (#162)", () => {
+  it("lists each surface with its steps and rates, n beside them", () => {
+    const digest = buildInsightsDigest(
+      WIN,
+      baseData({
+        proFunnel: [
+          {
+            surface: "ext_milestone",
+            shown: { events: 40, users: 12 },
+            clicked: { events: 10, users: 8 },
+            checkout: { events: 0, users: 0 },
+            clickRate: 0.25,
+            checkoutRate: 0,
+          },
+          {
+            surface: "app_billing",
+            shown: { events: 0, users: 0 },
+            clicked: { events: 0, users: 0 },
+            checkout: { events: 1, users: 1 },
+            clickRate: null,
+            checkoutRate: null,
+          },
+        ],
+      }),
+      null
+    );
+    expect(digest).toContain("## Pro funnel");
+    expect(digest).toContain("ext_milestone: shown 40 (12 learners), clicked 10, checkout 0");
+    expect(digest).toMatch(/click rate 25(\.0)?% of 40/);
+    expect(digest).toContain("app_billing");
+    expect(digest).toContain("click rate no data yet");
+  });
+
+  it("omits the section when there is nothing to say", () => {
+    expect(buildInsightsDigest(WIN, baseData(), null)).not.toContain("## Pro funnel");
   });
 });

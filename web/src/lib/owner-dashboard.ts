@@ -11,6 +11,7 @@ import {
   analyticsCredentials,
   apiErrorsSql,
   apiRoutesSql,
+  proFunnelSql,
   eventGroupSql,
   llmFacetsSql,
   mapLimit,
@@ -27,6 +28,7 @@ import {
   runQuery,
   sqlHours,
   type ApiErrorQueryRow,
+  type ProFunnelQueryRow,
   type ApiRouteRow,
   type EventGroupRow,
   type EventUserRow,
@@ -326,6 +328,8 @@ export interface OwnerDashboardData {
   animeContextCache: CacheSummary;
   /** Failed API calls by route, status, auth kind and reason (#160). */
   apiErrors: ApiErrorRow[];
+  /** Pro prompts: shown → clicked → checkout, one row per surface (#162). */
+  proFunnel: ProFunnelRow[];
 }
 
 /** One learning-loop event: how often, and how many learners. */
@@ -473,6 +477,78 @@ export function foldApiErrors(rows: ApiErrorQueryRow[]): ApiErrorRow[] {
   });
 }
 
+/** One step of the Pro funnel on one surface. */
+export interface ProFunnelStep {
+  events: number;
+  /** Distinct identified learners; the shared anonymous bucket is not one. */
+  users: number;
+}
+
+/** One Pro prompt surface, shown → clicked → checkout (#162). */
+export interface ProFunnelRow {
+  surface: string;
+  shown: ProFunnelStep;
+  clicked: ProFunnelStep;
+  checkout: ProFunnelStep;
+  /** clicked / shown events, or null when nothing was shown. */
+  clickRate: number | null;
+  /** checkout / clicked events, or null when nothing was clicked. */
+  checkoutRate: number | null;
+}
+
+/** The surface label on a Pro row with none (a surface the server did not know). */
+export const UNKNOWN_SURFACE = "unknown";
+
+const PRO_STEP: Record<string, "shown" | "clicked" | "checkout"> = {
+  pro_prompt_shown: "shown",
+  pro_prompt_clicked: "clicked",
+  pro_checkout_started: "checkout",
+};
+
+/**
+ * Pivot surface × step rows into one funnel row per surface.
+ *
+ * A rate with nothing under it is null, not 0: "no one saw it" and "everyone
+ * saw it and nobody clicked" are different findings, and at this traffic a
+ * 0% would read as the second.
+ */
+export function foldProFunnel(rows: ProFunnelQueryRow[]): ProFunnelRow[] {
+  const bySurface = new Map<string, ProFunnelRow>();
+  for (const r of rows) {
+    const step = PRO_STEP[String(r.name ?? "")];
+    if (!step) continue;
+    const surface = r.surface || UNKNOWN_SURFACE;
+    let row = bySurface.get(surface);
+    if (!row) {
+      row = {
+        surface,
+        shown: { events: 0, users: 0 },
+        clicked: { events: 0, users: 0 },
+        checkout: { events: 0, users: 0 },
+        clickRate: null,
+        checkoutRate: null,
+      };
+      bySurface.set(surface, row);
+    }
+    const anon = num(r.anonEvents);
+    row[step] = {
+      events: row[step].events + num(r.events),
+      users: row[step].users + Math.max(0, num(r.users) - (anon > 0 ? 1 : 0)),
+    };
+  }
+  const out = [...bySurface.values()];
+  for (const row of out) {
+    row.clickRate = row.shown.events > 0 ? row.clicked.events / row.shown.events : null;
+    row.checkoutRate = row.clicked.events > 0 ? row.checkout.events / row.clicked.events : null;
+  }
+  return out.sort(
+    (a, b) =>
+      b.shown.events - a.shown.events ||
+      b.checkout.events - a.checkout.events ||
+      a.surface.localeCompare(b.surface)
+  );
+}
+
 /**
  * Listening Mode roll-up.
  *
@@ -553,6 +629,7 @@ const UNCONFIGURED: OwnerDashboardData = {
   extensionBuilds: [],
   animeContextCache: EMPTY_CACHE,
   apiErrors: [],
+  proFunnel: [],
 };
 
 const simple = (rows: EventGroupRow[]): SimpleRow[] =>
@@ -608,6 +685,8 @@ export async function loadOwnerDashboard(
     // #160: the same api rows as "api routes", broken down by why they failed.
     // Last in the list so every index above keeps its position.
     { label: "api errors", sql: apiErrorsSql(hours, userId) },
+    // #162, appended for the same reason.
+    { label: "pro funnel", sql: proFunnelSql(hours, userId) },
   ];
 
   const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {
@@ -646,6 +725,7 @@ export async function loadOwnerDashboard(
     const animeCacheRow = at<CacheOutcomeRow>(21)[0];
     const buildRows = at<FeatureEventRow>(22);
     const apiErrorRows = at<ApiErrorQueryRow>(23);
+    const proFunnelRows = at<ProFunnelQueryRow>(24);
 
     const txCalls = num(txTotals?.calls);
     const txHits = num(txTotals?.hits);
@@ -761,6 +841,7 @@ export async function loadOwnerDashboard(
       extensionBuilds,
       animeContextCache,
       apiErrors: foldApiErrors(apiErrorRows),
+      proFunnel: foldProFunnel(proFunnelRows),
     };
   }
 }

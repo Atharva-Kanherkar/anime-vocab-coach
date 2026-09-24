@@ -60,6 +60,9 @@ export const EVENT_BLOBS = [
   // every other row, and on every row written before it existed, which /owner
   // shows as "not recorded".
   "errorCode",
+  // Which Pro prompt a pro_prompt_* / pro_checkout_started row came from
+  // (#162), from the allowlist in pro-funnel.ts. "" on every other row.
+  "surface",
 ] as const;
 
 export const EVENT_DOUBLES = ["durationMs"] as const;

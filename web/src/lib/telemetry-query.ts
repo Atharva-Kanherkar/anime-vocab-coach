@@ -13,6 +13,7 @@
 // weighted sums, which is correct for the same reason.
 
 import { EXTENSION_LEARNING_LOOP_EVENTS, LEARNING_LOOP_EVENTS } from "./track-events";
+import { PRO_FUNNEL_EVENTS } from "./pro-funnel";
 import {
   EVENT_BLOBS,
   EVENT_DATASET,
@@ -839,4 +840,41 @@ function learningLoopSql(
   GROUP BY label
   ORDER BY events DESC
   LIMIT ${Math.max(1, Math.min(200, Math.round(limit)))}`;
+}
+
+export interface ProFunnelQueryRow {
+  surface: string;
+  name: string;
+  events: number;
+  /** Distinct userIds INCLUDING the single "anon" bucket, as in learningLoopSql. */
+  users: number;
+  anonEvents: number;
+}
+
+/**
+ * Pro prompts by surface and step (#162): shown, clicked, checkout started.
+ *
+ * One row per surface × step; the caller pivots them into one funnel row per
+ * surface. Grouped by surface first because the question is which placement
+ * converts, and the old extension_funnel counters could never answer it.
+ */
+export function proFunnelSql(hours: number, userId?: string): string {
+  const userCol = eventColumn("userId");
+  const filters = [
+    since(hours),
+    `${eventColumn("kind")} = 'feature'`,
+    `${eventColumn("name")} IN (${PRO_FUNNEL_EVENTS.map(sqlString).join(", ")})`,
+  ];
+  if (userId) filters.push(`${userCol} = ${sqlString(userId)}`);
+  return `SELECT
+    ${eventColumn("surface")} AS surface,
+    ${eventColumn("name")} AS name,
+    SUM(_sample_interval) AS events,
+    COUNT(DISTINCT ${userCol}) AS users,
+    ${countIf(`${userCol} = 'anon' OR ${userCol} = ''`, "anonEvents")}
+  FROM ${EVENT_DATASET}
+  WHERE ${filters.join("\n    AND ")}
+  GROUP BY surface, name
+  ORDER BY events DESC
+  LIMIT 200`;
 }

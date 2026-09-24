@@ -468,19 +468,47 @@
       }
     });
   }
+  var PRO_FUNNEL_EVENTS = [
+    "pro_prompt_shown",
+    "pro_prompt_clicked",
+    "pro_checkout_started"
+  ];
+  var PRO_SURFACES = [
+    "ext_popup",
+    "ext_milestone",
+    "ext_popup_limit",
+    "ext_limit_sheet"
+  ];
+  function isProFunnelEvent(v) {
+    return typeof v === "string" && PRO_FUNNEL_EVENTS.includes(v);
+  }
+  function isProSurface(v) {
+    return typeof v === "string" && PRO_SURFACES.includes(v);
+  }
+  var TRACK_PRO_MESSAGE = "avc-track-pro";
+  async function postTrack(body) {
+    const token = await syncToken();
+    const headers = { "content-type": "application/json" };
+    if (token) headers.authorization = "Bearer " + token;
+    void fetch(TRACK_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...body, v: extensionVersion() }),
+      keepalive: true
+    }).catch(() => {
+    });
+  }
   async function sendFeatureBeacon(event) {
     if (!isFeatureEvent(event)) return;
     try {
-      const token = await syncToken();
-      const headers = { "content-type": "application/json" };
-      if (token) headers.authorization = "Bearer " + token;
-      void fetch(TRACK_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ kind: "feature", name: event, v: extensionVersion() }),
-        keepalive: true
-      }).catch(() => {
-      });
+      await postTrack({ kind: "feature", name: event });
+    } catch {
+    }
+  }
+  async function sendProBeacon(event, surface) {
+    if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
+    try {
+      await postTrack({ kind: "feature", name: event, surface });
     } catch {
     }
   }
@@ -492,6 +520,18 @@
     }
     try {
       void chrome.runtime.sendMessage({ type: TRACK_FEATURE_MESSAGE, event }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  async function trackPro(event, surface) {
+    if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
+    if (inServiceWorker()) {
+      await sendProBeacon(event, surface);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_PRO_MESSAGE, event, surface }).catch(() => {
       });
     } catch {
     }
@@ -3281,6 +3321,8 @@
     btn.addEventListener("click", () => {
       trackExtensionEvent("upgrade_prompt_clicked");
       trackExtensionEvent("checkout_started");
+      void trackPro("pro_prompt_clicked", "ext_limit_sheet");
+      void trackPro("pro_checkout_started", "ext_limit_sheet");
       chrome.runtime.sendMessage({ type: "avc-open-url", url: tier.checkoutUrl }).catch(() => {
       });
       dismissLimitSheet();
@@ -3350,6 +3392,7 @@
     }
     if (upgrades.length) {
       trackExtensionEvent("upgrade_prompt_shown");
+      void trackPro("pro_prompt_shown", "ext_limit_sheet");
       const plans = document.createElement("div");
       plans.className = "avc-agent-plans";
       for (const u of upgrades) plans.appendChild(u);

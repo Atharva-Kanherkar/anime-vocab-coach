@@ -1,4 +1,5 @@
-// Preloaded into `next dev` (NODE_OPTIONS=--import …) for web/e2e/observability.mjs.
+// Preloaded into `next dev` (NODE_OPTIONS=--import …) for web/e2e/observability.mjs
+// and web/e2e/pro-entry.mjs.
 //
 // /owner reads Cloudflare's Analytics Engine SQL API over HTTPS with an
 // account token. A local test has neither, and without rows the page renders
@@ -41,6 +42,18 @@ function rowsFor(sql) {
         events: "12", users: "1", anonEvents: "0",
         firstSeen: "2026-08-24 20:00:00", lastSeen: "2026-08-25 21:00:00",
       },
+    ];
+  }
+  // #162: Pro prompts by surface and step. Matched on the event name, since
+  // the LLM facet query also has a column called surface.
+  if (sql.includes("'pro_prompt_shown'")) {
+    return [
+      { surface: "app_unlock", name: "pro_prompt_shown", events: "6", users: "5", anonEvents: "0" },
+      { surface: "app_unlock", name: "pro_prompt_clicked", events: "2", users: "2", anonEvents: "0" },
+      { surface: "app_unlock", name: "pro_checkout_started", events: "1", users: "1", anonEvents: "0" },
+      { surface: "ext_milestone", name: "pro_prompt_shown", events: "40", users: "13", anonEvents: "3" },
+      { surface: "ext_milestone", name: "pro_prompt_clicked", events: "4", users: "4", anonEvents: "0" },
+      { surface: "app_billing", name: "pro_checkout_started", events: "1", users: "1", anonEvents: "0" },
     ];
   }
   if (sql.includes("= 'api'") && sql.includes("AS label")) {

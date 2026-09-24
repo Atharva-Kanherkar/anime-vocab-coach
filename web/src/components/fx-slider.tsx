@@ -178,6 +178,7 @@ export function FxSlider({ slides }: { slides: HeroSlide[] }) {
               <BillingToggle interval={billingInterval} onChange={setBillingInterval} />
             )}
             <PlanCards
+              surface="home"
               interval={effectiveInterval}
               country={country}
               localized={localized}

@@ -21,6 +21,7 @@ import { HelpPanel } from "@/components/app/help-panel";
 import { JaEnDirectionBanner } from "@/components/app/ja-en-direction-banner";
 import { SettingsPanel } from "@/components/app/settings-panel";
 import { BillingPanel, type BillingPanelProps } from "@/components/app/billing-panel";
+import { ProHeaderEntry, UnlockMoment } from "@/components/app/pro-prompts";
 
 type SectionId =
   | "today"
@@ -66,6 +67,13 @@ export function AppShell({
   billing: BillingPanelProps;
 }) {
   const [section, setSection] = useState<SectionId>("today");
+  // Pro prompts are for the free plan only: Pro, Max and gifted accounts
+  // already have it (#162).
+  const offerPro = billing.plan === "free";
+  const openBilling = () => {
+    setSection("billing");
+    window.location.hash = "billing";
+  };
 
   useEffect(() => {
     const fromHash = sectionFromHash();
@@ -93,6 +101,10 @@ export function AppShell({
             <span className="av-hanko" aria-hidden>アニ</span>
             アニメVocab
           </Link>
+
+          {/* Beside the logo, not with the controls on the right: that row is
+              exactly as wide as the nav allows, and anything more wraps it. */}
+          {offerPro && <ProHeaderEntry onOpenBilling={openBilling} />}
 
           <nav aria-label="Sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto md:order-none md:mx-0 md:ml-auto md:w-auto">
             {NAV.map(({ id, label }) => {
@@ -127,6 +139,8 @@ export function AppShell({
           <ConnectionStatus />
         </div>
 
+        {offerPro && <UnlockMoment onOpenBilling={openBilling} />}
+
         <main id="main" className="mt-8 md:mt-10">
           <div hidden={section !== "today"}>
             <AppDashboard name={name} onGo={(s) => setSection(s as SectionId)} />
@@ -159,7 +173,7 @@ export function AppShell({
             <CloudSyncPanel />
           </div>
           <div hidden={section !== "billing"}>
-            <BillingPanel {...billing} />
+            <BillingPanel {...billing} active={section === "billing"} />
           </div>
           <div hidden={section !== "settings"}>
             <SettingsPanel />

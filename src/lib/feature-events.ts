@@ -65,6 +65,55 @@ function syncToken(): Promise<string> {
 }
 
 /**
+ * The Pro funnel (#162): shown → clicked → checkout, per surface.
+ *
+ * Kept apart from FEATURE_EVENTS, which is pinned to the learning-loop panel.
+ * MIRROR of PRO_FUNNEL_EVENTS and the `ext_` half of PRO_SURFACES in
+ * web/src/lib/pro-funnel.ts; the server writes "" for a surface it does not
+ * know, so test/feature-events.test.ts pins both lists.
+ */
+export const PRO_FUNNEL_EVENTS = [
+  "pro_prompt_shown",
+  "pro_prompt_clicked",
+  "pro_checkout_started",
+] as const;
+
+export type ProFunnelEvent = (typeof PRO_FUNNEL_EVENTS)[number];
+
+export const PRO_SURFACES = [
+  "ext_popup",
+  "ext_milestone",
+  "ext_popup_limit",
+  "ext_limit_sheet",
+] as const;
+
+export type ProSurface = (typeof PRO_SURFACES)[number];
+
+export function isProFunnelEvent(v: unknown): v is ProFunnelEvent {
+  return typeof v === "string" && (PRO_FUNNEL_EVENTS as readonly string[]).includes(v);
+}
+
+export function isProSurface(v: unknown): v is ProSurface {
+  return typeof v === "string" && (PRO_SURFACES as readonly string[]).includes(v);
+}
+
+/** Message extension pages and content scripts use to hand a Pro beacon to the worker. */
+export const TRACK_PRO_MESSAGE = "avc-track-pro";
+
+/** POST one row to /api/track, with the sync token when there is one. */
+async function postTrack(body: Record<string, string>): Promise<void> {
+  const token = await syncToken();
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (token) headers.authorization = "Bearer " + token;
+  void fetch(TRACK_URL, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ ...body, v: extensionVersion() }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+/**
  * Send the beacon. Only ever called in the service worker (see above).
  *
  * Unauthenticated installs still send: an anonymous row is the denominator
@@ -75,17 +124,19 @@ function syncToken(): Promise<string> {
 export async function sendFeatureBeacon(event: FeatureEvent): Promise<void> {
   if (!isFeatureEvent(event)) return;
   try {
-    const token = await syncToken();
-    const headers: Record<string, string> = { "content-type": "application/json" };
-    if (token) headers.authorization = "Bearer " + token;
-    void fetch(TRACK_URL, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ kind: "feature", name: event, v: extensionVersion() }),
-      keepalive: true,
-    }).catch(() => {});
+    await postTrack({ kind: "feature", name: event });
   } catch {
     // swallow — telemetry must never reach the learner
+  }
+}
+
+/** The Pro funnel beacon, service worker only. Same transport, plus the surface. */
+export async function sendProBeacon(event: ProFunnelEvent, surface: ProSurface): Promise<void> {
+  if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
+  try {
+    await postTrack({ kind: "feature", name: event, surface });
+  } catch {
+    // swallow
   }
 }
 
@@ -108,6 +159,22 @@ export async function trackFeature(event: FeatureEvent): Promise<void> {
     // beacon and nothing more.
     void chrome.runtime
       .sendMessage({ type: TRACK_FEATURE_MESSAGE, event })
+      .catch(() => {});
+  } catch {
+    // swallow
+  }
+}
+
+/** Fire one Pro funnel event from anywhere. Never throws, never awaits a response. */
+export async function trackPro(event: ProFunnelEvent, surface: ProSurface): Promise<void> {
+  if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
+  if (inServiceWorker()) {
+    await sendProBeacon(event, surface);
+    return;
+  }
+  try {
+    void chrome.runtime
+      .sendMessage({ type: TRACK_PRO_MESSAGE, event, surface })
       .catch(() => {});
   } catch {
     // swallow

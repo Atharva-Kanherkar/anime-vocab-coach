@@ -223,6 +223,24 @@ export function buildInsightsDigest(
     );
   }
 
+  if (data.proFunnel.length) {
+    // #162: which Pro prompt turns a view into a checkout. Rates carry their
+    // n because at this traffic a single click moves them by whole points.
+    const rate = (r: number | null, n: number) =>
+      r === null ? "no data yet" : `${fmtPct(r)} of ${fmtInt(n)}`;
+    lines.push("\n## Pro funnel (shown → clicked → checkout, per surface)");
+    lines.push(
+      take(data.proFunnel, 10)
+        .map(
+          (r) =>
+            `  - ${r.surface}: shown ${fmtInt(r.shown.events)} (${fmtInt(r.shown.users)} learners), ` +
+            `clicked ${fmtInt(r.clicked.events)}, checkout ${fmtInt(r.checkout.events)}; ` +
+            `click rate ${rate(r.clickRate, r.shown.events)}, checkout rate ${rate(r.checkoutRate, r.clicked.events)}`
+        )
+        .join("\n")
+    );
+  }
+
   lines.push("\n## Listening Mode (transcription, separate Worker)");
   if (!tx.present) {
     lines.push("  no transcription recorded in this window");

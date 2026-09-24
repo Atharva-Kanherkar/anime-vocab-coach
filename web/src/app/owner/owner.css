@@ -398,3 +398,8 @@
   color: var(--accent);
   text-decoration: none;
 }
+
+/* Secondary figure inside a table cell (#162). */
+.ow-dim {
+  color: var(--ow-dim);
+}

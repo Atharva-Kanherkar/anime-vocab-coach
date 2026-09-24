@@ -70,3 +70,49 @@ describe("POST /api/track (extension learning loop)", () => {
     expect(writes).toHaveLength(0);
   });
 });
+
+/**
+ * #162: the Pro funnel is only readable per surface, so the surface has to
+ * survive the beacon, and nothing but a Pro row may carry one.
+ */
+describe("POST /api/track (Pro funnel)", () => {
+  it("records a Pro prompt with its surface, under the learner", async () => {
+    identity.userId = "user_7";
+    await post({ kind: "feature", name: "pro_prompt_shown", surface: "ext_milestone", v: "0.6.1" });
+    expect(writes).toHaveLength(1);
+    expect(blob(0, "name")).toBe("pro_prompt_shown");
+    expect(blob(0, "surface")).toBe("ext_milestone");
+    expect(blob(0, "userId")).toBe("user_7");
+  });
+
+  it("records all three steps", async () => {
+    for (const name of ["pro_prompt_shown", "pro_prompt_clicked", "pro_checkout_started"]) {
+      await post({ kind: "feature", name, surface: "pricing" });
+    }
+    expect(writes.map((_, i) => blob(i, "name"))).toEqual([
+      "pro_prompt_shown",
+      "pro_prompt_clicked",
+      "pro_checkout_started",
+    ]);
+    expect(writes.map((_, i) => blob(i, "surface"))).toEqual(["pricing", "pricing", "pricing"]);
+  });
+
+  it("keeps the row but drops an unknown surface", async () => {
+    await post({ kind: "feature", name: "pro_prompt_clicked", surface: "<b>evil</b>" });
+    expect(writes).toHaveLength(1);
+    expect(blob(0, "surface")).toBe("");
+  });
+
+  it("never lets a non-Pro row carry a surface", async () => {
+    await post({ kind: "feature", name: "word_saved", surface: "app_unlock" });
+    await post({ kind: "pageview", name: "/pricing", surface: "pricing" });
+    expect(blob(0, "surface")).toBe("");
+    expect(blob(1, "surface")).toBe("");
+  });
+
+  it("drops the retired upgrade_click / checkout_start names", async () => {
+    await post({ kind: "feature", name: "upgrade_click" });
+    await post({ kind: "feature", name: "checkout_start" });
+    expect(writes).toHaveLength(0);
+  });
+});
