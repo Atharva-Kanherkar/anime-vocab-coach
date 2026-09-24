@@ -29,6 +29,7 @@ import {
   sqlHours,
   type ApiErrorQueryRow,
   type ProFunnelQueryRow,
+  type UserScope,
   type ApiRouteRow,
   type EventGroupRow,
   type EventUserRow,
@@ -637,7 +638,7 @@ const simple = (rows: EventGroupRow[]): SimpleRow[] =>
 
 export async function loadOwnerDashboard(
   hours: number,
-  userId?: string
+  scope?: UserScope
 ): Promise<OwnerDashboardData> {
   const failures: { label: string; reason: QueryFailure; detail?: string }[] = [];
 
@@ -649,44 +650,45 @@ export async function loadOwnerDashboard(
   // Queries are throttled rather than fanned out: the SQL API rate-limits per
   // account, and firing every panel at once turned most of them into 429s.
   const specs: { label: string; sql: string }[] = [
-    { label: "llm facets", sql: llmFacetsSql(hours, userId) },
-    { label: "series", sql: llmSeriesSql(hours, userId) },
-    { label: "errors", sql: llmErrorsSql(hours) },
-    { label: "top users", sql: llmByUserSql(hours) },
-    { label: "pages", sql: eventGroupSql("name", hours, "pageview", 25, userId) },
-    { label: "countries", sql: eventGroupSql("country", hours, undefined, 20, userId) },
-    { label: "referrers", sql: eventGroupSql("referrerHost", hours, "pageview", 15, userId) },
-    { label: "devices", sql: eventGroupSql("device", hours, undefined, 6, userId) },
-    { label: "api routes", sql: apiRoutesSql(hours, userId) },
-    { label: "event users", sql: eventsByUserSql(hours) },
+    { label: "llm facets", sql: llmFacetsSql(hours, scope) },
+    { label: "series", sql: llmSeriesSql(hours, scope) },
+    { label: "errors", sql: llmErrorsSql(hours, 20, scope) },
+    { label: "top users", sql: llmByUserSql(hours, 50, scope) },
+    { label: "pages", sql: eventGroupSql("name", hours, "pageview", 25, scope) },
+    { label: "countries", sql: eventGroupSql("country", hours, undefined, 20, scope) },
+    { label: "referrers", sql: eventGroupSql("referrerHost", hours, "pageview", 15, scope) },
+    { label: "devices", sql: eventGroupSql("device", hours, undefined, 6, scope) },
+    { label: "api routes", sql: apiRoutesSql(hours, scope) },
+    { label: "event users", sql: eventsByUserSql(hours, 50, scope) },
+    // No user column in this dataset, so no scope: it always includes us.
     { label: "extension funnel", sql: extensionFunnelSql(hours) },
     // Listening Mode lives in a different Worker's dataset. Until it has been
     // written once the dataset does not exist and the SQL API errors rather
     // than returning zero rows, so these panels must fail independently.
-    { label: "transcribe totals", sql: transcribeTotalsSql(hours, userId) },
-    { label: "transcribe by outcome", sql: transcribeGroupSql("outcome", hours, 8) },
-    { label: "transcribe by provider", sql: transcribeGroupSql("provider", hours, 8) },
-    { label: "transcribe by language", sql: transcribeGroupSql("language", hours, 8) },
-    { label: "transcribe by plan", sql: transcribeGroupSql("plan", hours, 8) },
-    { label: "transcribe series", sql: transcribeSeriesSql(hours) },
-    { label: "transcribe users", sql: transcribeByUserSql(hours) },
+    { label: "transcribe totals", sql: transcribeTotalsSql(hours, scope) },
+    { label: "transcribe by outcome", sql: transcribeGroupSql("outcome", hours, 8, scope) },
+    { label: "transcribe by provider", sql: transcribeGroupSql("provider", hours, 8, scope) },
+    { label: "transcribe by language", sql: transcribeGroupSql("language", hours, 8, scope) },
+    { label: "transcribe by plan", sql: transcribeGroupSql("plan", hours, 8, scope) },
+    { label: "transcribe series", sql: transcribeSeriesSql(hours, scope) },
+    { label: "transcribe users", sql: transcribeByUserSql(hours, 25, scope) },
     // Distinct-user counts: separate ungrouped queries, because summing
     // per-group DISTINCTs double-counts anyone present in two groups.
-    { label: "llm distinct users", sql: llmDistinctUsersSql(hours, userId) },
-    { label: "event distinct users", sql: eventDistinctUsersSql(hours, userId) },
+    { label: "llm distinct users", sql: llmDistinctUsersSql(hours, scope) },
+    { label: "event distinct users", sql: eventDistinctUsersSql(hours, scope) },
     // The learning loop (#111) and the cache that had no panel (#113). Both
     // read `feature` rows, which did not exist at all before this work, so
     // both fail independently until the first one is written. Both take the
     // focus user, so the drill-down is one learner's telemetry throughout
     // rather than a page where some panels quietly show everybody.
-    { label: "learning loop", sql: featureEventsSql(hours, userId) },
-    { label: "anime context cache", sql: animeContextCacheSql(hours, userId) },
-    { label: "extension builds", sql: featureBuildsSql(hours, userId) },
+    { label: "learning loop", sql: featureEventsSql(hours, scope) },
+    { label: "anime context cache", sql: animeContextCacheSql(hours, scope) },
+    { label: "extension builds", sql: featureBuildsSql(hours, scope) },
     // #160: the same api rows as "api routes", broken down by why they failed.
     // Last in the list so every index above keeps its position.
-    { label: "api errors", sql: apiErrorsSql(hours, userId) },
+    { label: "api errors", sql: apiErrorsSql(hours, scope) },
     // #162, appended for the same reason.
-    { label: "pro funnel", sql: proFunnelSql(hours, userId) },
+    { label: "pro funnel", sql: proFunnelSql(hours, scope) },
   ];
 
   const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {

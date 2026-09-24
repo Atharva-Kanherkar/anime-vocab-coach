@@ -115,6 +115,40 @@ export function sqlHours(hours: number): number {
   return Math.min(n, 24 * 90); // AE retains ~90 days
 }
 
+/**
+ * Whose rows a query reads (#163).
+ *
+ * - a string: one learner, the /owner drill-down
+ * - `{ exclude }`: everyone except these accounts, which is how /owner leaves
+ *   the owner and test accounts out of its aggregates by default
+ * - undefined: everyone
+ *
+ * A focus always wins: drilling into your own id must show your rows.
+ */
+export type UserScope = string | { focus?: string; exclude?: readonly string[] } | undefined;
+
+function focusOf(scope: UserScope): string | undefined {
+  return typeof scope === "string" ? scope || undefined : scope?.focus || undefined;
+}
+
+/** WHERE conditions for a scope on the dataset's userId column. */
+export function userFilters(col: string, scope: UserScope): string[] {
+  const focus = focusOf(scope);
+  if (focus) return [`${col} = ${sqlString(focus)}`];
+  const exclude = typeof scope === "object" && scope ? scope.exclude ?? [] : [];
+  // `!=` per id rather than NOT IN: the comparison operators are the part of
+  // AE's dialect every other query here already relies on. Anonymous rows are
+  // kept, since nobody can say whose they are.
+  return [...new Set(exclude)].filter(Boolean).map((id) => `${col} != ${sqlString(id)}`);
+}
+
+/** The same conditions as a ` AND …` suffix, "" when there are none. */
+export function userClause(col: string, scope: UserScope): string {
+  return userFilters(col, scope)
+    .map((f) => ` AND ${f}`)
+    .join("");
+}
+
 export async function runQuery<T>(
   sql: string,
   creds?: AnalyticsCredentials | null
@@ -235,7 +269,7 @@ export interface LlmTotals {
   users: number;
 }
 
-export function llmTotalsSql(hours: number, userId?: string): string {
+export function llmTotalsSql(hours: number, scope?: UserScope): string {
   const status = llmColumn("status");
   return `SELECT
     ${CALLS},
@@ -249,7 +283,7 @@ export function llmTotalsSql(hours: number, userId?: string): string {
     SUM(if(${status} = 'cached', 1, 0) * _sample_interval) AS cachedHits,
     COUNT(DISTINCT ${llmColumn("userId")}) AS users
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)}${userId ? ` AND ${llmColumn("userId")} = ${sqlString(userId)}` : ""}`;
+  WHERE ${since(hours)}${userClause(llmColumn("userId"), scope)}`;
 }
 
 export interface LlmFacetRow {
@@ -277,7 +311,7 @@ export interface LlmFacetRow {
  * construction (a couple of models × ~8 operations × 2 surfaces × a few
  * efforts × 3 statuses), so the row count stays in the low hundreds.
  */
-export function llmFacetsSql(hours: number, userId?: string): string {
+export function llmFacetsSql(hours: number, scope?: UserScope): string {
   const cols = ["model", "operation", "surface", "effort", "status"] as const;
   const select = cols.map((c) => `${llmColumn(c)} AS ${c}`).join(", ");
   return `SELECT
@@ -290,7 +324,7 @@ export function llmFacetsSql(hours: number, userId?: string): string {
     ${weighted(llmColumn("cachedInputTokens"), "cachedInputTokens")},
     ${weighted(llmColumn("latencyMs"), "latencySum")}
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)}${userId ? ` AND ${llmColumn("userId")} = ${sqlString(userId)}` : ""}
+  WHERE ${since(hours)}${userClause(llmColumn("userId"), scope)}
   GROUP BY ${cols.join(", ")}
   ORDER BY calls DESC
   LIMIT 1000`;
@@ -311,7 +345,7 @@ export function llmGroupSql(
   field: (typeof LLM_BLOBS)[number],
   hours: number,
   limit = 20,
-  userId?: string
+  scope?: UserScope
 ): string {
   const col = llmColumn(field);
   return `SELECT
@@ -323,7 +357,7 @@ export function llmGroupSql(
     ${weighted(llmColumn("latencyMs"), "latencySum")},
     SUM(if(${llmColumn("status")} = 'error', 1, 0) * _sample_interval) AS errors
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)}${userId ? ` AND ${llmColumn("userId")} = ${sqlString(userId)}` : ""}
+  WHERE ${since(hours)}${userClause(llmColumn("userId"), scope)}
   GROUP BY label
   ORDER BY calls DESC
   LIMIT ${Math.max(1, Math.min(200, Math.round(limit)))}`;
@@ -340,7 +374,7 @@ export interface LlmUserRow {
   lastSeen: string;
 }
 
-export function llmByUserSql(hours: number, limit = 50): string {
+export function llmByUserSql(hours: number, limit = 50, scope?: UserScope): string {
   return `SELECT
     ${llmColumn("userId")} AS userId,
     ${latest(llmColumn("plan"), "plan")},
@@ -351,7 +385,7 @@ export function llmByUserSql(hours: number, limit = 50): string {
     SUM(if(${llmColumn("status")} = 'error', 1, 0) * _sample_interval) AS errors,
     MAX(timestamp) AS lastSeen
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)}
+  WHERE ${since(hours)}${userClause(llmColumn("userId"), scope)}
   GROUP BY userId
   ORDER BY cost DESC, calls DESC
   LIMIT ${Math.max(1, Math.min(200, Math.round(limit)))}`;
@@ -365,7 +399,7 @@ export interface TimeBucketRow {
 
 /** Hourly for short windows, daily beyond three days — a 90-day chart with
  * hourly buckets is 2160 points of noise. */
-export function llmSeriesSql(hours: number, userId?: string): string {
+export function llmSeriesSql(hours: number, scope?: UserScope): string {
   const h = sqlHours(hours);
   const bucket = h <= 72 ? "toStartOfHour(timestamp)" : "toDate(timestamp)";
   return `SELECT
@@ -373,7 +407,7 @@ export function llmSeriesSql(hours: number, userId?: string): string {
     ${CALLS},
     ${weighted(llmColumn("costUsd"), "cost")}
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)}${userId ? ` AND ${llmColumn("userId")} = ${sqlString(userId)}` : ""}
+  WHERE ${since(hours)}${userClause(llmColumn("userId"), scope)}
   GROUP BY bucket
   ORDER BY bucket`;
 }
@@ -385,14 +419,14 @@ export interface LlmErrorRow {
   calls: number;
 }
 
-export function llmErrorsSql(hours: number, limit = 20): string {
+export function llmErrorsSql(hours: number, limit = 20, scope?: UserScope): string {
   return `SELECT
     ${llmColumn("errorCode")} AS errorCode,
     ${llmColumn("model")} AS model,
     ${llmColumn("operation")} AS operation,
     ${CALLS}
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)} AND ${llmColumn("status")} = 'error'
+  WHERE ${since(hours)} AND ${llmColumn("status")} = 'error'${userClause(llmColumn("userId"), scope)}
   GROUP BY errorCode, model, operation
   ORDER BY calls DESC
   LIMIT ${Math.max(1, Math.min(100, Math.round(limit)))}`;
@@ -411,12 +445,12 @@ export function eventGroupSql(
   hours: number,
   kind?: string,
   limit = 20,
-  userId?: string
+  scope?: UserScope
 ): string {
   const col = eventColumn(field);
   const filters = [since(hours)];
   if (kind) filters.push(`${eventColumn("kind")} = ${sqlString(kind)}`);
-  if (userId) filters.push(`${eventColumn("userId")} = ${sqlString(userId)}`);
+  filters.push(...userFilters(eventColumn("userId"), scope));
   return `SELECT
     ${col} AS label,
     SUM(_sample_interval) AS events,
@@ -437,7 +471,7 @@ export interface EventUserRow {
   lastSeen: string;
 }
 
-export function eventsByUserSql(hours: number, limit = 50): string {
+export function eventsByUserSql(hours: number, limit = 50, scope?: UserScope): string {
   return `SELECT
     ${eventColumn("userId")} AS userId,
     ${latest(eventColumn("plan"), "plan")},
@@ -446,7 +480,7 @@ export function eventsByUserSql(hours: number, limit = 50): string {
     ${latest(eventColumn("device"), "device")},
     MAX(timestamp) AS lastSeen
   FROM ${EVENT_DATASET}
-  WHERE ${since(hours)}
+  WHERE ${since(hours)}${userClause(eventColumn("userId"), scope)}
   GROUP BY userId
   ORDER BY events DESC
   LIMIT ${Math.max(1, Math.min(200, Math.round(limit)))}`;
@@ -470,20 +504,20 @@ export interface ApiRouteRow {
 export const API_ERROR_CONDITION = `${eventColumn("status")} >= '400'`;
 
 /** kind='api', plus the focus user when the page is one learner's view. */
-function apiFilters(hours: number, userId?: string): string[] {
+function apiFilters(hours: number, scope?: UserScope): string[] {
   const filters = [since(hours), `${eventColumn("kind")} = 'api'`];
-  if (userId) filters.push(`${eventColumn("userId")} = ${sqlString(userId)}`);
+  filters.push(...userFilters(eventColumn("userId"), scope));
   return filters;
 }
 
-export function apiRoutesSql(hours: number, userId?: string, limit = 25): string {
+export function apiRoutesSql(hours: number, scope?: UserScope, limit = 25): string {
   return `SELECT
     ${eventColumn("name")} AS label,
     SUM(_sample_interval) AS events,
     ${weighted(eventColumn("durationMs"), "latencySum")},
     SUM(if(${API_ERROR_CONDITION}, 1, 0) * _sample_interval) AS errors
   FROM ${EVENT_DATASET}
-  WHERE ${apiFilters(hours, userId).join(" AND ")}
+  WHERE ${apiFilters(hours, scope).join(" AND ")}
   GROUP BY label
   ORDER BY events DESC
   LIMIT ${Math.max(1, Math.min(100, Math.round(limit)))}`;
@@ -514,9 +548,9 @@ export interface ApiErrorQueryRow {
  * Rows from before errorCode existed group under an empty reason, so the whole
  * 90-day history still breaks down by status and auth kind.
  */
-export function apiErrorsSql(hours: number, userId?: string, limit = 50): string {
+export function apiErrorsSql(hours: number, scope?: UserScope, limit = 50): string {
   const userCol = eventColumn("userId");
-  const filters = [...apiFilters(hours, userId), API_ERROR_CONDITION];
+  const filters = [...apiFilters(hours, scope), API_ERROR_CONDITION];
   return `SELECT
     ${eventColumn("name")} AS route,
     ${eventColumn("status")} AS status,
@@ -591,7 +625,7 @@ export interface TranscribeTotalsRow {
  * minutes is how much audio learners ran through Listening Mode, while
  * `providerMinutes` is what was actually billable.
  */
-export function transcribeTotalsSql(hours: number, userId?: string): string {
+export function transcribeTotalsSql(hours: number, scope?: UserScope): string {
   const outcome = transcribeColumn("outcome");
   const status = transcribeColumn("status");
   const provider = `${outcome} = 'provider_call'`;
@@ -609,7 +643,7 @@ export function transcribeTotalsSql(hours: number, userId?: string): string {
     ${countIf(`${outcome} = 'cap_exceeded'`, "capHits")},
     COUNT(DISTINCT ${transcribeColumn("userId")}) AS users
   FROM ${TRANSCRIBE_DATASET}
-  WHERE ${since(hours)}${userId ? ` AND ${transcribeColumn("userId")} = ${sqlString(userId)}` : ""}`;
+  WHERE ${since(hours)}${userClause(transcribeColumn("userId"), scope)}`;
 }
 
 export interface TranscribeGroupRow {
@@ -625,7 +659,8 @@ export interface TranscribeGroupRow {
 export function transcribeGroupSql(
   field: Parameters<typeof transcribeColumn>[0],
   hours: number,
-  limit = 20
+  limit = 20,
+  scope?: UserScope
 ): string {
   const col = transcribeColumn(field);
   return `SELECT
@@ -636,7 +671,7 @@ export function transcribeGroupSql(
     ${weighted(transcribeColumn("latencyMs"), "latencySum")},
     ${countIf(`${transcribeColumn("status")} = 'error'`, "errors")}
   FROM ${TRANSCRIBE_DATASET}
-  WHERE ${since(hours)}
+  WHERE ${since(hours)}${userClause(transcribeColumn("userId"), scope)}
   GROUP BY label
   ORDER BY calls DESC
   LIMIT ${Math.max(1, Math.floor(limit))}`;
@@ -659,7 +694,7 @@ export interface TranscribeUserRow {
  * MAX over the window is the closest that user got to the ceiling. That is the
  * number that tells you whether a cap is about to cut off your best user.
  */
-export function transcribeByUserSql(hours: number, limit = 25): string {
+export function transcribeByUserSql(hours: number, limit = 25, scope?: UserScope): string {
   return `SELECT
     ${transcribeColumn("userId")} AS userId,
     ${latest(transcribeColumn("plan"), "plan")},
@@ -668,7 +703,7 @@ export function transcribeByUserSql(hours: number, limit = 25): string {
     ${weighted(transcribeColumn("costUsd"), "cost")},
     MAX(${transcribeColumn("monthMinutesAfter")}) AS peakMonthMinutes
   FROM ${TRANSCRIBE_DATASET}
-  WHERE ${since(hours)}
+  WHERE ${since(hours)}${userClause(transcribeColumn("userId"), scope)}
   GROUP BY userId
   ORDER BY audioMinutes DESC
   LIMIT ${Math.max(1, Math.floor(limit))}`;
@@ -682,14 +717,14 @@ export interface TranscribeSeriesRow {
 }
 
 /** Daily transcription volume, for the trend chart. */
-export function transcribeSeriesSql(hours: number): string {
+export function transcribeSeriesSql(hours: number, scope?: UserScope): string {
   return `SELECT
     toStartOfInterval(timestamp, INTERVAL '1' DAY) AS bucket,
     ${CALLS},
     ${weighted(transcribeColumn("audioMinutes"), "audioMinutes")},
     ${weighted(transcribeColumn("costUsd"), "cost")}
   FROM ${TRANSCRIBE_DATASET}
-  WHERE ${since(hours)}
+  WHERE ${since(hours)}${userClause(transcribeColumn("userId"), scope)}
   GROUP BY bucket
   ORDER BY bucket`;
 }
@@ -703,23 +738,19 @@ export function transcribeSeriesSql(hours: number): string {
 // anyone who appears in two groups anyway. Hence a dedicated ungrouped query.
 
 /** Distinct users who made an LLM call in the window. */
-export function llmDistinctUsersSql(hours: number, userId?: string): string {
+export function llmDistinctUsersSql(hours: number, scope?: UserScope): string {
   const col = llmColumn("userId");
   return `SELECT COUNT(DISTINCT ${col}) AS users
   FROM ${LLM_DATASET}
-  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'${
-    userId ? ` AND ${col} = ${sqlString(userId)}` : ""
-  }`;
+  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'${userClause(col, scope)}`;
 }
 
 /** Distinct identified users seen in the event stream in the window. */
-export function eventDistinctUsersSql(hours: number, userId?: string): string {
+export function eventDistinctUsersSql(hours: number, scope?: UserScope): string {
   const col = eventColumn("userId");
   return `SELECT COUNT(DISTINCT ${col}) AS users
   FROM ${EVENT_DATASET}
-  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'${
-    userId ? ` AND ${col} = ${sqlString(userId)}` : ""
-  }`;
+  WHERE ${since(hours)} AND ${col} != '' AND ${col} != 'anon'${userClause(col, scope)}`;
 }
 
 export interface DistinctUsersRow {
@@ -750,7 +781,7 @@ export interface CacheOutcomeRow {
  */
 export function animeContextCacheSql(
   hours: number,
-  userId?: string,
+  scope?: UserScope,
   event = "anime_context"
 ): string {
   const status = eventColumn("status");
@@ -761,7 +792,7 @@ export function animeContextCacheSql(
   ];
   // The drill-down view is one learner's telemetry; an unfiltered panel there
   // shows everyone's numbers under a heading that says otherwise.
-  if (userId) filters.push(`${eventColumn("userId")} = ${sqlString(userId)}`);
+  filters.push(...userFilters(eventColumn("userId"), scope));
   return `SELECT
     ${countIf(`${status} = 'hit'`, "hits")},
     ${countIf(`${status} = 'miss'`, "misses")}
@@ -792,8 +823,8 @@ export interface FeatureEventRow {
  * which fails the whole panel rather than the one column. So the anon bucket
  * is reported alongside and subtracted by the caller.
  */
-export function featureEventsSql(hours: number, userId?: string, limit = 30): string {
-  return learningLoopSql("name", LEARNING_LOOP_EVENTS, hours, userId, limit);
+export function featureEventsSql(hours: number, scope?: UserScope, limit = 30): string {
+  return learningLoopSql("name", LEARNING_LOOP_EVENTS, hours, scope, limit);
 }
 
 /**
@@ -807,15 +838,15 @@ export function featureEventsSql(hours: number, userId?: string, limit = 30): st
  * product one. Only the events the extension itself sends: the sync route's
  * rows have no version and would read as an old build.
  */
-export function featureBuildsSql(hours: number, userId?: string, limit = 20): string {
-  return learningLoopSql("clientVersion", EXTENSION_LEARNING_LOOP_EVENTS, hours, userId, limit);
+export function featureBuildsSql(hours: number, scope?: UserScope, limit = 20): string {
+  return learningLoopSql("clientVersion", EXTENSION_LEARNING_LOOP_EVENTS, hours, scope, limit);
 }
 
 function learningLoopSql(
   groupBy: "name" | "clientVersion",
   events: readonly string[],
   hours: number,
-  userId: string | undefined,
+  scope: UserScope,
   limit: number
 ): string {
   const userCol = eventColumn("userId");
@@ -829,7 +860,7 @@ function learningLoopSql(
     // different question than its heading asks.
     `${eventColumn("name")} IN (${names})`,
   ];
-  if (userId) filters.push(`${userCol} = ${sqlString(userId)}`);
+  filters.push(...userFilters(userCol, scope));
   return `SELECT
     ${eventColumn(groupBy)} AS label,
     SUM(_sample_interval) AS events,
@@ -858,14 +889,14 @@ export interface ProFunnelQueryRow {
  * surface. Grouped by surface first because the question is which placement
  * converts, and the old extension_funnel counters could never answer it.
  */
-export function proFunnelSql(hours: number, userId?: string): string {
+export function proFunnelSql(hours: number, scope?: UserScope): string {
   const userCol = eventColumn("userId");
   const filters = [
     since(hours),
     `${eventColumn("kind")} = 'feature'`,
     `${eventColumn("name")} IN (${PRO_FUNNEL_EVENTS.map(sqlString).join(", ")})`,
   ];
-  if (userId) filters.push(`${userCol} = ${sqlString(userId)}`);
+  filters.push(...userFilters(userCol, scope));
   return `SELECT
     ${eventColumn("surface")} AS surface,
     ${eventColumn("name")} AS name,
