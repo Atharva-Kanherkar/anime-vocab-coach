@@ -212,19 +212,22 @@
       }
     });
   }
+  async function postTrack(body) {
+    const token = await syncToken();
+    const headers = { "content-type": "application/json" };
+    if (token) headers.authorization = "Bearer " + token;
+    void fetch(TRACK_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...body, v: extensionVersion() }),
+      keepalive: true
+    }).catch(() => {
+    });
+  }
   async function sendFeatureBeacon(event) {
     if (!isFeatureEvent(event)) return;
     try {
-      const token = await syncToken();
-      const headers = { "content-type": "application/json" };
-      if (token) headers.authorization = "Bearer " + token;
-      void fetch(TRACK_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ kind: "feature", name: event, v: extensionVersion() }),
-        keepalive: true
-      }).catch(() => {
-      });
+      await postTrack({ kind: "feature", name: event });
     } catch {
     }
   }

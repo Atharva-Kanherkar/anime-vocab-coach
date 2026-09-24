@@ -12,8 +12,12 @@ import { getSyncToken } from "../lib/storage";
 import { stampOnboarding } from "../lib/onboarding-store";
 import {
   TRACK_FEATURE_MESSAGE,
+  TRACK_PRO_MESSAGE,
   isFeatureEvent,
+  isProFunnelEvent,
+  isProSurface,
   sendFeatureBeacon,
+  sendProBeacon,
   trackFeature,
 } from "../lib/feature-events";
 import {
@@ -395,6 +399,7 @@ interface RuntimeMsg {
   history?: ChatMessage[];
   payload?: CoachPayload | WordPickRequest | ExtractWordsRequest;
   event?: string;
+  surface?: string;
   url?: string;
   kind?: string;
   trigger?: string;
@@ -415,6 +420,15 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   // is blocked by CORS. The service worker has the host permission.
   if (msg.type === TRACK_FEATURE_MESSAGE) {
     if (isFeatureEvent(msg.event)) void sendFeatureBeacon(msg.event);
+    return;
+  }
+
+  // Same relay for the Pro funnel (#162): the copilot's limit sheet runs in a
+  // content script too.
+  if (msg.type === TRACK_PRO_MESSAGE) {
+    if (isProFunnelEvent(msg.event) && isProSurface(msg.surface)) {
+      void sendProBeacon(msg.event, msg.surface);
+    }
     return;
   }
 

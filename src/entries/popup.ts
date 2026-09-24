@@ -5,6 +5,13 @@ import { mountReviewPrompt } from "../lib/review-prompt-ui";
 import { mountOnboarding } from "../lib/onboarding-ui";
 import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
 import { trackExtensionEvent } from "../lib/extension-events";
+import { trackPro, type ProSurface } from "../lib/feature-events";
+import {
+  MILESTONE_SEEN_KEY,
+  keptWordCount,
+  milestoneReached,
+  proPromptEligible,
+} from "../lib/pro-moment";
 import type { DailyStats, PauseMode } from "../types";
 
 type Theme = "dark" | "light";
@@ -251,6 +258,45 @@ function meterLow(m: PopupMeter | null | undefined): boolean {
   return !!m && m.limit > 0 && m.used / m.limit >= 0.8;
 }
 
+/** Pro surfaces already counted as shown during this popup open (#162).
+ * renderUsage repaints on every account change; a view is one open. */
+const proShown = new Set<ProSurface>();
+
+function proShownOnce(surface: ProSurface): void {
+  if (proShown.has(surface)) return;
+  proShown.add(surface);
+  void trackPro("pro_prompt_shown", surface);
+}
+
+/** Open /pricing so the checkout that follows is credited to `surface`. */
+function openPricing(surface: ProSurface): void {
+  void trackPro("pro_prompt_clicked", surface);
+  chrome.tabs.create({ url: ownedWebUrl(`/pricing?from=${surface}`, `popup_${surface}`) });
+}
+
+/**
+ * The milestone this popup open should celebrate, if any. Advances the stored
+ * value as it answers, so each milestone is shown once per install.
+ */
+async function pendingMilestone(): Promise<number | null> {
+  try {
+    const r = await chrome.storage.local.get([MILESTONE_SEEN_KEY]);
+    const raw = r[MILESTONE_SEEN_KEY];
+    const seen = typeof raw === "number" ? raw : null;
+    const { store, milestone } = milestoneReached(seen, keptWordCount(await storage.getVocab()));
+    if (store !== seen) await chrome.storage.local.set({ [MILESTONE_SEEN_KEY]: store });
+    return milestone;
+  } catch {
+    return null;
+  }
+}
+
+/** This open's milestone, read once. A promise, not a value, because
+ * renderUsage can run twice at once (account + storage change) and the second
+ * read would find the milestone already consumed. */
+let milestoneThisOpen: Promise<number | null> | null = null;
+let milestoneDismissed = false;
+
 async function renderUsage(): Promise<void> {
   const el = byId("usage");
   const token = await storage.getSyncToken();
@@ -299,19 +345,60 @@ async function renderUsage(): Promise<void> {
         `Upgrade to ${esc(offer.name)} · ${esc(offer.priceLabel)}</button>`
       : "";
 
+  // Pro for free learners at a value moment, not only at a limit (#162). A
+  // quiet link that is always there, and one card when the deck crosses a
+  // milestone. Never alongside the limit CTA: one ask at a time.
+  const eligible = proPromptEligible(usage);
+  if (eligible && !cta && !milestoneThisOpen) milestoneThisOpen = pendingMilestone();
+  const milestone =
+    eligible && !cta && milestoneThisOpen && !milestoneDismissed ? await milestoneThisOpen : null;
+  const proLink = eligible
+    ? `<button id="usage-see-pro" class="av-usage-pro" type="button">See Pro</button>`
+    : "";
+  const proPrice = usage.tiers?.pro.priceLabel;
+  const moment = milestone
+    ? `<div class="av-pro-moment" id="pro-moment">` +
+      `<b>You've kept ${milestone.toLocaleString("en-US")} words.</b>` +
+      `<p>Pro helps you understand and remember the anime you watch, with more Listening Mode and coach time${
+        proPrice ? ` for ${esc(proPrice)}` : ""
+      }. Your words stay yours either way.</p>` +
+      `<div class="av-pro-moment-actions">` +
+      `<button id="pro-moment-see" class="av-btn av-btn-primary" type="button">See Pro</button>` +
+      `<button id="pro-moment-dismiss" class="av-btn av-btn-quiet" type="button">Not now</button>` +
+      `</div></div>`
+    : "";
+
   el.innerHTML =
     `<div class="av-usage-head"><span class="av-usage-title">This month</span>` +
-    `<span class="av-usage-plan">${esc(planName)}</span></div>` +
+    `<span class="av-usage-plan">${esc(planName)}${proLink}</span></div>` +
     meters +
-    cta;
+    cta +
+    moment;
   el.hidden = false;
 
   if (cta && offer?.checkoutUrl) {
     trackExtensionEvent("upgrade_prompt_shown");
+    proShownOnce("ext_popup_limit");
     byId("usage-upgrade").addEventListener("click", () => {
       trackExtensionEvent("upgrade_prompt_clicked");
       trackExtensionEvent("checkout_started");
+      void trackPro("pro_prompt_clicked", "ext_popup_limit");
+      void trackPro("pro_checkout_started", "ext_popup_limit");
       chrome.tabs.create({ url: offer.checkoutUrl as string });
+    });
+  }
+
+  if (proLink) {
+    proShownOnce("ext_popup");
+    byId("usage-see-pro").addEventListener("click", () => openPricing("ext_popup"));
+  }
+
+  if (moment) {
+    proShownOnce("ext_milestone");
+    byId("pro-moment-see").addEventListener("click", () => openPricing("ext_milestone"));
+    byId("pro-moment-dismiss").addEventListener("click", () => {
+      milestoneDismissed = true;
+      byId("pro-moment").remove();
     });
   }
 }

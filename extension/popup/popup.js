@@ -202,6 +202,67 @@
 
   // src/lib/feature-events.ts
   var TRACK_URL = WEB_URL + "/api/track";
+  function syncToken() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(
+          ["syncToken"],
+          (r) => resolve(typeof r?.syncToken === "string" ? r.syncToken : "")
+        );
+      } catch {
+        resolve("");
+      }
+    });
+  }
+  var PRO_FUNNEL_EVENTS = [
+    "pro_prompt_shown",
+    "pro_prompt_clicked",
+    "pro_checkout_started"
+  ];
+  var PRO_SURFACES = [
+    "ext_popup",
+    "ext_milestone",
+    "ext_popup_limit",
+    "ext_limit_sheet"
+  ];
+  function isProFunnelEvent(v) {
+    return typeof v === "string" && PRO_FUNNEL_EVENTS.includes(v);
+  }
+  function isProSurface(v) {
+    return typeof v === "string" && PRO_SURFACES.includes(v);
+  }
+  var TRACK_PRO_MESSAGE = "avc-track-pro";
+  async function postTrack(body) {
+    const token = await syncToken();
+    const headers = { "content-type": "application/json" };
+    if (token) headers.authorization = "Bearer " + token;
+    void fetch(TRACK_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...body, v: extensionVersion() }),
+      keepalive: true
+    }).catch(() => {
+    });
+  }
+  async function sendProBeacon(event, surface) {
+    if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
+    try {
+      await postTrack({ kind: "feature", name: event, surface });
+    } catch {
+    }
+  }
+  async function trackPro(event, surface) {
+    if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
+    if (inServiceWorker()) {
+      await sendProBeacon(event, surface);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_PRO_MESSAGE, event, surface }).catch(() => {
+      });
+    } catch {
+    }
+  }
 
   // src/lib/onboarding.ts
   var ONBOARDING_STORAGE_KEY = "onboarding";
@@ -612,6 +673,31 @@
     popupExpiredNote: "Re-link to resume cloud sync"
   };
 
+  // src/lib/pro-moment.ts
+  var WORD_MILESTONES = [10, 25, 50, 100, 250, 500, 1e3];
+  var MILESTONE_SEEN_KEY = "proMilestoneSeen";
+  function highestMilestone(words) {
+    let best = 0;
+    for (const m of WORD_MILESTONES) if (words >= m) best = m;
+    return best;
+  }
+  function milestoneReached(seen, words) {
+    const now = highestMilestone(Math.max(0, Math.floor(words || 0)));
+    if (seen === null || !Number.isFinite(seen)) return { store: now, milestone: null };
+    if (now > seen) return { store: now, milestone: now };
+    return { store: seen, milestone: null };
+  }
+  function proPromptEligible(usage) {
+    return !!usage && usage.plan === "free" && !usage.unlimited;
+  }
+  function keptWordCount(vocab) {
+    let n = 0;
+    for (const rec of Object.values(vocab || {})) {
+      if (rec && (rec.state === "learning" || rec.state === "known")) n++;
+    }
+    return n;
+  }
+
   // src/entries/popup.ts
   var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   function todayKey() {
@@ -754,6 +840,30 @@
   function meterLow(m) {
     return !!m && m.limit > 0 && m.used / m.limit >= 0.8;
   }
+  var proShown = /* @__PURE__ */ new Set();
+  function proShownOnce(surface) {
+    if (proShown.has(surface)) return;
+    proShown.add(surface);
+    void trackPro("pro_prompt_shown", surface);
+  }
+  function openPricing(surface) {
+    void trackPro("pro_prompt_clicked", surface);
+    chrome.tabs.create({ url: ownedWebUrl(`/pricing?from=${surface}`, `popup_${surface}`) });
+  }
+  async function pendingMilestone() {
+    try {
+      const r = await chrome.storage.local.get([MILESTONE_SEEN_KEY]);
+      const raw = r[MILESTONE_SEEN_KEY];
+      const seen = typeof raw === "number" ? raw : null;
+      const { store, milestone } = milestoneReached(seen, keptWordCount(await getVocab()));
+      if (store !== seen) await chrome.storage.local.set({ [MILESTONE_SEEN_KEY]: store });
+      return milestone;
+    } catch {
+      return null;
+    }
+  }
+  var milestoneThisOpen = null;
+  var milestoneDismissed = false;
   async function renderUsage() {
     const el = byId("usage");
     const token = await getSyncToken();
@@ -778,14 +888,35 @@
     const listenLow = !usage.unlimited && meterLow(usage.listening);
     const offer = usage.plan === "free" ? usage.tiers?.pro : usage.plan === "pro" ? usage.tiers?.max : null;
     const cta = (aiLow || listenLow) && offer?.checkoutUrl ? `<button id="usage-upgrade" class="av-btn av-btn-primary av-btn-block av-usage-cta" type="button">Upgrade to ${esc2(offer.name)} \xB7 ${esc2(offer.priceLabel)}</button>` : "";
-    el.innerHTML = `<div class="av-usage-head"><span class="av-usage-title">This month</span><span class="av-usage-plan">${esc2(planName)}</span></div>` + meters + cta;
+    const eligible = proPromptEligible(usage);
+    if (eligible && !cta && !milestoneThisOpen) milestoneThisOpen = pendingMilestone();
+    const milestone = eligible && !cta && milestoneThisOpen && !milestoneDismissed ? await milestoneThisOpen : null;
+    const proLink = eligible ? `<button id="usage-see-pro" class="av-usage-pro" type="button">See Pro</button>` : "";
+    const proPrice = usage.tiers?.pro.priceLabel;
+    const moment = milestone ? `<div class="av-pro-moment" id="pro-moment"><b>You've kept ${milestone.toLocaleString("en-US")} words.</b><p>Pro helps you understand and remember the anime you watch, with more Listening Mode and coach time${proPrice ? ` for ${esc2(proPrice)}` : ""}. Your words stay yours either way.</p><div class="av-pro-moment-actions"><button id="pro-moment-see" class="av-btn av-btn-primary" type="button">See Pro</button><button id="pro-moment-dismiss" class="av-btn av-btn-quiet" type="button">Not now</button></div></div>` : "";
+    el.innerHTML = `<div class="av-usage-head"><span class="av-usage-title">This month</span><span class="av-usage-plan">${esc2(planName)}${proLink}</span></div>` + meters + cta + moment;
     el.hidden = false;
     if (cta && offer?.checkoutUrl) {
       trackExtensionEvent("upgrade_prompt_shown");
+      proShownOnce("ext_popup_limit");
       byId("usage-upgrade").addEventListener("click", () => {
         trackExtensionEvent("upgrade_prompt_clicked");
         trackExtensionEvent("checkout_started");
+        void trackPro("pro_prompt_clicked", "ext_popup_limit");
+        void trackPro("pro_checkout_started", "ext_popup_limit");
         chrome.tabs.create({ url: offer.checkoutUrl });
+      });
+    }
+    if (proLink) {
+      proShownOnce("ext_popup");
+      byId("usage-see-pro").addEventListener("click", () => openPricing("ext_popup"));
+    }
+    if (moment) {
+      proShownOnce("ext_milestone");
+      byId("pro-moment-see").addEventListener("click", () => openPricing("ext_milestone"));
+      byId("pro-moment-dismiss").addEventListener("click", () => {
+        milestoneDismissed = true;
+        byId("pro-moment").remove();
       });
     }
   }

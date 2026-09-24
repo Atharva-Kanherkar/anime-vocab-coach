@@ -579,3 +579,47 @@ a:focus-visible {
   outline: 2px solid var(--av-accent);
   outline-offset: 2px;
 }
+
+/* Pro at a value moment (#162): quiet, dismissible, never a wall. */
+.av-usage-pro {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 650;
+  color: var(--av-ink-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.av-usage-pro:hover {
+  color: var(--av-accent);
+}
+
+.av-pro-moment {
+  margin-top: 10px;
+  padding: 9px 10px 10px;
+  border: 1.5px solid var(--av-accent);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--av-ink-2);
+}
+
+.av-pro-moment b {
+  display: block;
+  font-size: 12px;
+  color: var(--av-ink);
+}
+
+.av-pro-moment p {
+  margin: 4px 0 0;
+}
+
+.av-pro-moment-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
