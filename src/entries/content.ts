@@ -20,6 +20,7 @@ import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-cl
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
 import { CueLedger } from "../lib/cue-ledger";
+import { cloudAppUrl } from "../config";
 import { lensPieceDelayMs, splitForLens } from "../lib/lens-lines";
 import { ONBOARDING_STORAGE_KEY, isFirstCardTransition } from "../lib/onboarding";
 import {
@@ -938,7 +939,7 @@ declare global {
       label: "Open review dashboard",
       onClick: () => {
         chrome.runtime
-          .sendMessage({ type: "avc-open-url", url: chrome.runtime.getURL("dashboard/dashboard.html") })
+          .sendMessage({ type: "avc-open-url", url: cloudAppUrl("review", "first_card_toast") })
           .catch(() => {});
       },
     });

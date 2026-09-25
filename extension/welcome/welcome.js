@@ -9,6 +9,9 @@
     url.searchParams.set("utm_campaign", campaign);
     return url.toString();
   }
+  function cloudAppUrl(section, campaign) {
+    return ownedWebUrl(`/app#${section}`, campaign);
+  }
   var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
   // src/lib/log.ts
@@ -356,7 +359,7 @@
       }
       switch (el.dataset.act) {
         case "dashboard":
-          void chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
+          void chrome.tabs.create({ url: cloudAppUrl("progress", "welcome_dashboard") });
           break;
         case "settings":
           chrome.runtime.openOptionsPage();

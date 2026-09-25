@@ -351,6 +351,16 @@
   // src/config.ts
   var BACKEND_URL = "https://api.animevocab.com";
   var WEB_URL = "https://animevocab.com";
+  function ownedWebUrl(path, campaign) {
+    const url = new URL(path, WEB_URL);
+    url.searchParams.set("utm_source", "animevocab_extension");
+    url.searchParams.set("utm_medium", "extension");
+    url.searchParams.set("utm_campaign", campaign);
+    return url.toString();
+  }
+  function cloudAppUrl(section, campaign) {
+    return ownedWebUrl(`/app#${section}`, campaign);
+  }
   var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
   // src/lib/run-context.ts
@@ -741,6 +751,24 @@
       }
     });
   }
+  function applyReviewResult(rec, passed, at) {
+    rec.lastSeenAt = Math.max(rec.lastSeenAt || 0, at);
+    if (!rec.srs) return;
+    if (passed) {
+      const newStage = rec.srs.stage + 1;
+      if (newStage > 5) {
+        rec.state = "known";
+        rec.srs = null;
+      } else {
+        rec.srs.stage = newStage;
+        rec.srs.dueAt = at + SRS_INTERVALS[newStage];
+      }
+    } else {
+      rec.srs.stage = 1;
+      rec.srs.lapses += 1;
+      rec.srs.dueAt = at + SRS_INTERVALS[1];
+    }
+  }
   function judgeWord(base, judgment, meta, source) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
@@ -783,24 +811,8 @@
       } else if (judgment === "ignore") {
         rec.state = "ignored";
         rec.srs = null;
-      } else if (judgment === "review-pass") {
-        if (rec.srs) {
-          const newStage = rec.srs.stage + 1;
-          if (newStage > 5) {
-            rec.state = "known";
-            rec.srs = null;
-          } else {
-            rec.srs.stage = newStage;
-            rec.srs.dueAt = now + SRS_INTERVALS[newStage];
-          }
-        }
-        daily.reviews += 1;
-      } else if (judgment === "review-fail") {
-        if (rec.srs) {
-          rec.srs.stage = 1;
-          rec.srs.lapses += 1;
-          rec.srs.dueAt = now + SRS_INTERVALS[1];
-        }
+      } else if (judgment === "review-pass" || judgment === "review-fail") {
+        applyReviewResult(rec, judgment === "review-pass", now);
         daily.reviews += 1;
       }
       if (judgment !== "dismiss") {
@@ -5691,7 +5703,7 @@
       showToast("\u{1F389} First card saved. It comes back for review on its own.", "info", {
         label: "Open review dashboard",
         onClick: () => {
-          chrome.runtime.sendMessage({ type: "avc-open-url", url: chrome.runtime.getURL("dashboard/dashboard.html") }).catch(() => {
+          chrome.runtime.sendMessage({ type: "avc-open-url", url: cloudAppUrl("review", "first_card_toast") }).catch(() => {
           });
         }
       });

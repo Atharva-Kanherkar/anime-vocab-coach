@@ -224,6 +224,93 @@ export function recordSeen(
   });
 }
 
+/**
+ * One review on a learning word's schedule. Shared by reviews done here and
+ * reviews done on the cloud app (applyWebReviews), so both move a card the
+ * same way. The web app mirrors these steps in web/src/lib/web-review.ts.
+ *
+ * A review also counts as seeing the word. The cloud merge keeps whichever
+ * copy of a word was seen last, and a review that left `lastSeenAt` alone lost
+ * to an older copy from the other side.
+ */
+function applyReviewResult(rec: VocabRecord, passed: boolean, at: number): void {
+  rec.lastSeenAt = Math.max(rec.lastSeenAt || 0, at);
+  if (!rec.srs) return;
+  if (passed) {
+    const newStage = rec.srs.stage + 1;
+    if (newStage > 5) {
+      rec.state = "known";
+      rec.srs = null;
+    } else {
+      rec.srs.stage = newStage;
+      rec.srs.dueAt = at + SRS_INTERVALS[newStage];
+    }
+  } else {
+    rec.srs.stage = 1;
+    rec.srs.lapses += 1;
+    rec.srs.dueAt = at + SRS_INTERVALS[1];
+  }
+}
+
+/** A review the learner did on the cloud app, as the server logs it. */
+export interface WebReviewOp {
+  seq: number;
+  base: string;
+  result: "pass" | "fail";
+  at: string;
+}
+
+/** The newest cloud-app review already applied here. */
+export function getWebReviewSeq(): Promise<number> {
+  return chrome.storage.local.get(["webReviewSeq"]).then((r) => {
+    const n = Number(r.webReviewSeq);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  });
+}
+
+/**
+ * Bring reviews done on the cloud app into this deck.
+ *
+ * Sync used to be push-only: the extension was the only place a review could
+ * happen. The cloud app now logs each review it takes (a sequence number per
+ * account), and every sync applies the ones this browser has not seen, oldest
+ * first, before pushing. One storage write for the lot, so a crash can't leave
+ * the deck ahead of the sequence number or behind it.
+ *
+ * A word that is no longer learning here (known, ignored, gone) is left alone;
+ * its op still counts as seen, or it would come back on every sync.
+ */
+export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
+  return enqueue(async () => {
+    const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
+    const stored = Number(r.webReviewSeq);
+    let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
+    const fresh = ops
+      .filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string")
+      .sort((a, b) => a.seq - b.seq);
+    if (!fresh.length) return { applied: 0, seq };
+
+    const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
+    const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
+    let applied = 0;
+    for (const op of fresh) {
+      seq = op.seq;
+      const rec = vocab[op.base];
+      if (!rec || rec.state !== "learning" || !rec.srs) continue;
+      const parsed = Date.parse(op.at);
+      const at = Number.isFinite(parsed) ? parsed : Date.now();
+      applyReviewResult(rec, op.result === "pass", at);
+      const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
+      daily.reviews += 1;
+      daily.judged += 1;
+      applied++;
+    }
+    await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
+    if (applied) sendBadge(stats);
+    return { applied, seq };
+  });
+}
+
 export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
@@ -274,24 +361,8 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
     } else if (judgment === "ignore") {
       rec.state = "ignored";
       rec.srs = null;
-    } else if (judgment === "review-pass") {
-      if (rec.srs) {
-        const newStage = rec.srs.stage + 1;
-        if (newStage > 5) {
-          rec.state = "known";
-          rec.srs = null;
-        } else {
-          rec.srs.stage = newStage;
-          rec.srs.dueAt = now + SRS_INTERVALS[newStage];
-        }
-      }
-      daily.reviews += 1;
-    } else if (judgment === "review-fail") {
-      if (rec.srs) {
-        rec.srs.stage = 1;
-        rec.srs.lapses += 1;
-        rec.srs.dueAt = now + SRS_INTERVALS[1];
-      }
+    } else if (judgment === "review-pass" || judgment === "review-fail") {
+      applyReviewResult(rec, judgment === "review-pass", now);
       daily.reviews += 1;
     }
 

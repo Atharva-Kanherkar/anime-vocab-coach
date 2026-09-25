@@ -9,6 +9,9 @@
     url.searchParams.set("utm_campaign", campaign);
     return url.toString();
   }
+  function cloudAppUrl(section, campaign) {
+    return ownedWebUrl(`/app#${section}`, campaign);
+  }
   var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
   // src/lib/log.ts
@@ -622,7 +625,7 @@
     host.hidden = false;
     host.innerHTML = `<div class="av-onboarding av-onboarding-win" role="region" aria-label="First card saved"><p class="av-onboarding-title">\u{1F389} First card saved</p><p class="av-onboarding-copy">It comes back for review on its own. The dashboard is where you will meet it again.</p><button type="button" class="av-btn av-btn-primary av-btn-block" data-onb="dashboard">Open review dashboard</button></div>`;
     host.querySelector('[data-onb="dashboard"]')?.addEventListener("click", () => {
-      void chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
+      void chrome.tabs.create({ url: cloudAppUrl("review", "onboarding_first_card") });
     });
   }
   function renderChecklist(host, state, now) {
@@ -1093,7 +1096,7 @@
       chrome.tabs.create({ url: ownedWebUrl("/app", "popup_cloud") });
     });
     byId("review-due").addEventListener("click", () => {
-      chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
+      chrome.tabs.create({ url: cloudAppUrl("review", "popup_review") });
     });
     byId("settings-link").addEventListener("click", async (e) => {
       e.preventDefault();

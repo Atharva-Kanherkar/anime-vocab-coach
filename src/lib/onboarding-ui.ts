@@ -12,6 +12,7 @@
  */
 import { checklistSteps, shouldCelebrate, shouldShowChecklist } from "./onboarding";
 import { getOnboarding, stampOnboarding } from "./onboarding-store";
+import { cloudAppUrl } from "../config";
 
 export interface MountOnboardingOptions {
   /** Host element; emptied and hidden when there is nothing to say. */
@@ -75,7 +76,7 @@ function renderCelebration(host: HTMLElement): void {
     `</div>`;
 
   host.querySelector<HTMLButtonElement>('[data-onb="dashboard"]')?.addEventListener("click", () => {
-    void chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
+    void chrome.tabs.create({ url: cloudAppUrl("review", "onboarding_first_card") });
   });
 }
 

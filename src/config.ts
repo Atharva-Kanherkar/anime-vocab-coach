@@ -72,6 +72,15 @@ export function ownedWebUrl(path: string, campaign: string): string {
   return url.toString();
 }
 
+/**
+ * The cloud app's review or progress screen. These used to be the extension's
+ * own dashboard page, a local file that knew nothing of the account: reviews
+ * done there never showed up on the web, and the web had no review at all.
+ */
+export function cloudAppUrl(section: "review" | "progress", campaign: string): string {
+  return ownedWebUrl(`/app#${section}`, campaign);
+}
+
 /** Published Chrome Web Store extension id (reviews URL / track allowlist). */
 export const CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
