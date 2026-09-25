@@ -104,12 +104,27 @@ export interface ExtensionSyncStatus {
   message: string | null;
 }
 
+/** One review judged in the cloud app, waiting for the extension to replay it
+ *  into its own storage (see web-review.ts). */
+export interface WebReviewOp {
+  seq: number;
+  base: string;
+  result: "pass" | "fail";
+  at: string;
+}
+
 export interface CloudSyncEnvelope {
   schemaVersion: 1;
   profile: CloudUserProfile;
   snapshot: CloudSyncSnapshot;
   revision: number;
   lastSyncedAt: string;
+  /** Web reviews the extension has not confirmed yet. Absent on envelopes
+   *  written before two-way review sync. */
+  webReviews?: WebReviewOp[];
+  /** Highest seq ever issued. Kept separately from the log so pruning the log
+   *  can never make a seq be reused. */
+  webReviewSeq?: number;
 }
 
 export interface SyncConflict {
@@ -528,5 +543,11 @@ export function applyCloudSyncUpdate(
   // Merge into what's already stored instead of replacing it (P0 #6). On the
   // first push there's nothing to merge against.
   const merged = current ? mergeCloudSnapshots(current.snapshot, snapshot) : snapshot;
-  return createCloudSyncEnvelope(profile, merged, current ? current.revision + 1 : 1, now);
+  const next = createCloudSyncEnvelope(profile, merged, current ? current.revision + 1 : 1, now);
+  // A push rebuilds the envelope, but the web-review log is not the pusher's to
+  // drop: only an explicit appliedWebReviewSeq (pruned by the route) retires
+  // ops. Losing them here would lose reviews the extension never replayed.
+  if (current?.webReviews) next.webReviews = current.webReviews;
+  if (current?.webReviewSeq !== undefined) next.webReviewSeq = current.webReviewSeq;
+  return next;
 }
