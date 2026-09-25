@@ -5,6 +5,7 @@ import { getPrefs, upsertEntry } from "@/lib/leaderboard-store";
 import { computeStreak, currentWeekId, weeklyMetrics } from "@/lib/gamification";
 import { latestActiveDay, newlyUnlockedCards, startedNewStreakDay } from "@/lib/learning-events";
 import { authKindOf, recordUserEvent, requestFacts } from "@/lib/telemetry";
+import { pruneWebReviews } from "@/lib/web-review";
 import {
   applyCloudSyncUpdate,
   normalizeAnimeVocabExport,
@@ -47,6 +48,10 @@ export async function PUT(req: Request) {
     snapshot?: CloudSyncSnapshot;
     export?: AnimeVocabExport;
     expectedRevision?: number | null;
+    // The extension's highest replayed web-review seq. Present only once it has
+    // applied the log, so a push from an older build (or the web import) never
+    // retires ops nobody replayed.
+    appliedWebReviewSeq?: number;
   };
   let snapshot: CloudSyncSnapshot;
 
@@ -89,7 +94,9 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: next.type, conflict: next }, { status: 409 });
     }
 
-    await putCloudSyncEnvelope(profile.id, next);
+    const applied = typeof body.appliedWebReviewSeq === "number" ? body.appliedWebReviewSeq : null;
+    const stored = applied === null ? next : pruneWebReviews(next, applied);
+    await putCloudSyncEnvelope(profile.id, stored);
     // Update the weekly leaderboard from the just-validated snapshot (metrics
     // are computed server-side, so scores can't be forged). Best-effort — a
     // leaderboard hiccup must never fail the sync itself.
@@ -103,10 +110,10 @@ export async function PUT(req: Request) {
     // crosses alone; reading the request would miss exactly those unlocks.
     // Same best-effort contract as the leaderboard: a sync must never fail
     // because a beacon did.
-    await recordProgressEvents(req, profile, current?.snapshot ?? null, next.snapshot).catch((err) =>
+    await recordProgressEvents(req, profile, current?.snapshot ?? null, stored.snapshot).catch((err) =>
       console.error("[telemetry] snapshot progress failed", err)
     );
-    return NextResponse.json({ envelope: next });
+    return NextResponse.json({ envelope: stored });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "sync_store_unavailable" },
