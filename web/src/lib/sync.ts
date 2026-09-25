@@ -358,10 +358,13 @@ export function pickRecentWords(snapshot: CloudSyncSnapshot, limit = 5): CloudWo
     .slice(0, limit);
 }
 
+// Same rule as the extension's review queue and POST /api/sync/review: only a
+// learning word is reviewable, so a stray review on another state never shows
+// up as a card the server would then refuse.
 export function pickDueReviews(snapshot: CloudSyncSnapshot, now = new Date(), limit = 5): CloudWordRecord[] {
   const dueTime = now.getTime();
   return [...snapshot.words]
-    .filter((word) => word.review?.dueAt && Date.parse(word.review.dueAt) <= dueTime)
+    .filter((word) => word.state === "learning" && word.review?.dueAt && Date.parse(word.review.dueAt) <= dueTime)
     .sort((a, b) => Date.parse(a.review!.dueAt!) - Date.parse(b.review!.dueAt!))
     .slice(0, limit);
 }
