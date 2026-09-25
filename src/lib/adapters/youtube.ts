@@ -3,6 +3,8 @@ import { coalesce, normalize, hasJapanese, matchesTargetScript, getAdapterDirect
 import { audioLang, contextLang, normalizeDirection } from "../direction";
 import { deriveContentId } from "../cache-key";
 import { reportCaptions, resetCaptions } from "../caption-status";
+import { buildSentenceCues, parseJson3Words, RollingCaption } from "../cue-sentences";
+import { trackUrl, type PotInfo } from "../youtube-pot";
 import type { LineContext, SiteAdapter } from "../../types";
 
 interface Cue {
@@ -26,6 +28,11 @@ type OnLine = (text: string, context: LineContext) => void;
  * start of a video beats a wrong word.
  */
 const CAPTION_SETTLE_MS = 1000;
+/** How long a track load waits for the player's caption token on its own
+ * before asking the page script to make the player request captions. */
+const POT_WAIT_MS = 1500;
+/** How long it then waits for the primed request to hand the token over. */
+const POT_PRIME_WAIT_MS = 5000;
 
 let onLineCb: OnLine | null = null;
 let onClearCb: (() => void) | null = null;
@@ -41,6 +48,46 @@ let currentVideoId = "";
 let lastCueKey = "";
 let attachedVideo: HTMLVideoElement | null = null;
 let loadedForDirection = "";
+/** Caption tokens by video id (lib/youtube-pot). */
+const pots = new Map<string, PotInfo>();
+const potWaiters = new Set<() => void>();
+/** The last track list, kept so a late token can retry an empty load. */
+let lastTracks: CaptionTrackMsg | null = null;
+/** Videos whose load came back empty without a token. */
+const emptyWithoutPot = new Set<string>();
+/** Newest track load. The page posts the track list more than once per video,
+ * and a load now waits seconds for a token, so an older one must stand down. */
+let loadGeneration = 0;
+let loadingKey = "";
+
+function notePot(info: PotInfo): void {
+  pots.set(info.videoId, info);
+  if (pots.size > 20) pots.delete(pots.keys().next().value!);
+  for (const wake of [...potWaiters]) wake();
+  // A load that already gave up for want of a token gets one more go.
+  if (emptyWithoutPot.delete(info.videoId) && lastTracks?.videoId === info.videoId) {
+    loadedForDirection = "";
+    handleTracks(lastTracks).catch((err) => warn("youtube tracks retry error:", err));
+  }
+}
+
+/** The token for `videoId`, waiting up to `ms` for one to arrive. */
+function waitForPot(videoId: string, ms: number): Promise<PotInfo | null> {
+  const have = pots.get(videoId);
+  if (have || ms <= 0) return Promise.resolve(have || null);
+  return new Promise((resolve) => {
+    const done = (): void => {
+      const got = pots.get(videoId);
+      if (!got && Date.now() < deadline) return;
+      clearTimeout(timer);
+      potWaiters.delete(done);
+      resolve(got || null);
+    };
+    const deadline = Date.now() + ms;
+    const timer = setTimeout(done, ms);
+    potWaiters.add(done);
+  });
+}
 
 function urlVideoId(): string {
   return deriveContentId("youtube") || "";
@@ -62,6 +109,8 @@ function dropCuesFromOtherVideo(): boolean {
   lastCueKey = "";
   currentVideoId = "";
   loadedForDirection = "";
+  loadingKey = "";
+  loadGeneration += 1;
   resetCaptions();
   return true;
 }
@@ -85,14 +134,28 @@ function parseJson3(data: { events?: Json3Event[] }): Cue[] {
   return cues;
 }
 
-async function fetchTrack(track: { baseUrl: string }): Promise<Cue[]> {
-  const url = new URL(track.baseUrl, location.origin);
-  url.searchParams.set("fmt", "json3");
-  const res = await fetch(url.toString());
+async function fetchTrack(
+  track: { baseUrl: string; kind: string },
+  pot: PotInfo | null,
+  lang: "ja" | "en"
+): Promise<Cue[]> {
+  const res = await fetch(trackUrl(track.baseUrl, pot, location.origin));
   if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
   const text = await res.text();
   if (!text) return [];
-  return parseJson3(JSON.parse(text));
+  const data = JSON.parse(text);
+  // Auto-generated tracks are rolling word windows, not lines: regroup the
+  // words into sentences so a cue is what is being said (lib/cue-sentences).
+  return track.kind === "asr" ? buildSentenceCues(parseJson3Words(data), lang) : parseJson3(data);
+}
+
+/** The player's caption token for this video: wait for the one it makes on
+ * its own, then ask the page script to make it request captions. */
+async function potFor(videoId: string): Promise<PotInfo | null> {
+  const early = await waitForPot(videoId, POT_WAIT_MS);
+  if (early) return early;
+  window.postMessage({ source: "avc", type: "avc-prime-captions", videoId }, "*");
+  return waitForPot(videoId, POT_PRIME_WAIT_MS);
 }
 
 function pickTrack(tracks: CaptionTrackMsg["tracks"], langPrefix: string) {
@@ -102,8 +165,11 @@ function pickTrack(tracks: CaptionTrackMsg["tracks"], langPrefix: string) {
 
 async function handleTracks(msg: CaptionTrackMsg): Promise<void> {
   const direction = getAdapterDirection();
+  lastTracks = msg;
   const dirKey = `${msg.videoId}:${direction}`;
-  if (dirKey === currentVideoId + ":" + loadedForDirection && targetCues.length) return;
+  if (dirKey === currentVideoId + ":" + loadedForDirection && (targetCues.length || loadingKey === dirKey)) return;
+  const generation = ++loadGeneration;
+  const superseded = (): boolean => generation !== loadGeneration;
   currentVideoId = msg.videoId;
   loadedForDirection = direction;
   targetCues = [];
@@ -118,12 +184,23 @@ async function handleTracks(msg: CaptionTrackMsg): Promise<void> {
     reportCaptions({ state: "missing", lang: study, reason: "no-track" });
     return;
   }
+  loadingKey = dirKey;
+  let pot: PotInfo | null = null;
+  let cues: Cue[] = [];
   try {
-    targetCues = await fetchTrack(studyTrack);
+    pot = await potFor(msg.videoId);
+    // The video may have changed while we waited for the token.
+    if (superseded()) return;
+    cues = await fetchTrack(studyTrack, pot, study);
   } catch {
-    targetCues = [];
+    cues = [];
+  } finally {
+    if (!superseded()) loadingKey = "";
   }
+  if (superseded()) return;
+  targetCues = cues;
   if (!targetCues.length) {
+    if (!pot) emptyWithoutPot.add(msg.videoId);
     log(
       `youtube: hidden ${study} caption track unavailable. ` +
         "Use Listening Mode from the toolbar, or turn on matching captions to read them from the page."
@@ -138,7 +215,7 @@ async function handleTracks(msg: CaptionTrackMsg): Promise<void> {
   const ctxTrack = pickTrack(msg.tracks, ctx);
   if (ctxTrack) {
     try {
-      contextCues = await fetchTrack(ctxTrack);
+      contextCues = await fetchTrack(ctxTrack, pot, ctx);
       log(`youtube: loaded ${contextCues.length} ${ctx} cues for context`);
     } catch {
       contextCues = [];
@@ -196,8 +273,12 @@ export const youtubeAdapter: SiteAdapter = {
     onClearCb = onClear || null;
 
     window.addEventListener("message", (e: MessageEvent) => {
-      if (e.source !== window) return;
-      if (e.data?.source !== "avc" || e.data.type !== "avc-caption-tracks") return;
+      if (e.source !== window || e.data?.source !== "avc") return;
+      if (e.data.type === "avc-timedtext-pot" && typeof e.data.pot === "string" && typeof e.data.videoId === "string") {
+        notePot({ videoId: e.data.videoId, pot: e.data.pot, c: String(e.data.c || "WEB"), cver: String(e.data.cver || "") });
+        return;
+      }
+      if (e.data.type !== "avc-caption-tracks") return;
       handleTracks(e.data as CaptionTrackMsg).catch((err) => warn("youtube tracks error:", err));
     });
 
@@ -214,6 +295,16 @@ export const youtubeAdapter: SiteAdapter = {
     let lastText = "";
     let lastTextVideoId = "";
     let settleUntil = 0;
+    // Auto-generated captions drawn on the page roll in word by word; those are
+    // held until they settle (lib/cue-sentences). A caption that replaces the
+    // last one outright still goes out at once.
+    const roller = new RollingCaption();
+    let rollTimer: ReturnType<typeof setInterval> | null = null;
+
+    const flushRolling = (): void => {
+      const line = roller.take(Date.now());
+      if (line) onLine(line, { en: "" });
+    };
 
     const check = () => {
       try {
@@ -226,6 +317,8 @@ export const youtubeAdapter: SiteAdapter = {
           // already-seen: it is the previous video's, and clearing lastText
           // instead would let exactly that line card against the new video.
           lastText = getVisibleText();
+          roller.reset();
+          roller.markEmitted(lastText);
           settleUntil = Date.now() + CAPTION_SETTLE_MS;
           return;
         }
@@ -233,11 +326,26 @@ export const youtubeAdapter: SiteAdapter = {
         const text = getVisibleText();
         if (text === lastText) return;
         if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+          // Not flushed: a line mirrored as the caption leaves would outstay it.
+          roller.reset();
           if (lastText) onClear?.();
           lastText = "";
           return;
         }
         lastText = text;
+        if (roller.continues(text)) {
+          roller.update(text, Date.now());
+          if (!rollTimer) {
+            rollTimer = setInterval(() => {
+              flushRolling();
+              if (!targetCues.length && lastText) return;
+              if (rollTimer) clearInterval(rollTimer);
+              rollTimer = null;
+            }, 200);
+          }
+          return;
+        }
+        roller.markEmitted(text);
         onLine(text, { en: "" });
       } catch (err) {
         warn("youtube adapter error:", err);
