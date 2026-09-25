@@ -45,7 +45,8 @@ describe("Lens judgments", () => {
     const body = functionBody(content, "processLine");
     expect(body).toMatch(/judgedLensSeqs\.has\(lineLensSeq\)/);
     expect(body).not.toMatch(/\.includes\(normalized\)/);
-    expect(functionBody(content, "renderLens")).toMatch(/judgedLensSeqs\.add\(seq\)/);
+    // A paced piece of a heard utterance speaks for the utterance's render.
+    expect(functionBody(content, "renderLens")).toMatch(/judgedLensSeqs\.add\(groupSeq \?\? seq\)/);
   });
 
   it("tie a transcript's sentences to the render of the whole utterance", () => {
