@@ -47,6 +47,9 @@ const PRIME_TIMEOUT_MS = 4000;
         source: "avc",
         type: "avc-caption-tracks",
         videoId,
+        // Off means the player will not request captions, so no token is
+        // coming on its own and the content script can prime at once.
+        captionsOn: subtitlesOn(p),
         tracks: tracks.map((t) => ({
           baseUrl: t.baseUrl,
           languageCode: t.languageCode,
@@ -126,5 +129,6 @@ const PRIME_TIMEOUT_MS = 4000;
     setTimeout(() => send(true), 4000); // player response can lag the event
   });
 
+  send(false);
   setInterval(() => send(false), 3000);
 })();

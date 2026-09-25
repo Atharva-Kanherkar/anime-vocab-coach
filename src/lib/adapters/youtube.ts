@@ -15,6 +15,8 @@ interface Cue {
 
 interface CaptionTrackMsg {
   videoId: string;
+  /** Whether the player shows captions right now; null or absent if unknown. */
+  captionsOn?: boolean | null;
   tracks: { baseUrl: string; languageCode: string; kind: string }[];
 }
 
@@ -151,8 +153,9 @@ async function fetchTrack(
 
 /** The player's caption token for this video: wait for the one it makes on
  * its own, then ask the page script to make it request captions. */
-async function potFor(videoId: string): Promise<PotInfo | null> {
-  const early = await waitForPot(videoId, POT_WAIT_MS);
+async function potFor(videoId: string, captionsOn: boolean | null | undefined): Promise<PotInfo | null> {
+  // Captions off: the player will not ask for them, so waiting is dead time.
+  const early = await waitForPot(videoId, captionsOn === false ? 0 : POT_WAIT_MS);
   if (early) return early;
   window.postMessage({ source: "avc", type: "avc-prime-captions", videoId }, "*");
   return waitForPot(videoId, POT_PRIME_WAIT_MS);
@@ -188,7 +191,7 @@ async function handleTracks(msg: CaptionTrackMsg): Promise<void> {
   let pot: PotInfo | null = null;
   let cues: Cue[] = [];
   try {
-    pot = await potFor(msg.videoId);
+    pot = await potFor(msg.videoId, msg.captionsOn);
     // The video may have changed while we waited for the token.
     if (superseded()) return;
     cues = await fetchTrack(studyTrack, pot, study);

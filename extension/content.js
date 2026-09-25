@@ -3724,74 +3724,103 @@
   :host { all: initial; }
   .lens {
     position: fixed; left: 0; top: 0; z-index: 2147483644;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    display: flex; flex-direction: column; align-items: center;
     pointer-events: none;
-    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
     opacity: 0; transition: opacity 160ms ease;
   }
   .lens.on { opacity: 1; }
+  /* One card for the pair, not a pill per language: the two lines read as
+     one subtitle. */
+  .card {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    max-width: 100%;
+    padding: 8px 18px 9px; border-radius: 14px;
+    background: rgba(14, 13, 18, 0.78);
+    backdrop-filter: blur(10px) saturate(1.15); -webkit-backdrop-filter: blur(10px) saturate(1.15);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+    animation: lens-in 150ms ease-out;
+  }
+  @keyframes lens-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .line {
-    max-width: min(78vw, 860px);
-    padding: 5px 14px 6px; border-radius: 10px;
-    background: rgba(8, 7, 10, 0.72); backdrop-filter: blur(3px);
-    color: rgba(236, 234, 228, 0.96);
-    text-align: center; line-height: 1.55;
-    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+    max-width: 100%;
+    color: rgba(246, 244, 239, 0.97);
+    text-align: center;
+    text-wrap: balance;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
   }
-  .line.jp { font-size: clamp(17px, 2.3vw, 26px); font-weight: 600; }
+  .line.jp {
+    font-size: clamp(18px, 2.35vw, 30px); font-weight: 700; line-height: 1.6;
+    letter-spacing: 0.02em;
+  }
   .line.en {
-    font-size: clamp(12px, 1.4vw, 16px); font-weight: 400;
-    color: rgba(236, 234, 228, 0.78);
+    font-size: clamp(12.5px, 1.3vw, 16px); font-weight: 450; line-height: 1.45;
+    color: rgba(236, 234, 228, 0.7);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: 0.005em;
   }
-  .tok { pointer-events: auto; cursor: pointer; border-radius: 3px;
-    padding: 0 1px; border-bottom: 2px solid transparent; }
-  .tok.new { border-bottom-color: rgba(227, 186, 99, 0.55); }
-  .tok.learning { border-bottom-color: rgba(217, 108, 79, 0.65); }
-  .tok:hover, .tok.linked-hot { background: rgba(227, 186, 99, 0.18); }
-  .tok.saved { border-bottom-color: rgba(143, 176, 209, 0.8); }
-  .en .tok { border-bottom: 1px dotted rgba(236, 234, 228, 0.35); }
-  .en .tok:hover { color: rgba(227, 186, 99, 0.9); }
+  /* The word-state mark is a drawn underline inset from both ends, so
+     neighbouring words keep a visible gap instead of fusing into one rule. */
+  .tok {
+    --mark: transparent;
+    pointer-events: auto; cursor: pointer; border-radius: 6px;
+    padding: 0 1px 3px;
+    background-image: linear-gradient(var(--mark), var(--mark));
+    background-repeat: no-repeat;
+    background-size: calc(100% - 4px) 2px;
+    background-position: 50% 100%;
+    transition: background-color 90ms ease;
+  }
+  .tok.new { --mark: rgba(240, 196, 104, 0.5); }
+  .tok.learning { --mark: rgba(236, 118, 88, 0.8); }
+  .tok.saved { --mark: rgba(128, 184, 232, 0.9); }
+  .tok:hover, .tok.linked-hot { background-color: rgba(240, 196, 104, 0.2); }
+  .en .tok { --mark: rgba(236, 234, 228, 0.28); background-size: calc(100% - 4px) 1px; padding-bottom: 2px; }
+  .en .tok:hover { color: rgba(250, 214, 138, 1); background-color: transparent; }
   .tip {
     position: fixed; z-index: 2; pointer-events: auto;
-    min-width: 220px; max-width: 340px;
-    padding: 10px 12px; border-radius: 12px;
-    background: rgba(8, 7, 10, 0.94); backdrop-filter: blur(6px);
-    border: 1px solid rgba(227, 186, 99, 0.25);
-    box-shadow: 0 8px 28px rgba(0,0,0,.55);
-    color: rgba(236, 234, 228, 0.95); text-align: left;
+    min-width: 230px; max-width: 340px;
+    padding: 12px 14px 12px; border-radius: 14px;
+    background: rgba(18, 17, 22, 0.96);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    color: rgba(246, 244, 239, 0.96); text-align: left;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     display: none;
   }
-  .tip.on { display: block; }
+  .tip.on { display: block; animation: lens-in 120ms ease-out; }
   .tip-word {
-    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
-    font-size: 22px; font-weight: 700; line-height: 1.3;
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+    font-size: 24px; font-weight: 700; line-height: 1.25;
   }
-  .tip-reading { font-size: 13px; color: rgba(227, 186, 99, 0.9); margin-top: 1px; }
-  .tip-gloss { font-size: 13px; line-height: 1.45; margin-top: 6px; }
-  .tip-meta { font-size: 11px; color: rgba(236, 234, 228, 0.5); margin-top: 6px;
+  .tip-reading { font-size: 13px; color: rgba(240, 196, 104, 0.95); margin-top: 3px; }
+  .tip-gloss { font-size: 13.5px; line-height: 1.45; margin-top: 8px; color: rgba(246, 244, 239, 0.9); }
+  .tip-meta { font-size: 11px; color: rgba(236, 234, 228, 0.5); margin-top: 8px;
     display: flex; gap: 8px; align-items: center; }
-  .tip-state { color: rgba(143, 176, 209, 0.95); }
-  .tip-actions { display: flex; gap: 6px; margin-top: 9px; }
+  .tip-state { color: rgba(128, 184, 232, 0.95); }
+  .tip-actions { display: flex; gap: 6px; margin-top: 11px; }
   .tip-btn {
-    flex: 1; padding: 5px 8px; border-radius: 8px; cursor: pointer;
-    border: 1px solid rgba(236, 234, 228, 0.16);
-    background: rgba(255,255,255,.05); color: rgba(236, 234, 228, .9);
-    font-size: 12px; font-family: inherit; transition: background 120ms;
+    flex: 1; padding: 6px 8px; border-radius: 9px; cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05); color: rgba(246, 244, 239, 0.9);
+    font-size: 12px; font-family: inherit; transition: background 120ms, border-color 120ms;
+    white-space: nowrap;
   }
-  .tip-btn:hover { background: rgba(227, 186, 99, 0.2); }
+  .tip-btn:hover { background: rgba(255, 255, 255, 0.1); }
   .tip-btn.primary {
-    border-color: rgba(227, 186, 99, 0.5); background: rgba(227, 186, 99, 0.16);
-    color: rgba(227, 186, 99, 0.95); font-weight: 600;
+    border-color: rgba(240, 196, 104, 0.55); background: rgba(240, 196, 104, 0.18);
+    color: rgba(252, 214, 134, 1); font-weight: 600;
   }
+  .tip-btn.primary:hover { background: rgba(240, 196, 104, 0.28); }
   .tip-btn kbd {
-    font-family: ui-monospace, monospace; font-size: 10px; opacity: .65;
-    border: 1px solid rgba(236,234,228,.25); border-radius: 3px; padding: 0 3px;
-    margin-left: 4px;
+    font-family: ui-monospace, monospace; font-size: 10px; opacity: .6;
+    border: 1px solid rgba(236,234,228,.25); border-radius: 4px; padding: 0 3px;
+    margin-left: 5px;
   }
-  .tip-saved { color: rgba(143, 176, 209, 0.95); font-size: 12px;
-    margin-top: 9px; font-weight: 600; }
+  .tip-saved { color: rgba(128, 184, 232, 0.95); font-size: 12px;
+    margin-top: 10px; font-weight: 600; }
   .tip-link { font-size: 11px; color: rgba(236, 234, 228, 0.55); margin-top: 4px; }
 `;
   var host = null;
@@ -3846,12 +3875,16 @@
     }
     parent.appendChild(host);
   }
+  var placedFor = "";
   function position() {
     if (!lensEl || !opts) return;
     const video = opts.getVideo();
     if (!video) return;
     const r = video.getBoundingClientRect();
     if (r.width < 200 || r.height < 120) return;
+    const key = `${r.left}:${r.top}:${r.width}:${r.height}`;
+    if (key === placedFor) return;
+    placedFor = key;
     lensEl.style.left = `${r.left + r.width / 2}px`;
     lensEl.style.top = `${r.top + r.height * 0.76}px`;
     lensEl.style.transform = "translate(-50%, -100%)";
@@ -4078,8 +4111,11 @@
     lensEl.innerHTML = "";
     const source = { title: options.getTitle(), line: text, en: en || null };
     const jpSpans = [];
+    const card = document.createElement("div");
+    card.className = "card";
     const jpLine = document.createElement("div");
     jpLine.className = "line jp";
+    jpLine.lang = "ja";
     tokens.forEach((tk) => {
       const entry = lookup(tk.base);
       if (!entry) {
@@ -4110,7 +4146,7 @@
       jpLine.appendChild(s);
       jpSpans.push(s);
     });
-    lensEl.appendChild(jpLine);
+    card.appendChild(jpLine);
     if (en) {
       const glossIndex = buildGlossIndex(tokens, lookup);
       const enLine = document.createElement("div");
@@ -4150,8 +4186,10 @@
         });
         enLine.appendChild(s);
       }
-      lensEl.appendChild(enLine);
+      card.appendChild(enLine);
     }
+    lensEl.appendChild(card);
+    placedFor = "";
     position();
     lensEl.classList.add("on");
     armAutoHide();
@@ -4371,8 +4409,135 @@
     return null;
   }
 
+  // src/lib/cue-sentences.ts
+  var GAP_SEC = 0.8;
+  var MAX_CUE_CHARS = { ja: 28, en: 90 };
+  var TAIL_SEC = 0.9;
+  var SENTENCE_END = /[。！？!?.…]["」』）)]*$/;
+  function parseJson3Words(data2) {
+    const words = [];
+    for (const ev of data2.events || []) {
+      if (!ev.segs || ev.aAppend) continue;
+      const base = (ev.tStartMs || 0) / 1e3;
+      for (const seg of ev.segs) {
+        const text = seg.utf8 || "";
+        if (!text.trim()) continue;
+        words.push({ start: base + (seg.tOffsetMs || 0) / 1e3, text: text.replace(/\n/g, " ") });
+      }
+    }
+    words.sort((a, b) => a.start - b.start);
+    return words;
+  }
+  function spokenSec(text, lang) {
+    const chars = text.trim().length;
+    return Math.min(1.5, Math.max(0.2, chars * (lang === "ja" ? 0.13 : 0.06)));
+  }
+  function buildSentenceCues(words, lang) {
+    const cap = MAX_CUE_CHARS[lang];
+    const groups = [];
+    let current2 = [];
+    let length = 0;
+    const close = () => {
+      if (current2.length) groups.push(current2);
+      current2 = [];
+      length = 0;
+    };
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const wordLength = word.text.trim().length;
+      if (current2.length && length + wordLength > cap) close();
+      current2.push(word);
+      length += wordLength;
+      const next = words[i + 1];
+      if (!next) break;
+      const gap = next.start - (word.start + spokenSec(word.text, lang));
+      if (SENTENCE_END.test(word.text.trim()) || gap >= GAP_SEC) close();
+    }
+    close();
+    const cues = [];
+    groups.forEach((group, i) => {
+      const text = normalize(group.map((w) => w.text.trim()).join(lang === "ja" ? "" : " "));
+      if (!text) return;
+      const last = group[group.length - 1];
+      const start = group[0].start;
+      const nextStart = groups[i + 1]?.[0].start ?? Infinity;
+      const end = Math.min(nextStart, last.start + spokenSec(last.text, lang) + TAIL_SEC);
+      cues.push({ start, end: Math.max(end, start + 0.1), text });
+    });
+    return cues;
+  }
+  var RollingCaption = class {
+    constructor(settleMs = 700, maxHoldMs = 4e3) {
+      this.settleMs = settleMs;
+      this.maxHoldMs = maxHoldMs;
+      this.pending = "";
+      this.changedAt = 0;
+      this.rollingSince = 0;
+      this.emitted = "";
+    }
+    /** Feed what is on screen now. */
+    update(text, now) {
+      if (text === this.pending) return;
+      if (!this.pending) this.rollingSince = now;
+      this.pending = text;
+      this.changedAt = now;
+    }
+    /** The caption to emit now, if it has settled (or rolled too long) and says
+     * something new. `force` takes it regardless: the caption left the screen. */
+    take(now, force = false) {
+      if (!this.pending) return null;
+      const settled = force || now - this.changedAt >= this.settleMs;
+      if (!settled && now - this.rollingSince < this.maxHoldMs) return null;
+      const line = this.pending;
+      const fresh = unseenTail(this.emitted, line);
+      this.rollingSince = now;
+      if (settled) this.pending = "";
+      if (!fresh) return null;
+      this.emitted = line;
+      return line;
+    }
+    /** A caption that replaced the last one outright: it is out, nothing waits. */
+    markEmitted(text) {
+      this.pending = "";
+      this.emitted = text;
+    }
+    /** Whether `text` continues the caption given out last (a rolling update)
+     * rather than replacing it. */
+    continues(text) {
+      const prev = this.pending || this.emitted;
+      return !!prev && unseenTail(prev, text) !== text.trim();
+    }
+    reset() {
+      this.pending = "";
+      this.emitted = "";
+    }
+  };
+  var MIN_OVERLAP = 2;
+  function unseenTail(prev, next) {
+    if (!prev) return next.trim();
+    if (next.startsWith(prev)) return next.slice(prev.length).trim();
+    for (let k = Math.min(prev.length, next.length); k >= MIN_OVERLAP; k--) {
+      if (next.startsWith(prev.slice(prev.length - k))) return next.slice(k).trim();
+    }
+    return next.trim();
+  }
+
+  // src/lib/youtube-pot.ts
+  function trackUrl(baseUrl, pot, origin = "https://www.youtube.com") {
+    const url = new URL(baseUrl, origin);
+    url.searchParams.set("fmt", "json3");
+    if (pot) {
+      url.searchParams.set("pot", pot.pot);
+      url.searchParams.set("c", pot.c);
+      if (pot.cver) url.searchParams.set("cver", pot.cver);
+    }
+    return url.toString();
+  }
+
   // src/lib/adapters/youtube.ts
   var CAPTION_SETTLE_MS = 1e3;
+  var POT_WAIT_MS = 1500;
+  var POT_PRIME_WAIT_MS = 5e3;
   var onLineCb = null;
   var onClearCb = null;
   var targetCues = [];
@@ -4381,6 +4546,37 @@
   var lastCueKey = "";
   var attachedVideo = null;
   var loadedForDirection = "";
+  var pots = /* @__PURE__ */ new Map();
+  var potWaiters = /* @__PURE__ */ new Set();
+  var lastTracks = null;
+  var emptyWithoutPot = /* @__PURE__ */ new Set();
+  var loadGeneration = 0;
+  var loadingKey = "";
+  function notePot(info) {
+    pots.set(info.videoId, info);
+    if (pots.size > 20) pots.delete(pots.keys().next().value);
+    for (const wake of [...potWaiters]) wake();
+    if (emptyWithoutPot.delete(info.videoId) && lastTracks?.videoId === info.videoId) {
+      loadedForDirection = "";
+      handleTracks(lastTracks).catch((err) => warn("youtube tracks retry error:", err));
+    }
+  }
+  function waitForPot(videoId, ms) {
+    const have = pots.get(videoId);
+    if (have || ms <= 0) return Promise.resolve(have || null);
+    return new Promise((resolve) => {
+      const done = () => {
+        const got = pots.get(videoId);
+        if (!got && Date.now() < deadline) return;
+        clearTimeout(timer);
+        potWaiters.delete(done);
+        resolve(got || null);
+      };
+      const deadline = Date.now() + ms;
+      const timer = setTimeout(done, ms);
+      potWaiters.add(done);
+    });
+  }
   function urlVideoId() {
     return deriveContentId("youtube") || "";
   }
@@ -4393,6 +4589,8 @@
     lastCueKey = "";
     currentVideoId = "";
     loadedForDirection = "";
+    loadingKey = "";
+    loadGeneration += 1;
     resetCaptions();
     return true;
   }
@@ -4408,14 +4606,19 @@
     cues.sort((a, b) => a.start - b.start);
     return cues;
   }
-  async function fetchTrack(track) {
-    const url = new URL(track.baseUrl, location.origin);
-    url.searchParams.set("fmt", "json3");
-    const res = await fetch(url.toString());
+  async function fetchTrack(track, pot, lang) {
+    const res = await fetch(trackUrl(track.baseUrl, pot, location.origin));
     if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
     const text = await res.text();
     if (!text) return [];
-    return parseJson3(JSON.parse(text));
+    const data2 = JSON.parse(text);
+    return track.kind === "asr" ? buildSentenceCues(parseJson3Words(data2), lang) : parseJson3(data2);
+  }
+  async function potFor(videoId, captionsOn) {
+    const early = await waitForPot(videoId, captionsOn === false ? 0 : POT_WAIT_MS);
+    if (early) return early;
+    window.postMessage({ source: "avc", type: "avc-prime-captions", videoId }, "*");
+    return waitForPot(videoId, POT_PRIME_WAIT_MS);
   }
   function pickTrack(tracks, langPrefix) {
     const matches = tracks.filter((t) => (t.languageCode || "").startsWith(langPrefix));
@@ -4423,8 +4626,11 @@
   }
   async function handleTracks(msg) {
     const direction = getAdapterDirection();
+    lastTracks = msg;
     const dirKey = `${msg.videoId}:${direction}`;
-    if (dirKey === currentVideoId + ":" + loadedForDirection && targetCues.length) return;
+    if (dirKey === currentVideoId + ":" + loadedForDirection && (targetCues.length || loadingKey === dirKey)) return;
+    const generation = ++loadGeneration;
+    const superseded = () => generation !== loadGeneration;
     currentVideoId = msg.videoId;
     loadedForDirection = direction;
     targetCues = [];
@@ -4438,12 +4644,22 @@
       reportCaptions({ state: "missing", lang: study, reason: "no-track" });
       return;
     }
+    loadingKey = dirKey;
+    let pot = null;
+    let cues = [];
     try {
-      targetCues = await fetchTrack(studyTrack);
+      pot = await potFor(msg.videoId, msg.captionsOn);
+      if (superseded()) return;
+      cues = await fetchTrack(studyTrack, pot, study);
     } catch {
-      targetCues = [];
+      cues = [];
+    } finally {
+      if (!superseded()) loadingKey = "";
     }
+    if (superseded()) return;
+    targetCues = cues;
     if (!targetCues.length) {
+      if (!pot) emptyWithoutPot.add(msg.videoId);
       log(
         `youtube: hidden ${study} caption track unavailable. Use Listening Mode from the toolbar, or turn on matching captions to read them from the page.`
       );
@@ -4457,7 +4673,7 @@
     const ctxTrack = pickTrack(msg.tracks, ctx);
     if (ctxTrack) {
       try {
-        contextCues = await fetchTrack(ctxTrack);
+        contextCues = await fetchTrack(ctxTrack, pot, ctx);
         log(`youtube: loaded ${contextCues.length} ${ctx} cues for context`);
       } catch {
         contextCues = [];
@@ -4508,8 +4724,12 @@
       onLineCb = onLine;
       onClearCb = onClear || null;
       window.addEventListener("message", (e) => {
-        if (e.source !== window) return;
-        if (e.data?.source !== "avc" || e.data.type !== "avc-caption-tracks") return;
+        if (e.source !== window || e.data?.source !== "avc") return;
+        if (e.data.type === "avc-timedtext-pot" && typeof e.data.pot === "string" && typeof e.data.videoId === "string") {
+          notePot({ videoId: e.data.videoId, pot: e.data.pot, c: String(e.data.c || "WEB"), cver: String(e.data.cver || "") });
+          return;
+        }
+        if (e.data.type !== "avc-caption-tracks") return;
         handleTracks(e.data).catch((err) => warn("youtube tracks error:", err));
       });
       setInterval(() => {
@@ -4524,6 +4744,12 @@
       let lastText = "";
       let lastTextVideoId = "";
       let settleUntil = 0;
+      const roller = new RollingCaption();
+      let rollTimer = null;
+      const flushRolling = () => {
+        const line = roller.take(Date.now());
+        if (line) onLine(line, { en: "" });
+      };
       const check = () => {
         try {
           dropCuesFromOtherVideo();
@@ -4532,6 +4758,8 @@
           if (videoId !== lastTextVideoId) {
             lastTextVideoId = videoId;
             lastText = getVisibleText();
+            roller.reset();
+            roller.markEmitted(lastText);
             settleUntil = Date.now() + CAPTION_SETTLE_MS;
             return;
           }
@@ -4539,11 +4767,25 @@
           const text = getVisibleText();
           if (text === lastText) return;
           if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+            roller.reset();
             if (lastText) onClear?.();
             lastText = "";
             return;
           }
           lastText = text;
+          if (roller.continues(text)) {
+            roller.update(text, Date.now());
+            if (!rollTimer) {
+              rollTimer = setInterval(() => {
+                flushRolling();
+                if (!targetCues.length && lastText) return;
+                if (rollTimer) clearInterval(rollTimer);
+                rollTimer = null;
+              }, 200);
+            }
+            return;
+          }
+          roller.markEmitted(text);
           onLine(text, { en: "" });
         } catch (err) {
           warn("youtube adapter error:", err);
@@ -4771,6 +5013,36 @@
       return this.seen.size;
     }
   };
+
+  // src/lib/lens-lines.ts
+  var SENTENCE = { ja: /(?<=[。！？!?…])/, en: /(?<=[.!?…])\s+/ };
+  var SOFT_BREAK = { ja: /[、,，」』）)\s]/, en: /\s/ };
+  var LENS_MAX_CHARS = { ja: 28, en: 90 };
+  function splitForLens(text, lang, maxChars = LENS_MAX_CHARS[lang]) {
+    const clean = text.replace(/\s+/g, " ").trim();
+    if (!clean) return [];
+    const out = [];
+    for (const sentence of clean.split(SENTENCE[lang])) {
+      let rest = sentence.trim();
+      while (rest.length > maxChars) {
+        let cut = maxChars;
+        for (let i = maxChars - 1; i >= Math.floor(maxChars / 3); i--) {
+          if (SOFT_BREAK[lang].test(rest[i])) {
+            cut = i + 1;
+            break;
+          }
+        }
+        out.push(rest.slice(0, cut).trim());
+        rest = rest.slice(cut).trim();
+      }
+      if (rest) out.push(rest);
+    }
+    return out.filter(Boolean);
+  }
+  function lensPieceDelayMs(piece, lang) {
+    const perChar = lang === "ja" ? 90 : 45;
+    return Math.min(4e3, Math.max(1200, piece.length * perChar));
+  }
 
   // src/entries/content.ts
   var AUDIO_LENS_MAX_LAG_SEC = 7;
@@ -5091,7 +5363,7 @@
       if (/^(youtube|netflix|crunchyroll)$/i.test(candidate)) return null;
       return candidate;
     }
-    async function renderLens(line, context) {
+    async function renderLens(line, context, groupSeq) {
       const seq = ++lensSeq;
       const sessionId = currentSessionId();
       const stale = () => seq !== lensSeq || currentSessionId() !== sessionId;
@@ -5111,7 +5383,7 @@
         getVideo: () => adapter ? adapter.getVideo() : null,
         getTitle: currentTitle,
         onJudgeStart: () => {
-          judgedLensSeqs.add(seq);
+          judgedLensSeqs.add(groupSeq ?? seq);
           if (judgedLensSeqs.size > MAX_PENDING_LINES) {
             const oldest = judgedLensSeqs.values().next().value;
             if (oldest !== void 0) judgedLensSeqs.delete(oldest);
@@ -5123,12 +5395,34 @@
         }
       });
     }
+    let lensChain = 0;
+    function cancelPacedLens() {
+      lensChain += 1;
+    }
+    function showPacedLens(text, context) {
+      const pieces = splitForLens(text, studyLang());
+      if (!pieces.length) return -1;
+      cancelPacedLens();
+      const chain = lensChain;
+      const sessionId = currentSessionId();
+      const lang = studyLang();
+      let groupSeq = -1;
+      const step = (i) => {
+        if (chain !== lensChain || currentSessionId() !== sessionId) return;
+        renderLens(pieces[i], context, i === 0 ? void 0 : groupSeq).catch((err) => warn("sub-lens render failed:", err));
+        if (i === 0) groupSeq = lensSeq;
+        if (i + 1 < pieces.length) setTimeout(() => step(i + 1), lensPieceDelayMs(pieces[i], lang));
+      };
+      step(0);
+      return groupSeq;
+    }
     function onLine(text, context, opts2 = {}) {
       if (pipelineDisabled) return;
       const line = text.replace(/\s+/g, " ").trim();
       if (!line) return;
       let seq = opts2.lensSeq ?? -1;
       if (opts2.lens !== false) {
+        cancelPacedLens();
         renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
         seq = lensSeq;
       }
@@ -5348,11 +5642,7 @@
       log("transcript received:", rawTranscript);
       if (typeof start === "number" && !emittedCueKeys.remember(`${start}:${rawTranscript}`)) return;
       const context = { en: contextForAudio(a, start), fromAudio: true };
-      let seq = -1;
-      if (audioLineIsCurrent(video, start, end)) {
-        renderLens(rawTranscript.replace(/\s+/g, " "), context).catch((err) => warn("sub-lens render failed:", err));
-        seq = lensSeq;
-      }
+      const seq = audioLineIsCurrent(video, start, end) ? showPacedLens(rawTranscript, context) : -1;
       const direction = normalizeDirection(settings?.learningDirection);
       const segments = rawTranscript.split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
       for (const seg of segments) onLine(seg, context, { lens: false, lensSeq: seq });
@@ -5385,7 +5675,10 @@
       getSettings().then((next) => {
         settings = next;
         setAdapterDirection(normalizeDirection(next.learningDirection));
-        if (!lensOn(next) || !siteEnabled(next)) hideLens();
+        if (!lensOn(next) || !siteEnabled(next)) {
+          cancelPacedLens();
+          hideLens();
+        }
         applyPanelSettings(next);
       }).catch(() => {
       });
@@ -5435,6 +5728,7 @@
         lastSessionId = sid;
         targetedThisSession.clear();
         lastLine = "";
+        cancelPacedLens();
         hideLens();
         dismissAgent();
         pendingLines.length = 0;
