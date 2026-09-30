@@ -110,11 +110,11 @@ export function AppShell({
             アニメVocab
           </Link>
 
-          {/* Beside the logo, not with the controls on the right: that row is
-              exactly as wide as the nav allows, and anything more wraps it. */}
+          {/* Beside the logo, not with the controls on the right. The nav has a
+              row of its own: thirteen sections no longer fit beside the logo. */}
           {offerPro && <ProHeaderEntry onOpenBilling={openBilling} />}
 
-          <nav aria-label="Sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto md:order-none md:mx-0 md:ml-auto md:w-auto">
+          <nav aria-label="Sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto md:mx-0">
             {NAV.map(({ id, label }) => {
               const active = section === id;
               return (
@@ -134,7 +134,7 @@ export function AppShell({
             })}
           </nav>
 
-          <span className="ml-auto flex items-center gap-2 md:ml-0">
+          <span className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             {!DEV_NO_CLERK && <UserButton />}
           </span>
