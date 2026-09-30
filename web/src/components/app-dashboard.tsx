@@ -13,7 +13,7 @@ export function AppDashboard({ name, onGo }: { name: string; onGo: (section: str
   const snapshot = useCloudSnapshot();
   const summary = useMemo(() => summarizeSyncSnapshot(snapshot), [snapshot]);
   const recentWords = useMemo(() => pickRecentWords(snapshot, 5), [snapshot]);
-  const dueReviews = useMemo(() => pickDueReviews(snapshot, new Date(), 99), [snapshot]);
+  const dueReviews = useMemo(() => pickDueReviews(snapshot, new Date(), Infinity), [snapshot]);
   const streak = useMemo(() => computeStreak(snapshot.daily, new Date()), [snapshot]);
   const hasData = summary.totalWords > 0;
   const hero = recentWords[0] ?? null;
@@ -69,10 +69,19 @@ export function AppDashboard({ name, onGo }: { name: string; onGo: (section: str
                   )}
                 </div>
                 <div className="mt-8 flex flex-wrap gap-2.5">
-                  <button className="av-btn av-btn-primary" type="button" onClick={() => onGo("coach")}>
+                  {dueReviews.length > 0 && (
+                    <button className="av-btn av-btn-primary" type="button" onClick={() => onGo("review")}>
+                      Review {dueReviews.length} {dueReviews.length === 1 ? "word" : "words"}
+                    </button>
+                  )}
+                  <button
+                    className={dueReviews.length > 0 ? "av-btn av-btn-ghost" : "av-btn av-btn-primary"}
+                    type="button"
+                    onClick={() => onGo("coach")}
+                  >
                     Ask the coach
                   </button>
-                  <button className="av-btn av-btn-ghost" type="button" onClick={() => onGo("notebooks")}>
+                  <button className="av-btn av-btn-quiet" type="button" onClick={() => onGo("notebooks")}>
                     Notebooks
                   </button>
                   <button className="av-btn av-btn-quiet" type="button" onClick={() => onGo("cards")}>
@@ -81,8 +90,8 @@ export function AppDashboard({ name, onGo }: { name: string; onGo: (section: str
                 </div>
                 <p className="mt-5 text-[13px] text-ink3">
                   {dueReviews.length > 0
-                    ? `${dueReviews.length} reviews are queued in your extension popup — about 90 seconds while you watch.`
-                    : "Reviews run in the extension popup while you watch. You're all caught up."}
+                    ? "Review here or in the extension. Your answers sync both ways."
+                    : "You're all caught up. New reviews show up in Review as they come due."}
                 </p>
               </>
             )}

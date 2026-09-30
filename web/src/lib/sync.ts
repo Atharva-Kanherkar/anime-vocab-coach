@@ -104,12 +104,27 @@ export interface ExtensionSyncStatus {
   message: string | null;
 }
 
+/** One review judged in the cloud app, waiting for the extension to replay it
+ *  into its own storage (see web-review.ts). */
+export interface WebReviewOp {
+  seq: number;
+  base: string;
+  result: "pass" | "fail";
+  at: string;
+}
+
 export interface CloudSyncEnvelope {
   schemaVersion: 1;
   profile: CloudUserProfile;
   snapshot: CloudSyncSnapshot;
   revision: number;
   lastSyncedAt: string;
+  /** Web reviews the extension has not confirmed yet. Absent on envelopes
+   *  written before two-way review sync. */
+  webReviews?: WebReviewOp[];
+  /** Highest seq ever issued. Kept separately from the log so pruning the log
+   *  can never make a seq be reused. */
+  webReviewSeq?: number;
 }
 
 export interface SyncConflict {
@@ -343,10 +358,13 @@ export function pickRecentWords(snapshot: CloudSyncSnapshot, limit = 5): CloudWo
     .slice(0, limit);
 }
 
+// Same rule as the extension's review queue and POST /api/sync/review: only a
+// learning word is reviewable, so a stray review on another state never shows
+// up as a card the server would then refuse.
 export function pickDueReviews(snapshot: CloudSyncSnapshot, now = new Date(), limit = 5): CloudWordRecord[] {
   const dueTime = now.getTime();
   return [...snapshot.words]
-    .filter((word) => word.review?.dueAt && Date.parse(word.review.dueAt) <= dueTime)
+    .filter((word) => word.state === "learning" && word.review?.dueAt && Date.parse(word.review.dueAt) <= dueTime)
     .sort((a, b) => Date.parse(a.review!.dueAt!) - Date.parse(b.review!.dueAt!))
     .slice(0, limit);
 }
@@ -528,5 +546,11 @@ export function applyCloudSyncUpdate(
   // Merge into what's already stored instead of replacing it (P0 #6). On the
   // first push there's nothing to merge against.
   const merged = current ? mergeCloudSnapshots(current.snapshot, snapshot) : snapshot;
-  return createCloudSyncEnvelope(profile, merged, current ? current.revision + 1 : 1, now);
+  const next = createCloudSyncEnvelope(profile, merged, current ? current.revision + 1 : 1, now);
+  // A push rebuilds the envelope, but the web-review log is not the pusher's to
+  // drop: only an explicit appliedWebReviewSeq (pruned by the route) retires
+  // ops. Losing them here would lose reviews the extension never replayed.
+  if (current?.webReviews) next.webReviews = current.webReviews;
+  if (current?.webReviewSeq !== undefined) next.webReviewSeq = current.webReviewSeq;
+  return next;
 }
