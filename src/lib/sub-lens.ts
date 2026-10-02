@@ -53,74 +53,103 @@ const STYLES = `
   :host { all: initial; }
   .lens {
     position: fixed; left: 0; top: 0; z-index: 2147483644;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    display: flex; flex-direction: column; align-items: center;
     pointer-events: none;
-    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
     opacity: 0; transition: opacity 160ms ease;
   }
   .lens.on { opacity: 1; }
+  /* One card for the pair, not a pill per language: the two lines read as
+     one subtitle. */
+  .card {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    max-width: 100%;
+    padding: 8px 18px 9px; border-radius: 14px;
+    background: rgba(14, 13, 18, 0.78);
+    backdrop-filter: blur(10px) saturate(1.15); -webkit-backdrop-filter: blur(10px) saturate(1.15);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+    animation: lens-in 150ms ease-out;
+  }
+  @keyframes lens-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .line {
-    max-width: min(78vw, 860px);
-    padding: 5px 14px 6px; border-radius: 10px;
-    background: rgba(8, 7, 10, 0.72); backdrop-filter: blur(3px);
-    color: rgba(236, 234, 228, 0.96);
-    text-align: center; line-height: 1.55;
-    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+    max-width: 100%;
+    color: rgba(246, 244, 239, 0.97);
+    text-align: center;
+    text-wrap: balance;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
   }
-  .line.jp { font-size: clamp(17px, 2.3vw, 26px); font-weight: 600; }
+  .line.jp {
+    font-size: clamp(18px, 2.35vw, 30px); font-weight: 700; line-height: 1.6;
+    letter-spacing: 0.02em;
+  }
   .line.en {
-    font-size: clamp(12px, 1.4vw, 16px); font-weight: 400;
-    color: rgba(236, 234, 228, 0.78);
+    font-size: clamp(12.5px, 1.3vw, 16px); font-weight: 450; line-height: 1.45;
+    color: rgba(236, 234, 228, 0.7);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: 0.005em;
   }
-  .tok { pointer-events: auto; cursor: pointer; border-radius: 3px;
-    padding: 0 1px; border-bottom: 2px solid transparent; }
-  .tok.new { border-bottom-color: rgba(227, 186, 99, 0.55); }
-  .tok.learning { border-bottom-color: rgba(217, 108, 79, 0.65); }
-  .tok:hover, .tok.linked-hot { background: rgba(227, 186, 99, 0.18); }
-  .tok.saved { border-bottom-color: rgba(143, 176, 209, 0.8); }
-  .en .tok { border-bottom: 1px dotted rgba(236, 234, 228, 0.35); }
-  .en .tok:hover { color: rgba(227, 186, 99, 0.9); }
+  /* The word-state mark is a drawn underline inset from both ends, so
+     neighbouring words keep a visible gap instead of fusing into one rule. */
+  .tok {
+    --mark: transparent;
+    pointer-events: auto; cursor: pointer; border-radius: 6px;
+    padding: 0 1px 3px;
+    background-image: linear-gradient(var(--mark), var(--mark));
+    background-repeat: no-repeat;
+    background-size: calc(100% - 4px) 2px;
+    background-position: 50% 100%;
+    transition: background-color 90ms ease;
+  }
+  .tok.new { --mark: rgba(240, 196, 104, 0.5); }
+  .tok.learning { --mark: rgba(236, 118, 88, 0.8); }
+  .tok.saved { --mark: rgba(128, 184, 232, 0.9); }
+  .tok:hover, .tok.linked-hot { background-color: rgba(240, 196, 104, 0.2); }
+  .en .tok { --mark: rgba(236, 234, 228, 0.28); background-size: calc(100% - 4px) 1px; padding-bottom: 2px; }
+  .en .tok:hover { color: rgba(250, 214, 138, 1); background-color: transparent; }
   .tip {
     position: fixed; z-index: 2; pointer-events: auto;
-    min-width: 220px; max-width: 340px;
-    padding: 10px 12px; border-radius: 12px;
-    background: rgba(8, 7, 10, 0.94); backdrop-filter: blur(6px);
-    border: 1px solid rgba(227, 186, 99, 0.25);
-    box-shadow: 0 8px 28px rgba(0,0,0,.55);
-    color: rgba(236, 234, 228, 0.95); text-align: left;
+    min-width: 230px; max-width: 340px;
+    padding: 12px 14px 12px; border-radius: 14px;
+    background: rgba(18, 17, 22, 0.96);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    color: rgba(246, 244, 239, 0.96); text-align: left;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     display: none;
   }
-  .tip.on { display: block; }
+  .tip.on { display: block; animation: lens-in 120ms ease-out; }
   .tip-word {
-    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
-    font-size: 22px; font-weight: 700; line-height: 1.3;
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+    font-size: 24px; font-weight: 700; line-height: 1.25;
   }
-  .tip-reading { font-size: 13px; color: rgba(227, 186, 99, 0.9); margin-top: 1px; }
-  .tip-gloss { font-size: 13px; line-height: 1.45; margin-top: 6px; }
-  .tip-meta { font-size: 11px; color: rgba(236, 234, 228, 0.5); margin-top: 6px;
+  .tip-reading { font-size: 13px; color: rgba(240, 196, 104, 0.95); margin-top: 3px; }
+  .tip-gloss { font-size: 13.5px; line-height: 1.45; margin-top: 8px; color: rgba(246, 244, 239, 0.9); }
+  .tip-meta { font-size: 11px; color: rgba(236, 234, 228, 0.5); margin-top: 8px;
     display: flex; gap: 8px; align-items: center; }
-  .tip-state { color: rgba(143, 176, 209, 0.95); }
-  .tip-actions { display: flex; gap: 6px; margin-top: 9px; }
+  .tip-state { color: rgba(128, 184, 232, 0.95); }
+  .tip-actions { display: flex; gap: 6px; margin-top: 11px; }
   .tip-btn {
-    flex: 1; padding: 5px 8px; border-radius: 8px; cursor: pointer;
-    border: 1px solid rgba(236, 234, 228, 0.16);
-    background: rgba(255,255,255,.05); color: rgba(236, 234, 228, .9);
-    font-size: 12px; font-family: inherit; transition: background 120ms;
+    flex: 1; padding: 6px 8px; border-radius: 9px; cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05); color: rgba(246, 244, 239, 0.9);
+    font-size: 12px; font-family: inherit; transition: background 120ms, border-color 120ms;
+    white-space: nowrap;
   }
-  .tip-btn:hover { background: rgba(227, 186, 99, 0.2); }
+  .tip-btn:hover { background: rgba(255, 255, 255, 0.1); }
   .tip-btn.primary {
-    border-color: rgba(227, 186, 99, 0.5); background: rgba(227, 186, 99, 0.16);
-    color: rgba(227, 186, 99, 0.95); font-weight: 600;
+    border-color: rgba(240, 196, 104, 0.55); background: rgba(240, 196, 104, 0.18);
+    color: rgba(252, 214, 134, 1); font-weight: 600;
   }
+  .tip-btn.primary:hover { background: rgba(240, 196, 104, 0.28); }
   .tip-btn kbd {
-    font-family: ui-monospace, monospace; font-size: 10px; opacity: .65;
-    border: 1px solid rgba(236,234,228,.25); border-radius: 3px; padding: 0 3px;
-    margin-left: 4px;
+    font-family: ui-monospace, monospace; font-size: 10px; opacity: .6;
+    border: 1px solid rgba(236,234,228,.25); border-radius: 4px; padding: 0 3px;
+    margin-left: 5px;
   }
-  .tip-saved { color: rgba(143, 176, 209, 0.95); font-size: 12px;
-    margin-top: 9px; font-weight: 600; }
+  .tip-saved { color: rgba(128, 184, 232, 0.95); font-size: 12px;
+    margin-top: 10px; font-weight: 600; }
   .tip-link { font-size: 11px; color: rgba(236, 234, 228, 0.55); margin-top: 4px; }
 `;
 
@@ -187,12 +216,19 @@ function ensureMounted(): void {
   parent.appendChild(host);
 }
 
+/** The video rect the Lens was last placed against, so the 500ms tick only
+ * touches the layout when the player actually moved or resized. */
+let placedFor = "";
+
 function position(): void {
   if (!lensEl || !opts) return;
   const video = opts.getVideo();
   if (!video) return;
   const r = video.getBoundingClientRect();
   if (r.width < 200 || r.height < 120) return;
+  const key = `${r.left}:${r.top}:${r.width}:${r.height}`;
+  if (key === placedFor) return;
+  placedFor = key;
   // Sit in the lower quarter of the video, above where native subs render.
   lensEl.style.left = `${r.left + r.width / 2}px`;
   lensEl.style.top = `${r.top + r.height * 0.76}px`;
@@ -465,8 +501,11 @@ export function showLensLine(
   const source: WordSource = { title: options.getTitle(), line: text, en: en || null };
   const jpSpans: (HTMLElement | null)[] = [];
 
+  const card = document.createElement("div");
+  card.className = "card";
   const jpLine = document.createElement("div");
   jpLine.className = "line jp";
+  jpLine.lang = "ja";
   tokens.forEach((tk) => {
     const entry = lookup(tk.base);
     if (!entry) {
@@ -493,7 +532,7 @@ export function showLensLine(
     jpLine.appendChild(s);
     jpSpans.push(s);
   });
-  lensEl.appendChild(jpLine);
+  card.appendChild(jpLine);
 
   if (en) {
     const glossIndex = buildGlossIndex(tokens, lookup);
@@ -530,9 +569,12 @@ export function showLensLine(
       s.addEventListener("click", (e) => { e.stopPropagation(); showTip(ctx, piece); void judgeHovered("learn"); });
       enLine.appendChild(s);
     }
-    lensEl.appendChild(enLine);
+    card.appendChild(enLine);
   }
+  lensEl.appendChild(card);
 
+  // A new line can be wider or narrower than the last: place it afresh.
+  placedFor = "";
   position();
   lensEl.classList.add("on");
   armAutoHide();

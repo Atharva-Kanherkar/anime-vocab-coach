@@ -15,6 +15,8 @@ import { MangaReader } from "@/components/app/manga-reader";
 import { StudioPanel } from "@/components/app/studio-panel";
 import { WordMangaPanel } from "@/components/app/word-manga-panel";
 import { GamificationPanel } from "@/components/gamification-panel";
+import { ReviewPanel } from "@/components/app/review-panel";
+import { ProgressOverview } from "@/components/app/progress-overview";
 import { CloudSyncPanel } from "@/components/cloud-sync-panel";
 import { CloudAutoSync } from "@/components/app/cloud-auto-sync";
 import { HelpPanel } from "@/components/app/help-panel";
@@ -25,6 +27,7 @@ import { ProHeaderEntry, UnlockMoment } from "@/components/app/pro-prompts";
 
 type SectionId =
   | "today"
+  | "review"
   | "help"
   | "coach"
   | "notebooks"
@@ -39,6 +42,7 @@ type SectionId =
 
 const NAV: { id: SectionId; label: string }[] = [
   { id: "today", label: "Today" },
+  { id: "review", label: "Review" },
   { id: "help", label: "Help" },
   { id: "coach", label: "Coach" },
   { id: "notebooks", label: "Notebooks" },
@@ -70,10 +74,14 @@ export function AppShell({
   // Pro prompts are for the free plan only: Pro, Max and gifted accounts
   // already have it (#162).
   const offerPro = billing.plan === "free";
-  const openBilling = () => {
-    setSection("billing");
-    window.location.hash = "billing";
+  // Every in-app jump writes the hash too, so the section survives a reload
+  // and the extension's #review / #progress links land on the same state.
+  const go = (id: string) => {
+    if (!NAV.some((n) => n.id === id)) return;
+    setSection(id as SectionId);
+    window.location.hash = id;
   };
+  const openBilling = () => go("billing");
 
   useEffect(() => {
     const fromHash = sectionFromHash();
@@ -102,11 +110,11 @@ export function AppShell({
             アニメVocab
           </Link>
 
-          {/* Beside the logo, not with the controls on the right: that row is
-              exactly as wide as the nav allows, and anything more wraps it. */}
+          {/* Beside the logo, not with the controls on the right. The nav has a
+              row of its own: thirteen sections no longer fit beside the logo. */}
           {offerPro && <ProHeaderEntry onOpenBilling={openBilling} />}
 
-          <nav aria-label="Sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto md:order-none md:mx-0 md:ml-auto md:w-auto">
+          <nav aria-label="Sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto md:mx-0">
             {NAV.map(({ id, label }) => {
               const active = section === id;
               return (
@@ -114,10 +122,7 @@ export function AppShell({
                   key={id}
                   type="button"
                   aria-current={active ? "page" : undefined}
-                  onClick={() => {
-                    setSection(id);
-                    window.location.hash = id;
-                  }}
+                  onClick={() => go(id)}
                   className={
                     "whitespace-nowrap border-2 px-3 py-1.5 text-[13px] font-extrabold transition " +
                     (active ? "border-ink bg-ink text-bg" : "border-transparent text-ink2 hover:text-ink")
@@ -129,7 +134,7 @@ export function AppShell({
             })}
           </nav>
 
-          <span className="ml-auto flex items-center gap-2 md:ml-0">
+          <span className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             {!DEV_NO_CLERK && <UserButton />}
           </span>
@@ -143,7 +148,10 @@ export function AppShell({
 
         <main id="main" className="mt-8 md:mt-10">
           <div hidden={section !== "today"}>
-            <AppDashboard name={name} onGo={(s) => setSection(s as SectionId)} />
+            <AppDashboard name={name} onGo={go} />
+          </div>
+          <div hidden={section !== "review"}>
+            <ReviewPanel active={section === "review"} onGo={go} />
           </div>
           <div hidden={section !== "help"}>
             <HelpPanel />
@@ -167,7 +175,10 @@ export function AppShell({
             <WordMangaPanel />
           </div>
           <div hidden={section !== "progress"}>
-            <GamificationPanel />
+            <ProgressOverview onGo={go} />
+            <div className="mt-10">
+              <GamificationPanel />
+            </div>
           </div>
           <div hidden={section !== "backup"}>
             <CloudSyncPanel />

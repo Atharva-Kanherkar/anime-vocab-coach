@@ -10,7 +10,7 @@
 // sign-in demoted out of the numbered flow. Roughly a quarter of installs were
 // uninstalling, and asking someone to make an account before they have seen a
 // single word get mined is the cheapest way to earn that.
-import { ownedWebUrl } from "../config";
+import { cloudAppUrl, ownedWebUrl } from "../config";
 import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
 import * as storage from "../lib/storage";
 import {
@@ -175,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     switch (el.dataset.act) {
       case "dashboard":
-        void chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
+        void chrome.tabs.create({ url: cloudAppUrl("progress", "welcome_dashboard") });
         break;
       case "settings":
         chrome.runtime.openOptionsPage();

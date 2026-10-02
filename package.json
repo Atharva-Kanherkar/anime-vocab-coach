@@ -22,6 +22,7 @@
     "test:e2e:copilot-keys": "node e2e/copilot-keys-lens.mjs",
     "test:e2e:onboarding": "node e2e/onboarding.mjs",
     "test:e2e:youtube": "node e2e/youtube-session.mjs",
+    "test:e2e:youtube:lens": "node e2e/youtube-lens-pot.mjs",
     "test:e2e:youtube:followups": "node e2e/youtube-followups.mjs",
     "test:e2e:learning-loop": "node e2e/learning-loop.mjs",
     "test:e2e:pro-popup": "node e2e/pro-popup.mjs",

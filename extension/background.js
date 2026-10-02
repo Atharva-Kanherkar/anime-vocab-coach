@@ -282,13 +282,29 @@
 
   // src/lib/storage.ts
   var queue2 = Promise.resolve();
+  function todayKey() {
+    return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
+  }
   function enqueue2(fn) {
     const next = queue2.then(fn, fn);
     queue2 = next.catch((err) => warn("storage error:", err));
     return next;
   }
+  function ensureDaily(stats, day) {
+    if (!stats.daily) stats.daily = {};
+    if (!stats.daily[day]) {
+      stats.daily[day] = { met: 0, judged: 0, reviews: 0, watchMin: 0 };
+    }
+    return stats.daily[day];
+  }
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
+  }
+  function sendBadge(stats) {
+    const day = todayKey();
+    const judged = stats.daily?.[day]?.judged || 0;
+    chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
+    });
   }
   function withDefaults(stored) {
     const merged = { ...DEFAULTS, ...stored };
@@ -311,6 +327,57 @@
       const settings = { ...withDefaults(r.settings || {}), ...partial };
       await chrome.storage.local.set({ settings });
       return settings;
+    });
+  }
+  function applyReviewResult(rec, passed, at) {
+    rec.lastSeenAt = Math.max(rec.lastSeenAt || 0, at);
+    if (!rec.srs) return;
+    if (passed) {
+      const newStage = rec.srs.stage + 1;
+      if (newStage > 5) {
+        rec.state = "known";
+        rec.srs = null;
+      } else {
+        rec.srs.stage = newStage;
+        rec.srs.dueAt = at + SRS_INTERVALS[newStage];
+      }
+    } else {
+      rec.srs.stage = 1;
+      rec.srs.lapses += 1;
+      rec.srs.dueAt = at + SRS_INTERVALS[1];
+    }
+  }
+  function getWebReviewSeq() {
+    return chrome.storage.local.get(["webReviewSeq"]).then((r) => {
+      const n = Number(r.webReviewSeq);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    });
+  }
+  function applyWebReviews(ops) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
+      const stored = Number(r.webReviewSeq);
+      let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
+      const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
+      if (!fresh.length) return { applied: 0, seq };
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      let applied = 0;
+      for (const op of fresh) {
+        seq = op.seq;
+        const rec = vocab[op.base];
+        if (!rec || rec.state !== "learning" || !rec.srs) continue;
+        const parsed = Date.parse(op.at);
+        const at = Number.isFinite(parsed) ? parsed : Date.now();
+        applyReviewResult(rec, op.result === "pass", at);
+        const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
+        daily.reviews += 1;
+        daily.judged += 1;
+        applied++;
+      }
+      await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
+      if (applied) sendBadge(stats);
+      return { applied, seq };
     });
   }
   function exportAll() {
@@ -472,15 +539,21 @@
   }
   var syncing = false;
   var syncQueued = false;
-  async function currentRevision(token) {
+  async function pullRevision(token) {
+    let data;
     try {
       const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
       if (!res.ok) return null;
-      const data = await res.json();
-      return data.envelope?.revision ?? null;
+      data = await res.json();
     } catch {
       return null;
     }
+    const ops = data.envelope?.webReviews;
+    if (Array.isArray(ops) && ops.length) {
+      const { applied } = await applyWebReviews(ops);
+      if (applied) log(`cloud sync: applied ${applied} review(s) from the cloud app`);
+    }
+    return data.envelope?.revision ?? null;
   }
   async function pullSettingsFromCloud() {
     const token = await getSyncToken();
@@ -530,20 +603,22 @@
     const lastSuccessAt = previousStatus.lastSuccessAt;
     await setSyncStatus({ state: "syncing", lastAttemptAt: startedAt, lastSuccessAt, error: null });
     try {
-      const exportData = await exportAll();
-      const settingsNoKey = { ...exportData.settings };
-      delete settingsNoKey.openaiKey;
-      const safeExport = { ...exportData, settings: settingsNoKey };
-      let expectedRevision = await currentRevision(token);
+      let conflictRevision = null;
       for (let attempt = 0; attempt < 2; attempt++) {
+        const expectedRevision = await pullRevision(token) ?? conflictRevision;
+        const exportData = await exportAll();
+        const settingsNoKey = { ...exportData.settings };
+        delete settingsNoKey.openaiKey;
+        const safeExport = { ...exportData, settings: settingsNoKey };
+        const appliedWebReviewSeq = await getWebReviewSeq();
         const res = await fetch(SNAPSHOT_URL, {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-          body: JSON.stringify({ export: safeExport, expectedRevision })
+          body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
         });
         if (res.status === 409) {
           const data = await res.json().catch(() => ({}));
-          expectedRevision = data.conflict?.currentRevision ?? null;
+          conflictRevision = data.conflict?.currentRevision ?? null;
           continue;
         }
         if (res.status === 401) {

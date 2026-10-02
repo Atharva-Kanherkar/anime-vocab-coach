@@ -20,6 +20,8 @@ import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-cl
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
 import { CueLedger } from "../lib/cue-ledger";
+import { cloudAppUrl } from "../config";
+import { lensPieceDelayMs, splitForLens } from "../lib/lens-lines";
 import { ONBOARDING_STORAGE_KEY, isFirstCardTransition } from "../lib/onboarding";
 import {
   captionNoticeText,
@@ -504,7 +506,7 @@ declare global {
    * needs nothing but a local tokenization, so it runs on its own, newest line
    * wins, and the cards keep their one-at-a-time pacing.
    */
-  async function renderLens(line: string, context?: LineContext): Promise<void> {
+  async function renderLens(line: string, context?: LineContext, groupSeq?: number): Promise<void> {
     const seq = ++lensSeq;
     const sessionId = currentSessionId();
     const stale = (): boolean => seq !== lensSeq || currentSessionId() !== sessionId;
@@ -524,7 +526,8 @@ declare global {
       getVideo: () => (adapter ? adapter.getVideo() : null),
       getTitle: currentTitle,
       onJudgeStart: () => {
-        judgedLensSeqs.add(seq);
+        // A piece of a paced utterance speaks for the whole utterance.
+        judgedLensSeqs.add(groupSeq ?? seq);
         if (judgedLensSeqs.size > MAX_PENDING_LINES) {
           const oldest = judgedLensSeqs.values().next().value;
           if (oldest !== undefined) judgedLensSeqs.delete(oldest);
@@ -535,6 +538,40 @@ declare global {
       },
       onJudged: () => { void refreshState(); },
     });
+  }
+
+  /** The paced Lens run in progress, if any (see showPacedLens). */
+  let lensChain = 0;
+
+  function cancelPacedLens(): void {
+    lensChain += 1;
+  }
+
+  /**
+   * Show a heard utterance in the Lens a subtitle-sized piece at a time.
+   *
+   * The whole utterance used to go up at once, a wall of text for any long
+   * line (lib/lens-lines). Each piece stays up about as long as it takes to
+   * read; a newer line, a new video or the Lens going away ends the run.
+   * Returns the Lens sequence number of the first piece, which stands for the
+   * whole utterance.
+   */
+  function showPacedLens(text: string, context: LineContext): number {
+    const pieces = splitForLens(text, studyLang());
+    if (!pieces.length) return -1;
+    cancelPacedLens();
+    const chain = lensChain;
+    const sessionId = currentSessionId();
+    const lang = studyLang();
+    let groupSeq = -1;
+    const step = (i: number): void => {
+      if (chain !== lensChain || currentSessionId() !== sessionId) return;
+      renderLens(pieces[i], context, i === 0 ? undefined : groupSeq).catch((err) => warn("sub-lens render failed:", err));
+      if (i === 0) groupSeq = lensSeq;
+      if (i + 1 < pieces.length) setTimeout(() => step(i + 1), lensPieceDelayMs(pieces[i], lang));
+    };
+    step(0);
+    return groupSeq;
   }
 
   /**
@@ -564,6 +601,7 @@ declare global {
     if (!line) return;
     let seq = opts.lensSeq ?? -1;
     if (opts.lens !== false) {
+      cancelPacedLens();
       renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
       seq = lensSeq; // renderLens claims its sequence number synchronously
     }
@@ -823,13 +861,9 @@ declare global {
     log("transcript received:", rawTranscript);
     if (typeof start === "number" && !emittedCueKeys.remember(`${start}:${rawTranscript}`)) return;
     const context: LineContext = { en: contextForAudio(a, start), fromAudio: true };
-    // The Lens shows the utterance whole, the way a subtitle would, and only
-    // while it is still the scene on screen.
-    let seq = -1;
-    if (audioLineIsCurrent(video, start, end)) {
-      renderLens(rawTranscript.replace(/\s+/g, " "), context).catch((err) => warn("sub-lens render failed:", err));
-      seq = lensSeq;
-    }
+    // The Lens shows the utterance in subtitle-sized pieces, and only while it
+    // is still the scene on screen.
+    const seq = audioLineIsCurrent(video, start, end) ? showPacedLens(rawTranscript, context) : -1;
     const direction = normalizeDirection(settings?.learningDirection);
     const segments = rawTranscript
       .split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/)
@@ -879,7 +913,10 @@ declare global {
     storage.getSettings().then((next) => {
       settings = next;
       setAdapterDirection(normalizeDirection(next.learningDirection));
-      if (!lensOn(next) || !siteEnabled(next)) hideLens();
+      if (!lensOn(next) || !siteEnabled(next)) {
+        cancelPacedLens();
+        hideLens();
+      }
       overlay.applyPanelSettings(next);
     }).catch(() => {});
   });
@@ -902,7 +939,7 @@ declare global {
       label: "Open review dashboard",
       onClick: () => {
         chrome.runtime
-          .sendMessage({ type: "avc-open-url", url: chrome.runtime.getURL("dashboard/dashboard.html") })
+          .sendMessage({ type: "avc-open-url", url: cloudAppUrl("review", "first_card_toast") })
           .catch(() => {});
       },
     });
@@ -952,6 +989,7 @@ declare global {
       lastSessionId = sid;
       targetedThisSession.clear();
       lastLine = "";
+      cancelPacedLens();
       hideLens();
       // A card and a queued line belong to the video they came from. Advancing
       // a playlist used to leave both standing, so the new video opened with

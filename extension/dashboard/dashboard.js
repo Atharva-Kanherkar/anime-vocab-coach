@@ -352,6 +352,24 @@
       });
     });
   }
+  function applyReviewResult(rec, passed, at) {
+    rec.lastSeenAt = Math.max(rec.lastSeenAt || 0, at);
+    if (!rec.srs) return;
+    if (passed) {
+      const newStage = rec.srs.stage + 1;
+      if (newStage > 5) {
+        rec.state = "known";
+        rec.srs = null;
+      } else {
+        rec.srs.stage = newStage;
+        rec.srs.dueAt = at + SRS_INTERVALS[newStage];
+      }
+    } else {
+      rec.srs.stage = 1;
+      rec.srs.lapses += 1;
+      rec.srs.dueAt = at + SRS_INTERVALS[1];
+    }
+  }
   function judgeWord(base, judgment, meta, source) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
@@ -394,24 +412,8 @@
       } else if (judgment === "ignore") {
         rec.state = "ignored";
         rec.srs = null;
-      } else if (judgment === "review-pass") {
-        if (rec.srs) {
-          const newStage = rec.srs.stage + 1;
-          if (newStage > 5) {
-            rec.state = "known";
-            rec.srs = null;
-          } else {
-            rec.srs.stage = newStage;
-            rec.srs.dueAt = now + SRS_INTERVALS[newStage];
-          }
-        }
-        daily.reviews += 1;
-      } else if (judgment === "review-fail") {
-        if (rec.srs) {
-          rec.srs.stage = 1;
-          rec.srs.lapses += 1;
-          rec.srs.dueAt = now + SRS_INTERVALS[1];
-        }
+      } else if (judgment === "review-pass" || judgment === "review-fail") {
+        applyReviewResult(rec, judgment === "review-pass", now);
         daily.reviews += 1;
       }
       if (judgment !== "dismiss") {

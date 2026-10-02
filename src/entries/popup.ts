@@ -1,4 +1,4 @@
-import { ownedWebUrl } from "../config";
+import { cloudAppUrl, ownedWebUrl } from "../config";
 import * as storage from "../lib/storage";
 import { dueCount } from "../lib/review";
 import { mountReviewPrompt } from "../lib/review-prompt-ui";
@@ -630,7 +630,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   byId("review-due").addEventListener("click", () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html#review") });
+    chrome.tabs.create({ url: cloudAppUrl("review", "popup_review") });
   });
 
   byId("settings-link").addEventListener("click", async (e) => {
