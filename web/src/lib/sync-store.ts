@@ -66,6 +66,47 @@ export async function putCloudSyncEnvelope(userId: string, envelope: CloudSyncEn
 //     repeated mints from one page load reuse the SAME token instead of writing
 //     a brand-new credential on every call.
 const SYNC_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+// The TTL used to slide only when the web app minted, so an extension-only
+// user (watching on another site, never reopening /app) was silently signed
+// out 30 days after their last web visit, with a paid or gifted plan stuck on
+// a dead credential. Using the token now slides it too, at most once a day so
+// an active extension costs two KV writes a day, not two per request.
+export const SYNC_TOKEN_TOUCH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/** What KV holds per token: the profile plus when its TTL last slid. */
+type StoredTokenProfile = CloudUserProfile & { touchedAt?: number };
+
+export function tokenNeedsTouch(stored: { touchedAt?: number }, now: number): boolean {
+  const at = stored.touchedAt;
+  return typeof at !== "number" || now - at >= SYNC_TOKEN_TOUCH_INTERVAL_MS || at > now;
+}
+
+async function putTokenRecord(
+  store: SyncKV,
+  token: string,
+  profile: CloudUserProfile,
+  { takePointer = true }: { takePointer?: boolean } = {}
+): Promise<void> {
+  const record: StoredTokenProfile = { ...profile, touchedAt: Date.now() };
+  await store.put(tokenKey(token), JSON.stringify(record), {
+    expirationTtl: SYNC_TOKEN_TTL_SECONDS,
+  });
+  if (takePointer) {
+    await store.put(userTokenKey(profile.id), token, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  }
+}
+
+// Slide a token the extension is using. The pointer is only re-taken when it
+// is ours or gone: a stale second token must not steal it from the current one,
+// or plan refreshes (which follow the pointer) would miss the live credential.
+async function touchTokenRecord(
+  store: SyncKV,
+  token: string,
+  profile: CloudUserProfile
+): Promise<void> {
+  const current = await store.get(userTokenKey(profile.id));
+  await putTokenRecord(store, token, profile, { takePointer: !current || current === token });
+}
 
 function tokenKey(token: string): string {
   return `synctoken:${token}:v1`;
@@ -90,10 +131,7 @@ export async function getOrCreateSyncToken(
   // Reuse the existing token when present, otherwise mint one. Either way,
   // refresh the token→profile record and the reverse pointer with a sliding TTL
   // so an active user's token stays alive and a stale one expires on its own.
-  await store.put(tokenKey(token), JSON.stringify(profile), {
-    expirationTtl: SYNC_TOKEN_TTL_SECONDS,
-  });
-  await store.put(pointerKey, token, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  await putTokenRecord(store, token, { ...profile, id: userId });
   return token;
 }
 
@@ -102,7 +140,16 @@ export async function getSyncTokenProfile(token: string): Promise<CloudUserProfi
   const store = await resolveStore();
   const raw = await store.get(tokenKey(token));
   if (!raw) return null;
-  return JSON.parse(raw) as CloudUserProfile;
+  const { touchedAt, ...profile } = JSON.parse(raw) as StoredTokenProfile;
+  if (tokenNeedsTouch({ touchedAt }, Date.now())) {
+    // Best effort: a failed slide must not turn a valid token into a 401.
+    try {
+      await touchTokenRecord(store, token, profile);
+    } catch (err) {
+      console.warn("[sync-store] token TTL slide failed", err);
+    }
+  }
+  return profile;
 }
 
 /**
@@ -146,8 +193,6 @@ export async function refreshSyncTokenProfile(
   const store = await resolveStore();
   const token = await store.get(userTokenKey(userId));
   if (!token) return false;
-  await store.put(tokenKey(token), JSON.stringify(profile), {
-    expirationTtl: SYNC_TOKEN_TTL_SECONDS,
-  });
+  await putTokenRecord(store, token, { ...profile, id: userId });
   return true;
 }
