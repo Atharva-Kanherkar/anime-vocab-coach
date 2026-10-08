@@ -18,6 +18,35 @@ function tokenKey(token: string): string {
   return `synctoken:${token}:v1`;
 }
 
+function userTokenKey(userId: string): string {
+  return `synctoken:user:${userId}:v1`;
+}
+
+// Mirrors web/src/lib/sync-store.ts: using a token slides its 30-day TTL, at
+// most once a day. Before this, only a web /app visit slid it, so a user who
+// only ever used Listening Mode lost their session (and their plan) a month
+// after their last visit to the site.
+const SYNC_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
+export const SYNC_TOKEN_TOUCH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+type StoredTokenProfile = CloudUserProfile & { touchedAt?: number };
+
+export function tokenNeedsTouch(stored: { touchedAt?: number }, now: number): boolean {
+  const at = stored.touchedAt;
+  return typeof at !== "number" || now - at >= SYNC_TOKEN_TOUCH_INTERVAL_MS || at > now;
+}
+
+async function touchToken(kv: KVNamespace, token: string, profile: CloudUserProfile): Promise<void> {
+  const record: StoredTokenProfile = { ...profile, touchedAt: Date.now() };
+  await kv.put(tokenKey(token), JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  // Re-take the pointer only when it is ours or gone, so a stale second token
+  // can't steal it from the one plan refreshes should reach.
+  const current = await kv.get(userTokenKey(profile.id));
+  if (!current || current === token) {
+    await kv.put(userTokenKey(profile.id), token, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  }
+}
+
 export function bearerSyncToken(req: Request): string | null {
   const h = req.headers.get("Authorization") || "";
   const m = h.match(/^Bearer\s+(avc_st_[A-Za-z0-9]+)$/);
@@ -31,7 +60,16 @@ export async function getSyncTokenProfile(
   if (!token) return null;
   const raw = await kv.get(tokenKey(token));
   if (!raw) return null;
-  return JSON.parse(raw) as CloudUserProfile;
+  const { touchedAt, ...profile } = JSON.parse(raw) as StoredTokenProfile;
+  if (tokenNeedsTouch({ touchedAt }, Date.now())) {
+    // Best effort: a failed slide must not turn a valid token into a 401.
+    try {
+      await touchToken(kv, token, profile);
+    } catch (err) {
+      console.warn("[sync-auth] token TTL slide failed", err);
+    }
+  }
+  return profile;
 }
 
 export async function requireAuth(
