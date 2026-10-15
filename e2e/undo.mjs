@@ -12,6 +12,9 @@ import { NO_PRODUCTION_ARGS, keepOffProduction } from "./support/no-production.m
 const EXT = process.argv[2] || `${process.cwd()}/extension`;
 const AXE = readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
 const results = [];
+/** What a judgment decides about a word: undo must give exactly this back. A
+ * missing word reads as the "new" it returns to (a word is never deleted). */
+const judged = (rec) => JSON.stringify({ state: rec?.state ?? "new", srs: rec?.srs ?? null });
 const check = (n, ok, d = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${n}${d ? ` — ${d}` : ""}`); };
 
 const watchPage = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>undo - YouTube</title>
@@ -88,15 +91,15 @@ try {
   check("a word card comes up", carded);
   const before = await vocab();
   await page.evaluate(() => document.getElementById("avc-overlay-host").shadowRoot.querySelector(".avc-agent-know").click());
-  let judged = null;
-  for (let i = 0; i < 40 && !judged; i++) {
+  let judgedBase = null;
+  for (let i = 0; i < 40 && !judgedBase; i++) {
     await page.waitForTimeout(100);
     const now = await vocab();
-    judged = Object.keys(now).find((k) => now[k].state === "known" && before[k]?.state !== "known") || null;
+    judgedBase = Object.keys(now).find((k) => now[k].state === "known" && before[k]?.state !== "known") || null;
   }
-  check("Know marks the carded word known", !!judged, judged || "none");
+  check("Know marks the carded word known", !!judgedBase, judgedBase || "none");
   const undoText = await page.evaluate(() => document.getElementById("avc-overlay-host").shadowRoot.querySelector(".avc-agent-undo")?.textContent || "");
-  check("the panel offers Undo for it", undoText.includes("Undo") && undoText.includes(judged), undoText);
+  check("the panel offers Undo for it", undoText.includes("Undo") && undoText.includes(judgedBase), undoText);
 
   await page.evaluate(AXE);
   const idleAxe = await page.evaluate(async () => (await window.axe.run({ include: [["#avc-overlay-host"]] },
@@ -108,9 +111,9 @@ try {
   for (let i = 0; i < 40 && !restored; i++) {
     await page.waitForTimeout(100);
     const now = await vocab();
-    restored = JSON.stringify(now[judged] ?? null) === JSON.stringify(before[judged] ?? null);
+    restored = judged(now[judgedBase]) === judged(before[judgedBase]);
   }
-  check("Undo puts the word back exactly as it was", restored);
+  check("Undo puts back the word's state and schedule", restored);
   await page.close();
 
   // ── The subtitle Lens tip ─────────────────────────────────────────────────
@@ -140,11 +143,32 @@ try {
   for (let i = 0; i < 40 && !lensRestored; i++) {
     await lensPage.waitForTimeout(100);
     const now = await vocab();
-    lensRestored = JSON.stringify(now[saved] ?? null) === JSON.stringify(lensBefore[saved] ?? null);
+    lensRestored = judged(now[saved]) === judged(lensBefore[saved]);
   }
-  check("Undo from the tip puts the word back exactly as it was", lensRestored);
+  check("Undo from the tip puts back the word's state and schedule", lensRestored);
   const offersLearnAgain = await lensPage.evaluate(() => !!document.querySelector("[data-avc-sub-lens]").shadowRoot.querySelector(".tip.on .tip-actions .tip-btn.primary"));
   check("the tip offers the judgment buttons again", offersLearnAgain);
+
+  // ── Another tab judges the word after this one: Undo must not erase that ──
+  await lensPage.evaluate(() => document.querySelector("[data-avc-sub-lens]").shadowRoot.querySelector(".tip.on .tip-actions .tip-btn.primary").click());
+  for (let i = 0; i < 40; i++) {
+    await lensPage.waitForTimeout(100);
+    if ((await vocab())[saved]?.state === "learning") break;
+  }
+  // The other tab: its Ignore lands in storage after our Learn.
+  await sw.evaluate(async (base) => {
+    const { vocab } = await chrome.storage.local.get("vocab");
+    vocab[base] = { ...vocab[base], state: "ignored", srs: null };
+    await chrome.storage.local.set({ vocab });
+  }, saved);
+  const clickedUndo = await lensPage.evaluate(() => {
+    const b = document.querySelector("[data-avc-sub-lens]").shadowRoot.querySelector(".tip.on .tip-undo");
+    b?.click();
+    return !!b;
+  });
+  check("the tip still offers Undo for its own Learn", clickedUndo);
+  await lensPage.waitForTimeout(800);
+  check("Undo refuses to overwrite a newer judgment from another tab", (await vocab())[saved]?.state === "ignored", (await vocab())[saved]?.state);
 } finally {
   await ctx.close();
 }

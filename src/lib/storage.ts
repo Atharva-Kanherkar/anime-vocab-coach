@@ -339,7 +339,12 @@ function localApplyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; se
   });
 }
 
-function localJudgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
+function localJudgeWord(
+  base: string,
+  judgment: Judgment,
+  meta: JudgmentMeta,
+  source?: WordSource | null
+): Promise<{ record: VocabRecord; undo: JudgmentUndo }> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
@@ -347,6 +352,9 @@ function localJudgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, so
     const day = todayKey();
     const daily = ensureDaily(stats, day);
     const now = Date.now();
+    // Taken here, inside the one queue, so the ticket describes exactly this
+    // judgment and nothing that raced it.
+    const before = vocab[base] ? { state: vocab[base].state, srs: vocab[base].srs ? { ...vocab[base].srs! } : null } : null;
 
     if (!vocab[base]) {
       vocab[base] = {
@@ -419,7 +427,11 @@ function localJudgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, so
       void trackFeature("review_done");
     }
     sendBadge(stats);
-    return vocab[base];
+    const after = vocab[base];
+    return {
+      record: after,
+      undo: { base, judgment, before, after: { state: after.state, srs: after.srs ? { ...after.srs } : null } },
+    };
   });
 }
 
@@ -439,38 +451,67 @@ function localImportBackup(incoming: Backup): Promise<{ added: number; updated: 
   });
 }
 
-/** What undoJudgment needs to put a word back exactly as it was. */
-export interface JudgmentUndo {
-  base: string;
-  /** The record before the judgment, or null if the judgment created it. */
-  previous: VocabRecord | null;
-  judgment: Judgment;
-  /** The day (todayKey) whose counters the judgment bumped. */
-  day: string;
+/** The part of a word a judgment decides: its state and its review schedule. */
+interface JudgedFields {
+  state: WordState;
+  srs: VocabRecord["srs"];
 }
 
+/** Issued by judgeWord, inside the writer's queue: what this one judgment
+ * changed, so undoJudgment can reverse exactly that and nothing else. */
+export interface JudgmentUndo {
+  base: string;
+  judgment: Judgment;
+  /** State and schedule before the judgment, or null if it created the word. */
+  before: JudgedFields | null;
+  /** State and schedule the judgment wrote. */
+  after: JudgedFields;
+}
+
+export type UndoResult = { undone: true } | { undone: false; reason: "changed" | "gone" };
+
+/** Field by field: chrome.storage hands objects back with their keys sorted,
+ * so a serialized comparison would call identical schedules different. */
+const sameJudged = (a: JudgedFields, b: JudgedFields): boolean =>
+  a.state === b.state &&
+  (a.srs === null || b.srs === null
+    ? a.srs === b.srs
+    : a.srs.stage === b.srs.stage && a.srs.dueAt === b.srs.dueAt && a.srs.lapses === b.srs.lapses);
+
 /**
- * Take back one judgment (ISO 25010 usability: user error protection). A
- * mis-click on Know or Ignore used to be permanent: the word left the review
- * pipeline with no way back short of finding it again. This restores the
- * record and backs the day's counters out; the beacon already sent stays sent.
+ * Take back one judgment (ISO 25010 usability: user error protection).
+ *
+ * Reverses only what the judgment decided (state and review schedule) and only
+ * if the word still holds what it wrote: if another tab, a review or a web
+ * review has judged it since, nothing is undone (review of #172, finding 4).
+ * Sightings, counts and the source line recorded meanwhile are kept.
+ *
+ * The reversal is written as a newer version (lastSeenAt moves forward), so it
+ * wins the cloud merge, which keeps the most recently seen copy of a word; a
+ * restored older copy lost to the judged one already synced (finding 5). For
+ * the same reason a word the judgment created is not deleted (the cloud has no
+ * deletions) but goes back to "new", outside the deck. The day's judged and
+ * review counts are left alone: they are activity counters merged by maximum
+ * across devices, so a local decrement could never reach the cloud and would
+ * only make the two disagree.
  */
-function localUndoJudgment(undo: JudgmentUndo): Promise<void> {
+function localUndoJudgment(undo: JudgmentUndo): Promise<UndoResult> {
   return enqueue(async () => {
-    const r = await chrome.storage.local.get(["vocab", "stats"]);
+    const r = await chrome.storage.local.get(["vocab"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
-    const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
-    if (undo.previous) vocab[undo.base] = undo.previous;
-    else delete vocab[undo.base];
-    const daily = stats.daily?.[undo.day];
-    if (daily && undo.judgment !== "dismiss") {
-      daily.judged = Math.max(0, (daily.judged || 0) - 1);
-      if (undo.judgment === "review-pass" || undo.judgment === "review-fail") {
-        daily.reviews = Math.max(0, (daily.reviews || 0) - 1);
-      }
+    const current = vocab[undo.base];
+    if (!current) return { undone: false, reason: "gone" } as const;
+    if (!sameJudged({ state: current.state, srs: current.srs }, undo.after)) {
+      return { undone: false, reason: "changed" } as const;
     }
-    await chrome.storage.local.set({ vocab, stats });
-    sendBadge(stats);
+    vocab[undo.base] = {
+      ...current,
+      state: undo.before ? undo.before.state : "new",
+      srs: undo.before?.srs ? { ...undo.before.srs } : null,
+      lastSeenAt: Math.max(current.lastSeenAt + 1, Date.now()),
+    };
+    await chrome.storage.local.set({ vocab });
+    return { undone: true } as const;
   });
 }
 
@@ -852,7 +893,17 @@ export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; 
   return write("applyWebReviews", ops);
 }
 
-export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
+export async function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
+  return (await write("judgeWord", base, judgment, meta, source ?? null)).record;
+}
+
+/** judgeWord, plus the ticket that undoes exactly this judgment. */
+export function judgeWordUndoable(
+  base: string,
+  judgment: Judgment,
+  meta: JudgmentMeta,
+  source?: WordSource | null
+): Promise<{ record: VocabRecord; undo: JudgmentUndo }> {
   return write("judgeWord", base, judgment, meta, source ?? null);
 }
 
@@ -860,7 +911,7 @@ export function recordCardShown(base: string): Promise<void> {
   return write("recordCardShown", base);
 }
 
-export function undoJudgment(undo: JudgmentUndo): Promise<void> {
+export function undoJudgment(undo: JudgmentUndo): Promise<UndoResult> {
   return write("undoJudgment", undo);
 }
 

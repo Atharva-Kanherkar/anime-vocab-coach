@@ -889,6 +889,7 @@
       const day = todayKey();
       const daily = ensureDaily(stats, day);
       const now = Date.now();
+      const before = vocab[base] ? { state: vocab[base].state, srs: vocab[base].srs ? { ...vocab[base].srs } : null } : null;
       if (!vocab[base]) {
         vocab[base] = {
           state: "new",
@@ -946,7 +947,11 @@
         void trackFeature("review_done");
       }
       sendBadge(stats);
-      return vocab[base];
+      const after = vocab[base];
+      return {
+        record: after,
+        undo: { base, judgment, before, after: { state: after.state, srs: after.srs ? { ...after.srs } : null } }
+      };
     });
   }
   function localImportBackup(incoming) {
@@ -962,22 +967,24 @@
       return { added, updated };
     });
   }
+  var sameJudged = (a, b) => a.state === b.state && (a.srs === null || b.srs === null ? a.srs === b.srs : a.srs.stage === b.srs.stage && a.srs.dueAt === b.srs.dueAt && a.srs.lapses === b.srs.lapses);
   function localUndoJudgment(undo) {
     return enqueue2(async () => {
-      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const r = await chrome.storage.local.get(["vocab"]);
       const vocab = r.vocab || {};
-      const stats = r.stats || emptyStats();
-      if (undo.previous) vocab[undo.base] = undo.previous;
-      else delete vocab[undo.base];
-      const daily = stats.daily?.[undo.day];
-      if (daily && undo.judgment !== "dismiss") {
-        daily.judged = Math.max(0, (daily.judged || 0) - 1);
-        if (undo.judgment === "review-pass" || undo.judgment === "review-fail") {
-          daily.reviews = Math.max(0, (daily.reviews || 0) - 1);
-        }
+      const current2 = vocab[undo.base];
+      if (!current2) return { undone: false, reason: "gone" };
+      if (!sameJudged({ state: current2.state, srs: current2.srs }, undo.after)) {
+        return { undone: false, reason: "changed" };
       }
-      await chrome.storage.local.set({ vocab, stats });
-      sendBadge(stats);
+      vocab[undo.base] = {
+        ...current2,
+        state: undo.before ? undo.before.state : "new",
+        srs: undo.before?.srs ? { ...undo.before.srs } : null,
+        lastSeenAt: Math.max(current2.lastSeenAt + 1, Date.now())
+      };
+      await chrome.storage.local.set({ vocab });
+      return { undone: true };
     });
   }
   function localRecordCardShown(base) {
@@ -1052,7 +1059,7 @@
     const words = seenWords(tokens, wordStates || {}, targetedSet ?? /* @__PURE__ */ new Set(), direction, overlay);
     return words.length ? write("recordSeen", words) : Promise.resolve();
   }
-  function judgeWord(base, judgment, meta, source) {
+  function judgeWordUndoable(base, judgment, meta, source) {
     return write("judgeWord", base, judgment, meta, source ?? null);
   }
   function recordCardShown(base) {
@@ -3440,8 +3447,8 @@
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       btn.disabled = true;
-      void onUndo().then(() => {
-        label.textContent = "Undone.";
+      void onUndo().then((outcome) => {
+        label.textContent = outcome;
         btn.remove();
       }).catch(() => {
         btn.disabled = false;
@@ -4330,17 +4337,18 @@
     b.addEventListener("click", (e) => {
       e.stopPropagation();
       void (async () => {
-        await undoJudgment(undo);
+        const result = await undoJudgment(undo);
         if (lastUndo === undo) lastUndo = null;
+        const rec = await getWord(undo.base);
         const next = { ...vocabSnapshot };
-        if (undo.previous) next[undo.base] = undo.previous;
-        else delete next[undo.base];
+        if (rec) next[undo.base] = rec;
         vocabSnapshot = next;
         ctx.el.classList.remove("saved", "new", "learning");
         const cls = tokenClass(undo.base);
         if (cls) ctx.el.classList.add(cls);
+        if (!result.undone) log("sub-lens undo refused:", undo.base, result.reason);
         if (hover === ctx && ctx.el.isConnected) showTip(ctx);
-        log("sub-lens undo:", undo.base, undo.judgment);
+        log("sub-lens undo:", undo.base, undo.judgment, result.undone);
       })();
     });
     return b;
@@ -4351,10 +4359,8 @@
     judgmentsInFlight.add(ctx.base);
     try {
       opts?.onJudgeStart?.();
-      const previous = await getWord(ctx.base);
-      const day = todayKey();
-      await judgeWord(ctx.base, judgment, ctx.meta, ctx.source);
-      lastUndo = { base: ctx.base, previous, judgment, day };
+      const { undo } = await judgeWordUndoable(ctx.base, judgment, ctx.meta, ctx.source);
+      lastUndo = undo;
       const state = judgment === "learn" ? "learning" : judgment === "know" ? "known" : "ignored";
       vocabSnapshot = { ...vocabSnapshot, [ctx.base]: { ...vocabSnapshot[ctx.base] || {}, state } };
       ctx.el.classList.remove("new", "learning");
@@ -5645,13 +5651,12 @@
           en: context?.en || null
         };
         const base = target.token.base;
-        const previous = await getWord(base);
-        const day = todayKey();
-        await judgeWord(base, judgment, meta, source);
+        const { undo } = await judgeWordUndoable(base, judgment, meta, source);
         await refreshState();
         offerUndo(`${base}: ${JUDGMENT_DONE[judgment] ?? "saved"}`, async () => {
-          await undoJudgment({ base, previous, judgment, day });
+          const result = await undoJudgment(undo);
           await refreshState();
+          return result.undone ? "Undone." : "Can't undo: this word was changed since.";
         });
       }
     }

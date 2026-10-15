@@ -1751,7 +1751,7 @@ function buildShell(root: ShadowRoot): Shell {
  * user error protection). Shown in the panel's idle area, where the card was,
  * until the next card replaces it; a mis-click on Know or Skip used to be final.
  */
-export function offerUndo(text: string, onUndo: () => Promise<void>): void {
+export function offerUndo(text: string, onUndo: () => Promise<string>): void {
   if (!shell) return;
   clearUndo();
   const row = document.createElement("div");
@@ -1766,8 +1766,8 @@ export function offerUndo(text: string, onUndo: () => Promise<void>): void {
     e.stopPropagation();
     btn.disabled = true;
     void onUndo()
-      .then(() => {
-        label.textContent = "Undone.";
+      .then((outcome) => {
+        label.textContent = outcome;
         btn.remove();
       })
       .catch(() => {

@@ -655,6 +655,7 @@
       const day = todayKey();
       const daily = ensureDaily(stats, day);
       const now = Date.now();
+      const before = vocab[base] ? { state: vocab[base].state, srs: vocab[base].srs ? { ...vocab[base].srs } : null } : null;
       if (!vocab[base]) {
         vocab[base] = {
           state: "new",
@@ -712,7 +713,11 @@
         void trackFeature("review_done");
       }
       sendBadge(stats);
-      return vocab[base];
+      const after = vocab[base];
+      return {
+        record: after,
+        undo: { base, judgment, before, after: { state: after.state, srs: after.srs ? { ...after.srs } : null } }
+      };
     });
   }
   function localImportBackup(incoming) {
@@ -728,22 +733,24 @@
       return { added, updated };
     });
   }
+  var sameJudged = (a, b) => a.state === b.state && (a.srs === null || b.srs === null ? a.srs === b.srs : a.srs.stage === b.srs.stage && a.srs.dueAt === b.srs.dueAt && a.srs.lapses === b.srs.lapses);
   function localUndoJudgment(undo) {
     return enqueue2(async () => {
-      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const r = await chrome.storage.local.get(["vocab"]);
       const vocab = r.vocab || {};
-      const stats = r.stats || emptyStats();
-      if (undo.previous) vocab[undo.base] = undo.previous;
-      else delete vocab[undo.base];
-      const daily = stats.daily?.[undo.day];
-      if (daily && undo.judgment !== "dismiss") {
-        daily.judged = Math.max(0, (daily.judged || 0) - 1);
-        if (undo.judgment === "review-pass" || undo.judgment === "review-fail") {
-          daily.reviews = Math.max(0, (daily.reviews || 0) - 1);
-        }
+      const current = vocab[undo.base];
+      if (!current) return { undone: false, reason: "gone" };
+      if (!sameJudged({ state: current.state, srs: current.srs }, undo.after)) {
+        return { undone: false, reason: "changed" };
       }
-      await chrome.storage.local.set({ vocab, stats });
-      sendBadge(stats);
+      vocab[undo.base] = {
+        ...current,
+        state: undo.before ? undo.before.state : "new",
+        srs: undo.before?.srs ? { ...undo.before.srs } : null,
+        lastSeenAt: Math.max(current.lastSeenAt + 1, Date.now())
+      };
+      await chrome.storage.local.set({ vocab });
+      return { undone: true };
     });
   }
   function localRecordCardShown(base) {

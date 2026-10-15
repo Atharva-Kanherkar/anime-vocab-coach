@@ -484,13 +484,12 @@ declare global {
         en: context?.en || null
       };
       const base = target.token.base;
-      const previous = await storage.getWord(base);
-      const day = storage.todayKey();
-      await storage.judgeWord(base, judgment, meta, source);
+      const { undo } = await storage.judgeWordUndoable(base, judgment, meta, source);
       await refreshState();
       overlay.offerUndo(`${base}: ${JUDGMENT_DONE[judgment] ?? "saved"}`, async () => {
-        await storage.undoJudgment({ base, previous, judgment, day });
+        const result = await storage.undoJudgment(undo);
         await refreshState();
+        return result.undone ? "Undone." : "Can't undo: this word was changed since.";
       });
     }
   }

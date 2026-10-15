@@ -458,17 +458,20 @@ function undoButton(ctx: HoverContext, undo: storage.JudgmentUndo): HTMLButtonEl
   b.addEventListener("click", (e) => {
     e.stopPropagation();
     void (async () => {
-      await storage.undoJudgment(undo);
+      const result = await storage.undoJudgment(undo);
       if (lastUndo === undo) lastUndo = null;
+      // Read the word back rather than guessing: the worker kept anything that
+      // changed it since, and refuses when another judgment got there first.
+      const rec = await storage.getWord(undo.base);
       const next = { ...vocabSnapshot };
-      if (undo.previous) next[undo.base] = undo.previous;
-      else delete next[undo.base];
+      if (rec) next[undo.base] = rec;
       vocabSnapshot = next;
       ctx.el.classList.remove("saved", "new", "learning");
       const cls = tokenClass(undo.base);
       if (cls) ctx.el.classList.add(cls);
+      if (!result.undone) log("sub-lens undo refused:", undo.base, result.reason);
       if (hover === ctx && ctx.el.isConnected) showTip(ctx);
-      log("sub-lens undo:", undo.base, undo.judgment);
+      log("sub-lens undo:", undo.base, undo.judgment, result.undone);
     })();
   });
   return b;
@@ -480,10 +483,8 @@ async function judgeHovered(judgment: Judgment): Promise<void> {
   judgmentsInFlight.add(ctx.base);
   try {
     opts?.onJudgeStart?.();
-    const previous = await storage.getWord(ctx.base);
-    const day = storage.todayKey();
-    await storage.judgeWord(ctx.base, judgment, ctx.meta, ctx.source);
-    lastUndo = { base: ctx.base, previous, judgment, day };
+    const { undo } = await storage.judgeWordUndoable(ctx.base, judgment, ctx.meta, ctx.source);
+    lastUndo = undo;
     const state = judgment === "learn" ? "learning" : judgment === "know" ? "known" : "ignored";
     vocabSnapshot = { ...vocabSnapshot, [ctx.base]: { ...(vocabSnapshot[ctx.base] || {}), state } as VocabMap[string] };
     ctx.el.classList.remove("new", "learning");
