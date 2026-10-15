@@ -41,233 +41,6 @@
     return null;
   }
 
-  // src/lib/dictionary.ts
-  var data = null;
-  function lookup(base) {
-    if (!data) return null;
-    const entry = data[base];
-    if (!entry) return null;
-    return {
-      reading: entry.r,
-      glosses: entry.g,
-      level: entry.l,
-      freqRank: entry.f
-    };
-  }
-
-  // src/lib/priority-words.ts
-  var ESSENTIAL_WORDS = {
-    \u3042\u308A\u304C\u3068\u3046: { boost: 0.38, jlpt: "N5" },
-    \u3069\u3046\u3082: { boost: 0.28, jlpt: "N5" },
-    \u3059\u307F\u307E\u305B\u3093: { boost: 0.36, jlpt: "N5" },
-    \u3054\u3081\u3093: { boost: 0.3, jlpt: "N5" },
-    \u3054\u3081\u3093\u306A\u3055\u3044: { boost: 0.34, jlpt: "N5" },
-    \u304A\u9858\u3044: { boost: 0.34, jlpt: "N5" },
-    \u304A\u9858\u3044\u3057\u307E\u3059: { boost: 0.4, jlpt: "N5" },
-    \u304F\u3060\u3055\u3044: { boost: 0.32, jlpt: "N5" },
-    \u304A\u306F\u3088\u3046: { boost: 0.3, jlpt: "N5" },
-    \u3053\u3093\u306B\u3061\u306F: { boost: 0.3, jlpt: "N5" },
-    \u3053\u3093\u3070\u3093\u306F: { boost: 0.28, jlpt: "N5" },
-    \u3055\u3088\u3046\u306A\u3089: { boost: 0.26, jlpt: "N5" },
-    \u3058\u3083\u3042\u306D: { boost: 0.24, jlpt: "N5" },
-    \u304A\u3084\u3059\u307F: { boost: 0.28, jlpt: "N5" },
-    \u306F\u3044: { boost: 0.22, jlpt: "N5" },
-    \u3044\u3044\u3048: { boost: 0.22, jlpt: "N5" },
-    \u5927\u4E08\u592B: { boost: 0.32, jlpt: "N5" },
-    \u5206\u304B\u308B: { boost: 0.3, jlpt: "N5" },
-    \u5206\u304B\u3089\u306A\u3044: { boost: 0.3, jlpt: "N5" },
-    \u597D\u304D: { boost: 0.28, jlpt: "N5" },
-    \u5ACC\u3044: { boost: 0.24, jlpt: "N5" },
-    \u6B32\u3057\u3044: { boost: 0.28, jlpt: "N5" },
-    \u884C\u304F: { boost: 0.26, jlpt: "N5" },
-    \u6765\u308B: { boost: 0.26, jlpt: "N5" },
-    \u898B\u308B: { boost: 0.24, jlpt: "N5" },
-    \u805E\u304F: { boost: 0.26, jlpt: "N5" },
-    \u8A00\u3046: { boost: 0.26, jlpt: "N5" },
-    \u98DF\u3079\u308B: { boost: 0.28, jlpt: "N5" },
-    \u98F2\u3080: { boost: 0.26, jlpt: "N5" },
-    \u52C9\u5F37: { boost: 0.24, jlpt: "N5" },
-    \u5B66\u6821: { boost: 0.24, jlpt: "N5" },
-    \u5148\u751F: { boost: 0.26, jlpt: "N5" },
-    \u53CB\u9054: { boost: 0.26, jlpt: "N5" },
-    \u540D\u524D: { boost: 0.24, jlpt: "N5" },
-    \u672C\u5F53: { boost: 0.28, jlpt: "N5" },
-    \u30DE\u30B8: { boost: 0.22, jlpt: "N5" },
-    \u3084\u3070\u3044: { boost: 0.24, jlpt: "N5" },
-    \u9811\u5F35\u308B: { boost: 0.28, jlpt: "N5" },
-    \u5F85\u3064: { boost: 0.24, jlpt: "N4" },
-    \u601D\u3046: { boost: 0.24, jlpt: "N4" },
-    \u77E5\u308B: { boost: 0.26, jlpt: "N5" },
-    \u4F1A\u3046: { boost: 0.24, jlpt: "N5" }
-  };
-  function isEssentialWord(base) {
-    return base in ESSENTIAL_WORDS;
-  }
-
-  // src/lib/english-essentials.ts
-  var ENGLISH_ESSENTIALS = {
-    please: { gloss: "\u304A\u9858\u3044\u3057\u307E\u3059\uFF0F\u3069\u3046\u305E", level: 5 },
-    thanks: { gloss: "\u3042\u308A\u304C\u3068\u3046", level: 5 },
-    thank: { gloss: "\u611F\u8B1D\u3059\u308B", level: 5 },
-    sorry: { gloss: "\u3054\u3081\u3093\uFF0F\u3059\u307F\u307E\u305B\u3093", level: 5 },
-    hello: { gloss: "\u3053\u3093\u306B\u3061\u306F", level: 5 },
-    goodbye: { gloss: "\u3055\u3088\u3046\u306A\u3089", level: 5 },
-    love: { gloss: "\u611B\u3059\u308B\uFF0F\u5927\u597D\u304D", level: 5 },
-    like: { gloss: "\u597D\u304D\uFF0F\u301C\u307F\u305F\u3044", level: 5 },
-    want: { gloss: "\u6B32\u3057\u3044\uFF0F\u3057\u305F\u3044", level: 5 },
-    need: { gloss: "\u5FC5\u8981\u3060", level: 5 },
-    know: { gloss: "\u77E5\u3063\u3066\u3044\u308B", level: 5 },
-    think: { gloss: "\u601D\u3046", level: 5 },
-    feel: { gloss: "\u611F\u3058\u308B", level: 5 },
-    come: { gloss: "\u6765\u308B", level: 5 },
-    go: { gloss: "\u884C\u304F", level: 5 },
-    see: { gloss: "\u898B\u308B", level: 5 },
-    look: { gloss: "\u898B\u308B\uFF0F\u69D8\u5B50", level: 5 },
-    hear: { gloss: "\u805E\u304F", level: 5 },
-    listen: { gloss: "\u8033\u3092\u50BE\u3051\u308B", level: 5 },
-    speak: { gloss: "\u8A71\u3059", level: 5 },
-    talk: { gloss: "\u8A71\u3059", level: 5 },
-    say: { gloss: "\u8A00\u3046", level: 5 },
-    tell: { gloss: "\u4F1D\u3048\u308B", level: 5 },
-    ask: { gloss: "\u5C0B\u306D\u308B", level: 5 },
-    give: { gloss: "\u4E0E\u3048\u308B", level: 5 },
-    take: { gloss: "\u53D6\u308B", level: 5 },
-    make: { gloss: "\u4F5C\u308B", level: 5 },
-    get: { gloss: "\u5F97\u308B\uFF0F\u306A\u308B", level: 5 },
-    find: { gloss: "\u898B\u3064\u3051\u308B", level: 5 },
-    help: { gloss: "\u52A9\u3051\u308B", level: 5 },
-    wait: { gloss: "\u5F85\u3064", level: 5 },
-    stop: { gloss: "\u6B62\u3081\u308B", level: 5 },
-    start: { gloss: "\u59CB\u3081\u308B", level: 5 },
-    leave: { gloss: "\u53BB\u308B", level: 5 },
-    stay: { gloss: "\u6B8B\u308B\uFF0F\u6CCA\u307E\u308B", level: 5 },
-    open: { gloss: "\u958B\u3051\u308B\uFF0F\u958B\u3044\u305F", level: 5 },
-    close: { gloss: "\u9589\u3081\u308B\uFF0F\u8FD1\u3044", level: 4 },
-    friend: { gloss: "\u53CB\u9054", level: 5 },
-    family: { gloss: "\u5BB6\u65CF", level: 5 },
-    school: { gloss: "\u5B66\u6821", level: 5 },
-    home: { gloss: "\u5BB6", level: 5 },
-    house: { gloss: "\u5BB6\uFF0F\u4F4F\u5B85", level: 5 },
-    world: { gloss: "\u4E16\u754C", level: 5 },
-    life: { gloss: "\u4EBA\u751F\uFF0F\u751F\u6D3B", level: 5 },
-    time: { gloss: "\u6642\u9593", level: 5 },
-    day: { gloss: "\u65E5\uFF0F\u663C\u9593", level: 5 },
-    night: { gloss: "\u591C", level: 5 },
-    morning: { gloss: "\u671D", level: 5 },
-    today: { gloss: "\u4ECA\u65E5", level: 5 },
-    tomorrow: { gloss: "\u660E\u65E5", level: 5 },
-    yesterday: { gloss: "\u6628\u65E5", level: 5 },
-    people: { gloss: "\u4EBA\u3005", level: 5 },
-    person: { gloss: "\u4EBA", level: 5 },
-    man: { gloss: "\u7537\uFF0F\u4EBA", level: 5 },
-    woman: { gloss: "\u5973", level: 5 },
-    child: { gloss: "\u5B50\u4F9B", level: 5 },
-    kid: { gloss: "\u5B50\u4F9B", level: 5 },
-    boy: { gloss: "\u5C11\u5E74", level: 5 },
-    girl: { gloss: "\u5C11\u5973", level: 5 },
-    heart: { gloss: "\u5FC3\uFF0F\u5FC3\u81D3", level: 4 },
-    dream: { gloss: "\u5922", level: 4 },
-    power: { gloss: "\u529B", level: 4 },
-    fight: { gloss: "\u6226\u3046\uFF0F\u55A7\u5629", level: 4 },
-    battle: { gloss: "\u6226\u3044", level: 4 },
-    enemy: { gloss: "\u6575", level: 4 },
-    danger: { gloss: "\u5371\u967A", level: 4 },
-    safe: { gloss: "\u5B89\u5168\u306A", level: 4 },
-    truth: { gloss: "\u771F\u5B9F", level: 4 },
-    lie: { gloss: "\u5618", level: 4 },
-    secret: { gloss: "\u79D8\u5BC6", level: 4 },
-    promise: { gloss: "\u7D04\u675F", level: 4 },
-    believe: { gloss: "\u4FE1\u3058\u308B", level: 4 },
-    remember: { gloss: "\u899A\u3048\u3066\u3044\u308B", level: 4 },
-    forget: { gloss: "\u5FD8\u308C\u308B", level: 4 },
-    understand: { gloss: "\u7406\u89E3\u3059\u308B", level: 4 },
-    change: { gloss: "\u5909\u3048\u308B\uFF0F\u5909\u5316", level: 4 },
-    happen: { gloss: "\u8D77\u3053\u308B", level: 4 },
-    forever: { gloss: "\u6C38\u9060\u306B", level: 3 },
-    together: { gloss: "\u4E00\u7DD2\u306B", level: 5 },
-    alone: { gloss: "\u4E00\u4EBA\u3067", level: 5 },
-    always: { gloss: "\u3044\u3064\u3082", level: 5 },
-    never: { gloss: "\u6C7A\u3057\u3066\u301C\u306A\u3044", level: 5 },
-    really: { gloss: "\u672C\u5F53\u306B", level: 5 },
-    maybe: { gloss: "\u305F\u3076\u3093", level: 5 },
-    because: { gloss: "\u306A\u305C\u306A\u3089", level: 5 },
-    right: { gloss: "\u6B63\u3057\u3044\uFF0F\u53F3", level: 5 },
-    wrong: { gloss: "\u9593\u9055\u3063\u305F", level: 5 },
-    good: { gloss: "\u826F\u3044", level: 5 },
-    bad: { gloss: "\u60AA\u3044", level: 5 },
-    great: { gloss: "\u7D20\u6674\u3089\u3057\u3044", level: 5 },
-    beautiful: { gloss: "\u7F8E\u3057\u3044", level: 4 },
-    happy: { gloss: "\u5E78\u305B\u306A", level: 5 },
-    sad: { gloss: "\u60B2\u3057\u3044", level: 5 },
-    angry: { gloss: "\u6012\u3063\u305F", level: 4 },
-    scared: { gloss: "\u6016\u304C\u3063\u3066\u3044\u308B", level: 4 },
-    strong: { gloss: "\u5F37\u3044", level: 5 },
-    weak: { gloss: "\u5F31\u3044", level: 5 },
-    important: { gloss: "\u5927\u5207\u306A", level: 4 },
-    different: { gloss: "\u9055\u3046", level: 4 },
-    same: { gloss: "\u540C\u3058", level: 5 }
-  };
-
-  // src/lib/direction.ts
-  function normalizeDirection(value) {
-    return value === "ja-en" ? "ja-en" : "en-ja";
-  }
-
-  // src/lib/scoring.ts
-  var ELIGIBLE_POS = ["\u540D\u8A5E", "\u52D5\u8A5E", "\u5F62\u5BB9\u8A5E", "\u526F\u8A5E", "CONTENT"];
-  var EXCLUDED_NOUN_POS1 = ["\u4EE3\u540D\u8A5E", "\u6570", "\u63A5\u5C3E", "\u975E\u81EA\u7ACB", "\u56FA\u6709\u540D\u8A5E"];
-  function hasKanji(base) {
-    return /[\u4E00-\u9FFF]/.test(base);
-  }
-  function lookupForDirection(base, direction, overlay) {
-    if (overlay?.[base]) return overlay[base];
-    if (normalizeDirection(direction) === "ja-en") {
-      const hit = ENGLISH_ESSENTIALS[base];
-      if (!hit) return null;
-      return {
-        reading: "",
-        glosses: [hit.gloss],
-        level: hit.level,
-        freqRank: Math.round((6 - hit.level) * 2e3)
-      };
-    }
-    return lookup(base);
-  }
-  function checkEligibility(token, wordStates, targetedSet, now = Date.now(), direction = "en-ja", overlay) {
-    const { base, pos, pos1 } = token;
-    const dir = normalizeDirection(direction);
-    const isEnglish = dir === "ja-en" || pos === "CONTENT";
-    if (!ELIGIBLE_POS.includes(pos)) {
-      return { eligible: false, countSeen: false };
-    }
-    if (!isEnglish && pos === "\u540D\u8A5E" && EXCLUDED_NOUN_POS1.includes(pos1)) {
-      return { eligible: false, countSeen: false };
-    }
-    if (!isEnglish && base.length < 2 && !hasKanji(base) && !isEssentialWord(base)) {
-      return { eligible: false, countSeen: false };
-    }
-    if (isEnglish && base.length < 2) {
-      return { eligible: false, countSeen: false };
-    }
-    const entry = lookupForDirection(base, dir, overlay);
-    if (!entry) {
-      return { eligible: false, countSeen: false };
-    }
-    const rec = wordStates[base];
-    const state = rec?.state;
-    if (state === "known" || state === "ignored") {
-      return { eligible: false, countSeen: true, entry };
-    }
-    if (state === "learning") {
-      const due = !!rec?.srs && rec.srs.dueAt <= now;
-      if (!due) return { eligible: false, countSeen: true, entry };
-    }
-    if (targetedSet && targetedSet.has(base)) {
-      return { eligible: false, countSeen: true, entry };
-    }
-    return { eligible: true, countSeen: true, entry };
-  }
-
   // src/lib/review-prompt.ts
   var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
 
@@ -594,28 +367,21 @@
       await chrome.storage.local.set({ vocab });
     });
   }
-  function localRecordSeen(tokens, targeted, direction = "en-ja", overlay) {
+  function localRecordSeen(words) {
     return enqueue2(async () => {
+      if (!words.length) return;
       const r = await chrome.storage.local.get(["vocab", "stats"]);
-      const wordStates = r.vocab || {};
-      const targetedSet = new Set(targeted);
-      const vocab = { ...wordStates };
+      const vocab = { ...r.vocab || {} };
       const stats = r.stats || emptyStats();
-      const day = todayKey();
-      const daily = ensureDaily(stats, day);
-      let changed = false;
-      for (const token of tokens) {
-        const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
-        if (!eligibility.countSeen) continue;
-        const entry = lookupForDirection(token.base, direction, overlay);
-        if (!entry) continue;
-        if (!vocab[token.base]) {
-          vocab[token.base] = {
+      const daily = ensureDaily(stats, todayKey());
+      for (const w of words) {
+        if (!vocab[w.base]) {
+          vocab[w.base] = {
             state: "new",
-            reading: entry.reading,
-            gloss: entry.glosses[0] || "",
-            level: entry.level,
-            freqRank: entry.freqRank,
+            reading: w.reading,
+            gloss: w.gloss,
+            level: w.level,
+            freqRank: w.freqRank,
             seenCount: 1,
             shownCount: 0,
             firstSeenAt: Date.now(),
@@ -623,17 +389,13 @@
             srs: null
           };
           daily.met += 1;
-          changed = true;
         } else {
-          vocab[token.base].seenCount += 1;
-          vocab[token.base].lastSeenAt = Date.now();
-          changed = true;
+          vocab[w.base].seenCount += 1;
+          vocab[w.base].lastSeenAt = Date.now();
         }
       }
-      if (changed) {
-        await chrome.storage.local.set({ vocab, stats });
-        void stampOnboarding("watchedAt");
-      }
+      await chrome.storage.local.set({ vocab, stats });
+      void stampOnboarding("watchedAt");
     });
   }
   function applyReviewResult(rec, passed, at) {
@@ -989,20 +751,20 @@
   var syncing = false;
   var syncQueued = false;
   async function pullRevision(token) {
-    let data2;
+    let data;
     try {
       const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token }, signal: timeout("quick") });
       if (!res.ok) return null;
-      data2 = await res.json();
+      data = await res.json();
     } catch {
       return null;
     }
-    const ops = data2.envelope?.webReviews;
+    const ops = data.envelope?.webReviews;
     if (Array.isArray(ops) && ops.length) {
       const { applied } = await applyWebReviews(ops);
       if (applied) log(`cloud sync: applied ${applied} review(s) from the cloud app`);
     }
-    return data2.envelope?.revision ?? null;
+    return data.envelope?.revision ?? null;
   }
   async function pullSettingsFromCloud() {
     const token = await getSyncToken();
@@ -1015,8 +777,8 @@
       }
       if (!res.ok) return;
       await noteSyncSuccess();
-      const data2 = await res.json();
-      const raw = data2.envelope?.snapshot?.settings;
+      const data = await res.json();
+      const raw = data.envelope?.snapshot?.settings;
       if (!raw || typeof raw !== "object") return;
       const partial = { ...raw };
       if (partial.pauseMode === "notify") partial.pauseMode = "copilot";
@@ -1067,8 +829,8 @@
           body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
         });
         if (res.status === 409) {
-          const data2 = await res.json().catch(() => ({}));
-          conflictRevision = data2.conflict?.currentRevision ?? null;
+          const data = await res.json().catch(() => ({}));
+          conflictRevision = data.conflict?.currentRevision ?? null;
           continue;
         }
         if (res.status === 401) {
@@ -1129,10 +891,10 @@
   function interpretMintResponse(httpStatus, body) {
     if (httpStatus === 401 || httpStatus === 403) return { status: "signed-out" };
     if (httpStatus < 200 || httpStatus >= 300) return { status: "error", detail: `HTTP ${httpStatus}` };
-    const data2 = body || {};
-    const token = typeof data2.token === "string" ? data2.token : "";
+    const data = body || {};
+    const token = typeof data.token === "string" ? data.token : "";
     if (!token) return { status: "error", detail: "no token in response" };
-    const p = data2.profile && typeof data2.profile === "object" ? data2.profile : {};
+    const p = data.profile && typeof data.profile === "object" ? data.profile : {};
     return {
       status: "linked",
       token,
@@ -1191,9 +953,9 @@
     if (httpStatus === 401) return { status: "signed-out" };
     if (httpStatus === 403) return { status: "mismatch" };
     if (httpStatus < 200 || httpStatus >= 300) return { status: "error", detail: `HTTP ${httpStatus}` };
-    const data2 = body || {};
-    if (data2.ok !== true) return { status: "error", detail: "unexpected verify response" };
-    const p = data2.profile && typeof data2.profile === "object" ? data2.profile : {};
+    const data = body || {};
+    if (data.ok !== true) return { status: "error", detail: "unexpected verify response" };
+    const p = data.profile && typeof data.profile === "object" ? data.profile : {};
     return {
       status: "linked",
       profile: {
@@ -1240,9 +1002,9 @@
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(body)
       });
-      const data2 = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data2.error || `http_${res.status}` };
-      return { ok: true, result: data2.result };
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
+      return { ok: true, result: data.result };
     } catch {
       return { ok: false, error: "network" };
     }
@@ -1275,8 +1037,8 @@
         signal: abort.signal
       });
       if (!res.ok) {
-        const data2 = await res.json().catch(() => ({}));
-        return { ok: false, error: data2.error || `http_${res.status}` };
+        const data = await res.json().catch(() => ({}));
+        return { ok: false, error: data.error || `http_${res.status}` };
       }
       if (!res.body) return { ok: false, error: "no_body" };
       const reader = res.body.getReader();
@@ -1335,12 +1097,12 @@
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(req)
       });
-      const data2 = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data2.error || `http_${res.status}` };
-      const word = data2.result?.word;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
+      const word = data.result?.word;
       if (!word) return { ok: false, error: "empty_pick" };
       sessionCache.set(key, word);
-      return { ok: true, word, cached: data2.cached };
+      return { ok: true, word, cached: data.cached };
     } catch {
       return { ok: false, error: "network" };
     }
@@ -1369,12 +1131,12 @@
           title: opts.title || void 0
         })
       });
-      const data2 = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data2.error || `http_${res.status}` };
-      const words = data2.result?.words;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
+      const words = data.result?.words;
       if (!words?.length) return { ok: false, error: "empty_extract" };
       sessionCache2.set(key, words);
-      return { ok: true, words, cached: data2.cached };
+      return { ok: true, words, cached: data.cached };
     } catch {
       return { ok: false, error: "network" };
     }
@@ -1395,8 +1157,8 @@
         { headers: { Authorization: "Bearer " + token }, signal: timeout("ai") }
       );
       if (!res.ok) return null;
-      const data2 = await res.json();
-      const ctx = (data2.context || "").trim();
+      const data = await res.json();
+      const ctx = (data.context || "").trim();
       if (ctx) sessionCache3.set(clean.toLowerCase(), ctx);
       return ctx || null;
     } catch {
@@ -1413,8 +1175,8 @@
       body: JSON.stringify({ text })
     });
     if (res.status === 429) {
-      const data2 = await res.json().catch(() => ({}));
-      return { blob: null, error: data2.error || "auto_quota_exhausted" };
+      const data = await res.json().catch(() => ({}));
+      return { blob: null, error: data.error || "auto_quota_exhausted" };
     }
     if (!res.ok) return { blob: null, error: `http_${res.status}` };
     return { blob: await res.blob() };

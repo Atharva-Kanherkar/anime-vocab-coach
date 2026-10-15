@@ -745,28 +745,38 @@
       await chrome.storage.local.set({ vocab });
     });
   }
-  function localRecordSeen(tokens, targeted, direction = "en-ja", overlay) {
+  function seenWords(tokens, wordStates, targetedSet, direction, overlay) {
+    const out = [];
+    for (const token of tokens) {
+      const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
+      if (!eligibility.countSeen) continue;
+      const entry = lookupForDirection(token.base, direction, overlay);
+      if (!entry) continue;
+      out.push({
+        base: token.base,
+        reading: entry.reading,
+        gloss: entry.glosses[0] || "",
+        level: entry.level,
+        freqRank: entry.freqRank
+      });
+    }
+    return out;
+  }
+  function localRecordSeen(words) {
     return enqueue2(async () => {
+      if (!words.length) return;
       const r = await chrome.storage.local.get(["vocab", "stats"]);
-      const wordStates = r.vocab || {};
-      const targetedSet = new Set(targeted);
-      const vocab = { ...wordStates };
+      const vocab = { ...r.vocab || {} };
       const stats = r.stats || emptyStats();
-      const day = todayKey();
-      const daily = ensureDaily(stats, day);
-      let changed = false;
-      for (const token of tokens) {
-        const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
-        if (!eligibility.countSeen) continue;
-        const entry = lookupForDirection(token.base, direction, overlay);
-        if (!entry) continue;
-        if (!vocab[token.base]) {
-          vocab[token.base] = {
+      const daily = ensureDaily(stats, todayKey());
+      for (const w of words) {
+        if (!vocab[w.base]) {
+          vocab[w.base] = {
             state: "new",
-            reading: entry.reading,
-            gloss: entry.glosses[0] || "",
-            level: entry.level,
-            freqRank: entry.freqRank,
+            reading: w.reading,
+            gloss: w.gloss,
+            level: w.level,
+            freqRank: w.freqRank,
             seenCount: 1,
             shownCount: 0,
             firstSeenAt: Date.now(),
@@ -774,17 +784,13 @@
             srs: null
           };
           daily.met += 1;
-          changed = true;
         } else {
-          vocab[token.base].seenCount += 1;
-          vocab[token.base].lastSeenAt = Date.now();
-          changed = true;
+          vocab[w.base].seenCount += 1;
+          vocab[w.base].lastSeenAt = Date.now();
         }
       }
-      if (changed) {
-        await chrome.storage.local.set({ vocab, stats });
-        void stampOnboarding("watchedAt");
-      }
+      await chrome.storage.local.set({ vocab, stats });
+      void stampOnboarding("watchedAt");
     });
   }
   function applyReviewResult(rec, passed, at) {
@@ -966,8 +972,9 @@
   function setSettings(partial) {
     return write("setSettings", partial);
   }
-  function recordSeen(tokens, _wordStates, targetedSet, direction = "en-ja", overlay) {
-    return write("recordSeen", tokens, Array.from(targetedSet ?? []), direction, overlay ?? null);
+  function recordSeen(tokens, wordStates, targetedSet, direction = "en-ja", overlay) {
+    const words = seenWords(tokens, wordStates || {}, targetedSet ?? /* @__PURE__ */ new Set(), direction, overlay);
+    return words.length ? write("recordSeen", words) : Promise.resolve();
   }
   function judgeWord(base, judgment, meta, source) {
     return write("judgeWord", base, judgment, meta, source ?? null);

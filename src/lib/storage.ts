@@ -179,38 +179,58 @@ function localSetWordState(base: string, state: WordState): Promise<void> {
   });
 }
 
-function localRecordSeen(
+/** A word a subtitle line counted as seen, already looked up. */
+interface SeenWord {
+  base: string;
+  reading: string;
+  gloss: string;
+  level: number;
+  freqRank: number;
+}
+
+/** Decide which tokens of a line count as seen. Runs in the caller's context,
+ * which has the dictionary loaded (the service worker does not), against the
+ * word states the caller holds: the same decision recordSeen always made. */
+function seenWords(
   tokens: Token[],
-  targeted: string[],
-  direction: Settings["learningDirection"] = "en-ja",
+  wordStates: VocabMap,
+  targetedSet: Set<string>,
+  direction: Settings["learningDirection"],
   overlay?: Record<string, DictEntry> | null
-): Promise<void> {
+): SeenWord[] {
+  const out: SeenWord[] = [];
+  for (const token of tokens) {
+    const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
+    if (!eligibility.countSeen) continue;
+    const entry = lookupForDirection(token.base, direction, overlay);
+    if (!entry) continue;
+    out.push({
+      base: token.base,
+      reading: entry.reading,
+      gloss: entry.glosses[0] || "",
+      level: entry.level,
+      freqRank: entry.freqRank,
+    });
+  }
+  return out;
+}
+
+function localRecordSeen(words: SeenWord[]): Promise<void> {
   return enqueue(async () => {
+    if (!words.length) return;
     const r = await chrome.storage.local.get(["vocab", "stats"]);
-    // Eligibility reads the stored states, not a snapshot the caller held: the
-    // write runs in the service worker now, and storage is the fresher copy.
-    const wordStates: VocabMap = (r.vocab as VocabMap | undefined) || {};
-    const targetedSet = new Set(targeted);
-    const vocab: VocabMap = { ...wordStates };
+    const vocab: VocabMap = { ...((r.vocab as VocabMap | undefined) || {}) };
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
-    const day = todayKey();
-    const daily = ensureDaily(stats, day);
-    let changed = false;
+    const daily = ensureDaily(stats, todayKey());
 
-    for (const token of tokens) {
-      const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
-      if (!eligibility.countSeen) continue;
-
-      const entry = lookupForDirection(token.base, direction, overlay);
-      if (!entry) continue;
-
-      if (!vocab[token.base]) {
-        vocab[token.base] = {
+    for (const w of words) {
+      if (!vocab[w.base]) {
+        vocab[w.base] = {
           state: "new",
-          reading: entry.reading,
-          gloss: entry.glosses[0] || "",
-          level: entry.level,
-          freqRank: entry.freqRank,
+          reading: w.reading,
+          gloss: w.gloss,
+          level: w.level,
+          freqRank: w.freqRank,
           seenCount: 1,
           shownCount: 0,
           firstSeenAt: Date.now(),
@@ -218,20 +238,16 @@ function localRecordSeen(
           srs: null
         };
         daily.met += 1;
-        changed = true;
       } else {
-        vocab[token.base].seenCount += 1;
-        vocab[token.base].lastSeenAt = Date.now();
-        changed = true;
+        vocab[w.base].seenCount += 1;
+        vocab[w.base].lastSeenAt = Date.now();
       }
     }
 
-    if (changed) {
-      await chrome.storage.local.set({ vocab, stats });
-      // Onboarding step 1: something Japanese is on screen and we can read it.
-      // Write-once, so this costs one extra read per line and nothing else.
-      void stampOnboarding("watchedAt");
-    }
+    await chrome.storage.local.set({ vocab, stats });
+    // Onboarding step 1: something Japanese is on screen and we can read it.
+    // Write-once, so this costs one extra read per line and nothing else.
+    void stampOnboarding("watchedAt");
   });
 }
 
@@ -756,17 +772,16 @@ export function setWordState(base: string, state: WordState): Promise<void> {
   return write("setWordState", base, state);
 }
 
-/** `wordStates` is accepted for call-site compatibility and ignored: the
- * writer reads the stored states itself (see localRecordSeen). */
 export function recordSeen(
   tokens: Token[],
-  _wordStates: VocabMap,
+  wordStates: VocabMap,
   targetedSet: Set<string>,
   direction: Settings["learningDirection"] = "en-ja",
   overlay?: Record<string, DictEntry> | null
 ): Promise<void> {
-  // A Set does not survive runtime messaging; send its members.
-  return write("recordSeen", tokens, Array.from(targetedSet ?? []), direction, overlay ?? null);
+  // Decide here (dictionary loaded), write in the worker (one queue).
+  const words = seenWords(tokens, wordStates || {}, targetedSet ?? new Set(), direction, overlay);
+  return words.length ? write("recordSeen", words) : Promise.resolve();
 }
 
 export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
