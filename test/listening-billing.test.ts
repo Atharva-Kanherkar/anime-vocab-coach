@@ -82,6 +82,6 @@ describe("listening meters", () => {
   });
 
   it("bounds every chunk upload with a timeout", () => {
-    expect(functionBody("flushChunk")).toMatch(/signal:\s*AbortSignal\.timeout\(/);
+    expect(functionBody("flushChunk")).toMatch(/signal:\s*timeout\("upload"\)/);
   });
 });

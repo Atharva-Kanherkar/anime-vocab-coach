@@ -12,6 +12,7 @@
 
 import { CueLedger } from "../lib/cue-ledger";
 import { privateSessionKey } from "../lib/session-key";
+import { timeout } from "../lib/net";
 
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
@@ -295,7 +296,7 @@ async function flushChunk(session: Session): Promise<void> {
       },
       body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) }),
       // A hung request would hold this session's only transcription slot.
-      signal: AbortSignal.timeout(30_000)
+      signal: timeout("upload")
     });
     const data = (await res.json().catch(() => ({}))) as {
       hit?: boolean;

@@ -42,6 +42,19 @@
     return `sess:${crypto.randomUUID().replace(/-/g, "")}:${language}`;
   }
 
+  // src/lib/net.ts
+  var TIMEOUT_MS = {
+    /** Small JSON round trips: sync, usage, beacons, captions. */
+    quick: 15e3,
+    /** A model call behind our API (word pick, coach, extraction, TTS). */
+    ai: 45e3,
+    /** An audio chunk upload that the server transcribes before answering. */
+    upload: 3e4
+  };
+  function timeout(kind) {
+    return AbortSignal.timeout(TIMEOUT_MS[kind]);
+  }
+
   // src/entries/offscreen.ts
   var RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
   var OUT_RATE = 24e3;
@@ -220,7 +233,7 @@
         },
         body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) }),
         // A hung request would hold this session's only transcription slot.
-        signal: AbortSignal.timeout(3e4)
+        signal: timeout("upload")
       });
       const data = await res.json().catch(() => ({}));
       if (!session.active || session.cacheKey !== requestKey || session.modeGeneration !== generation) return;

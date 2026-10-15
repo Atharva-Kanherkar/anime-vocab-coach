@@ -1,4 +1,5 @@
 import { BACKEND_URL } from "../config";
+import { timeout } from "./net";
 
 export interface TranscriptSegment {
   start: number;
@@ -24,7 +25,8 @@ export async function lookupTranscript(
   url.searchParams.set("t", String(t));
   url.searchParams.set("window", String(windowSec));
   const res = await fetch(url.toString(), {
-    headers: { Authorization: "Bearer " + syncToken }
+    headers: { Authorization: "Bearer " + syncToken },
+    signal: timeout("quick")
   });
   if (res.status === 401) throw new Error("not signed in");
   if (res.status === 429) throw new Error("monthly listening hours used up");
@@ -43,6 +45,7 @@ export async function transcribeChunk(
 ): Promise<LookupResponse> {
   const res = await fetch(BACKEND_URL + "/v1/transcript/transcribe", {
     method: "POST",
+    signal: timeout("upload"),
     headers: {
       "Content-Type": "application/json",
       Authorization: "Bearer " + syncToken

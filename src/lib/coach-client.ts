@@ -1,5 +1,6 @@
 import { WEB_URL } from "../config";
 import { getSyncToken } from "./storage";
+import { timeout } from "./net";
 
 export type CoachMode = "explain" | "hooks" | "chat";
 
@@ -33,6 +34,7 @@ async function postCoach(body: Record<string, unknown>): Promise<CoachResponse> 
   try {
     const res = await fetch(WEB_URL + "/api/ai/coach", {
       method: "POST",
+      signal: timeout("ai"),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
       body: JSON.stringify(body),
     });

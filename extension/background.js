@@ -284,6 +284,19 @@
     }
   }
 
+  // src/lib/net.ts
+  var TIMEOUT_MS = {
+    /** Small JSON round trips: sync, usage, beacons, captions. */
+    quick: 15e3,
+    /** A model call behind our API (word pick, coach, extraction, TTS). */
+    ai: 45e3,
+    /** An audio chunk upload that the server transcribes before answering. */
+    upload: 3e4
+  };
+  function timeout(kind) {
+    return AbortSignal.timeout(TIMEOUT_MS[kind]);
+  }
+
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
     "review_prompt_shown",
@@ -319,7 +332,8 @@
           "x-avc-extension-id": extensionId()
         },
         body: payload,
-        keepalive: true
+        keepalive: true,
+        signal: timeout("quick")
       }).catch(() => {
       });
     } catch {
@@ -412,7 +426,8 @@
       method: "POST",
       headers,
       body: JSON.stringify({ ...body, v: extensionVersion() }),
-      keepalive: true
+      keepalive: true,
+      signal: timeout("quick")
     }).catch(() => {
     });
   }
@@ -976,7 +991,7 @@
   async function pullRevision(token) {
     let data2;
     try {
-      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token }, signal: timeout("quick") });
       if (!res.ok) return null;
       data2 = await res.json();
     } catch {
@@ -993,7 +1008,7 @@
     const token = await getSyncToken();
     if (!token) return;
     try {
-      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token }, signal: timeout("quick") });
       if (res.status === 401) {
         await noteAuthFailure();
         return;
@@ -1047,6 +1062,7 @@
         const appliedWebReviewSeq = await getWebReviewSeq();
         const res = await fetch(SNAPSHOT_URL, {
           method: "PUT",
+          signal: timeout("upload"),
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
           body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
         });
@@ -1154,7 +1170,7 @@
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(15e3)
+        signal: timeout("quick")
       });
       const body = await res.json().catch(() => null);
       outcome = interpretMintResponse(res.status, body);
@@ -1195,7 +1211,7 @@
         method: "GET",
         credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(15e3)
+        signal: timeout("quick")
       });
       const body = await res.json().catch(() => null);
       outcome = interpretVerifyResponse(res.status, body);
@@ -1220,6 +1236,7 @@
     try {
       const res = await fetch(WEB_URL + "/api/ai/coach", {
         method: "POST",
+        signal: timeout("ai"),
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(body)
       });
@@ -1314,6 +1331,7 @@
     try {
       const res = await fetch(WEB_URL + "/api/ai/pick-word", {
         method: "POST",
+        signal: timeout("ai"),
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(req)
       });
@@ -1342,6 +1360,7 @@
     try {
       const res = await fetch(WEB_URL + "/api/ai/extract-words", {
         method: "POST",
+        signal: timeout("ai"),
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify({
           line: opts.line,
@@ -1373,7 +1392,7 @@
     try {
       const res = await fetch(
         WEB_URL + "/api/anime/context?title=" + encodeURIComponent(clean),
-        { headers: { Authorization: "Bearer " + token } }
+        { headers: { Authorization: "Bearer " + token }, signal: timeout("ai") }
       );
       if (!res.ok) return null;
       const data2 = await res.json();
@@ -1389,6 +1408,7 @@
   async function fetchCloudTts(text, token) {
     const res = await fetch(WEB_URL + "/api/tts", {
       method: "POST",
+      signal: timeout("ai"),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
       body: JSON.stringify({ text })
     });
@@ -1402,6 +1422,7 @@
   async function fetchByoTts(text, key) {
     const res = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
+      signal: timeout("ai"),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
       body: JSON.stringify({ model: "tts-1", voice: "nova", input: text, response_format: "mp3" })
     });
@@ -1445,8 +1466,8 @@
     if (!token) return null;
     const headers = { Authorization: "Bearer " + token };
     const [aiRes, listenRes] = await Promise.allSettled([
-      fetch(WEB_URL + "/api/me/usage", { headers }).then((r) => r.ok ? r.json() : null),
-      fetch(BACKEND_URL + "/v1/usage", { headers }).then((r) => r.ok ? r.json() : null)
+      fetch(WEB_URL + "/api/me/usage", { headers, signal: timeout("quick") }).then((r) => r.ok ? r.json() : null),
+      fetch(BACKEND_URL + "/v1/usage", { headers, signal: timeout("quick") }).then((r) => r.ok ? r.json() : null)
     ]);
     const aiData = aiRes.status === "fulfilled" ? aiRes.value : null;
     const listenData = listenRes.status === "fulfilled" ? listenRes.value : null;

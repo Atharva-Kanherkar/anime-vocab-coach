@@ -27,6 +27,7 @@ import {
 } from "./storage";
 import { log, warn } from "./log";
 import { trackExtensionMilestone } from "./extension-events";
+import { timeout } from "./net";
 
 const TOKEN_URL = WEB_URL + "/api/sync/token";
 
@@ -194,7 +195,7 @@ async function runAutoLink(
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(15_000),
+      signal: timeout("quick"),
     });
     const body = await res.json().catch(() => null);
     outcome = interpretMintResponse(res.status, body);
@@ -258,7 +259,7 @@ export async function verifyAndLinkToken(token: string): Promise<{ linked: boole
       method: "GET",
       credentials: "include",
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(15_000),
+      signal: timeout("quick"),
     });
     const body = await res.json().catch(() => null);
     outcome = interpretVerifyResponse(res.status, body);

@@ -1,6 +1,7 @@
 import { WEB_URL } from "../config";
 import { getSyncToken } from "./storage";
 import type { LearningDirection } from "./direction";
+import { timeout } from "./net";
 
 export interface WordPickCandidate {
   word: string;
@@ -75,6 +76,7 @@ export async function fetchWordPick(req: WordPickRequest): Promise<WordPickRespo
   try {
     const res = await fetch(WEB_URL + "/api/ai/pick-word", {
       method: "POST",
+      signal: timeout("ai"),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
       body: JSON.stringify(req),
     });

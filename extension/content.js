@@ -376,6 +376,19 @@
     }
   }
 
+  // src/lib/net.ts
+  var TIMEOUT_MS = {
+    /** Small JSON round trips: sync, usage, beacons, captions. */
+    quick: 15e3,
+    /** A model call behind our API (word pick, coach, extraction, TTS). */
+    ai: 45e3,
+    /** An audio chunk upload that the server transcribes before answering. */
+    upload: 3e4
+  };
+  function timeout(kind) {
+    return AbortSignal.timeout(TIMEOUT_MS[kind]);
+  }
+
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
     "review_prompt_shown",
@@ -411,7 +424,8 @@
           "x-avc-extension-id": extensionId()
         },
         body: payload,
-        keepalive: true
+        keepalive: true,
+        signal: timeout("quick")
       }).catch(() => {
       });
     } catch {
@@ -504,7 +518,8 @@
       method: "POST",
       headers,
       body: JSON.stringify({ ...body, v: extensionVersion() }),
-      keepalive: true
+      keepalive: true,
+      signal: timeout("quick")
     }).catch(() => {
     });
   }
@@ -4713,7 +4728,7 @@
     return cues;
   }
   async function fetchTrack(track, pot, lang) {
-    const res = await fetch(trackUrl(track.baseUrl, pot, location.origin));
+    const res = await fetch(trackUrl(track.baseUrl, pot, location.origin), { signal: timeout("quick") });
     if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
     const text = await res.text();
     if (!text) return [];
@@ -5072,7 +5087,8 @@
     url.searchParams.set("t", String(t));
     url.searchParams.set("window", String(windowSec));
     const res = await fetch(url.toString(), {
-      headers: { Authorization: "Bearer " + syncToken2 }
+      headers: { Authorization: "Bearer " + syncToken2 },
+      signal: timeout("quick")
     });
     if (res.status === 401) throw new Error("not signed in");
     if (res.status === 429) throw new Error("monthly listening hours used up");

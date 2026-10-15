@@ -13,6 +13,7 @@
 
 import { WEB_URL } from "../config";
 import { extensionVersion, inServiceWorker } from "./run-context";
+import { timeout } from "./net";
 
 /**
  * The learning-loop events this extension emits.
@@ -110,6 +111,7 @@ async function postTrack(body: Record<string, string>): Promise<void> {
     headers,
     body: JSON.stringify({ ...body, v: extensionVersion() }),
     keepalive: true,
+    signal: timeout("quick"),
   }).catch(() => {});
 }
 

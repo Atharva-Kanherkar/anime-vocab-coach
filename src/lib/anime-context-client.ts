@@ -1,5 +1,6 @@
 import { WEB_URL } from "../config";
 import { getSyncToken } from "./storage";
+import { timeout } from "./net";
 
 const sessionCache = new Map<string, string>();
 
@@ -39,7 +40,7 @@ export async function fetchAnimeContext(title: string | null): Promise<string | 
   try {
     const res = await fetch(
       WEB_URL + "/api/anime/context?title=" + encodeURIComponent(clean),
-      { headers: { Authorization: "Bearer " + token } }
+      { headers: { Authorization: "Bearer " + token }, signal: timeout("ai") }
     );
     if (!res.ok) return null;
     const data = (await res.json()) as { context?: string };

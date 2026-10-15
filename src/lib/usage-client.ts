@@ -11,6 +11,7 @@
 
 import { BACKEND_URL, WEB_URL } from "../config";
 import { getSyncToken } from "./storage";
+import { timeout } from "./net";
 
 export type Plan = "free" | "pro" | "max";
 
@@ -59,8 +60,8 @@ export async function fetchUsage(): Promise<UsageSnapshot | null> {
   const headers = { Authorization: "Bearer " + token };
 
   const [aiRes, listenRes] = await Promise.allSettled([
-    fetch(WEB_URL + "/api/me/usage", { headers }).then((r) => (r.ok ? r.json() : null)),
-    fetch(BACKEND_URL + "/v1/usage", { headers }).then((r) => (r.ok ? r.json() : null)),
+    fetch(WEB_URL + "/api/me/usage", { headers, signal: timeout("quick") }).then((r) => (r.ok ? r.json() : null)),
+    fetch(BACKEND_URL + "/v1/usage", { headers, signal: timeout("quick") }).then((r) => (r.ok ? r.json() : null)),
   ]);
 
   const aiData = aiRes.status === "fulfilled" ? (aiRes.value as Record<string, never> | null) : null;

@@ -1,5 +1,6 @@
 import { CWS_EXTENSION_ID, WEB_URL } from "../config";
 import { extensionVersion, inServiceWorker } from "./run-context";
+import { timeout } from "./net";
 
 /** Allowlisted extension product-funnel events (aggregate counters only). */
 export const EXTENSION_EVENTS = [
@@ -54,6 +55,7 @@ export function sendExtensionEventBeacon(event: ExtensionEvent): void {
       },
       body: payload,
       keepalive: true,
+      signal: timeout("quick"),
     }).catch(() => {});
   } catch {
     // swallow
