@@ -295,7 +295,7 @@
   function renderSteps(state) {
     byId("steps").innerHTML = checklistSteps(state).map((step, i) => {
       const done = step.done;
-      return `<li class="step${done ? " done" : ""}" data-step="${step.id}"><span class="num" aria-hidden>${done ? "\u2713" : i + 1}</span><div class="body"><h2>${esc(step.title)}</h2><p>${esc(step.detail)}</p>` + (done ? `<span class="step-done-note">Done</span>` : STEP_ACTIONS[step.id] || "") + `</div></li>`;
+      return `<li class="step${done ? " done" : ""}" data-step="${step.id}"><span class="num" aria-hidden="true">${done ? "\u2713" : i + 1}</span><div class="body"><h2>${esc(step.title)}</h2><p>${esc(step.detail)}</p>` + (done ? `<span class="step-done-note">Done</span>` : STEP_ACTIONS[step.id] || "") + `</div></li>`;
     }).join("");
   }
   function renderCelebration(state) {

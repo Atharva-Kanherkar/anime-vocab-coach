@@ -986,8 +986,8 @@
     (kids || []).forEach((c) => n.appendChild(c));
     return n;
   }
-  function svg(w, h) {
-    return el("svg", { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: "img" });
+  function svg(w, h, label) {
+    return el("svg", { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: "img", "aria-label": label });
   }
   function txt(x, y, s, cls, anchor) {
     const t = el("text", { x, y, class: cls || "ax", "text-anchor": anchor || "start" });
@@ -1045,7 +1045,7 @@
     const maxY = Math.max(1, cum);
     const x = (i) => ml + i / (pts.length - 1) * (W - ml - mr);
     const y = (val) => mt + (1 - val / maxY) * (H - mt - mb);
-    const s = svg(W, H);
+    const s = svg(W, H, `Words met over time: ${nf(cum)} in total across ${keys.length} days.`);
     const ticks = 4;
     for (let i = 0; i <= ticks; i++) {
       const val = Math.round(maxY / ticks * i);
@@ -1107,7 +1107,7 @@
     ].filter((seg) => seg.n > 0);
     const total = segs.reduce((a, seg) => a + seg.n, 0);
     const R = 74, r = 46, cx = 90, cy = 90;
-    const s = svg(180, 180);
+    const s = svg(180, 180, `Where your words stand: ${segs.map((seg) => `${seg.lab} ${nf(seg.n)}`).join(", ")}.`);
     if (!total) {
       host.innerHTML = '<p class="cap-note">No words yet.</p>';
       return;
@@ -1154,7 +1154,7 @@
     const W = 320, H = 220, ml = 32, mr = 10, mt = 10, mb = 28;
     const bw = (W - ml - mr) / data.length;
     const y = (val) => mt + (1 - val / maxV) * (H - mt - mb);
-    const s = svg(W, H);
+    const s = svg(W, H, `Known and learning words by frequency band: ${data.map((d) => `${d.n} ${d.known} known, ${d.learning} learning`).join("; ")}.`);
     for (let i = 0; i <= 4; i++) {
       const val = Math.round(maxV / 4 * i), yy = y(val);
       s.appendChild(el("line", { x1: ml, y1: yy, x2: W - mr, y2: yy, class: "gridline" }));
@@ -1202,7 +1202,7 @@
     const bw = (W - ml - mr) / stages.length;
     const y = (val) => mt + (1 - val / maxV) * (H - mt - mb);
     const base = H - mb;
-    const s = svg(W, H);
+    const s = svg(W, H, `Review pipeline: ${stages.map((st) => `stage ${st.st} ${st.n}${st.due ? ` (${st.due} due)` : ""}`).join(", ")}.`);
     for (let i = 0; i <= 4; i++) {
       const val = Math.round(maxV / 4 * i), yy = y(val);
       s.appendChild(el("line", { x1: ml, y1: yy, x2: W - mr, y2: yy, class: "gridline" }));
@@ -1237,7 +1237,8 @@
     const host = document.getElementById("chart-cal");
     const daily = stats.daily || {};
     const WEEKS = 18, cell = 15, gap = 4, W = WEEKS * (cell + gap) + 30, H = 7 * (cell + gap) + 24;
-    const s = svg(W, H);
+    const active = Object.values(daily).filter((d) => (d.judged || 0) + (d.reviews || 0) + (d.met || 0) > 0).length;
+    const s = svg(W, H, `Study activity: practised on ${active} of the last ${WEEKS * 7} days.`);
     const end = /* @__PURE__ */ new Date(todayKey2() + "T12:00:00");
     const start = new Date(end.getTime() - (WEEKS * 7 - 1) * 864e5);
     start.setDate(start.getDate() - start.getDay());

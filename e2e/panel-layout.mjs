@@ -7,6 +7,8 @@
 // (bottom right, ~140px tall), and the real content script runs against it. The
 // question this answers is a geometry question, and geometry is honest here.
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { NO_PRODUCTION_ARGS, keepOffProduction } from "./support/no-production.mjs";
 
 const EXT = process.argv[2] || `${process.cwd()}/extension`;
@@ -116,6 +118,22 @@ try {
       .catch(() => false);
   }
   check("a word card is up while we test the geometry", carded);
+
+  // ── The panel and its card pass axe (ISO 25010 usability audit) ───────────
+  // The overlay lives in an open shadow root, which axe walks into.
+  await page.evaluate(readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8"));
+  const overlayAxe = await page.evaluate(async () => {
+    const r = await window.axe.run(
+      { include: [["#avc-overlay-host"]] },
+      { runOnly: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa", "best-practice"] }
+    );
+    return r.violations.map((v) => {
+      const n = v.nodes[0];
+      const m = (n?.any[0]?.message || "").match(/contrast of ([0-9.]+).*?foreground color: (#[0-9a-f]+), background color: (#[0-9a-f]+)/);
+      return `${v.impact} ${v.id} x${v.nodes.length}: ${n?.target.flat().join(" > ")}${m ? ` (${m[2]} on ${m[3]}, ${m[1]}:1)` : ""}`;
+    });
+  });
+  check("the copilot panel and its card have no axe violations", overlayAxe.length === 0, overlayAxe.join(" | ").slice(0, 900));
 
   // ── The panel clears the host control bar ─────────────────────────────────
   const geometry = await page.evaluate(() => {

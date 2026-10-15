@@ -7,15 +7,15 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body class="av">
-  <div class="shell">
+  <main class="shell">
     <header class="av-header">
       <div class="av-brand">
-        <span class="av-hanko" aria-hidden>アニ</span>
-        <span class="av-title">アニメVocab</span>
+        <span class="av-hanko" aria-hidden="true">アニ</span>
+        <h1 class="av-title">アニメVocab</h1>
       </div>
       <div class="av-header-actions">
         <button id="theme-toggle" type="button" class="av-btn av-btn-ghost av-btn-sm av-icon-btn" aria-label="Toggle theme" title="Toggle theme">
-          <svg id="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+          <svg id="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="4"></circle>
             <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"></path>
           </svg>
@@ -74,19 +74,19 @@
         <button id="listening-btn" type="button" class="av-btn av-btn-ghost">Start Listening</button>
         <button id="copilot-btn" type="button" class="av-btn av-btn-ghost">Open Copilot</button>
       </div>
-      <p class="av-error" id="listen-error" hidden></p>
+      <p class="av-error" id="listen-error" role="alert" hidden></p>
     </section>
 
     <section class="av-stamp-rally" id="stamp-rally"></section>
 
     <footer class="av-footer">
       <a href="#" id="cloud-link">Cloud app</a>
-      <span aria-hidden>·</span>
+      <span aria-hidden="true">·</span>
       <a href="#" id="settings-link">Settings</a>
-      <span aria-hidden>·</span>
+      <span aria-hidden="true">·</span>
       <a href="#" id="export-link">Export</a>
     </footer>
-  </div>
+  </main>
 
   <script src="popup.js"></script>
 </body>

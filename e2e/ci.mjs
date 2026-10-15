@@ -12,6 +12,7 @@ import { spawnSync } from "node:child_process";
 const SUITES = [
   "generic-cues",
   "dashboard-escape",
+  "a11y-extension",
   "extension-review",
   "onboarding",
   "learning-loop",

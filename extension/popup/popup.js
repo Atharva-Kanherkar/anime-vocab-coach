@@ -939,7 +939,7 @@
   function renderChecklist(host, state, now) {
     const steps = checklistSteps(state);
     const rows = steps.map(
-      (step, i) => `<li class="av-onboarding-step${step.done ? " done" : ""}"><span class="av-onboarding-num" aria-hidden>${step.done ? "\u2713" : i + 1}</span><span class="av-onboarding-step-title">${esc(step.title)}</span></li>`
+      (step, i) => `<li class="av-onboarding-step${step.done ? " done" : ""}"><span class="av-onboarding-num" aria-hidden="true">${step.done ? "\u2713" : i + 1}</span><span class="av-onboarding-step-title">${esc(step.title)}</span></li>`
     ).join("");
     host.hidden = false;
     host.innerHTML = `<div class="av-onboarding" role="region" aria-label="Getting started"><p class="av-onboarding-title">Three steps to your first card</p><ol class="av-onboarding-steps">${rows}</ol><button type="button" class="av-btn av-btn-primary av-btn-block" data-onb="start">Open Crunchyroll</button><button type="button" class="av-btn av-btn-quiet av-btn-block" data-onb="guide">Show me the full guide</button><button type="button" class="av-btn av-btn-quiet av-btn-block" data-onb="dismiss">Hide this</button></div>`;

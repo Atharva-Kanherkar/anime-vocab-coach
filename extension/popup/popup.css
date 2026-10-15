@@ -6,7 +6,10 @@
   --av-field: rgba(237, 231, 218, 0.05);
   --av-ink: #ede7da;
   --av-ink-2: rgba(237, 231, 218, 0.62);
-  --av-ink-3: rgba(237, 231, 218, 0.4);
+  /* ink-3 at 0.55, not 0.4, and a separate fill for white text on terracotta:
+     both measured under WCAG AA (4.5:1) in the ISO 25010 usability audit. */
+  --av-ink-3: rgba(237, 231, 218, 0.55);
+  --av-accent-fill: #b9431f;
   --av-line: rgba(237, 231, 218, 0.14);
   --av-line-2: rgba(237, 231, 218, 0.28);
   --av-accent: #e0603a;
@@ -21,11 +24,12 @@
   --av-panel: #fdfaf1;
   --av-field: rgba(38, 34, 27, 0.04);
   --av-ink: #26221b;
-  --av-ink-2: rgba(38, 34, 27, 0.62);
-  --av-ink-3: rgba(38, 34, 27, 0.42);
+  --av-ink-2: rgba(38, 34, 27, 0.78);
+  --av-ink-3: rgba(38, 34, 27, 0.66);
   --av-line: rgba(38, 34, 27, 0.16);
   --av-line-2: rgba(38, 34, 27, 0.32);
-  --av-accent: #d84e2a;
+  --av-accent: #b8441f;
+  --av-accent-fill: #b8441f;
   --av-indigo: #2c4a68;
   --av-danger: #b8492b;
 }
@@ -65,7 +69,7 @@ body.av {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--av-accent);
+  background: var(--av-accent-fill);
   color: #fffdf6;
   font-family: var(--jp-round);
   font-weight: 900;
@@ -377,13 +381,13 @@ body.av {
 
 .av-mode-row > div { min-width: 0; }
 .av-mode-row b { display: block; font-size: 11px; }
+/* Wraps instead of ending in "…": these lines say what each mode does, and a
+   truncated one ("Shows automatic cards without p…") said nothing. */
 .av-mode-row span:not(.av-mode-dot) {
   display: block;
-  overflow: hidden;
   color: var(--av-ink-3);
   font-size: 9.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
 }
 .av-mode-row strong { color: var(--av-ink-2); font-size: 10px; }
 
@@ -403,8 +407,8 @@ body.av {
   cursor: pointer;
 }
 .av-mode-switch[aria-checked="true"] {
-  border-color: var(--av-accent);
-  background: var(--av-accent);
+  border-color: var(--av-accent-fill);
+  background: var(--av-accent-fill);
   color: #fff;
 }
 .av-mode-switch:disabled { cursor: not-allowed; opacity: 0.55; }
@@ -547,8 +551,8 @@ body.av {
 .av-btn-block { width: 100%; }
 
 .av-btn-primary {
-  background: var(--av-accent);
-  border-color: var(--av-accent);
+  background: var(--av-accent-fill);
+  border-color: var(--av-accent-fill);
   color: #fffdf6;
 }
 .av-btn-primary:hover:not(:disabled) { opacity: 0.88; }

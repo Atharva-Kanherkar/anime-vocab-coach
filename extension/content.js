@@ -2076,7 +2076,7 @@
   }
   .avc-agent-brand {
     font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
-    color: rgba(227, 186, 99, 0.55);
+    color: rgba(227, 186, 99, 0.7);
   }
   .avc-agent-mode-select {
     font-size: 11px; letter-spacing: 0.04em;
@@ -2095,7 +2095,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.04);
-    color: rgba(236, 234, 228, 0.45);
+    color: rgba(236, 234, 228, 0.6);
     font-size: 11px; line-height: 1; letter-spacing: 0.04em;
     cursor: pointer; font-family: inherit;
     text-decoration: line-through;
@@ -2215,10 +2215,10 @@
     background: rgba(255, 255, 255, 0.08);
   }
   .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-foot.avc-active .avc-agent-ignore {
-    color: rgba(236, 234, 228, 0.62);
+    color: rgba(236, 234, 228, 0.68);
   }
   .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-foot.avc-active .avc-agent-hint {
-    color: rgba(236, 234, 228, 0.45);
+    color: rgba(236, 234, 228, 0.6);
   }
   .avc-agent-chip {
     display: inline-block; font-size: 9px; letter-spacing: 0.08em;
@@ -2294,7 +2294,7 @@
   }
   .avc-agent-chat-label {
     font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: rgba(236, 234, 228, 0.32); margin-bottom: 8px;
+    color: rgba(236, 234, 228, 0.55); margin-bottom: 8px;
   }
   .avc-agent-chat-log {
     flex: 1; min-height: 80px; overflow-y: auto; margin-bottom: 0;
@@ -2384,7 +2384,7 @@
   .avc-agent-buttons button:hover { filter: brightness(1.1); }
   .avc-agent-buttons button span {
     display: block; font-size: 9px; margin-top: 2px;
-    letter-spacing: 0.02em; opacity: 0.5;
+    letter-spacing: 0.02em; opacity: 0.85;
   }
   .avc-agent-know {
     background: rgba(255,255,255,.04); color: rgba(236,234,228,.7);
@@ -2392,7 +2392,7 @@
   }
   .avc-agent-learn { background: rgba(196, 85, 58, 0.65); color: rgba(255,255,255,.92); }
   .avc-agent-ignore {
-    background: transparent; color: rgba(236,234,228,.35);
+    background: transparent; color: rgba(236,234,228,.6);
     border-color: rgba(255,255,255,.06);
   }
   .avc-agent-review-pass { background: rgba(61, 138, 99, 0.65); color: rgba(255,255,255,.92); }
@@ -2407,7 +2407,7 @@
     font-size: 12px; cursor: pointer; font-family: inherit;
   }
   .avc-agent-hint {
-    font-size: 9px; color: rgba(236, 234, 228, 0.22);
+    font-size: 9px; color: rgba(236, 234, 228, 0.55);
     text-align: center; letter-spacing: 0.03em;
   }
 
@@ -3110,6 +3110,8 @@
     sidebar.setAttribute("aria-label", "AnimeVocab learning agent");
     const resize = document.createElement("div");
     resize.className = "avc-agent-resize";
+    resize.setAttribute("role", "separator");
+    resize.setAttribute("aria-orientation", "vertical");
     resize.setAttribute("aria-label", "Resize panel");
     resize.title = "Drag to resize";
     attachResizeHandle(sidebar, resize);
