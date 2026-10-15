@@ -641,6 +641,11 @@
   function sendBadge(stats) {
     const day = todayKey();
     const judged = stats.daily?.[day]?.judged || 0;
+    if (inServiceWorker() && typeof chrome.action?.setBadgeText === "function") {
+      void chrome.action.setBadgeText({ text: judged > 0 ? String(judged) : "" });
+      void chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
+      return;
+    }
     chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
     });
   }
@@ -659,7 +664,7 @@
       });
     });
   }
-  function setSettings(partial) {
+  function localSetSettings(partial) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["settings"]);
       const settings = { ...withDefaults(r.settings || {}), ...partial };
@@ -711,10 +716,26 @@
       });
     });
   }
-  function recordSeen(tokens, wordStates, targetedSet, direction = "en-ja", overlay) {
+  function localSetWordState(base, state) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab"]);
+      const vocab = r.vocab || {};
+      if (!vocab[base]) return;
+      vocab[base].state = state;
+      if (state === "learning") {
+        vocab[base].srs = { stage: 1, dueAt: Date.now() + SRS_INTERVALS[1], lapses: 0 };
+      } else {
+        vocab[base].srs = null;
+      }
+      await chrome.storage.local.set({ vocab });
+    });
+  }
+  function localRecordSeen(tokens, targeted, direction = "en-ja", overlay) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
-      const vocab = { ...r.vocab || {} };
+      const wordStates = r.vocab || {};
+      const targetedSet = new Set(targeted);
+      const vocab = { ...wordStates };
       const stats = r.stats || emptyStats();
       const day = todayKey();
       const daily = ensureDaily(stats, day);
@@ -769,7 +790,34 @@
       rec.srs.dueAt = at + SRS_INTERVALS[1];
     }
   }
-  function judgeWord(base, judgment, meta, source) {
+  function localApplyWebReviews(ops) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
+      const stored = Number(r.webReviewSeq);
+      let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
+      const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
+      if (!fresh.length) return { applied: 0, seq };
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      let applied = 0;
+      for (const op of fresh) {
+        seq = op.seq;
+        const rec = vocab[op.base];
+        if (!rec || rec.state !== "learning" || !rec.srs) continue;
+        const parsed = Date.parse(op.at);
+        const at = Number.isFinite(parsed) ? parsed : Date.now();
+        applyReviewResult(rec, op.result === "pass", at);
+        const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
+        daily.reviews += 1;
+        daily.judged += 1;
+        applied++;
+      }
+      await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
+      if (applied) sendBadge(stats);
+      return { applied, seq };
+    });
+  }
+  function localJudgeWord(base, judgment, meta, source) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = r.vocab || {};
@@ -837,7 +885,7 @@
       return vocab[base];
     });
   }
-  function recordCardShown(base) {
+  function localRecordCardShown(base) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = r.vocab || {};
@@ -854,7 +902,7 @@
       void trackFeature("card_shown");
     });
   }
-  function recordWatchTick() {
+  function localRecordWatchTick() {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["stats"]);
       const stats = r.stats || emptyStats();
@@ -868,6 +916,52 @@
     return new Promise((resolve) => {
       chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
     });
+  }
+  function localResetProgress() {
+    return enqueue2(async () => {
+      await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
+      sendBadge({ daily: {} });
+    });
+  }
+  var STORAGE_WRITE_MESSAGE = "avc-storage-write";
+  var writers = {
+    setSettings: localSetSettings,
+    setWordState: localSetWordState,
+    recordSeen: localRecordSeen,
+    applyWebReviews: localApplyWebReviews,
+    judgeWord: localJudgeWord,
+    recordCardShown: localRecordCardShown,
+    recordWatchTick: localRecordWatchTick,
+    resetProgress: localResetProgress
+  };
+  async function write(op, ...args) {
+    const run = () => writers[op](...args);
+    if (inServiceWorker()) return run();
+    let res;
+    try {
+      res = await chrome.runtime.sendMessage({ type: STORAGE_WRITE_MESSAGE, op, args });
+    } catch {
+      res = void 0;
+    }
+    if (res?.ok === true) return res.value;
+    if (res?.ok === false) throw new Error(res.error || `storage write ${op} failed`);
+    warn(`storage write ${op} ran in this context (no service worker answer)`);
+    return run();
+  }
+  function setSettings(partial) {
+    return write("setSettings", partial);
+  }
+  function recordSeen(tokens, _wordStates, targetedSet, direction = "en-ja", overlay) {
+    return write("recordSeen", tokens, Array.from(targetedSet ?? []), direction, overlay ?? null);
+  }
+  function judgeWord(base, judgment, meta, source) {
+    return write("judgeWord", base, judgment, meta, source ?? null);
+  }
+  function recordCardShown(base) {
+    return write("recordCardShown", base);
+  }
+  function recordWatchTick() {
+    return write("recordWatchTick");
   }
 
   // src/lib/tts-client.ts

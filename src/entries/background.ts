@@ -8,7 +8,7 @@ import { fetchExtractWords, type ExtractWordsRequest } from "../lib/extract-word
 import { fetchAnimeContext } from "../lib/anime-context-client";
 import { fetchTtsAudio } from "../lib/tts-client";
 import { fetchUsage } from "../lib/usage-client";
-import { getSyncToken } from "../lib/storage";
+import { getSyncToken, handleStorageWrite } from "../lib/storage";
 import { stampOnboarding } from "../lib/onboarding-store";
 import {
   TRACK_FEATURE_MESSAGE,
@@ -409,6 +409,9 @@ interface RuntimeMsg {
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
+  // Every vocab/stats/settings write runs here, behind one queue (storage.ts).
+  if (handleStorageWrite(msg, sendResponse)) return true;
+
   if (msg.type === "avc-badge") {
     const text = (msg.count || 0) > 0 ? String(msg.count) : "";
     chrome.action.setBadgeText({ text });

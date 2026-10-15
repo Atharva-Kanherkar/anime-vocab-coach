@@ -24,6 +24,7 @@ import {
 import { trackExtensionMilestone } from "./extension-events";
 import { trackFeature } from "./feature-events";
 import { stampOnboarding } from "./onboarding-store";
+import { inServiceWorker } from "./run-context";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -57,6 +58,13 @@ function emptyStats(): Stats {
 function sendBadge(stats: Pick<Stats, "daily">): void {
   const day = todayKey();
   const judged = stats.daily?.[day]?.judged || 0;
+  // Writes now run in the service worker, and a worker's own sendMessage never
+  // reaches its own listener: set the badge directly there.
+  if (inServiceWorker() && typeof chrome.action?.setBadgeText === "function") {
+    void chrome.action.setBadgeText({ text: judged > 0 ? String(judged) : "" });
+    void chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
+    return;
+  }
   chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {});
 }
 
@@ -83,7 +91,7 @@ export function getSettings(): Promise<Settings> {
   });
 }
 
-export function setSettings(partial: Partial<Settings>): Promise<Settings> {
+function localSetSettings(partial: Partial<Settings>): Promise<Settings> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["settings"]);
     const settings: Settings = { ...withDefaults((r.settings || {}) as Partial<Settings>), ...partial };
@@ -156,7 +164,7 @@ export function getWord(base: string): Promise<VocabRecord | null> {
   return getVocab().then((v) => v[base] || null);
 }
 
-export function setWordState(base: string, state: WordState): Promise<void> {
+function localSetWordState(base: string, state: WordState): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
@@ -171,16 +179,19 @@ export function setWordState(base: string, state: WordState): Promise<void> {
   });
 }
 
-export function recordSeen(
+function localRecordSeen(
   tokens: Token[],
-  wordStates: VocabMap,
-  targetedSet: Set<string>,
+  targeted: string[],
   direction: Settings["learningDirection"] = "en-ja",
   overlay?: Record<string, DictEntry> | null
 ): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
-    const vocab: VocabMap = { ...((r.vocab as VocabMap | undefined) || {}) };
+    // Eligibility reads the stored states, not a snapshot the caller held: the
+    // write runs in the service worker now, and storage is the fresher copy.
+    const wordStates: VocabMap = (r.vocab as VocabMap | undefined) || {};
+    const targetedSet = new Set(targeted);
+    const vocab: VocabMap = { ...wordStates };
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
     const day = todayKey();
     const daily = ensureDaily(stats, day);
@@ -280,7 +291,7 @@ export function getWebReviewSeq(): Promise<number> {
  * A word that is no longer learning here (known, ignored, gone) is left alone;
  * its op still counts as seen, or it would come back on every sync.
  */
-export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
+function localApplyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
     const stored = Number(r.webReviewSeq);
@@ -311,7 +322,7 @@ export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; 
   });
 }
 
-export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
+function localJudgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
@@ -395,7 +406,7 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
   });
 }
 
-export function recordCardShown(base: string): Promise<void> {
+function localRecordCardShown(base: string): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
@@ -417,7 +428,7 @@ export function recordCardShown(base: string): Promise<void> {
   });
 }
 
-export function recordWatchTick(): Promise<void> {
+function localRecordWatchTick(): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["stats"]);
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
@@ -663,11 +674,117 @@ export function recordReviewPromptShown(now = Date.now()): Promise<boolean> {
   });
 }
 
-export function resetProgress(): Promise<void> {
+function localResetProgress(): Promise<void> {
   return enqueue(async () => {
     // Wipe learning progress only. reviewPrompt must survive so "No thanks",
     // Rate, and the two-ask cap remain install-lifetime preferences.
     await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
     sendBadge({ daily: {} });
   });
+}
+
+// ---------------------------------------------------------------- one writer
+//
+// vocab, stats and settings are each one storage key, and every change above
+// is read-the-whole-map, change it, write it back. `enqueue` keeps that safe
+// within one JavaScript context, but every tab's content script, the popup,
+// the dashboard and the service worker each had their own queue: two of them
+// writing within a few milliseconds of each other lost one write entirely
+// (a word judged in one tab undone by a subtitle line counted in another).
+// So every such write now runs in the service worker, behind its one queue
+// (ISO 25010 reliability audit). Other contexts send it a message.
+
+export const STORAGE_WRITE_MESSAGE = "avc-storage-write";
+
+const writers = {
+  setSettings: localSetSettings,
+  setWordState: localSetWordState,
+  recordSeen: localRecordSeen,
+  applyWebReviews: localApplyWebReviews,
+  judgeWord: localJudgeWord,
+  recordCardShown: localRecordCardShown,
+  recordWatchTick: localRecordWatchTick,
+  resetProgress: localResetProgress,
+};
+
+type Writers = typeof writers;
+type WriterOp = keyof Writers;
+
+async function write<Op extends WriterOp>(
+  op: Op,
+  ...args: Parameters<Writers[Op]>
+): Promise<Awaited<ReturnType<Writers[Op]>>> {
+  type Out = Awaited<ReturnType<Writers[Op]>>;
+  const run = () => (writers[op] as (...a: Parameters<Writers[Op]>) => Promise<Out>)(...args);
+  if (inServiceWorker()) return run();
+  let res: { ok?: boolean; value?: unknown; error?: string } | undefined;
+  try {
+    res = await chrome.runtime.sendMessage({ type: STORAGE_WRITE_MESSAGE, op, args });
+  } catch {
+    res = undefined;
+  }
+  if (res?.ok === true) return res.value as Out;
+  if (res?.ok === false) throw new Error(res.error || `storage write ${op} failed`);
+  // Nobody answered: the worker is mid-restart, or an older worker without
+  // this handler is still running during an update. Writing here keeps the
+  // learner's action; it is exactly the old behaviour, so nothing is worse.
+  warn(`storage write ${op} ran in this context (no service worker answer)`);
+  return run();
+}
+
+/** Service worker side: run a write another context sent. Returns true when
+ * the message was ours (and sendResponse will be called). */
+export function handleStorageWrite(
+  msg: { type?: unknown; op?: unknown; args?: unknown },
+  sendResponse: (r: { ok: boolean; value?: unknown; error?: string }) => void
+): boolean {
+  if (msg?.type !== STORAGE_WRITE_MESSAGE || typeof msg.op !== "string" || !Object.prototype.hasOwnProperty.call(writers, msg.op)) return false;
+  const fn = writers[msg.op as WriterOp] as (...a: unknown[]) => Promise<unknown>;
+  const args = Array.isArray(msg.args) ? msg.args : [];
+  fn(...args).then(
+    (value) => sendResponse({ ok: true, value }),
+    (err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) })
+  );
+  return true;
+}
+
+export function setSettings(partial: Partial<Settings>): Promise<Settings> {
+  return write("setSettings", partial);
+}
+
+export function setWordState(base: string, state: WordState): Promise<void> {
+  return write("setWordState", base, state);
+}
+
+/** `wordStates` is accepted for call-site compatibility and ignored: the
+ * writer reads the stored states itself (see localRecordSeen). */
+export function recordSeen(
+  tokens: Token[],
+  _wordStates: VocabMap,
+  targetedSet: Set<string>,
+  direction: Settings["learningDirection"] = "en-ja",
+  overlay?: Record<string, DictEntry> | null
+): Promise<void> {
+  // A Set does not survive runtime messaging; send its members.
+  return write("recordSeen", tokens, Array.from(targetedSet ?? []), direction, overlay ?? null);
+}
+
+export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
+  return write("applyWebReviews", ops);
+}
+
+export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
+  return write("judgeWord", base, judgment, meta, source ?? null);
+}
+
+export function recordCardShown(base: string): Promise<void> {
+  return write("recordCardShown", base);
+}
+
+export function recordWatchTick(): Promise<void> {
+  return write("recordWatchTick");
+}
+
+export function resetProgress(): Promise<void> {
+  return write("resetProgress");
 }
