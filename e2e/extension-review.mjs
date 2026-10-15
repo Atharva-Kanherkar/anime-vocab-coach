@@ -2,15 +2,20 @@
 // review session in the dashboard, and asserts the SRS advanced. Proves the
 // review loop works without a video ever being on screen.
 import { chromium } from "playwright";
+import { NO_PRODUCTION_ARGS, keepOffProduction } from "./support/no-production.mjs";
 
 const EXT = process.argv[2] || `${process.cwd()}/extension`;
 const results = [];
 const check = (n, ok, d = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${n}${d ? ` — ${d}` : ""}`); };
 
 const ctx = await chromium.launchPersistentContext("", {
-  headless: false,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  // The full chromium channel: the default headless shell cannot load extensions.
+  channel: "chromium",
+  headless: !process.env.AVC_E2E_HEADED,
+  args: [...NO_PRODUCTION_ARGS, `--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
 });
+// Beacons and the account-link probe stay off the real site (support/no-production.mjs).
+await keepOffProduction(ctx);
 try {
   let sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 10000 }));
   const id = new URL(sw.url()).host;

@@ -24,7 +24,9 @@ check("manifest v3", manifest.manifest_version === 3);
 check("service worker declared", !!manifest.background?.service_worker, manifest.background?.service_worker);
 
 const ctx = await chromium.launchPersistentContext("", {
-  headless: false,
+  // The full chromium channel: the default headless shell cannot load extensions.
+  channel: "chromium",
+  headless: !process.env.AVC_E2E_HEADED,
   args: [
     `--disable-extensions-except=${dir}`, `--load-extension=${dir}`,
     // Black-hole the real host: this version fires install_first_run on install and

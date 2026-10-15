@@ -15,6 +15,7 @@
 // Screenshots land in e2e/shots when AVC_SHOTS is set.
 import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
+import { NO_PRODUCTION_ARGS, keepOffProduction } from "./support/no-production.mjs";
 
 const EXT = process.argv[2] || `${process.cwd()}/extension`;
 const SHOTS = `${process.cwd()}/e2e/shots`;
@@ -60,10 +61,14 @@ const BTN = "#avc-overlay-host .avc-agent-foot.avc-active button";
 const LINES = ["父はまだ帰らない。", "約束を守ると言った。", "電車が遅れている。", "彼女は静かに笑った。", "時間がもうない。"];
 
 const ctx = await chromium.launchPersistentContext("", {
-  headless: false,
+  // The full chromium channel: the default headless shell cannot load extensions.
+  channel: "chromium",
+  headless: !process.env.AVC_E2E_HEADED,
   viewport: { width: 1280, height: 800 },
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  args: [...NO_PRODUCTION_ARGS, `--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
 });
+// Beacons and the account-link probe stay off the real site (support/no-production.mjs).
+await keepOffProduction(ctx);
 
 const shot = async (page, name) => {
   if (!process.env.AVC_SHOTS) return;

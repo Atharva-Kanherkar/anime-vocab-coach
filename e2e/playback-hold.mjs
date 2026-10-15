@@ -6,6 +6,7 @@
 // canvas-backed video whose play/pause/seek fire real events, which is what the
 // code under test actually listens to.
 import { chromium } from "playwright";
+import { NO_PRODUCTION_ARGS, keepOffProduction } from "./support/no-production.mjs";
 
 const EXT = process.argv[2] || `${process.cwd()}/extension`;
 const results = [];
@@ -65,9 +66,13 @@ const watchPage = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><t
 const LINES = ["父はまだ帰らない。", "約束を守ると言った。"];
 
 const ctx = await chromium.launchPersistentContext("", {
-  headless: false,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  // The full chromium channel: the default headless shell cannot load extensions.
+  channel: "chromium",
+  headless: !process.env.AVC_E2E_HEADED,
+  args: [...NO_PRODUCTION_ARGS, `--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
 });
+// Beacons and the account-link probe stay off the real site (support/no-production.mjs).
+await keepOffProduction(ctx);
 
 try {
   const sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 15000 }));

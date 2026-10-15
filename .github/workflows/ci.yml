@@ -14,9 +14,9 @@ concurrency:
 
 jobs:
   extension:
-    name: Extension — typecheck, unit tests, pack
+    name: Extension — typecheck, unit tests, e2e, pack
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -39,13 +39,17 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      # Real Chromium, real VTTCues: the cue-text path can only be checked
-      # where a browser parses the markup, not in the node unit runner.
-      - name: E2E — generic adapter cue text
-        run: npm run test:e2e:cues
+      # Every self-contained extension suite against the real unpacked
+      # extension in Chromium (it used to be the cue-text one alone). None of
+      # them reaches production: see e2e/support/no-production.mjs.
+      - name: E2E — extension suites
+        run: npm run test:e2e:ci
 
       - name: Pack extension (the exact zip deploy ships)
         run: npm run pack
+
+      - name: E2E — the packed zip loads and runs
+        run: npm run verify:package
 
       # extension/*.js is committed, and it is what a contributor loads
       # unpacked. `pack` above just rebuilt it from src/, so any diff here
@@ -128,10 +132,15 @@ jobs:
       - name: Wrangler dry-run (validates the exact deploy bundle)
         run: npx wrangler deploy --dry-run --outdir=/tmp/wrangler-dry-run --config wrangler.toml
 
+      # Real workerd (wrangler dev): 50 simultaneous meter writes must all
+      # count, and a mint budget must hold under a burst.
+      - name: E2E — atomic meter and mint budget
+        run: node e2e/concurrency.mjs . --expect-atomic
+
   web-e2e:
-    name: Web — Playwright e2e (core loop)
+    name: Web — Playwright e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: web
@@ -163,6 +172,27 @@ jobs:
 
       - name: Run e2e core loop
         run: SKIP_AI=1 node e2e/core-loop.mjs
+
+      # Lives with the extension e2e (it plays the extension's side of the
+      # bridge), so it resolves playwright from the root install.
+      - name: Install root dependencies (for e2e/app-link-status.mjs)
+        working-directory: .
+        run: npm ci
+
+      - name: Run e2e /app extension-link banner (#133)
+        run: node ../e2e/app-link-status.mjs http://localhost:3400
+
+      # The /owner suites start their own dev server with a mocked Analytics
+      # Engine; two dev servers cannot share web/.next.
+      - name: Stop the shared dev server
+        # The saved pid is npm's; next dev is its child, so match the server.
+        run: pkill -f "next dev" || true; sleep 3
+
+      - name: Run e2e /owner observability, scope and Pro funnel
+        run: |
+          node e2e/observability.mjs
+          node e2e/owner-scope.mjs
+          node e2e/pro-entry.mjs
 
       - name: Dev server log (on failure)
         if: failure()

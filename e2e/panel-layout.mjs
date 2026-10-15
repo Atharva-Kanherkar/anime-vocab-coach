@@ -7,6 +7,7 @@
 // (bottom right, ~140px tall), and the real content script runs against it. The
 // question this answers is a geometry question, and geometry is honest here.
 import { chromium } from "playwright";
+import { NO_PRODUCTION_ARGS, keepOffProduction } from "./support/no-production.mjs";
 
 const EXT = process.argv[2] || `${process.cwd()}/extension`;
 const results = [];
@@ -58,9 +59,13 @@ const CARD = "#avc-overlay-host .avc-agent-word-block.avc-active";
 const LINES = ["父はまだ帰らない。", "約束を守ると言った。", "電車が遅れている。"];
 
 const ctx = await chromium.launchPersistentContext("", {
-  headless: false,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  // The full chromium channel: the default headless shell cannot load extensions.
+  channel: "chromium",
+  headless: !process.env.AVC_E2E_HEADED,
+  args: [...NO_PRODUCTION_ARGS, `--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
 });
+// Beacons and the account-link probe stay off the real site (support/no-production.mjs).
+await keepOffProduction(ctx);
 
 try {
   const sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 15000 }));
