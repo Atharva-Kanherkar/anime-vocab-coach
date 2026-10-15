@@ -7,7 +7,7 @@ import {
   parseEntitlement,
   type BillingInterval,
 } from "@/lib/plans";
-import { refreshSyncTokenProfile } from "@/lib/sync-store";
+import { refreshSyncTokenProfile, resolveStore } from "@/lib/sync-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -64,6 +64,21 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// Standard Webhooks' default tolerance. A signature only proves the payload
+// came from Dodo at some point; without a freshness check, a captured
+// "subscription.active" could be replayed later to re-grant a cancelled plan.
+export const WEBHOOK_TOLERANCE_SEC = 5 * 60;
+
+// Delivered ids are remembered this long, so a replay inside the tolerance
+// window (or a retry after a success Dodo never heard about) is a no-op.
+const WEBHOOK_SEEN_TTL_SEC = 7 * 24 * 3600;
+const seenKey = (id: string) => `dodo:webhook:${id.slice(0, 120)}`;
+
+export function timestampFresh(timestamp: string, nowMs = Date.now()): boolean {
+  const ts = Number(timestamp);
+  return Number.isFinite(ts) && Math.abs(nowMs / 1000 - ts) <= WEBHOOK_TOLERANCE_SEC;
+}
+
 async function verifySignature(
   secret: string,
   id: string,
@@ -72,6 +87,7 @@ async function verifySignature(
   signatureHeader: string
 ): Promise<boolean> {
   if (!id || !timestamp || !signatureHeader) return false;
+  if (!timestampFresh(timestamp)) return false;
   const secretBytes = base64ToBytes(secret.replace(/^whsec_/, ""));
   const key = await crypto.subtle.importKey(
     "raw",
@@ -202,6 +218,21 @@ export async function POST(request: Request) {
   );
   if (!ok) return NextResponse.json({ error: "bad_signature" }, { status: 401 });
 
+  const webhookId = request.headers.get("webhook-id") || "";
+  const store = await resolveStore().catch(() => null);
+  if (store && (await store.get(seenKey(webhookId)).catch(() => null))) {
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+  // Marked only once the event has been handled (below), so a failed attempt
+  // is still retried by Dodo.
+  const markSeen = async () => {
+    try {
+      await store?.put(seenKey(webhookId), "1", { expirationTtl: WEBHOOK_SEEN_TTL_SEC });
+    } catch (err) {
+      console.warn("[dodo/webhook] could not record delivery id", err);
+    }
+  };
+
   let event: { type?: string; data?: Record<string, unknown> };
   try {
     event = JSON.parse(body);
@@ -213,14 +244,22 @@ export async function POST(request: Request) {
   const data = (event.data ?? {}) as Record<string, unknown>;
   const productId = extractProductId(data);
   const plan = planForEvent(eventType, productId, env);
-  if (!plan) return NextResponse.json({ ok: true, ignored: eventType });
+  if (!plan) {
+    await markSeen();
+    return NextResponse.json({ ok: true, ignored: eventType });
+  }
   const billingInterval = plan === "free" ? null : intervalForProduct(productId, env);
 
   const email = extractEmail(data);
-  if (!email) return NextResponse.json({ ok: true, note: "no_customer_email" });
+  if (!email) {
+    await markSeen();
+    return NextResponse.json({ ok: true, note: "no_customer_email" });
+  }
 
   try {
     const applied = await setUserPlan(email, normalizePlan(plan), billingInterval);
+    await markSeen();
+    console.log("[dodo/webhook] applied", JSON.stringify({ webhookId, eventType, plan, billingInterval, applied }));
     return NextResponse.json({ ok: true, plan, billingInterval, applied });
   } catch (err) {
     // Return 500 so Dodo retries rather than dropping the entitlement update.
