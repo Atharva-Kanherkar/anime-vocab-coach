@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         <section className="legal wrap narrow" style={{ paddingTop: 48 }}>
           <h1>Privacy Policy</h1>
           <p className="date" style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 40 }}>
-            Last updated: September 19, 2026
+            Last updated: October 15, 2026
           </p>
 
           <p>
@@ -57,14 +57,22 @@ export default function PrivacyPage() {
           <h2>What leaves your device (Listening Mode)</h2>
           <ul>
             <li>
-              The current tab&apos;s <b>audio</b> is streamed to OpenAI&apos;s transcription API
-              solely to convert Japanese speech into text for vocabulary detection. Audio goes
-              directly from your browser to OpenAI; it is not recorded or stored by AnimeVocab.
+              With <b>your own OpenAI key</b>, the current tab&apos;s <b>audio</b> is streamed
+              directly from your browser to OpenAI&apos;s transcription API. It never passes
+              through AnimeVocab&apos;s servers.
             </li>
             <li>
-              With a Pro subscription, the extension additionally sends your <b>license key and
-              listening minute counts</b> (numbers only) to the licensing server to enforce the
-              monthly fair-use cap.
+              When you are <b>signed in</b> (no key of your own), short audio chunks are sent to
+              AnimeVocab&apos;s server, which has them transcribed by our provider (OpenAI) and
+              returns the text. The audio itself is not stored. For an episode we can identify
+              with Japanese audio, the <b>transcript text</b> is kept in a shared cache so later
+              viewers of that episode need not send audio again; otherwise (English audio, or a
+              video we cannot identify) the text is returned to you and not kept.
+            </li>
+            <li>
+              Your listening time is measured on our server from the length of the audio it
+              transcribes, to apply your plan&apos;s monthly cap. The extension does not report
+              minutes itself.
             </li>
             <li>Nothing is captured when Listening Mode is off.</li>
           </ul>
