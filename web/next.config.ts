@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
-import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
+import { securityHeaders } from "./src/lib/security-headers";
 
-const nextConfig: NextConfig = {
+const nextConfig = (phase: string): NextConfig => ({
+  // Don't advertise the framework (and its version range) to scanners.
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders({ dev: phase === PHASE_DEVELOPMENT_SERVER }) }];
+  },
   async redirects() {
     return [
       { source: "/privacy.html", destination: "/privacy", permanent: true },
@@ -18,7 +24,7 @@ const nextConfig: NextConfig = {
       { source: "/vs-migaku.html", destination: "/vs-migaku", permanent: true },
     ];
   },
-};
+});
 
 const config = (phase: string) => {
   // Hard stop: the dev Clerk bypass must never be inlined into a production
@@ -52,7 +58,7 @@ const config = (phase: string) => {
     }
   }
 
-  return nextConfig;
+  return nextConfig(phase);
 };
 
 export default config;
