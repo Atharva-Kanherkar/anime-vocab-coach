@@ -39,6 +39,8 @@ const API = "https://api.cloudflare.com/client/v4";
 export const SYNC_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 const TOKEN_KEY = /^synctoken:(avc_st_[A-Za-z0-9]+):v1$/;
+/** Token records since the ISO 25010 audit: keyed by SHA-256, never the token. */
+const HASHED_TOKEN_KEY = /^synctoken:h:[0-9a-f]{64}:v1$/;
 const POINTER_KEY = /^synctoken:user:(.+):v1$/;
 
 /**
@@ -59,7 +61,8 @@ export function planSweep(keys) {
 
     const isPointer = POINTER_KEY.test(name);
     const token = TOKEN_KEY.exec(name)?.[1] ?? null;
-    if (!isPointer && !token) {
+    const isHashed = HASHED_TOKEN_KEY.test(name);
+    if (!isPointer && !token && !isHashed) {
       plan.other++;
       continue;
     }

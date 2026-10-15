@@ -17,6 +17,13 @@ const OLD = "avc_st_bbbb2222";
 const key = (name: string, expiration?: number) => ({ name, expiration });
 
 describe("planSweep", () => {
+  it("treats hashed token records (no plaintext in the key) as tokens too", () => {
+    const hashed = `synctoken:h:${"ab".repeat(32)}:v1`;
+    const plan = planSweep([key(hashed)]);
+    expect(plan.expire).toEqual([{ name: hashed, token: null, kind: "token" }]);
+    expect(plan.other).toBe(0);
+  });
+
   it("gives an immortal token a TTL instead of deleting it", () => {
     const plan = planSweep([key(`synctoken:${LIVE}:v1`)]);
     expect(plan.expire).toEqual([{ name: `synctoken:${LIVE}:v1`, token: LIVE, kind: "token" }]);

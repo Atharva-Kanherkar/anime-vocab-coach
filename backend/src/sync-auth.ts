@@ -14,12 +14,40 @@ export interface CloudUserProfile {
   planExpiresAt?: string | null;
 }
 
-function tokenKey(token: string): string {
+// Mirrors web/src/lib/sync-store.ts: records are keyed by the token's SHA-256,
+// never the token itself, and the reverse pointer never holds it in the clear
+// (ISO 25010 security audit). Pre-hashing records (`synctoken:<token>:v1`) are
+// still honoured and are moved under the hash the first time they are used.
+// This Worker has no key for the pointer's encrypted copy, so it only ever
+// keeps an existing pointer as written or, when it must write one, stores the
+// hash alone (the web app then mints a fresh token on its next visit).
+
+export async function hashSyncToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function tokenKey(hash: string): string {
+  return `synctoken:h:${hash}:v1`;
+}
+
+function legacyTokenKey(token: string): string {
   return `synctoken:${token}:v1`;
 }
 
 function userTokenKey(userId: string): string {
   return `synctoken:user:${userId}:v1`;
+}
+
+/** Whether a stored pointer names this token: a legacy plaintext pointer, or
+ * the JSON { h, e? } form keyed by hash. */
+function pointerIsFor(raw: string, token: string, hash: string): boolean {
+  if (raw.startsWith("avc_st_")) return raw === token;
+  try {
+    return (JSON.parse(raw) as { h?: string }).h === hash;
+  } catch {
+    return false;
+  }
 }
 
 // Mirrors web/src/lib/sync-store.ts: using a token slides its 30-day TTL, at
@@ -36,14 +64,23 @@ export function tokenNeedsTouch(stored: { touchedAt?: number }, now: number): bo
   return typeof at !== "number" || now - at >= SYNC_TOKEN_TOUCH_INTERVAL_MS || at > now;
 }
 
-async function touchToken(kv: KVNamespace, token: string, profile: CloudUserProfile): Promise<void> {
+async function touchToken(
+  kv: KVNamespace,
+  token: string,
+  profile: CloudUserProfile,
+  retireLegacy: boolean
+): Promise<void> {
+  const hash = await hashSyncToken(token);
   const record: StoredTokenProfile = { ...profile, touchedAt: Date.now() };
-  await kv.put(tokenKey(token), JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  await kv.put(tokenKey(hash), JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  if (retireLegacy) await kv.delete(legacyTokenKey(token)).catch(() => {});
   // Re-take the pointer only when it is ours or gone, so a stale second token
-  // can't steal it from the one plan refreshes should reach.
+  // can't steal it from the one plan refreshes should reach. An encrypted
+  // pointer is kept byte for byte; a plaintext one is replaced by the hash.
   const current = await kv.get(userTokenKey(profile.id));
-  if (!current || current === token) {
-    await kv.put(userTokenKey(profile.id), token, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  if (!current || pointerIsFor(current, token, hash)) {
+    const keep = current && !current.startsWith("avc_st_") ? current : JSON.stringify({ h: hash });
+    await kv.put(userTokenKey(profile.id), keep, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
   }
 }
 
@@ -58,13 +95,19 @@ export async function getSyncTokenProfile(
   token: string
 ): Promise<CloudUserProfile | null> {
   if (!token) return null;
-  const raw = await kv.get(tokenKey(token));
+  let raw = await kv.get(tokenKey(await hashSyncToken(token)));
+  let legacy = false;
+  if (!raw) {
+    raw = await kv.get(legacyTokenKey(token));
+    legacy = !!raw;
+  }
   if (!raw) return null;
   const { touchedAt, ...profile } = JSON.parse(raw) as StoredTokenProfile;
-  if (tokenNeedsTouch({ touchedAt }, Date.now())) {
-    // Best effort: a failed slide must not turn a valid token into a 401.
+  if (legacy || tokenNeedsTouch({ touchedAt }, Date.now())) {
+    // Best effort: a failed slide (or migration) must not turn a valid token
+    // into a 401.
     try {
-      await touchToken(kv, token, profile);
+      await touchToken(kv, token, profile, legacy);
     } catch (err) {
       console.warn("[sync-auth] token TTL slide failed", err);
     }
