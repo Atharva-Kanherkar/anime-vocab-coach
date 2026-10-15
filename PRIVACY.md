@@ -20,14 +20,16 @@ from videos you watch. This policy explains exactly what it does with data.
 
 - With **bring-your-own-key** Listening Mode, the current tab's **audio** is streamed
   directly to OpenAI's transcription API. Audio never passes through AnimeVocab's servers.
-- With a **Pro subscription**, the extension first checks a shared transcript cache.
-  On a **cache hit**, no audio leaves your device — only a cache lookup request
-  (episode ID + playback time) goes to our server. On a **cache miss**, a short
-  audio chunk is sent to our server once for transcription, then stored and shared
-  so future users (and your re-watches) never resend that audio.
-- With Pro, the extension additionally sends your **license key and listening minute
-  counts** (numbers only — never page content) to the licensing server to enforce
-  the monthly fair-use cap.
+- When you are **signed in** (no key of your own), short audio chunks go to our
+  server, which has them transcribed by our provider (OpenAI) and returns the text.
+  The audio itself is not stored. For an episode we can identify with Japanese
+  audio, the transcript **text** is kept in a shared cache, so later viewers (and
+  your re-watches) can get it from a cache lookup (episode ID + playback time)
+  without sending audio. English audio, and videos we cannot identify, are
+  transcribed under a private per-session key and the text is not kept.
+- Listening time is measured on our server from the length of the audio it
+  transcribes, to apply your plan's monthly cap. The extension sends your sign-in
+  token with each request; it does not report minutes itself.
 - Nothing is captured when Listening Mode is off.
 
 ## Product counters

@@ -54,7 +54,7 @@ function renderSteps(state: OnboardingState): void {
       const done = step.done;
       return (
         `<li class="step${done ? " done" : ""}" data-step="${step.id}">` +
-        `<span class="num" aria-hidden>${done ? "✓" : i + 1}</span>` +
+        `<span class="num" aria-hidden="true">${done ? "✓" : i + 1}</span>` +
         `<div class="body">` +
         `<h2>${esc(step.title)}</h2>` +
         `<p>${esc(step.detail)}</p>` +

@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 
 export default function SignInPage() {
   return (
-    <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
+    // A landmark and a page heading for screen readers: Clerk's card has a
+    // visual title but no h1, and the page had no <main> for the skip link.
+    <main id="main" style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
+      <h1 className="sr-only">Sign in to AnimeVocab</h1>
       {DEV_NO_CLERK ? (
         <p style={{ color: "#eef2fc" }}>
           Clerk is bypassed in dev. Go to <a href="/app" style={{ color: "#e3ba63" }}>/app</a>.
@@ -17,6 +20,6 @@ export default function SignInPage() {
       ) : (
         <SignIn />
       )}
-    </div>
+    </main>
   );
 }

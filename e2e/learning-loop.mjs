@@ -145,7 +145,9 @@ const server = createServer(
 await new Promise((resolve) => server.listen(TLS_PORT, "127.0.0.1", resolve));
 
 const ctx = await chromium.launchPersistentContext("", {
-  headless: false,
+  // The full chromium channel: the default headless shell cannot load extensions.
+  channel: "chromium",
+  headless: !process.env.AVC_E2E_HEADED,
   args: [
     `--disable-extensions-except=${EXT}`,
     `--load-extension=${EXT}`,

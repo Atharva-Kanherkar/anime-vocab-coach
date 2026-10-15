@@ -86,7 +86,7 @@ function renderChecklist(host: HTMLElement, state: Parameters<typeof checklistSt
     .map(
       (step, i) =>
         `<li class="av-onboarding-step${step.done ? " done" : ""}">` +
-        `<span class="av-onboarding-num" aria-hidden>${step.done ? "✓" : i + 1}</span>` +
+        `<span class="av-onboarding-num" aria-hidden="true">${step.done ? "✓" : i + 1}</span>` +
         `<span class="av-onboarding-step-title">${esc(step.title)}</span>` +
         `</li>`
     )

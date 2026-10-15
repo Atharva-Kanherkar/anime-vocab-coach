@@ -37,6 +37,24 @@
     }
   };
 
+  // src/lib/session-key.ts
+  function privateSessionKey(language) {
+    return `sess:${crypto.randomUUID().replace(/-/g, "")}:${language}`;
+  }
+
+  // src/lib/net.ts
+  var TIMEOUT_MS = {
+    /** Small JSON round trips: sync, usage, beacons, captions. */
+    quick: 15e3,
+    /** A model call behind our API (word pick, coach, extraction, TTS). */
+    ai: 45e3,
+    /** An audio chunk upload that the server transcribes before answering. */
+    upload: 3e4
+  };
+  function timeout(kind) {
+    return AbortSignal.timeout(TIMEOUT_MS[kind]);
+  }
+
   // src/entries/offscreen.ts
   var RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
   var OUT_RATE = 24e3;
@@ -45,20 +63,7 @@
   var MIN_PCM_SAMPLES = OUT_RATE;
   async function getWsKey(session) {
     if (session.auth.kind === "byo") return session.auth.key;
-    const res = await fetch(session.auth.backendUrl + "/v1/session", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + session.auth.syncToken,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ language: session.language || "ja" })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 401) throw new CodedError("not-signed-in", data.error || "sign in at animevocab.com");
-    if (res.status === 429) throw new CodedError("quota-exceeded", data.error || "monthly listening hours used up");
-    if (!res.ok || !data.token) throw new CodedError("capture-failed", data.error || "backend HTTP " + res.status);
-    if (data.model) session.model = data.model;
-    return data.token.value;
+    throw new CodedError("capture-failed", "realtime transcription needs your own OpenAI key");
   }
   var CodedError = class extends Error {
     constructor(code, message) {
@@ -66,60 +71,6 @@
       this.code = code;
     }
   };
-  var MIN_FLUSH_MS = 3e4;
-  var HEARTBEAT_INTERVAL_MS = 5 * 60 * 1e3;
-  function accrueListening(session, now = Date.now()) {
-    if (session.billedFromMs == null) return;
-    const delta = now - session.billedFromMs;
-    if (delta > 0) session.pendingBillMs += delta;
-    session.billedFromMs = now;
-  }
-  function setListeningClock(session, playing) {
-    if (session.auth.kind !== "cloud" || session.useCache) {
-      session.billedFromMs = null;
-      return;
-    }
-    if (playing) {
-      if (session.billedFromMs == null) session.billedFromMs = Date.now();
-      return;
-    }
-    accrueListening(session);
-    session.billedFromMs = null;
-  }
-  async function flushListening(session, final = false) {
-    if (session.auth.kind !== "cloud") return;
-    accrueListening(session);
-    if (session.pendingBillMs <= 0) return;
-    if (!final && session.pendingBillMs < MIN_FLUSH_MS) return;
-    const { backendUrl, syncToken } = session.auth;
-    const minutes = Math.min(10, session.pendingBillMs / 6e4);
-    const sentMs = minutes * 6e4;
-    session.pendingBillMs = Math.max(0, session.pendingBillMs - sentMs);
-    try {
-      const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + syncToken },
-        body: JSON.stringify({ minutes })
-      });
-      if (res.status === 429) {
-        olog("monthly cap reached \u2014 stopping");
-        report(session.tabId, "quota-exceeded", "monthly listening hours used up");
-        stop(session.tabId);
-      }
-    } catch (err) {
-      session.pendingBillMs += sentMs;
-      olog("heartbeat failed (will retry):", String(err));
-    }
-  }
-  function startHeartbeat(session) {
-    if (session.auth.kind !== "cloud") return;
-    if (session.useCache) return;
-    if (session.heartbeat) return;
-    setListeningClock(session, session.active && !session.playbackPaused);
-    session.heartbeat = setInterval(() => {
-      void flushListening(session);
-    }, HEARTBEAT_INTERVAL_MS);
-  }
   function closeRealtimeSocket(session) {
     const ws = session.ws;
     if (!ws) return;
@@ -137,12 +88,6 @@
   function applyCacheMode(session) {
     session.modeGeneration += 1;
     if (session.useCache) {
-      if (session.heartbeat) {
-        clearInterval(session.heartbeat);
-        session.heartbeat = null;
-      }
-      void flushListening(session, true);
-      session.billedFromMs = null;
       closeRealtimeSocket(session);
       if (!session.chunkTimer) {
         session.chunkTimer = setInterval(() => {
@@ -158,7 +103,6 @@
     if (!session.ws && session.active) {
       connectWS(session).catch((err) => olog("reconnect after cache-key loss failed:", String(err)));
     }
-    startHeartbeat(session);
   }
   var sessions = {};
   function olog(...args) {
@@ -177,10 +121,8 @@
   }
   function onPlaybackUpdate(session, time, paused) {
     const prev = session.playbackTime;
-    const wasPaused = session.playbackPaused;
     session.playbackTime = time;
     session.playbackPaused = paused;
-    if (paused !== wasPaused) setListeningClock(session, !paused);
     if (Math.abs(time - prev) > SEEK_THRESHOLD_SEC) {
       olog("playback seek detected", prev, "\u2192", time, "\u2014 resetting audio buffer");
       resetAudioBuffer(session, time);
@@ -206,10 +148,10 @@
     if (msg.type === "avc-offscreen-update-key" && msg.tabId != null) {
       const session = sessions[msg.tabId];
       if (session) {
-        const newKey = msg.cacheKey || "";
+        const newKey = msg.cacheKey || session.privateKey;
         if (newKey !== session.cacheKey) {
           session.cacheKey = newKey;
-          session.useCache = session.auth.kind === "cloud" && !!newKey;
+          session.useCache = session.auth.kind === "cloud";
           session.sentCues.clear();
           resetAudioBuffer(session);
           applyCacheMode(session);
@@ -289,7 +231,9 @@
           "Content-Type": "application/json",
           Authorization: "Bearer " + session.auth.syncToken
         },
-        body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) })
+        body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) }),
+        // A hung request would hold this session's only transcription slot.
+        signal: timeout("upload")
       });
       const data = await res.json().catch(() => ({}));
       if (!session.active || session.cacheKey !== requestKey || session.modeGeneration !== generation) return;
@@ -343,7 +287,9 @@
     source.connect(proc);
     proc.connect(sink);
     sink.connect(ctx.destination);
-    const useCache = auth.kind === "cloud" && !!cacheKey;
+    const useCache = auth.kind === "cloud";
+    const lang = language === "en" ? "en" : "ja";
+    const privateKey = useCache ? privateSessionKey(lang) : "";
     const session = {
       ws: null,
       ctx,
@@ -355,12 +301,12 @@
       ready: false,
       auth,
       model,
-      language: language === "en" ? "en" : "ja",
+      language: lang,
       tabId,
       srcRate: ctx.sampleRate,
       reconnects: 0,
-      heartbeat: null,
-      cacheKey: cacheKey || "",
+      cacheKey: cacheKey || privateKey,
+      privateKey,
       playbackTime: 0,
       // Assume PLAYING until a playback relay says otherwise. A session only
       // starts on a playing video, and the content→background→offscreen relay
@@ -377,8 +323,6 @@
       chunkTimer: null,
       useCache,
       sentCues: new CueLedger(),
-      billedFromMs: null,
-      pendingBillMs: 0,
       modeGeneration: 0,
       flushDeferred: false,
       speechTimes: /* @__PURE__ */ new Map()
@@ -402,7 +346,7 @@
       }
     };
     if (useCache) {
-      olog("using shared transcript cache for", cacheKey);
+      olog("using metered transcription for", session.cacheKey);
       applyCacheMode(session);
       return;
     }
@@ -510,9 +454,6 @@
     const session = sessions[tabId];
     if (!session) return;
     session.active = false;
-    setListeningClock(session, false);
-    void flushListening(session, true);
-    if (session.heartbeat) clearInterval(session.heartbeat);
     if (session.chunkTimer) clearInterval(session.chunkTimer);
     if (session.useCache && session.pcmBuffer.length && !session.playbackPaused) {
       flushChunk(session).catch(() => {

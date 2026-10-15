@@ -17,6 +17,7 @@ import {
   listCreations,
   putCreation,
 } from "@/lib/word-manga-store";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
+      signal: upstreamTimeout("chat"),
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: scriptModel,
@@ -101,6 +103,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
+      signal: upstreamTimeout("image"),
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: imageModel,

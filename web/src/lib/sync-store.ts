@@ -8,6 +8,8 @@ interface SyncKV {
 
 interface SyncEnv {
   AVC_SYNC_KV?: SyncKV;
+  SYNC_TOKEN_SECRET?: string;
+  CLERK_SECRET_KEY?: string;
 }
 
 function syncKey(userId: string): string {
@@ -81,6 +83,106 @@ export function tokenNeedsTouch(stored: { touchedAt?: number }, now: number): bo
   return typeof at !== "number" || now - at >= SYNC_TOKEN_TOUCH_INTERVAL_MS || at > now;
 }
 
+// Token storage is moving off plaintext (ISO 25010 security audit), in two
+// releases, because this Worker and the API Worker deploy one after the other
+// and each must read whatever the other writes (review of #172, findings 1-2):
+//
+//   1. (this code) Readers understand both layouts: the plaintext record
+//      `synctoken:<token>:v1` and the hashed `synctoken:h:<sha256>:v1`, and a
+//      pointer that is either the token string or JSON { h, e? } (e = the
+//      token sealed with AES-GCM). Writers still write only what master
+//      wrote: the plaintext record and a token-string pointer. Nothing is
+//      migrated or deleted, so old and new Workers interoperate in any order.
+//   2. (follow-up, once 1 is live on both Workers) Writers switch to the
+//      hashed record and the sealed pointer, migrate on use, and keep every
+//      live token of a user reachable by entitlement refreshes.
+//
+// backend/src/sync-auth.ts mirrors the lookup side.
+
+export async function hashSyncToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Where tokens are written today (and read first). */
+function tokenKey(token: string): string {
+  return `synctoken:${token}:v1`;
+}
+
+/** The hashed layout release 2 writes; read here so a rollback keeps working. */
+function hashedTokenKey(hash: string): string {
+  return `synctoken:h:${hash}:v1`;
+}
+
+function userTokenKey(userId: string): string {
+  return `synctoken:user:${userId}:v1`;
+}
+
+/** Release 2's pointer: the token's hash and, from this Worker, the sealed token. */
+interface SealedPointer {
+  h: string;
+  e?: string;
+}
+
+type ParsedPointer = { kind: "plain"; token: string } | { kind: "sealed"; pointer: SealedPointer };
+
+function parsePointer(raw: string | null): ParsedPointer | null {
+  if (!raw) return null;
+  if (raw.startsWith("avc_st_")) return { kind: "plain", token: raw };
+  try {
+    const p = JSON.parse(raw) as SealedPointer;
+    return typeof p?.h === "string" ? { kind: "sealed", pointer: p } : null;
+  } catch {
+    return null;
+  }
+}
+
+function pointerIsFor(raw: string | null, token: string, hash: string): boolean {
+  const p = parsePointer(raw);
+  if (!p) return false;
+  return p.kind === "plain" ? p.token === token : p.pointer.h === hash;
+}
+
+const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+/** AES-GCM key for a sealed pointer: SYNC_TOKEN_SECRET, else derived from the
+ * Clerk secret every deployed web Worker has. */
+async function pointerKey(): Promise<CryptoKey | null> {
+  let env: SyncEnv = {};
+  try {
+    env = (await getCloudflareContext({ async: true })).env as SyncEnv;
+  } catch {
+    // next dev / tests: process.env below.
+  }
+  const secret =
+    env.SYNC_TOKEN_SECRET ||
+    process.env.SYNC_TOKEN_SECRET ||
+    env.CLERK_SECRET_KEY ||
+    process.env.CLERK_SECRET_KEY ||
+    (process.env.NODE_ENV !== "production" ? "avc-dev-only-sync-token-secret" : "");
+  if (!secret) return null;
+  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: new TextEncoder().encode("avc-sync-token-pointer"), info: new Uint8Array() },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+}
+
+async function unsealToken(sealed: string): Promise<string | null> {
+  try {
+    const [iv, ct] = sealed.split(".");
+    const key = await pointerKey();
+    if (!iv || !ct || !key) return null;
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(iv) }, key, unb64(ct));
+    return new TextDecoder().decode(pt);
+  } catch {
+    return null;
+  }
+}
+
 async function putTokenRecord(
   store: SyncKV,
   token: string,
@@ -96,24 +198,24 @@ async function putTokenRecord(
   }
 }
 
-// Slide a token the extension is using. The pointer is only re-taken when it
-// is ours or gone: a stale second token must not steal it from the current one,
-// or plan refreshes (which follow the pointer) would miss the live credential.
+// Slide a token the extension is using, in the layout it was found in. The
+// pointer is only re-taken when it is ours or gone: a stale second token must
+// not steal it from the current one, or plan refreshes (which follow the
+// pointer) would miss the live credential. Ours is kept byte for byte.
 async function touchTokenRecord(
   store: SyncKV,
   token: string,
-  profile: CloudUserProfile
+  profile: CloudUserProfile,
+  foundAt: string
 ): Promise<void> {
+  const record: StoredTokenProfile = { ...profile, touchedAt: Date.now() };
+  await store.put(foundAt, JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
   const current = await store.get(userTokenKey(profile.id));
-  await putTokenRecord(store, token, profile, { takePointer: !current || current === token });
-}
-
-function tokenKey(token: string): string {
-  return `synctoken:${token}:v1`;
-}
-
-function userTokenKey(userId: string): string {
-  return `synctoken:user:${userId}:v1`;
+  if (!current) {
+    await store.put(userTokenKey(profile.id), token, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  } else if (pointerIsFor(current, token, await hashSyncToken(token))) {
+    await store.put(userTokenKey(profile.id), current, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  }
 }
 
 export async function getOrCreateSyncToken(
@@ -121,11 +223,17 @@ export async function getOrCreateSyncToken(
   profile: CloudUserProfile
 ): Promise<string> {
   const store = await resolveStore();
-  const pointerKey = userTokenKey(userId);
-
-  const existing = await store.get(pointerKey);
+  const existing = parsePointer(await store.get(userTokenKey(userId)));
+  // Reuse the token the pointer names: a plain pointer, or a sealed one this
+  // secret can open. Only an unreadable pointer mints a new token.
+  const reused =
+    existing?.kind === "plain"
+      ? existing.token
+      : existing?.pointer.e
+        ? await unsealToken(existing.pointer.e)
+        : null;
   const token =
-    existing ||
+    reused ||
     "avc_st_" + crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 
   // Reuse the existing token when present, otherwise mint one. Either way,
@@ -138,13 +246,18 @@ export async function getOrCreateSyncToken(
 export async function getSyncTokenProfile(token: string): Promise<CloudUserProfile | null> {
   if (!token) return null;
   const store = await resolveStore();
-  const raw = await store.get(tokenKey(token));
+  let foundAt = tokenKey(token);
+  let raw = await store.get(foundAt);
+  if (!raw) {
+    foundAt = hashedTokenKey(await hashSyncToken(token));
+    raw = await store.get(foundAt);
+  }
   if (!raw) return null;
   const { touchedAt, ...profile } = JSON.parse(raw) as StoredTokenProfile;
   if (tokenNeedsTouch({ touchedAt }, Date.now())) {
     // Best effort: a failed slide must not turn a valid token into a 401.
     try {
-      await touchTokenRecord(store, token, profile);
+      await touchTokenRecord(store, token, profile, foundAt);
     } catch (err) {
       console.warn("[sync-store] token TTL slide failed", err);
     }
@@ -191,8 +304,16 @@ export async function refreshSyncTokenProfile(
   profile: CloudUserProfile
 ): Promise<boolean> {
   const store = await resolveStore();
-  const token = await store.get(userTokenKey(userId));
-  if (!token) return false;
-  await putTokenRecord(store, token, { ...profile, id: userId });
+  const pointerRaw = await store.get(userTokenKey(userId));
+  const pointer = parsePointer(pointerRaw);
+  if (!pointer) return false;
+  if (pointer.kind === "plain") {
+    await putTokenRecord(store, pointer.token, { ...profile, id: userId });
+    return true;
+  }
+  // A sealed pointer (release 2) addresses the hashed record by its hash.
+  const record: StoredTokenProfile = { ...profile, id: userId, touchedAt: Date.now() };
+  await store.put(hashedTokenKey(pointer.pointer.h), JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  await store.put(userTokenKey(userId), pointerRaw!, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
   return true;
 }

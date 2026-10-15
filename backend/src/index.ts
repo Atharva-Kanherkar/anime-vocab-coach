@@ -3,6 +3,7 @@
 // Authenticates extension callers via Clerk-linked sync tokens (avc_st_*).
 // BYO-key users stream audio directly to OpenAI Realtime and never hit this API.
 
+import { atomicFor } from "./atomic";
 import { economicsSnapshot } from "./economics";
 import { getMetrics } from "./metrics";
 import { mintTranscriptionToken } from "./openai";
@@ -15,8 +16,12 @@ import { countryOf, type AnalyticsEngineDataset } from "./telemetry";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
+export { Atomic } from "./atomic";
+
 export interface Env {
   AVC_KV: KVNamespace;
+  /** Atomic counters and locks (see atomic.ts). */
+  ATOMIC: DurableObjectNamespace<import("./atomic").Atomic>;
   /** Listening Mode transcription observability (dataset avc_transcribe).
    *  Optional: a missing binding degrades to no telemetry, never an error. */
   TRANSCRIBE_AE?: AnalyticsEngineDataset;
@@ -38,6 +43,11 @@ export interface Env {
   FREE_AI_CALLS_PER_MONTH?: string;
   PRO_AI_CALLS_PER_MONTH?: string;
   MAX_AI_CALLS_PER_MONTH?: string;
+  /** "0" turns off /v1/session (direct-to-OpenAI realtime tokens). Kept on only
+   * for extension builds 0.6.x and older, which still use it. */
+  LEGACY_REALTIME_SESSIONS?: string;
+  /** Realtime tokens one account may mint per UTC day while legacy is on. */
+  REALTIME_MINTS_PER_DAY?: string;
 }
 
 function corsHeaders(req: Request): Record<string, string> {
@@ -54,6 +64,17 @@ function corsHeaders(req: Request): Record<string, string> {
   };
 }
 
+// The API only ever returns JSON to the extension, so nothing here should be
+// sniffed as HTML, framed, or allowed to load anything (ISO 25010 audit: the
+// worker sent none of these before).
+export const SECURITY_HEADERS: Record<string, string> = {
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer"
+};
+
 function json(
   req: Request,
   body: unknown,
@@ -62,7 +83,7 @@ function json(
 ): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders(req), ...extraHeaders }
+    headers: { "Content-Type": "application/json", ...SECURITY_HEADERS, ...corsHeaders(req), ...extraHeaders }
   });
 }
 
@@ -80,17 +101,48 @@ export default {
     const path = url.pathname;
 
     if (req.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(req) });
+      return new Response(null, { status: 204, headers: { ...SECURITY_HEADERS, ...corsHeaders(req) } });
     }
 
     try {
+      // Liveness for the uptime check (.github/workflows/uptime.yml): reads
+      // only, so frequent probes spend no KV writes. 503 names what failed.
+      if (path === "/v1/health" && req.method === "GET") {
+        const checks: Record<string, "ok" | "fail"> = {};
+        await Promise.all([
+          env.AVC_KV.get("health:probe").then(() => { checks.kv = "ok"; }, () => { checks.kv = "fail"; }),
+          atomicFor(env.ATOMIC, "health:probe").get().then(() => { checks.atomic = "ok"; }, () => { checks.atomic = "fail"; }),
+        ]);
+        const ok = Object.values(checks).every((v) => v === "ok");
+        return json(req, { ok, checks }, ok ? 200 : 503, { "Cache-Control": "no-store" });
+      }
+
       if (path === "/v1/public/config" && req.method === "GET") {
         return json(req, publicConfig(env));
       }
 
+      // Legacy: hands the extension a short-lived OpenAI realtime token. The
+      // audio then goes straight to OpenAI, so this server never sees a minute
+      // of it and billing rests on the client's own heartbeat; a modified
+      // client could skip that and transcribe without limit (ISO 25010
+      // security audit). After 0.6.x the extension sends all signed-in audio
+      // through /v1/transcript/transcribe, which bills real audio length.
+      // Until old builds age out, each account gets a daily mint budget.
       if (path === "/v1/session" && req.method === "POST") {
+        if (env.LEGACY_REALTIME_SESSIONS === "0") {
+          return json(req, { error: "update the AnimeVocab extension to keep using Listening Mode" }, 410);
+        }
         const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
+
+        const mintsPerDay = Number(env.REALTIME_MINTS_PER_DAY) || 60;
+        const day = new Date().toISOString().slice(0, 10);
+        const mintKey = `rtmint:${auth.userId}:${day}`;
+        const minted = await atomicFor(env.ATOMIC, mintKey).add(1, 2 * 24 * 3600);
+        if (minted > mintsPerDay) {
+          console.warn("[session] realtime mint budget exhausted", auth.userId, minted);
+          return json(req, { error: "too many listening sessions today, try again tomorrow" }, 429);
+        }
 
         const cap = capMinutesForPlan(env, effectivePlanFromProfile(auth.profile));
         const capErr = await checkUsageCap(env, req, auth.userId, cap);

@@ -24,6 +24,8 @@ import {
 import { trackExtensionMilestone } from "./extension-events";
 import { trackFeature } from "./feature-events";
 import { stampOnboarding } from "./onboarding-store";
+import { inServiceWorker } from "./run-context";
+import { mergeBackup, type Backup } from "./backup";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -57,6 +59,13 @@ function emptyStats(): Stats {
 function sendBadge(stats: Pick<Stats, "daily">): void {
   const day = todayKey();
   const judged = stats.daily?.[day]?.judged || 0;
+  // Writes now run in the service worker, and a worker's own sendMessage never
+  // reaches its own listener: set the badge directly there.
+  if (inServiceWorker() && typeof chrome.action?.setBadgeText === "function") {
+    void chrome.action.setBadgeText({ text: judged > 0 ? String(judged) : "" });
+    void chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
+    return;
+  }
   chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {});
 }
 
@@ -83,7 +92,7 @@ export function getSettings(): Promise<Settings> {
   });
 }
 
-export function setSettings(partial: Partial<Settings>): Promise<Settings> {
+function localSetSettings(partial: Partial<Settings>): Promise<Settings> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["settings"]);
     const settings: Settings = { ...withDefaults((r.settings || {}) as Partial<Settings>), ...partial };
@@ -156,7 +165,7 @@ export function getWord(base: string): Promise<VocabRecord | null> {
   return getVocab().then((v) => v[base] || null);
 }
 
-export function setWordState(base: string, state: WordState): Promise<void> {
+function localSetWordState(base: string, state: WordState): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
@@ -171,35 +180,58 @@ export function setWordState(base: string, state: WordState): Promise<void> {
   });
 }
 
-export function recordSeen(
+/** A word a subtitle line counted as seen, already looked up. */
+interface SeenWord {
+  base: string;
+  reading: string;
+  gloss: string;
+  level: number;
+  freqRank: number;
+}
+
+/** Decide which tokens of a line count as seen. Runs in the caller's context,
+ * which has the dictionary loaded (the service worker does not), against the
+ * word states the caller holds: the same decision recordSeen always made. */
+function seenWords(
   tokens: Token[],
   wordStates: VocabMap,
   targetedSet: Set<string>,
-  direction: Settings["learningDirection"] = "en-ja",
+  direction: Settings["learningDirection"],
   overlay?: Record<string, DictEntry> | null
-): Promise<void> {
+): SeenWord[] {
+  const out: SeenWord[] = [];
+  for (const token of tokens) {
+    const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
+    if (!eligibility.countSeen) continue;
+    const entry = lookupForDirection(token.base, direction, overlay);
+    if (!entry) continue;
+    out.push({
+      base: token.base,
+      reading: entry.reading,
+      gloss: entry.glosses[0] || "",
+      level: entry.level,
+      freqRank: entry.freqRank,
+    });
+  }
+  return out;
+}
+
+function localRecordSeen(words: SeenWord[]): Promise<void> {
   return enqueue(async () => {
+    if (!words.length) return;
     const r = await chrome.storage.local.get(["vocab", "stats"]);
     const vocab: VocabMap = { ...((r.vocab as VocabMap | undefined) || {}) };
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
-    const day = todayKey();
-    const daily = ensureDaily(stats, day);
-    let changed = false;
+    const daily = ensureDaily(stats, todayKey());
 
-    for (const token of tokens) {
-      const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
-      if (!eligibility.countSeen) continue;
-
-      const entry = lookupForDirection(token.base, direction, overlay);
-      if (!entry) continue;
-
-      if (!vocab[token.base]) {
-        vocab[token.base] = {
+    for (const w of words) {
+      if (!vocab[w.base]) {
+        vocab[w.base] = {
           state: "new",
-          reading: entry.reading,
-          gloss: entry.glosses[0] || "",
-          level: entry.level,
-          freqRank: entry.freqRank,
+          reading: w.reading,
+          gloss: w.gloss,
+          level: w.level,
+          freqRank: w.freqRank,
           seenCount: 1,
           shownCount: 0,
           firstSeenAt: Date.now(),
@@ -207,20 +239,16 @@ export function recordSeen(
           srs: null
         };
         daily.met += 1;
-        changed = true;
       } else {
-        vocab[token.base].seenCount += 1;
-        vocab[token.base].lastSeenAt = Date.now();
-        changed = true;
+        vocab[w.base].seenCount += 1;
+        vocab[w.base].lastSeenAt = Date.now();
       }
     }
 
-    if (changed) {
-      await chrome.storage.local.set({ vocab, stats });
-      // Onboarding step 1: something Japanese is on screen and we can read it.
-      // Write-once, so this costs one extra read per line and nothing else.
-      void stampOnboarding("watchedAt");
-    }
+    await chrome.storage.local.set({ vocab, stats });
+    // Onboarding step 1: something Japanese is on screen and we can read it.
+    // Write-once, so this costs one extra read per line and nothing else.
+    void stampOnboarding("watchedAt");
   });
 }
 
@@ -280,7 +308,7 @@ export function getWebReviewSeq(): Promise<number> {
  * A word that is no longer learning here (known, ignored, gone) is left alone;
  * its op still counts as seen, or it would come back on every sync.
  */
-export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
+function localApplyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
     const stored = Number(r.webReviewSeq);
@@ -311,7 +339,12 @@ export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; 
   });
 }
 
-export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
+function localJudgeWord(
+  base: string,
+  judgment: Judgment,
+  meta: JudgmentMeta,
+  source?: WordSource | null
+): Promise<{ record: VocabRecord; undo: JudgmentUndo }> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
@@ -319,6 +352,9 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
     const day = todayKey();
     const daily = ensureDaily(stats, day);
     const now = Date.now();
+    // Taken here, inside the one queue, so the ticket describes exactly this
+    // judgment and nothing that raced it.
+    const before = vocab[base] ? { state: vocab[base].state, srs: vocab[base].srs ? { ...vocab[base].srs! } : null } : null;
 
     if (!vocab[base]) {
       vocab[base] = {
@@ -391,11 +427,95 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
       void trackFeature("review_done");
     }
     sendBadge(stats);
-    return vocab[base];
+    const after = vocab[base];
+    return {
+      record: after,
+      undo: { base, judgment, before, after: { state: after.state, srs: after.srs ? { ...after.srs } : null } },
+    };
   });
 }
 
-export function recordCardShown(base: string): Promise<void> {
+/** Merge a validated backup (lib/backup.ts parseBackup) into this browser's
+ * words and stats. Never deletes, never rolls a word or a day backwards. */
+function localImportBackup(incoming: Backup): Promise<{ added: number; updated: number }> {
+  return enqueue(async () => {
+    const r = await chrome.storage.local.get(["vocab", "stats"]);
+    const current: Backup = {
+      vocab: (r.vocab as VocabMap | undefined) || {},
+      stats: (r.stats as Stats | undefined) || emptyStats(),
+    };
+    const { merged, added, updated } = mergeBackup(current, incoming);
+    await chrome.storage.local.set({ vocab: merged.vocab, stats: merged.stats });
+    sendBadge(merged.stats);
+    return { added, updated };
+  });
+}
+
+/** The part of a word a judgment decides: its state and its review schedule. */
+interface JudgedFields {
+  state: WordState;
+  srs: VocabRecord["srs"];
+}
+
+/** Issued by judgeWord, inside the writer's queue: what this one judgment
+ * changed, so undoJudgment can reverse exactly that and nothing else. */
+export interface JudgmentUndo {
+  base: string;
+  judgment: Judgment;
+  /** State and schedule before the judgment, or null if it created the word. */
+  before: JudgedFields | null;
+  /** State and schedule the judgment wrote. */
+  after: JudgedFields;
+}
+
+export type UndoResult = { undone: true } | { undone: false; reason: "changed" | "gone" };
+
+/** Field by field: chrome.storage hands objects back with their keys sorted,
+ * so a serialized comparison would call identical schedules different. */
+const sameJudged = (a: JudgedFields, b: JudgedFields): boolean =>
+  a.state === b.state &&
+  (a.srs === null || b.srs === null
+    ? a.srs === b.srs
+    : a.srs.stage === b.srs.stage && a.srs.dueAt === b.srs.dueAt && a.srs.lapses === b.srs.lapses);
+
+/**
+ * Take back one judgment (ISO 25010 usability: user error protection).
+ *
+ * Reverses only what the judgment decided (state and review schedule) and only
+ * if the word still holds what it wrote: if another tab, a review or a web
+ * review has judged it since, nothing is undone (review of #172, finding 4).
+ * Sightings, counts and the source line recorded meanwhile are kept.
+ *
+ * The reversal is written as a newer version (lastSeenAt moves forward), so it
+ * wins the cloud merge, which keeps the most recently seen copy of a word; a
+ * restored older copy lost to the judged one already synced (finding 5). For
+ * the same reason a word the judgment created is not deleted (the cloud has no
+ * deletions) but goes back to "new", outside the deck. The day's judged and
+ * review counts are left alone: they are activity counters merged by maximum
+ * across devices, so a local decrement could never reach the cloud and would
+ * only make the two disagree.
+ */
+function localUndoJudgment(undo: JudgmentUndo): Promise<UndoResult> {
+  return enqueue(async () => {
+    const r = await chrome.storage.local.get(["vocab"]);
+    const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
+    const current = vocab[undo.base];
+    if (!current) return { undone: false, reason: "gone" } as const;
+    if (!sameJudged({ state: current.state, srs: current.srs }, undo.after)) {
+      return { undone: false, reason: "changed" } as const;
+    }
+    vocab[undo.base] = {
+      ...current,
+      state: undo.before ? undo.before.state : "new",
+      srs: undo.before?.srs ? { ...undo.before.srs } : null,
+      lastSeenAt: Math.max(current.lastSeenAt + 1, Date.now()),
+    };
+    await chrome.storage.local.set({ vocab });
+    return { undone: true } as const;
+  });
+}
+
+function localRecordCardShown(base: string): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
@@ -417,7 +537,7 @@ export function recordCardShown(base: string): Promise<void> {
   });
 }
 
-export function recordWatchTick(): Promise<void> {
+function localRecordWatchTick(): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["stats"]);
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
@@ -433,6 +553,16 @@ export interface ExportData {
   vocab: VocabMap;
   stats: Stats;
   exportedAt: string;
+}
+
+/** The downloadable backup: everything exportAll returns except the learner's
+ * OpenAI key. A backup file gets attached to support emails and copied
+ * between machines; a live API key does not belong in it. */
+export async function exportForBackup(): Promise<ExportData> {
+  const data = await exportAll();
+  const settings = { ...data.settings };
+  delete (settings as Partial<Settings>).openaiKey;
+  return { ...data, settings: settings as Settings };
 }
 
 export function exportAll(): Promise<ExportData> {
@@ -663,11 +793,136 @@ export function recordReviewPromptShown(now = Date.now()): Promise<boolean> {
   });
 }
 
-export function resetProgress(): Promise<void> {
+function localResetProgress(): Promise<void> {
   return enqueue(async () => {
     // Wipe learning progress only. reviewPrompt must survive so "No thanks",
     // Rate, and the two-ask cap remain install-lifetime preferences.
     await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
     sendBadge({ daily: {} });
   });
+}
+
+// ---------------------------------------------------------------- one writer
+//
+// vocab, stats and settings are each one storage key, and every change above
+// is read-the-whole-map, change it, write it back. `enqueue` keeps that safe
+// within one JavaScript context, but every tab's content script, the popup,
+// the dashboard and the service worker each had their own queue: two of them
+// writing within a few milliseconds of each other lost one write entirely
+// (a word judged in one tab undone by a subtitle line counted in another).
+// So every such write now runs in the service worker, behind its one queue
+// (ISO 25010 reliability audit). Other contexts send it a message.
+
+export const STORAGE_WRITE_MESSAGE = "avc-storage-write";
+
+const writers = {
+  setSettings: localSetSettings,
+  setWordState: localSetWordState,
+  recordSeen: localRecordSeen,
+  applyWebReviews: localApplyWebReviews,
+  judgeWord: localJudgeWord,
+  recordCardShown: localRecordCardShown,
+  recordWatchTick: localRecordWatchTick,
+  resetProgress: localResetProgress,
+  undoJudgment: localUndoJudgment,
+  importBackup: localImportBackup,
+};
+
+type Writers = typeof writers;
+type WriterOp = keyof Writers;
+
+async function write<Op extends WriterOp>(
+  op: Op,
+  ...args: Parameters<Writers[Op]>
+): Promise<Awaited<ReturnType<Writers[Op]>>> {
+  type Out = Awaited<ReturnType<Writers[Op]>>;
+  const run = () => (writers[op] as (...a: Parameters<Writers[Op]>) => Promise<Out>)(...args);
+  if (inServiceWorker()) return run();
+  let res: { ok?: boolean; value?: unknown; error?: string } | undefined;
+  try {
+    res = await chrome.runtime.sendMessage({ type: STORAGE_WRITE_MESSAGE, op, args });
+  } catch {
+    res = undefined;
+  }
+  if (res?.ok === true) return res.value as Out;
+  if (res?.ok === false) throw new Error(res.error || `storage write ${op} failed`);
+  // Nobody answered: the worker is mid-restart, or an older worker without
+  // this handler is still running during an update. Writing here keeps the
+  // learner's action; it is exactly the old behaviour, so nothing is worse.
+  warn(`storage write ${op} ran in this context (no service worker answer)`);
+  return run();
+}
+
+/** Service worker side: run a write another context sent. Returns true when
+ * the message was ours (and sendResponse will be called). */
+export function handleStorageWrite(
+  msg: { type?: unknown; op?: unknown; args?: unknown },
+  sendResponse: (r: { ok: boolean; value?: unknown; error?: string }) => void
+): boolean {
+  if (msg?.type !== STORAGE_WRITE_MESSAGE || typeof msg.op !== "string" || !Object.prototype.hasOwnProperty.call(writers, msg.op)) return false;
+  const fn = writers[msg.op as WriterOp] as (...a: unknown[]) => Promise<unknown>;
+  const args = Array.isArray(msg.args) ? msg.args : [];
+  fn(...args).then(
+    (value) => sendResponse({ ok: true, value }),
+    (err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) })
+  );
+  return true;
+}
+
+export function setSettings(partial: Partial<Settings>): Promise<Settings> {
+  return write("setSettings", partial);
+}
+
+export function setWordState(base: string, state: WordState): Promise<void> {
+  return write("setWordState", base, state);
+}
+
+export function recordSeen(
+  tokens: Token[],
+  wordStates: VocabMap,
+  targetedSet: Set<string>,
+  direction: Settings["learningDirection"] = "en-ja",
+  overlay?: Record<string, DictEntry> | null
+): Promise<void> {
+  // Decide here (dictionary loaded), write in the worker (one queue).
+  const words = seenWords(tokens, wordStates || {}, targetedSet ?? new Set(), direction, overlay);
+  return words.length ? write("recordSeen", words) : Promise.resolve();
+}
+
+export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
+  return write("applyWebReviews", ops);
+}
+
+export async function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
+  return (await write("judgeWord", base, judgment, meta, source ?? null)).record;
+}
+
+/** judgeWord, plus the ticket that undoes exactly this judgment. */
+export function judgeWordUndoable(
+  base: string,
+  judgment: Judgment,
+  meta: JudgmentMeta,
+  source?: WordSource | null
+): Promise<{ record: VocabRecord; undo: JudgmentUndo }> {
+  return write("judgeWord", base, judgment, meta, source ?? null);
+}
+
+export function recordCardShown(base: string): Promise<void> {
+  return write("recordCardShown", base);
+}
+
+export function undoJudgment(undo: JudgmentUndo): Promise<UndoResult> {
+  return write("undoJudgment", undo);
+}
+
+export function importBackup(backup: Backup): Promise<{ added: number; updated: number }> {
+  return write("importBackup", backup);
+}
+
+export function recordWatchTick(): Promise<void> {
+  return write("recordWatchTick");
+}
+
+export function resetProgress(): Promise<void> {
+  return write("resetProgress");
 }

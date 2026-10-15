@@ -7,6 +7,7 @@ export {
   presentWord,
   showAgentPanel,
   showToast,
+  offerUndo,
   dismissAgent,
   isAgentActive,
   isOpen,

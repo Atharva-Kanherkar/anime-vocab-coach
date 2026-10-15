@@ -4,7 +4,8 @@
   --plane: #0c0c0e;
   --ink: rgba(240, 239, 236, 0.95);
   --ink-2: rgba(240, 239, 236, 0.65);
-  --muted: rgba(240, 239, 236, 0.42);
+  /* 0.55: 0.42 measured 3.7:1, under WCAG AA (ISO 25010 usability audit). */
+  --muted: rgba(240, 239, 236, 0.55);
   --grid: #202023;
   --axis: #2e2e32;
   --accent: #d96c4f;
@@ -132,7 +133,8 @@ td.meaning { white-space: normal; color: var(--ink-2); max-width: 280px; }
   background: transparent;
   color: var(--ink);
 }
-.rp-btn-primary { background: var(--accent); border-color: var(--accent); color: #fffdf6; }
+/* #b9431f: white on the terracotta accent was 3.3:1. */
+.rp-btn-primary { background: #b9431f; border-color: #b9431f; color: #fffdf6; }
 .rp-btn-ghost { border-color: rgba(255,255,255,.18); color: var(--ink-2); }
 .rp-btn-quiet { color: var(--muted); border-color: transparent; }
 .rp-btn:hover { opacity: 0.9; }

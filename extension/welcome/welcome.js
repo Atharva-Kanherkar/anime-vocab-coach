@@ -36,6 +36,19 @@
     }
   }
 
+  // src/lib/net.ts
+  var TIMEOUT_MS = {
+    /** Small JSON round trips: sync, usage, beacons, captions. */
+    quick: 15e3,
+    /** A model call behind our API (word pick, coach, extraction, TTS). */
+    ai: 45e3,
+    /** An audio chunk upload that the server transcribes before answering. */
+    upload: 3e4
+  };
+  function timeout(kind) {
+    return AbortSignal.timeout(TIMEOUT_MS[kind]);
+  }
+
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
     "review_prompt_shown",
@@ -71,7 +84,8 @@
           "x-avc-extension-id": extensionId()
         },
         body: payload,
-        keepalive: true
+        keepalive: true,
+        signal: timeout("quick")
       }).catch(() => {
       });
     } catch {
@@ -217,6 +231,9 @@
     }
   }
 
+  // src/lib/backup.ts
+  var BACKUP_MAX_BYTES = 20 * 1024 * 1024;
+
   // src/lib/storage.ts
   var queue2 = Promise.resolve();
   function getSyncToken() {
@@ -281,7 +298,7 @@
   function renderSteps(state) {
     byId("steps").innerHTML = checklistSteps(state).map((step, i) => {
       const done = step.done;
-      return `<li class="step${done ? " done" : ""}" data-step="${step.id}"><span class="num" aria-hidden>${done ? "\u2713" : i + 1}</span><div class="body"><h2>${esc(step.title)}</h2><p>${esc(step.detail)}</p>` + (done ? `<span class="step-done-note">Done</span>` : STEP_ACTIONS[step.id] || "") + `</div></li>`;
+      return `<li class="step${done ? " done" : ""}" data-step="${step.id}"><span class="num" aria-hidden="true">${done ? "\u2713" : i + 1}</span><div class="body"><h2>${esc(step.title)}</h2><p>${esc(step.detail)}</p>` + (done ? `<span class="step-done-note">Done</span>` : STEP_ACTIONS[step.id] || "") + `</div></li>`;
     }).join("");
   }
   function renderCelebration(state) {

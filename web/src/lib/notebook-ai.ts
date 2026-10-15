@@ -1,5 +1,6 @@
 import type { Notebook } from "./notebooks";
 import { completionTuning, type ReasoningEffort } from "./ai-coach";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export interface NotebookSummaryResult {
   weakSpots: string[];
@@ -41,6 +42,7 @@ export async function runNotebookSummary(
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,

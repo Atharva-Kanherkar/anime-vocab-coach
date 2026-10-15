@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { SITE_URL } from "@/lib/site";
 import { resolveProfile } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/entitlements";
+import { upstreamTimeout } from "@/lib/upstream";
 
 const INDEXNOW_KEY = "animevocab-indexnow-key";
 
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
 
   const res = await fetch("https://api.indexnow.org/indexnow", {
     method: "POST",
+    signal: upstreamTimeout("quick"),
     headers: { "Content-Type": "application/json; charset=utf-8" },
     body: JSON.stringify(payload),
   });

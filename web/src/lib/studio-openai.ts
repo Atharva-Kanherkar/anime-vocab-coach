@@ -13,6 +13,7 @@ import {
   type StudioCastMember,
   type StudioGenerateRequest,
 } from "./studio";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export async function generateScript(
   apiKey: string,
@@ -22,6 +23,7 @@ export async function generateScript(
   const { system, user } = buildScriptPrompt(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
@@ -72,6 +74,7 @@ export async function generateAssist(
     .join("\n");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
@@ -128,6 +131,7 @@ export async function generatePanelImage(
     );
     const res = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
+      signal: upstreamTimeout("image"),
       headers: { authorization: `Bearer ${apiKey}` },
       body: form,
     });
@@ -140,6 +144,7 @@ export async function generatePanelImage(
 
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
+    signal: upstreamTimeout("image"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,

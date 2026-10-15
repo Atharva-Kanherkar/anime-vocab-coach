@@ -11,9 +11,13 @@
 // (same pattern as studio-store.ts).
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { atomic } from "./atomic";
 import {
   DEFAULT_ENDING_FREE_PER_IP,
   DEFAULT_ENDING_GLOBAL_PER_DAY,
+  DEFAULT_ENDING_OPTIONS_GLOBAL_PER_DAY,
+  DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY,
+  DEFAULT_ENDING_OPTIONS_PER_USER_PER_DAY,
   DEFAULT_ENDING_SIGNED_PER_MONTH,
   ENDING_EVENTS,
   type EndingCreation,
@@ -30,6 +34,9 @@ interface FunnelEnv {
   ENDING_FREE_PER_IP?: string;
   ENDING_SIGNED_PER_MONTH?: string;
   ENDING_GLOBAL_PER_DAY?: string;
+  ENDING_OPTIONS_PER_IP_PER_DAY?: string;
+  ENDING_OPTIONS_PER_USER_PER_DAY?: string;
+  ENDING_OPTIONS_GLOBAL_PER_DAY?: string;
 }
 
 const localStore = new Map<string, string>();
@@ -71,6 +78,9 @@ export async function getEndingConfig(): Promise<{
   freePerIp: number;
   signedPerMonth: number;
   globalPerDay: number;
+  optionsPerIpPerDay: number;
+  optionsPerUserPerDay: number;
+  optionsGlobalPerDay: number;
 }> {
   const env = await cfEnv();
   const num = (v: string | undefined, fallback: number) => {
@@ -86,6 +96,18 @@ export async function getEndingConfig(): Promise<{
     globalPerDay: num(
       process.env.ENDING_GLOBAL_PER_DAY || env.ENDING_GLOBAL_PER_DAY,
       DEFAULT_ENDING_GLOBAL_PER_DAY
+    ),
+    optionsPerIpPerDay: num(
+      process.env.ENDING_OPTIONS_PER_IP_PER_DAY || env.ENDING_OPTIONS_PER_IP_PER_DAY,
+      DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY
+    ),
+    optionsPerUserPerDay: num(
+      process.env.ENDING_OPTIONS_PER_USER_PER_DAY || env.ENDING_OPTIONS_PER_USER_PER_DAY,
+      DEFAULT_ENDING_OPTIONS_PER_USER_PER_DAY
+    ),
+    optionsGlobalPerDay: num(
+      process.env.ENDING_OPTIONS_GLOBAL_PER_DAY || env.ENDING_OPTIONS_GLOBAL_PER_DAY,
+      DEFAULT_ENDING_OPTIONS_GLOBAL_PER_DAY
     ),
   };
 }
@@ -131,6 +153,58 @@ export const incrementSignedEndingCount = (userId: string, month: string) =>
 export const getGlobalEndingCount = (day: string) => readCounter(globalKey(day));
 export const incrementGlobalEndingCount = (day: string) =>
   bumpCounter(globalKey(day), DAY_TTL_SECONDS);
+
+// "Invent endings" (/api/ending/options) budgets: per caller (hashed IP, or
+// user id when signed in) and global, per UTC day. Atomic, so a burst of
+// parallel requests cannot all read the same count and slip past the limit.
+const optionsCallerKey = (caller: string, day: string) => `ending:options:${caller}:${day}`;
+const optionsGlobalKey = (day: string) => `ending:options:global:${day}`;
+
+/**
+ * Spend one "invent endings" call against the caller's budget, then the global
+ * one. Each step is atomic and decides on the total it returns. A caller that
+ * is already over its own limit never touches the global counter (otherwise
+ * one caller hammering the route would spend everybody's daily capacity), and
+ * a caller refused by the global limit gets its own unit back. A call that
+ * passes both stays spent even if the upstream request then times out.
+ */
+export async function spendOptionsBudget(
+  caller: string,
+  day: string,
+  limits: { caller: number; global: number }
+): Promise<{ ok: true } | { ok: false; reason: "options_limit" | "capacity" }> {
+  const mine = await atomic(optionsCallerKey(caller, day));
+  if ((await mine.add(1, DAY_TTL_SECONDS)) > limits.caller) return { ok: false, reason: "options_limit" };
+  const global = await atomic(optionsGlobalKey(day));
+  if ((await global.add(1, DAY_TTL_SECONDS)) > limits.global) {
+    await mine.add(-1, DAY_TTL_SECONDS);
+    return { ok: false, reason: "capacity" };
+  }
+  return { ok: true };
+}
+
+/** Test-only: the global counter's current value. */
+export async function globalOptionsSpentForTests(day: string): Promise<number> {
+  return (await atomic(optionsGlobalKey(day))).get();
+}
+
+// One drawer per panel. Without this, N simultaneous requests for a panel that
+// is not cached yet each paid for an image generation (check-then-draw).
+const PANEL_DRAW_TTL_MS = 3 * 60 * 1000;
+const panelLockKey = (id: string, i: number) => `ending:draw:${id}:${i}`;
+
+export async function claimPanelDraw(id: string, i: number, owner: string): Promise<boolean> {
+  return (await atomic(panelLockKey(id, i))).claim(owner, PANEL_DRAW_TTL_MS);
+}
+
+export async function releasePanelDraw(id: string, i: number, owner: string): Promise<void> {
+  try {
+    await (await atomic(panelLockKey(id, i))).release(owner);
+  } catch (err) {
+    // Expires on its own after PANEL_DRAW_TTL_MS.
+    console.warn("[ending] panel draw lock release failed", err);
+  }
+}
 
 // ── Creations ──────────────────────────────────────────────────────────────
 

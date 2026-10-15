@@ -57,6 +57,19 @@
     }
   }
 
+  // src/lib/net.ts
+  var TIMEOUT_MS = {
+    /** Small JSON round trips: sync, usage, beacons, captions. */
+    quick: 15e3,
+    /** A model call behind our API (word pick, coach, extraction, TTS). */
+    ai: 45e3,
+    /** An audio chunk upload that the server transcribes before answering. */
+    upload: 3e4
+  };
+  function timeout(kind) {
+    return AbortSignal.timeout(TIMEOUT_MS[kind]);
+  }
+
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
     "review_prompt_shown",
@@ -92,7 +105,8 @@
           "x-avc-extension-id": extensionId()
         },
         body: payload,
-        keepalive: true
+        keepalive: true,
+        signal: timeout("quick")
       }).catch(() => {
       });
     } catch {
@@ -185,7 +199,8 @@
       method: "POST",
       headers,
       body: JSON.stringify({ ...body, v: extensionVersion() }),
-      keepalive: true
+      keepalive: true,
+      signal: timeout("quick")
     }).catch(() => {
     });
   }
@@ -280,6 +295,46 @@
     });
   }
 
+  // src/lib/backup.ts
+  var BACKUP_MAX_BYTES = 20 * 1024 * 1024;
+  var MAX_CARD_TIMESTAMPS = 1e4;
+  function mergeRecord(mine, theirs) {
+    const winner = theirs.lastSeenAt > mine.lastSeenAt ? theirs : mine;
+    return {
+      ...winner,
+      firstSeenAt: Math.min(mine.firstSeenAt, theirs.firstSeenAt),
+      seenCount: Math.max(mine.seenCount, theirs.seenCount),
+      shownCount: Math.max(mine.shownCount, theirs.shownCount)
+    };
+  }
+  function mergeBackup(current, incoming) {
+    const vocab = { ...current.vocab };
+    let added = 0;
+    let updated = 0;
+    for (const [base, rec] of Object.entries(incoming.vocab)) {
+      const mine = vocab[base];
+      if (!mine) {
+        vocab[base] = rec;
+        added++;
+        continue;
+      }
+      const next = mergeRecord(mine, rec);
+      if (JSON.stringify(next) !== JSON.stringify(mine)) updated++;
+      vocab[base] = next;
+    }
+    const daily = { ...current.stats.daily || {} };
+    for (const [day, d] of Object.entries(incoming.stats.daily)) {
+      const e = daily[day];
+      daily[day] = e ? { met: Math.max(e.met, d.met), judged: Math.max(e.judged, d.judged), reviews: Math.max(e.reviews, d.reviews), watchMin: Math.max(e.watchMin, d.watchMin) } : d;
+    }
+    const stamps = [.../* @__PURE__ */ new Set([...current.stats.cardTimestamps || [], ...incoming.stats.cardTimestamps])].sort((a, b) => a - b);
+    return {
+      merged: { vocab, stats: { daily, cardTimestamps: stamps.slice(-MAX_CARD_TIMESTAMPS) } },
+      added,
+      updated
+    };
+  }
+
   // src/lib/storage.ts
   var queue2 = Promise.resolve();
   function todayKey() {
@@ -297,12 +352,21 @@
     }
     return stats.daily[day];
   }
+  function pruneTimestamps(timestamps) {
+    const cutoff = Date.now() - 36e5;
+    return (timestamps || []).filter((t) => t >= cutoff);
+  }
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
   }
   function sendBadge(stats) {
     const day = todayKey();
     const judged = stats.daily?.[day]?.judged || 0;
+    if (inServiceWorker() && typeof chrome.action?.setBadgeText === "function") {
+      void chrome.action.setBadgeText({ text: judged > 0 ? String(judged) : "" });
+      void chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
+      return;
+    }
     chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
     });
   }
@@ -321,12 +385,57 @@
       });
     });
   }
-  function setSettings(partial) {
+  function localSetSettings(partial) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["settings"]);
       const settings = { ...withDefaults(r.settings || {}), ...partial };
       await chrome.storage.local.set({ settings });
       return settings;
+    });
+  }
+  function localSetWordState(base, state) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab"]);
+      const vocab = r.vocab || {};
+      if (!vocab[base]) return;
+      vocab[base].state = state;
+      if (state === "learning") {
+        vocab[base].srs = { stage: 1, dueAt: Date.now() + SRS_INTERVALS[1], lapses: 0 };
+      } else {
+        vocab[base].srs = null;
+      }
+      await chrome.storage.local.set({ vocab });
+    });
+  }
+  function localRecordSeen(words) {
+    return enqueue2(async () => {
+      if (!words.length) return;
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = { ...r.vocab || {} };
+      const stats = r.stats || emptyStats();
+      const daily = ensureDaily(stats, todayKey());
+      for (const w of words) {
+        if (!vocab[w.base]) {
+          vocab[w.base] = {
+            state: "new",
+            reading: w.reading,
+            gloss: w.gloss,
+            level: w.level,
+            freqRank: w.freqRank,
+            seenCount: 1,
+            shownCount: 0,
+            firstSeenAt: Date.now(),
+            lastSeenAt: Date.now(),
+            srs: null
+          };
+          daily.met += 1;
+        } else {
+          vocab[w.base].seenCount += 1;
+          vocab[w.base].lastSeenAt = Date.now();
+        }
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      void stampOnboarding("watchedAt");
     });
   }
   function applyReviewResult(rec, passed, at) {
@@ -353,7 +462,7 @@
       return Number.isFinite(n) && n > 0 ? n : 0;
     });
   }
-  function applyWebReviews(ops) {
+  function localApplyWebReviews(ops) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
       const stored = Number(r.webReviewSeq);
@@ -378,6 +487,139 @@
       await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
       if (applied) sendBadge(stats);
       return { applied, seq };
+    });
+  }
+  function localJudgeWord(base, judgment, meta, source) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      const now = Date.now();
+      const before = vocab[base] ? { state: vocab[base].state, srs: vocab[base].srs ? { ...vocab[base].srs } : null } : null;
+      if (!vocab[base]) {
+        vocab[base] = {
+          state: "new",
+          reading: meta.reading,
+          gloss: meta.gloss,
+          level: meta.level,
+          freqRank: meta.freqRank,
+          seenCount: 1,
+          shownCount: 0,
+          firstSeenAt: now,
+          lastSeenAt: now,
+          srs: null
+        };
+      }
+      const rec = vocab[base];
+      const wasCollected = rec.state === "known" || rec.state === "learning";
+      if (meta) {
+        rec.reading = meta.reading;
+        rec.gloss = meta.gloss;
+        rec.level = meta.level;
+        rec.freqRank = meta.freqRank;
+      }
+      if (source && !rec.source && (source.title || source.line)) {
+        rec.source = source;
+      }
+      if (judgment === "know") {
+        rec.state = "known";
+        rec.srs = null;
+      } else if (judgment === "learn") {
+        rec.state = "learning";
+        rec.srs = { stage: 1, dueAt: now + SRS_INTERVALS[1], lapses: 0 };
+      } else if (judgment === "ignore") {
+        rec.state = "ignored";
+        rec.srs = null;
+      } else if (judgment === "review-pass" || judgment === "review-fail") {
+        applyReviewResult(rec, judgment === "review-pass", now);
+        daily.reviews += 1;
+      }
+      if (judgment !== "dismiss") {
+        daily.judged += 1;
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        await trackExtensionMilestone("first_srs_review");
+      }
+      if (judgment === "know" || judgment === "learn") {
+        void stampOnboarding("firstCardAt");
+      }
+      if (judgment === "know") void trackFeature("card_known");
+      if (judgment === "learn") void trackFeature("card_learn");
+      if (!wasCollected && (judgment === "know" || judgment === "learn")) {
+        void trackFeature("word_saved");
+      }
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        void trackFeature("review_done");
+      }
+      sendBadge(stats);
+      const after = vocab[base];
+      return {
+        record: after,
+        undo: { base, judgment, before, after: { state: after.state, srs: after.srs ? { ...after.srs } : null } }
+      };
+    });
+  }
+  function localImportBackup(incoming) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const current = {
+        vocab: r.vocab || {},
+        stats: r.stats || emptyStats()
+      };
+      const { merged, added, updated } = mergeBackup(current, incoming);
+      await chrome.storage.local.set({ vocab: merged.vocab, stats: merged.stats });
+      sendBadge(merged.stats);
+      return { added, updated };
+    });
+  }
+  var sameJudged = (a, b) => a.state === b.state && (a.srs === null || b.srs === null ? a.srs === b.srs : a.srs.stage === b.srs.stage && a.srs.dueAt === b.srs.dueAt && a.srs.lapses === b.srs.lapses);
+  function localUndoJudgment(undo) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab"]);
+      const vocab = r.vocab || {};
+      const current = vocab[undo.base];
+      if (!current) return { undone: false, reason: "gone" };
+      if (!sameJudged({ state: current.state, srs: current.srs }, undo.after)) {
+        return { undone: false, reason: "changed" };
+      }
+      vocab[undo.base] = {
+        ...current,
+        state: undo.before ? undo.before.state : "new",
+        srs: undo.before?.srs ? { ...undo.before.srs } : null,
+        lastSeenAt: Math.max(current.lastSeenAt + 1, Date.now())
+      };
+      await chrome.storage.local.set({ vocab });
+      return { undone: true };
+    });
+  }
+  function localRecordCardShown(base) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      const now = Date.now();
+      stats.cardTimestamps = pruneTimestamps(stats.cardTimestamps);
+      stats.cardTimestamps.push(now);
+      if (vocab[base]) {
+        vocab[base].shownCount = (vocab[base].shownCount || 0) + 1;
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      await trackExtensionMilestone("first_card_created");
+      void stampOnboarding("cardShownAt");
+      void trackFeature("card_shown");
+    });
+  }
+  function localRecordWatchTick() {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["stats"]);
+      const stats = r.stats || emptyStats();
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      daily.watchMin += 1;
+      await chrome.storage.local.set({ stats });
     });
   }
   function exportAll() {
@@ -503,6 +745,55 @@
       });
     });
   }
+  function localResetProgress() {
+    return enqueue2(async () => {
+      await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
+      sendBadge({ daily: {} });
+    });
+  }
+  var STORAGE_WRITE_MESSAGE = "avc-storage-write";
+  var writers = {
+    setSettings: localSetSettings,
+    setWordState: localSetWordState,
+    recordSeen: localRecordSeen,
+    applyWebReviews: localApplyWebReviews,
+    judgeWord: localJudgeWord,
+    recordCardShown: localRecordCardShown,
+    recordWatchTick: localRecordWatchTick,
+    resetProgress: localResetProgress,
+    undoJudgment: localUndoJudgment,
+    importBackup: localImportBackup
+  };
+  async function write(op, ...args) {
+    const run = () => writers[op](...args);
+    if (inServiceWorker()) return run();
+    let res;
+    try {
+      res = await chrome.runtime.sendMessage({ type: STORAGE_WRITE_MESSAGE, op, args });
+    } catch {
+      res = void 0;
+    }
+    if (res?.ok === true) return res.value;
+    if (res?.ok === false) throw new Error(res.error || `storage write ${op} failed`);
+    warn(`storage write ${op} ran in this context (no service worker answer)`);
+    return run();
+  }
+  function handleStorageWrite(msg, sendResponse) {
+    if (msg?.type !== STORAGE_WRITE_MESSAGE || typeof msg.op !== "string" || !Object.prototype.hasOwnProperty.call(writers, msg.op)) return false;
+    const fn = writers[msg.op];
+    const args = Array.isArray(msg.args) ? msg.args : [];
+    fn(...args).then(
+      (value) => sendResponse({ ok: true, value }),
+      (err) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) })
+    );
+    return true;
+  }
+  function setSettings(partial) {
+    return write("setSettings", partial);
+  }
+  function applyWebReviews(ops) {
+    return write("applyWebReviews", ops);
+  }
 
   // src/lib/notify.ts
   function toastTab(tabId, text, kind = "info") {
@@ -542,7 +833,7 @@
   async function pullRevision(token) {
     let data;
     try {
-      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token }, signal: timeout("quick") });
       if (!res.ok) return null;
       data = await res.json();
     } catch {
@@ -559,7 +850,7 @@
     const token = await getSyncToken();
     if (!token) return;
     try {
-      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token }, signal: timeout("quick") });
       if (res.status === 401) {
         await noteAuthFailure();
         return;
@@ -613,6 +904,7 @@
         const appliedWebReviewSeq = await getWebReviewSeq();
         const res = await fetch(SNAPSHOT_URL, {
           method: "PUT",
+          signal: timeout("upload"),
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
           body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
         });
@@ -719,7 +1011,8 @@
       const res = await fetch(TOKEN_URL, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        signal: timeout("quick")
       });
       const body = await res.json().catch(() => null);
       outcome = interpretMintResponse(res.status, body);
@@ -736,6 +1029,47 @@
     log(`auto-link (${trigger}) ok`);
     return { linked: true, outcome: "linked" };
   }
+  function interpretVerifyResponse(httpStatus, body) {
+    if (httpStatus === 401) return { status: "signed-out" };
+    if (httpStatus === 403) return { status: "mismatch" };
+    if (httpStatus < 200 || httpStatus >= 300) return { status: "error", detail: `HTTP ${httpStatus}` };
+    const data = body || {};
+    if (data.ok !== true) return { status: "error", detail: "unexpected verify response" };
+    const p = data.profile && typeof data.profile === "object" ? data.profile : {};
+    return {
+      status: "linked",
+      profile: {
+        email: typeof p.email === "string" ? p.email : null,
+        name: typeof p.name === "string" ? p.name : null,
+        plan: normalizeSyncPlan(p.plan)
+      }
+    };
+  }
+  async function verifyAndLinkToken(token) {
+    if (!/^avc_st_[A-Za-z0-9]+$/.test(token)) return { linked: false, outcome: "mismatch" };
+    let outcome;
+    try {
+      const res = await fetch(TOKEN_URL, {
+        method: "GET",
+        credentials: "include",
+        headers: { Authorization: `Bearer ${token}` },
+        signal: timeout("quick")
+      });
+      const body = await res.json().catch(() => null);
+      outcome = interpretVerifyResponse(res.status, body);
+    } catch (err) {
+      outcome = { status: "error", detail: err instanceof Error ? err.message : "network error" };
+    }
+    if (outcome.status !== "linked") {
+      if (outcome.status === "mismatch") warn("page-supplied sync token refused: not this browser's account");
+      else if (outcome.status === "error") warn("page-supplied sync token not verified:", outcome.detail);
+      return { linked: false, outcome: outcome.status };
+    }
+    const already = await getSyncToken() === token;
+    await setSyncToken(token);
+    await setSyncProfile(outcome.profile);
+    return { linked: !already, outcome: "linked" };
+  }
 
   // src/lib/coach-client.ts
   async function postCoach(body) {
@@ -744,6 +1078,7 @@
     try {
       const res = await fetch(WEB_URL + "/api/ai/coach", {
         method: "POST",
+        signal: timeout("ai"),
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(body)
       });
@@ -838,6 +1173,7 @@
     try {
       const res = await fetch(WEB_URL + "/api/ai/pick-word", {
         method: "POST",
+        signal: timeout("ai"),
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(req)
       });
@@ -866,6 +1202,7 @@
     try {
       const res = await fetch(WEB_URL + "/api/ai/extract-words", {
         method: "POST",
+        signal: timeout("ai"),
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify({
           line: opts.line,
@@ -897,7 +1234,7 @@
     try {
       const res = await fetch(
         WEB_URL + "/api/anime/context?title=" + encodeURIComponent(clean),
-        { headers: { Authorization: "Bearer " + token } }
+        { headers: { Authorization: "Bearer " + token }, signal: timeout("ai") }
       );
       if (!res.ok) return null;
       const data = await res.json();
@@ -913,6 +1250,7 @@
   async function fetchCloudTts(text, token) {
     const res = await fetch(WEB_URL + "/api/tts", {
       method: "POST",
+      signal: timeout("ai"),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
       body: JSON.stringify({ text })
     });
@@ -926,6 +1264,7 @@
   async function fetchByoTts(text, key) {
     const res = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
+      signal: timeout("ai"),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
       body: JSON.stringify({ model: "tts-1", voice: "nova", input: text, response_format: "mp3" })
     });
@@ -969,8 +1308,8 @@
     if (!token) return null;
     const headers = { Authorization: "Bearer " + token };
     const [aiRes, listenRes] = await Promise.allSettled([
-      fetch(WEB_URL + "/api/me/usage", { headers }).then((r) => r.ok ? r.json() : null),
-      fetch(BACKEND_URL + "/v1/usage", { headers }).then((r) => r.ok ? r.json() : null)
+      fetch(WEB_URL + "/api/me/usage", { headers, signal: timeout("quick") }).then((r) => r.ok ? r.json() : null),
+      fetch(BACKEND_URL + "/v1/usage", { headers, signal: timeout("quick") }).then((r) => r.ok ? r.json() : null)
     ]);
     const aiData = aiRes.status === "fulfilled" ? aiRes.value : null;
     const listenData = listenRes.status === "fulfilled" ? listenRes.value : null;
@@ -1260,6 +1599,7 @@
     return { ok: true };
   }
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (handleStorageWrite(msg, sendResponse)) return true;
     if (msg.type === "avc-badge") {
       const text = (msg.count || 0) > 0 ? String(msg.count) : "";
       chrome.action.setBadgeText({ text });
@@ -1316,6 +1656,14 @@
     }
     if (msg.type === "avc-account-link") {
       linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true }).then((result) => sendResponse({ ok: true, ...result })).catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
+      return true;
+    }
+    if (msg.type === "avc-link-token") {
+      verifyAndLinkToken(typeof msg.token === "string" ? msg.token : "").then((result) => {
+        if (result.outcome === "linked") syncWithCloud().catch(() => {
+        });
+        sendResponse({ ok: true, ...result });
+      }).catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
       return true;
     }
     if (msg.type === "avc-pull-settings") {

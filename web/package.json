@@ -15,31 +15,29 @@
     "test:e2e:owner-scope": "node e2e/owner-scope.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "postinstall": "patch-package"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.12",
     "@clerk/themes": "^2.4.57",
-    "next": "16.2.10",
+    "next": "16.3.8",
     "perfect-freehand": "^1.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "resend": "^6.17.2"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.20.1",
+    "@opennextjs/cloudflare": "^1.20.11",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
-    "patch-package": "^8.0.1",
+    "eslint-config-next": "16.3.8",
     "playwright": "^1.61.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^5",
     "vitest": "^4.1.9",
-    "wrangler": "^4.107.0"
+    "wrangler": "^4.151.0"
   }
 }

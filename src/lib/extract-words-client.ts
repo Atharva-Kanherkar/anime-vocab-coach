@@ -2,6 +2,7 @@ import { WEB_URL } from "../config";
 import { getSyncToken } from "./storage";
 import type { LearningDirection } from "./direction";
 import type { DictEntry } from "../types";
+import { timeout } from "./net";
 
 export interface ExtractedWord {
   word: string;
@@ -70,6 +71,7 @@ export async function fetchExtractWords(opts: {
   try {
     const res = await fetch(WEB_URL + "/api/ai/extract-words", {
       method: "POST",
+      signal: timeout("ai"),
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
       body: JSON.stringify({
         line: opts.line,

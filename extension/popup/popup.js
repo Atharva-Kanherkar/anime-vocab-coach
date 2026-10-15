@@ -149,6 +149,19 @@
     }
   }
 
+  // src/lib/net.ts
+  var TIMEOUT_MS = {
+    /** Small JSON round trips: sync, usage, beacons, captions. */
+    quick: 15e3,
+    /** A model call behind our API (word pick, coach, extraction, TTS). */
+    ai: 45e3,
+    /** An audio chunk upload that the server transcribes before answering. */
+    upload: 3e4
+  };
+  function timeout(kind) {
+    return AbortSignal.timeout(TIMEOUT_MS[kind]);
+  }
+
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
     "review_prompt_shown",
@@ -184,7 +197,8 @@
           "x-avc-extension-id": extensionId()
         },
         body: payload,
-        keepalive: true
+        keepalive: true,
+        signal: timeout("quick")
       }).catch(() => {
       });
     } catch {
@@ -202,9 +216,43 @@
     } catch {
     }
   }
+  var EXTENSION_MILESTONE_STORAGE_KEY = "funnelMilestones";
+  var milestoneInFlight = /* @__PURE__ */ new Set();
+  async function trackExtensionMilestone(event) {
+    if (milestoneInFlight.has(event)) return false;
+    milestoneInFlight.add(event);
+    try {
+      const result = await chrome.storage.local.get([EXTENSION_MILESTONE_STORAGE_KEY]);
+      const milestones = result[EXTENSION_MILESTONE_STORAGE_KEY] && typeof result[EXTENSION_MILESTONE_STORAGE_KEY] === "object" ? result[EXTENSION_MILESTONE_STORAGE_KEY] : {};
+      if (milestones[event]) return false;
+      await chrome.storage.local.set({
+        [EXTENSION_MILESTONE_STORAGE_KEY]: { ...milestones, [event]: true }
+      });
+      trackExtensionEvent(event);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      milestoneInFlight.delete(event);
+    }
+  }
 
   // src/lib/feature-events.ts
+  var FEATURE_EVENTS = [
+    "card_shown",
+    "card_known",
+    "card_learn",
+    "word_saved",
+    "review_done",
+    "listening_started",
+    "install_first_run",
+    "extension_linked"
+  ];
+  function isFeatureEvent(v) {
+    return typeof v === "string" && FEATURE_EVENTS.includes(v);
+  }
   var TRACK_URL = WEB_URL + "/api/track";
+  var TRACK_FEATURE_MESSAGE = "avc-track-feature";
   function syncToken() {
     return new Promise((resolve) => {
       try {
@@ -243,14 +291,34 @@
       method: "POST",
       headers,
       body: JSON.stringify({ ...body, v: extensionVersion() }),
-      keepalive: true
+      keepalive: true,
+      signal: timeout("quick")
     }).catch(() => {
     });
+  }
+  async function sendFeatureBeacon(event) {
+    if (!isFeatureEvent(event)) return;
+    try {
+      await postTrack({ kind: "feature", name: event });
+    } catch {
+    }
   }
   async function sendProBeacon(event, surface) {
     if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
     try {
       await postTrack({ kind: "feature", name: event, surface });
+    } catch {
+    }
+  }
+  async function trackFeature(event) {
+    if (!isFeatureEvent(event)) return;
+    if (inServiceWorker()) {
+      await sendFeatureBeacon(event);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_FEATURE_MESSAGE, event }).catch(() => {
+      });
     } catch {
     }
   }
@@ -377,12 +445,62 @@
     });
   }
 
+  // src/lib/backup.ts
+  var BACKUP_MAX_BYTES = 20 * 1024 * 1024;
+  var MAX_CARD_TIMESTAMPS = 1e4;
+  function mergeRecord(mine, theirs) {
+    const winner = theirs.lastSeenAt > mine.lastSeenAt ? theirs : mine;
+    return {
+      ...winner,
+      firstSeenAt: Math.min(mine.firstSeenAt, theirs.firstSeenAt),
+      seenCount: Math.max(mine.seenCount, theirs.seenCount),
+      shownCount: Math.max(mine.shownCount, theirs.shownCount)
+    };
+  }
+  function mergeBackup(current, incoming) {
+    const vocab = { ...current.vocab };
+    let added = 0;
+    let updated = 0;
+    for (const [base, rec] of Object.entries(incoming.vocab)) {
+      const mine = vocab[base];
+      if (!mine) {
+        vocab[base] = rec;
+        added++;
+        continue;
+      }
+      const next = mergeRecord(mine, rec);
+      if (JSON.stringify(next) !== JSON.stringify(mine)) updated++;
+      vocab[base] = next;
+    }
+    const daily = { ...current.stats.daily || {} };
+    for (const [day, d] of Object.entries(incoming.stats.daily)) {
+      const e = daily[day];
+      daily[day] = e ? { met: Math.max(e.met, d.met), judged: Math.max(e.judged, d.judged), reviews: Math.max(e.reviews, d.reviews), watchMin: Math.max(e.watchMin, d.watchMin) } : d;
+    }
+    const stamps = [.../* @__PURE__ */ new Set([...current.stats.cardTimestamps || [], ...incoming.stats.cardTimestamps])].sort((a, b) => a - b);
+    return {
+      merged: { vocab, stats: { daily, cardTimestamps: stamps.slice(-MAX_CARD_TIMESTAMPS) } },
+      added,
+      updated
+    };
+  }
+
   // src/lib/storage.ts
   var queue2 = Promise.resolve();
+  function todayKey() {
+    return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
+  }
   function enqueue2(fn) {
     const next = queue2.then(fn, fn);
     queue2 = next.catch((err) => warn("storage error:", err));
     return next;
+  }
+  function ensureDaily(stats, day) {
+    if (!stats.daily) stats.daily = {};
+    if (!stats.daily[day]) {
+      stats.daily[day] = { met: 0, judged: 0, reviews: 0, watchMin: 0 };
+    }
+    return stats.daily[day];
   }
   function pruneTimestamps(timestamps) {
     const cutoff = Date.now() - 36e5;
@@ -390,6 +508,17 @@
   }
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
+  }
+  function sendBadge(stats) {
+    const day = todayKey();
+    const judged = stats.daily?.[day]?.judged || 0;
+    if (inServiceWorker() && typeof chrome.action?.setBadgeText === "function") {
+      void chrome.action.setBadgeText({ text: judged > 0 ? String(judged) : "" });
+      void chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
+      return;
+    }
+    chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
+    });
   }
   function withDefaults(stored) {
     const merged = { ...DEFAULTS, ...stored };
@@ -406,7 +535,7 @@
       });
     });
   }
-  function setSettings(partial) {
+  function localSetSettings(partial) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["settings"]);
       const settings = { ...withDefaults(r.settings || {}), ...partial };
@@ -427,6 +556,235 @@
         resolve(stats);
       });
     });
+  }
+  function localSetWordState(base, state) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab"]);
+      const vocab = r.vocab || {};
+      if (!vocab[base]) return;
+      vocab[base].state = state;
+      if (state === "learning") {
+        vocab[base].srs = { stage: 1, dueAt: Date.now() + SRS_INTERVALS[1], lapses: 0 };
+      } else {
+        vocab[base].srs = null;
+      }
+      await chrome.storage.local.set({ vocab });
+    });
+  }
+  function localRecordSeen(words) {
+    return enqueue2(async () => {
+      if (!words.length) return;
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = { ...r.vocab || {} };
+      const stats = r.stats || emptyStats();
+      const daily = ensureDaily(stats, todayKey());
+      for (const w of words) {
+        if (!vocab[w.base]) {
+          vocab[w.base] = {
+            state: "new",
+            reading: w.reading,
+            gloss: w.gloss,
+            level: w.level,
+            freqRank: w.freqRank,
+            seenCount: 1,
+            shownCount: 0,
+            firstSeenAt: Date.now(),
+            lastSeenAt: Date.now(),
+            srs: null
+          };
+          daily.met += 1;
+        } else {
+          vocab[w.base].seenCount += 1;
+          vocab[w.base].lastSeenAt = Date.now();
+        }
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      void stampOnboarding("watchedAt");
+    });
+  }
+  function applyReviewResult(rec, passed, at) {
+    rec.lastSeenAt = Math.max(rec.lastSeenAt || 0, at);
+    if (!rec.srs) return;
+    if (passed) {
+      const newStage = rec.srs.stage + 1;
+      if (newStage > 5) {
+        rec.state = "known";
+        rec.srs = null;
+      } else {
+        rec.srs.stage = newStage;
+        rec.srs.dueAt = at + SRS_INTERVALS[newStage];
+      }
+    } else {
+      rec.srs.stage = 1;
+      rec.srs.lapses += 1;
+      rec.srs.dueAt = at + SRS_INTERVALS[1];
+    }
+  }
+  function localApplyWebReviews(ops) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
+      const stored = Number(r.webReviewSeq);
+      let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
+      const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
+      if (!fresh.length) return { applied: 0, seq };
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      let applied = 0;
+      for (const op of fresh) {
+        seq = op.seq;
+        const rec = vocab[op.base];
+        if (!rec || rec.state !== "learning" || !rec.srs) continue;
+        const parsed = Date.parse(op.at);
+        const at = Number.isFinite(parsed) ? parsed : Date.now();
+        applyReviewResult(rec, op.result === "pass", at);
+        const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
+        daily.reviews += 1;
+        daily.judged += 1;
+        applied++;
+      }
+      await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
+      if (applied) sendBadge(stats);
+      return { applied, seq };
+    });
+  }
+  function localJudgeWord(base, judgment, meta, source) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      const now = Date.now();
+      const before = vocab[base] ? { state: vocab[base].state, srs: vocab[base].srs ? { ...vocab[base].srs } : null } : null;
+      if (!vocab[base]) {
+        vocab[base] = {
+          state: "new",
+          reading: meta.reading,
+          gloss: meta.gloss,
+          level: meta.level,
+          freqRank: meta.freqRank,
+          seenCount: 1,
+          shownCount: 0,
+          firstSeenAt: now,
+          lastSeenAt: now,
+          srs: null
+        };
+      }
+      const rec = vocab[base];
+      const wasCollected = rec.state === "known" || rec.state === "learning";
+      if (meta) {
+        rec.reading = meta.reading;
+        rec.gloss = meta.gloss;
+        rec.level = meta.level;
+        rec.freqRank = meta.freqRank;
+      }
+      if (source && !rec.source && (source.title || source.line)) {
+        rec.source = source;
+      }
+      if (judgment === "know") {
+        rec.state = "known";
+        rec.srs = null;
+      } else if (judgment === "learn") {
+        rec.state = "learning";
+        rec.srs = { stage: 1, dueAt: now + SRS_INTERVALS[1], lapses: 0 };
+      } else if (judgment === "ignore") {
+        rec.state = "ignored";
+        rec.srs = null;
+      } else if (judgment === "review-pass" || judgment === "review-fail") {
+        applyReviewResult(rec, judgment === "review-pass", now);
+        daily.reviews += 1;
+      }
+      if (judgment !== "dismiss") {
+        daily.judged += 1;
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        await trackExtensionMilestone("first_srs_review");
+      }
+      if (judgment === "know" || judgment === "learn") {
+        void stampOnboarding("firstCardAt");
+      }
+      if (judgment === "know") void trackFeature("card_known");
+      if (judgment === "learn") void trackFeature("card_learn");
+      if (!wasCollected && (judgment === "know" || judgment === "learn")) {
+        void trackFeature("word_saved");
+      }
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        void trackFeature("review_done");
+      }
+      sendBadge(stats);
+      const after = vocab[base];
+      return {
+        record: after,
+        undo: { base, judgment, before, after: { state: after.state, srs: after.srs ? { ...after.srs } : null } }
+      };
+    });
+  }
+  function localImportBackup(incoming) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const current = {
+        vocab: r.vocab || {},
+        stats: r.stats || emptyStats()
+      };
+      const { merged, added, updated } = mergeBackup(current, incoming);
+      await chrome.storage.local.set({ vocab: merged.vocab, stats: merged.stats });
+      sendBadge(merged.stats);
+      return { added, updated };
+    });
+  }
+  var sameJudged = (a, b) => a.state === b.state && (a.srs === null || b.srs === null ? a.srs === b.srs : a.srs.stage === b.srs.stage && a.srs.dueAt === b.srs.dueAt && a.srs.lapses === b.srs.lapses);
+  function localUndoJudgment(undo) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab"]);
+      const vocab = r.vocab || {};
+      const current = vocab[undo.base];
+      if (!current) return { undone: false, reason: "gone" };
+      if (!sameJudged({ state: current.state, srs: current.srs }, undo.after)) {
+        return { undone: false, reason: "changed" };
+      }
+      vocab[undo.base] = {
+        ...current,
+        state: undo.before ? undo.before.state : "new",
+        srs: undo.before?.srs ? { ...undo.before.srs } : null,
+        lastSeenAt: Math.max(current.lastSeenAt + 1, Date.now())
+      };
+      await chrome.storage.local.set({ vocab });
+      return { undone: true };
+    });
+  }
+  function localRecordCardShown(base) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      const now = Date.now();
+      stats.cardTimestamps = pruneTimestamps(stats.cardTimestamps);
+      stats.cardTimestamps.push(now);
+      if (vocab[base]) {
+        vocab[base].shownCount = (vocab[base].shownCount || 0) + 1;
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      await trackExtensionMilestone("first_card_created");
+      void stampOnboarding("cardShownAt");
+      void trackFeature("card_shown");
+    });
+  }
+  function localRecordWatchTick() {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["stats"]);
+      const stats = r.stats || emptyStats();
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      daily.watchMin += 1;
+      await chrome.storage.local.set({ stats });
+    });
+  }
+  async function exportForBackup() {
+    const data = await exportAll();
+    const settings = { ...data.settings };
+    delete settings.openaiKey;
+    return { ...data, settings };
   }
   function exportAll() {
     return new Promise((resolve) => {
@@ -509,6 +867,42 @@
       await chrome.storage.local.set({ reviewPrompt: applyShown(prompt, now) });
       return true;
     });
+  }
+  function localResetProgress() {
+    return enqueue2(async () => {
+      await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
+      sendBadge({ daily: {} });
+    });
+  }
+  var STORAGE_WRITE_MESSAGE = "avc-storage-write";
+  var writers = {
+    setSettings: localSetSettings,
+    setWordState: localSetWordState,
+    recordSeen: localRecordSeen,
+    applyWebReviews: localApplyWebReviews,
+    judgeWord: localJudgeWord,
+    recordCardShown: localRecordCardShown,
+    recordWatchTick: localRecordWatchTick,
+    resetProgress: localResetProgress,
+    undoJudgment: localUndoJudgment,
+    importBackup: localImportBackup
+  };
+  async function write(op, ...args) {
+    const run = () => writers[op](...args);
+    if (inServiceWorker()) return run();
+    let res;
+    try {
+      res = await chrome.runtime.sendMessage({ type: STORAGE_WRITE_MESSAGE, op, args });
+    } catch {
+      res = void 0;
+    }
+    if (res?.ok === true) return res.value;
+    if (res?.ok === false) throw new Error(res.error || `storage write ${op} failed`);
+    warn(`storage write ${op} ran in this context (no service worker answer)`);
+    return run();
+  }
+  function setSettings(partial) {
+    return write("setSettings", partial);
   }
 
   // src/lib/review.ts
@@ -631,7 +1025,7 @@
   function renderChecklist(host, state, now) {
     const steps = checklistSteps(state);
     const rows = steps.map(
-      (step, i) => `<li class="av-onboarding-step${step.done ? " done" : ""}"><span class="av-onboarding-num" aria-hidden>${step.done ? "\u2713" : i + 1}</span><span class="av-onboarding-step-title">${esc(step.title)}</span></li>`
+      (step, i) => `<li class="av-onboarding-step${step.done ? " done" : ""}"><span class="av-onboarding-num" aria-hidden="true">${step.done ? "\u2713" : i + 1}</span><span class="av-onboarding-step-title">${esc(step.title)}</span></li>`
     ).join("");
     host.hidden = false;
     host.innerHTML = `<div class="av-onboarding" role="region" aria-label="Getting started"><p class="av-onboarding-title">Three steps to your first card</p><ol class="av-onboarding-steps">${rows}</ol><button type="button" class="av-btn av-btn-primary av-btn-block" data-onb="start">Open Crunchyroll</button><button type="button" class="av-btn av-btn-quiet av-btn-block" data-onb="guide">Show me the full guide</button><button type="button" class="av-btn av-btn-quiet av-btn-block" data-onb="dismiss">Hide this</button></div>`;
@@ -703,7 +1097,7 @@
 
   // src/entries/popup.ts
   var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  function todayKey() {
+  function todayKey2() {
     return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
   }
   function esc2(s) {
@@ -1104,12 +1498,12 @@
     });
     byId("export-link").addEventListener("click", async (e) => {
       e.preventDefault();
-      const data = await exportAll();
+      const data = await exportForBackup();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `animevocab-export-${todayKey()}.json`;
+      a.download = `animevocab-export-${todayKey2()}.json`;
       a.click();
       URL.revokeObjectURL(url);
     });

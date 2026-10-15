@@ -109,7 +109,7 @@ export default function LearnJapaneseCrunchyrollPage() {
             </p>
 
             <h2>Tools that work on Crunchyroll in 2026</h2>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { commonnessShort } from "@/lib/levels";
 
 interface Entry {
@@ -27,6 +28,7 @@ interface SummaryResult {
 }
 
 export function NotebookDetail({ id }: { id: string }) {
+  const router = useRouter();
   const [nb, setNb] = useState<Notebook | null>(null);
   const [error, setError] = useState<string | null>(null); // fatal load error only
   const [actionError, setActionError] = useState<string | null>(null); // add/remove/summary
@@ -122,8 +124,8 @@ export function NotebookDetail({ id }: { id: string }) {
   const remove = useCallback(async () => {
     if (!confirm("Delete this notebook? This can't be undone.")) return;
     const res = await fetch(`/api/notebooks/${id}`, { method: "DELETE" });
-    if (res.ok) window.location.href = "/app";
-  }, [id]);
+    if (res.ok) router.push("/app");
+  }, [id, router]);
 
   if (error) return <p className="text-sm text-ink2">{error}</p>;
   if (!nb) return <p className="text-sm text-ink2">Loading…</p>;

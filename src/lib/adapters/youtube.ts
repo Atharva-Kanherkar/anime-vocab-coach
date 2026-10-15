@@ -6,6 +6,7 @@ import { reportCaptions, resetCaptions } from "../caption-status";
 import { buildSentenceCues, parseJson3Words, RollingCaption } from "../cue-sentences";
 import { trackUrl, type PotInfo } from "../youtube-pot";
 import type { LineContext, SiteAdapter } from "../../types";
+import { timeout } from "../net";
 
 interface Cue {
   start: number;
@@ -141,7 +142,7 @@ async function fetchTrack(
   pot: PotInfo | null,
   lang: "ja" | "en"
 ): Promise<Cue[]> {
-  const res = await fetch(trackUrl(track.baseUrl, pot, location.origin));
+  const res = await fetch(trackUrl(track.baseUrl, pot, location.origin), { signal: timeout("quick") });
   if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
   const text = await res.text();
   if (!text) return [];

@@ -232,7 +232,7 @@ export default function CrunchyrollJapaneseSubtitlesPage() {
             <p>
               Some titles or regions expose more Japanese text; fan-integrated tools can help:
             </p>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>

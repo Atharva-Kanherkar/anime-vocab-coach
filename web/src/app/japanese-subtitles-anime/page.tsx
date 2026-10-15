@@ -159,7 +159,7 @@ export default function JapaneseSubtitlesAnimePage() {
             </p>
 
             <h2>Japanese subtitle paths compared</h2>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>

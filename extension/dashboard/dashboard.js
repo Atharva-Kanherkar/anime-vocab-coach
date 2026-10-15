@@ -3,7 +3,36 @@
   // src/lib/log.ts
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/lib/locale-direction.ts
+  function isJapaneseUiLocale() {
+    try {
+      const ui = chrome.i18n?.getUILanguage?.() || navigator.language || "en";
+      return ui.toLowerCase().startsWith("ja");
+    } catch {
+      return false;
+    }
+  }
+  function resolveStoredDirection(stored) {
+    if (stored === "ja-en" || stored === "en-ja") return stored;
+    return null;
+  }
+
   // src/types.ts
+  var DEFAULTS = {
+    pauseMode: "copilot",
+    cooldownSec: 20,
+    maxCardsPerHour: 12,
+    targetLevel: 5,
+    autoResumeSec: 15,
+    displayScript: "romaji",
+    learningDirection: "en-ja",
+    autoSpeak: true,
+    subLens: true,
+    subLensPeek: true,
+    openaiKey: "",
+    transcribeModel: "gpt-4o-mini-transcribe",
+    sites: { youtube: true, netflix: true, generic: true }
+  };
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
   // src/lib/review-prompt.ts
@@ -110,6 +139,19 @@
     }
   }
 
+  // src/lib/net.ts
+  var TIMEOUT_MS = {
+    /** Small JSON round trips: sync, usage, beacons, captions. */
+    quick: 15e3,
+    /** A model call behind our API (word pick, coach, extraction, TTS). */
+    ai: 45e3,
+    /** An audio chunk upload that the server transcribes before answering. */
+    upload: 3e4
+  };
+  function timeout(kind) {
+    return AbortSignal.timeout(TIMEOUT_MS[kind]);
+  }
+
   // src/lib/extension-events.ts
   var EXTENSION_EVENTS = [
     "review_prompt_shown",
@@ -145,7 +187,8 @@
           "x-avc-extension-id": extensionId()
         },
         body: payload,
-        keepalive: true
+        keepalive: true,
+        signal: timeout("quick")
       }).catch(() => {
       });
     } catch {
@@ -220,7 +263,8 @@
       method: "POST",
       headers,
       body: JSON.stringify({ ...body, v: extensionVersion() }),
-      keepalive: true
+      keepalive: true,
+      signal: timeout("quick")
     }).catch(() => {
     });
   }
@@ -308,6 +352,46 @@
     });
   }
 
+  // src/lib/backup.ts
+  var BACKUP_MAX_BYTES = 20 * 1024 * 1024;
+  var MAX_CARD_TIMESTAMPS = 1e4;
+  function mergeRecord(mine, theirs) {
+    const winner = theirs.lastSeenAt > mine.lastSeenAt ? theirs : mine;
+    return {
+      ...winner,
+      firstSeenAt: Math.min(mine.firstSeenAt, theirs.firstSeenAt),
+      seenCount: Math.max(mine.seenCount, theirs.seenCount),
+      shownCount: Math.max(mine.shownCount, theirs.shownCount)
+    };
+  }
+  function mergeBackup(current, incoming) {
+    const vocab = { ...current.vocab };
+    let added = 0;
+    let updated = 0;
+    for (const [base, rec] of Object.entries(incoming.vocab)) {
+      const mine = vocab[base];
+      if (!mine) {
+        vocab[base] = rec;
+        added++;
+        continue;
+      }
+      const next = mergeRecord(mine, rec);
+      if (JSON.stringify(next) !== JSON.stringify(mine)) updated++;
+      vocab[base] = next;
+    }
+    const daily = { ...current.stats.daily || {} };
+    for (const [day, d] of Object.entries(incoming.stats.daily)) {
+      const e = daily[day];
+      daily[day] = e ? { met: Math.max(e.met, d.met), judged: Math.max(e.judged, d.judged), reviews: Math.max(e.reviews, d.reviews), watchMin: Math.max(e.watchMin, d.watchMin) } : d;
+    }
+    const stamps = [.../* @__PURE__ */ new Set([...current.stats.cardTimestamps || [], ...incoming.stats.cardTimestamps])].sort((a, b) => a - b);
+    return {
+      merged: { vocab, stats: { daily, cardTimestamps: stamps.slice(-MAX_CARD_TIMESTAMPS) } },
+      added,
+      updated
+    };
+  }
+
   // src/lib/storage.ts
   var queue2 = Promise.resolve();
   function todayKey() {
@@ -335,7 +419,28 @@
   function sendBadge(stats) {
     const day = todayKey();
     const judged = stats.daily?.[day]?.judged || 0;
+    if (inServiceWorker() && typeof chrome.action?.setBadgeText === "function") {
+      void chrome.action.setBadgeText({ text: judged > 0 ? String(judged) : "" });
+      void chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
+      return;
+    }
     chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
+    });
+  }
+  function withDefaults(stored) {
+    const merged = { ...DEFAULTS, ...stored };
+    if (merged.pauseMode === "notify") merged.pauseMode = "copilot";
+    if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
+      merged.learningDirection = "ja-en";
+    }
+    return merged;
+  }
+  function localSetSettings(partial) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["settings"]);
+      const settings = { ...withDefaults(r.settings || {}), ...partial };
+      await chrome.storage.local.set({ settings });
+      return settings;
     });
   }
   function getVocab() {
@@ -350,6 +455,51 @@
         stats.cardTimestamps = pruneTimestamps(stats.cardTimestamps);
         resolve(stats);
       });
+    });
+  }
+  function localSetWordState(base, state) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab"]);
+      const vocab = r.vocab || {};
+      if (!vocab[base]) return;
+      vocab[base].state = state;
+      if (state === "learning") {
+        vocab[base].srs = { stage: 1, dueAt: Date.now() + SRS_INTERVALS[1], lapses: 0 };
+      } else {
+        vocab[base].srs = null;
+      }
+      await chrome.storage.local.set({ vocab });
+    });
+  }
+  function localRecordSeen(words) {
+    return enqueue2(async () => {
+      if (!words.length) return;
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = { ...r.vocab || {} };
+      const stats = r.stats || emptyStats();
+      const daily = ensureDaily(stats, todayKey());
+      for (const w of words) {
+        if (!vocab[w.base]) {
+          vocab[w.base] = {
+            state: "new",
+            reading: w.reading,
+            gloss: w.gloss,
+            level: w.level,
+            freqRank: w.freqRank,
+            seenCount: 1,
+            shownCount: 0,
+            firstSeenAt: Date.now(),
+            lastSeenAt: Date.now(),
+            srs: null
+          };
+          daily.met += 1;
+        } else {
+          vocab[w.base].seenCount += 1;
+          vocab[w.base].lastSeenAt = Date.now();
+        }
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      void stampOnboarding("watchedAt");
     });
   }
   function applyReviewResult(rec, passed, at) {
@@ -370,7 +520,34 @@
       rec.srs.dueAt = at + SRS_INTERVALS[1];
     }
   }
-  function judgeWord(base, judgment, meta, source) {
+  function localApplyWebReviews(ops) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
+      const stored = Number(r.webReviewSeq);
+      let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
+      const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
+      if (!fresh.length) return { applied: 0, seq };
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      let applied = 0;
+      for (const op of fresh) {
+        seq = op.seq;
+        const rec = vocab[op.base];
+        if (!rec || rec.state !== "learning" || !rec.srs) continue;
+        const parsed = Date.parse(op.at);
+        const at = Number.isFinite(parsed) ? parsed : Date.now();
+        applyReviewResult(rec, op.result === "pass", at);
+        const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
+        daily.reviews += 1;
+        daily.judged += 1;
+        applied++;
+      }
+      await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
+      if (applied) sendBadge(stats);
+      return { applied, seq };
+    });
+  }
+  function localJudgeWord(base, judgment, meta, source) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
       const vocab = r.vocab || {};
@@ -378,6 +555,7 @@
       const day = todayKey();
       const daily = ensureDaily(stats, day);
       const now = Date.now();
+      const before = vocab[base] ? { state: vocab[base].state, srs: vocab[base].srs ? { ...vocab[base].srs } : null } : null;
       if (!vocab[base]) {
         vocab[base] = {
           state: "new",
@@ -435,7 +613,71 @@
         void trackFeature("review_done");
       }
       sendBadge(stats);
-      return vocab[base];
+      const after = vocab[base];
+      return {
+        record: after,
+        undo: { base, judgment, before, after: { state: after.state, srs: after.srs ? { ...after.srs } : null } }
+      };
+    });
+  }
+  function localImportBackup(incoming) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const current = {
+        vocab: r.vocab || {},
+        stats: r.stats || emptyStats()
+      };
+      const { merged, added, updated } = mergeBackup(current, incoming);
+      await chrome.storage.local.set({ vocab: merged.vocab, stats: merged.stats });
+      sendBadge(merged.stats);
+      return { added, updated };
+    });
+  }
+  var sameJudged = (a, b) => a.state === b.state && (a.srs === null || b.srs === null ? a.srs === b.srs : a.srs.stage === b.srs.stage && a.srs.dueAt === b.srs.dueAt && a.srs.lapses === b.srs.lapses);
+  function localUndoJudgment(undo) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab"]);
+      const vocab = r.vocab || {};
+      const current = vocab[undo.base];
+      if (!current) return { undone: false, reason: "gone" };
+      if (!sameJudged({ state: current.state, srs: current.srs }, undo.after)) {
+        return { undone: false, reason: "changed" };
+      }
+      vocab[undo.base] = {
+        ...current,
+        state: undo.before ? undo.before.state : "new",
+        srs: undo.before?.srs ? { ...undo.before.srs } : null,
+        lastSeenAt: Math.max(current.lastSeenAt + 1, Date.now())
+      };
+      await chrome.storage.local.set({ vocab });
+      return { undone: true };
+    });
+  }
+  function localRecordCardShown(base) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      const now = Date.now();
+      stats.cardTimestamps = pruneTimestamps(stats.cardTimestamps);
+      stats.cardTimestamps.push(now);
+      if (vocab[base]) {
+        vocab[base].shownCount = (vocab[base].shownCount || 0) + 1;
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      await trackExtensionMilestone("first_card_created");
+      void stampOnboarding("cardShownAt");
+      void trackFeature("card_shown");
+    });
+  }
+  function localRecordWatchTick() {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["stats"]);
+      const stats = r.stats || emptyStats();
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      daily.watchMin += 1;
+      await chrome.storage.local.set({ stats });
     });
   }
   function getReviewPrompt() {
@@ -460,6 +702,42 @@
       await chrome.storage.local.set({ reviewPrompt: applyShown(prompt, now) });
       return true;
     });
+  }
+  function localResetProgress() {
+    return enqueue2(async () => {
+      await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
+      sendBadge({ daily: {} });
+    });
+  }
+  var STORAGE_WRITE_MESSAGE = "avc-storage-write";
+  var writers = {
+    setSettings: localSetSettings,
+    setWordState: localSetWordState,
+    recordSeen: localRecordSeen,
+    applyWebReviews: localApplyWebReviews,
+    judgeWord: localJudgeWord,
+    recordCardShown: localRecordCardShown,
+    recordWatchTick: localRecordWatchTick,
+    resetProgress: localResetProgress,
+    undoJudgment: localUndoJudgment,
+    importBackup: localImportBackup
+  };
+  async function write(op, ...args) {
+    const run = () => writers[op](...args);
+    if (inServiceWorker()) return run();
+    let res;
+    try {
+      res = await chrome.runtime.sendMessage({ type: STORAGE_WRITE_MESSAGE, op, args });
+    } catch {
+      res = void 0;
+    }
+    if (res?.ok === true) return res.value;
+    if (res?.ok === false) throw new Error(res.error || `storage write ${op} failed`);
+    warn(`storage write ${op} ran in this context (no service worker answer)`);
+    return run();
+  }
+  async function judgeWord(base, judgment, meta, source) {
+    return (await write("judgeWord", base, judgment, meta, source ?? null)).record;
   }
 
   // src/lib/romaji.ts
@@ -788,8 +1066,8 @@
     (kids || []).forEach((c) => n.appendChild(c));
     return n;
   }
-  function svg(w, h) {
-    return el("svg", { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: "img" });
+  function svg(w, h, label) {
+    return el("svg", { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: "img", "aria-label": label });
   }
   function txt(x, y, s, cls, anchor) {
     const t = el("text", { x, y, class: cls || "ax", "text-anchor": anchor || "start" });
@@ -847,7 +1125,7 @@
     const maxY = Math.max(1, cum);
     const x = (i) => ml + i / (pts.length - 1) * (W - ml - mr);
     const y = (val) => mt + (1 - val / maxY) * (H - mt - mb);
-    const s = svg(W, H);
+    const s = svg(W, H, `Words met over time: ${nf(cum)} in total across ${keys.length} days.`);
     const ticks = 4;
     for (let i = 0; i <= ticks; i++) {
       const val = Math.round(maxY / ticks * i);
@@ -909,7 +1187,7 @@
     ].filter((seg) => seg.n > 0);
     const total = segs.reduce((a, seg) => a + seg.n, 0);
     const R = 74, r = 46, cx = 90, cy = 90;
-    const s = svg(180, 180);
+    const s = svg(180, 180, `Where your words stand: ${segs.map((seg) => `${seg.lab} ${nf(seg.n)}`).join(", ")}.`);
     if (!total) {
       host.innerHTML = '<p class="cap-note">No words yet.</p>';
       return;
@@ -956,7 +1234,7 @@
     const W = 320, H = 220, ml = 32, mr = 10, mt = 10, mb = 28;
     const bw = (W - ml - mr) / data.length;
     const y = (val) => mt + (1 - val / maxV) * (H - mt - mb);
-    const s = svg(W, H);
+    const s = svg(W, H, `Known and learning words by frequency band: ${data.map((d) => `${d.n} ${d.known} known, ${d.learning} learning`).join("; ")}.`);
     for (let i = 0; i <= 4; i++) {
       const val = Math.round(maxV / 4 * i), yy = y(val);
       s.appendChild(el("line", { x1: ml, y1: yy, x2: W - mr, y2: yy, class: "gridline" }));
@@ -1004,7 +1282,7 @@
     const bw = (W - ml - mr) / stages.length;
     const y = (val) => mt + (1 - val / maxV) * (H - mt - mb);
     const base = H - mb;
-    const s = svg(W, H);
+    const s = svg(W, H, `Review pipeline: ${stages.map((st) => `stage ${st.st} ${st.n}${st.due ? ` (${st.due} due)` : ""}`).join(", ")}.`);
     for (let i = 0; i <= 4; i++) {
       const val = Math.round(maxV / 4 * i), yy = y(val);
       s.appendChild(el("line", { x1: ml, y1: yy, x2: W - mr, y2: yy, class: "gridline" }));
@@ -1039,7 +1317,8 @@
     const host = document.getElementById("chart-cal");
     const daily = stats.daily || {};
     const WEEKS = 18, cell = 15, gap = 4, W = WEEKS * (cell + gap) + 30, H = 7 * (cell + gap) + 24;
-    const s = svg(W, H);
+    const active = Object.values(daily).filter((d) => (d.judged || 0) + (d.reviews || 0) + (d.met || 0) > 0).length;
+    const s = svg(W, H, `Study activity: practised on ${active} of the last ${WEEKS * 7} days.`);
     const end = /* @__PURE__ */ new Date(todayKey2() + "T12:00:00");
     const start = new Date(end.getTime() - (WEEKS * 7 - 1) * 864e5);
     start.setDate(start.getDate() - start.getDay());
@@ -1111,14 +1390,14 @@
       const romaji = toRomaji(r.reading || "");
       const due = r.state === "learning" && r.srs ? relDue(r.srs.dueAt) : "\u2014";
       return `<tr>
-      <td class="romaji">${romaji || w}</td>
-      <td class="jp">${r.reading || ""}</td>
-      <td class="jp">${w}</td>
-      <td class="meaning">${r.gloss || ""}</td>
-      <td>${commonnessShort(r.level)}</td>
-      <td>${r.seenCount || 0}</td>
-      <td><span class="state-tag ${r.state}">${r.state}</span></td>
-      <td>${due}</td></tr>`;
+      <td class="romaji">${esc(romaji || w)}</td>
+      <td class="jp">${esc(r.reading || "")}</td>
+      <td class="jp">${esc(w)}</td>
+      <td class="meaning">${esc(r.gloss || "")}</td>
+      <td>${esc(commonnessShort(r.level))}</td>
+      <td>${Number(r.seenCount) || 0}</td>
+      <td><span class="state-tag ${esc(r.state)}">${esc(r.state)}</span></td>
+      <td>${esc(due)}</td></tr>`;
     }).join("");
   }
   function esc(s) {

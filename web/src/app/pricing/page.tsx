@@ -88,11 +88,11 @@ export default function PricingPage() {
               <h2>{pricingCopy.tableHeading}</h2>
               <p>{pricingCopy.tableSub}</p>
             </div>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>
-                    <th scope="col">&nbsp;</th>
+                    <th scope="col"><span className="sr-only">Feature</span></th>
                     {PLAN_ORDER.map((id) => (
                       <th key={id} scope="col" className={id === "pro" ? "us" : undefined}>
                         {TIERS[id].name}

@@ -14,12 +14,38 @@ export interface CloudUserProfile {
   planExpiresAt?: string | null;
 }
 
+// Mirrors web/src/lib/sync-store.ts, release 1 of 2 of moving tokens off
+// plaintext (review of #172, findings 1-2): this Worker reads both the
+// plaintext record `synctoken:<token>:v1` and the hashed `synctoken:h:<sha256>:v1`,
+// and both pointer forms (the token string, or JSON { h, e? }), but writes only
+// what master wrote, in the layout it found. Nothing is migrated or deleted,
+// so it interoperates with the old and the new site in either deploy order.
+
+export async function hashSyncToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function tokenKey(token: string): string {
   return `synctoken:${token}:v1`;
 }
 
+function hashedTokenKey(hash: string): string {
+  return `synctoken:h:${hash}:v1`;
+}
+
 function userTokenKey(userId: string): string {
   return `synctoken:user:${userId}:v1`;
+}
+
+/** Whether a stored pointer names this token, in either form. */
+function pointerIsFor(raw: string, token: string, hash: string): boolean {
+  if (raw.startsWith("avc_st_")) return raw === token;
+  try {
+    return (JSON.parse(raw) as { h?: string }).h === hash;
+  } catch {
+    return false;
+  }
 }
 
 // Mirrors web/src/lib/sync-store.ts: using a token slides its 30-day TTL, at
@@ -36,14 +62,22 @@ export function tokenNeedsTouch(stored: { touchedAt?: number }, now: number): bo
   return typeof at !== "number" || now - at >= SYNC_TOKEN_TOUCH_INTERVAL_MS || at > now;
 }
 
-async function touchToken(kv: KVNamespace, token: string, profile: CloudUserProfile): Promise<void> {
+async function touchToken(
+  kv: KVNamespace,
+  token: string,
+  profile: CloudUserProfile,
+  foundAt: string
+): Promise<void> {
   const record: StoredTokenProfile = { ...profile, touchedAt: Date.now() };
-  await kv.put(tokenKey(token), JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  await kv.put(foundAt, JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
   // Re-take the pointer only when it is ours or gone, so a stale second token
-  // can't steal it from the one plan refreshes should reach.
+  // can't steal it from the one plan refreshes should reach. Ours is kept byte
+  // for byte; a missing one is written the way master writes it.
   const current = await kv.get(userTokenKey(profile.id));
-  if (!current || current === token) {
+  if (!current) {
     await kv.put(userTokenKey(profile.id), token, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  } else if (pointerIsFor(current, token, await hashSyncToken(token))) {
+    await kv.put(userTokenKey(profile.id), current, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
   }
 }
 
@@ -58,13 +92,18 @@ export async function getSyncTokenProfile(
   token: string
 ): Promise<CloudUserProfile | null> {
   if (!token) return null;
-  const raw = await kv.get(tokenKey(token));
+  let foundAt = tokenKey(token);
+  let raw = await kv.get(foundAt);
+  if (!raw) {
+    foundAt = hashedTokenKey(await hashSyncToken(token));
+    raw = await kv.get(foundAt);
+  }
   if (!raw) return null;
   const { touchedAt, ...profile } = JSON.parse(raw) as StoredTokenProfile;
   if (tokenNeedsTouch({ touchedAt }, Date.now())) {
     // Best effort: a failed slide must not turn a valid token into a 401.
     try {
-      await touchToken(kv, token, profile);
+      await touchToken(kv, token, profile, foundAt);
     } catch (err) {
       console.warn("[sync-auth] token TTL slide failed", err);
     }

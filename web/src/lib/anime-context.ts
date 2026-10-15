@@ -3,6 +3,7 @@ import { completionTuning, DEFAULT_COACH_MODEL } from "./ai-coach";
 import { parseUsage } from "./llm-pricing";
 import { recordLlmCall, type LlmContext } from "./telemetry";
 import { animeContextCacheBasis, seriesTitle } from "./anime-title";
+import { upstreamTimeout } from "@/lib/upstream";
 
 /**
  * Event name and outcome tags for the anime-context cache panel (#113).
@@ -80,6 +81,7 @@ export async function generateAnimeContext(
   const base = { ...ctx, model, operation: "anime_context", effort: "low" as const };
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,

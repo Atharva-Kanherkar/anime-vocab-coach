@@ -74,22 +74,26 @@ export default function HomePage() {
       />
       <HeroImagePreloader slides={heroSlides} />
       {/* Free public front door to the creative Manga Studio + gallery. */}
-      <a className="studio-banner" href="/studio">
-        <span className="studio-banner__tag">NEW</span>
-        Manga Studio — create your own manga with AI. Free, no sign-up to try
-        <span aria-hidden="true"> →</span>
-      </a>
+      <aside aria-label="New">
+        <a className="studio-banner" href="/studio">
+          <span className="studio-banner__tag">NEW</span>
+          Manga Studio — create your own manga with AI. Free, no sign-up to try
+          <span aria-hidden="true"> →</span>
+        </a>
+      </aside>
       <main id="main">
         <FxSlider slides={heroSlides} />
       </main>
-      <a
-        className="creator-credit"
-        href="https://x.com/attharrva15"
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        Built with <span aria-hidden="true">♥</span> by @attharrva15 · follow the creator
-      </a>
+      <aside aria-label="Creator">
+        <a
+          className="creator-credit"
+          href="https://x.com/attharrva15"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          Built with <span aria-hidden="true">♥</span> by @attharrva15 · follow the creator
+        </a>
+      </aside>
       <SiteFooter
         links={[
           { href: "/free-japanese-anime-extension", label: "Free extension" },

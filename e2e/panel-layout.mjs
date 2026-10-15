@@ -7,6 +7,9 @@
 // (bottom right, ~140px tall), and the real content script runs against it. The
 // question this answers is a geometry question, and geometry is honest here.
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { NO_PRODUCTION_ARGS, keepOffProduction } from "./support/no-production.mjs";
 
 const EXT = process.argv[2] || `${process.cwd()}/extension`;
 const results = [];
@@ -58,9 +61,13 @@ const CARD = "#avc-overlay-host .avc-agent-word-block.avc-active";
 const LINES = ["父はまだ帰らない。", "約束を守ると言った。", "電車が遅れている。"];
 
 const ctx = await chromium.launchPersistentContext("", {
-  headless: false,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  // The full chromium channel: the default headless shell cannot load extensions.
+  channel: "chromium",
+  headless: !process.env.AVC_E2E_HEADED,
+  args: [...NO_PRODUCTION_ARGS, `--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
 });
+// Beacons and the account-link probe stay off the real site (support/no-production.mjs).
+await keepOffProduction(ctx);
 
 try {
   const sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 15000 }));
@@ -111,6 +118,22 @@ try {
       .catch(() => false);
   }
   check("a word card is up while we test the geometry", carded);
+
+  // ── The panel and its card pass axe (ISO 25010 usability audit) ───────────
+  // The overlay lives in an open shadow root, which axe walks into.
+  await page.evaluate(readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8"));
+  const overlayAxe = await page.evaluate(async () => {
+    const r = await window.axe.run(
+      { include: [["#avc-overlay-host"]] },
+      { runOnly: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa", "best-practice"] }
+    );
+    return r.violations.map((v) => {
+      const n = v.nodes[0];
+      const m = (n?.any[0]?.message || "").match(/contrast of ([0-9.]+).*?foreground color: (#[0-9a-f]+), background color: (#[0-9a-f]+)/);
+      return `${v.impact} ${v.id} x${v.nodes.length}: ${n?.target.flat().join(" > ")}${m ? ` (${m[2]} on ${m[3]}, ${m[1]}:1)` : ""}`;
+    });
+  });
+  check("the copilot panel and its card have no axe violations", overlayAxe.length === 0, overlayAxe.join(" | ").slice(0, 900));
 
   // ── The panel clears the host control bar ─────────────────────────────────
   const geometry = await page.evaluate(() => {

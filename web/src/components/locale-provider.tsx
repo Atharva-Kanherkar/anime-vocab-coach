@@ -79,6 +79,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (isJaPath(pathname)) {
+        // A full navigation on purpose: middleware reads the locale cookie and
+        // the prerendered pages differ per locale, so a client push would show
+        // the old language from the router cache.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/";
         return;
       }

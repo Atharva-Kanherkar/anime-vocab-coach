@@ -177,7 +177,7 @@ export async function transcribeWithFallback(
     const def = chain[i];
     try {
       const raw = await invokeProvider(env, def, wav, language, timeoutMs);
-      const segments = normalizeWhisperResponse(raw, startSec, pcm.length, SAMPLE_RATE);
+      const segments = normalizeWhisperResponse(raw, startSec, pcm.length, SAMPLE_RATE, language);
       return {
         segments,
         provider: def.name,

@@ -1,5 +1,6 @@
 import { WEB_URL } from "../config";
 import { getSettings, getSyncToken } from "./storage";
+import { timeout } from "./net";
 
 export interface TtsResult {
   ok: boolean;
@@ -32,6 +33,7 @@ async function fetchCloudTts(
 ): Promise<{ blob: Blob | null; error?: string }> {
   const res = await fetch(WEB_URL + "/api/tts", {
     method: "POST",
+    signal: timeout("ai"),
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
     body: JSON.stringify({ text }),
   });
@@ -46,6 +48,7 @@ async function fetchCloudTts(
 async function fetchByoTts(text: string, key: string): Promise<Blob | null> {
   const res = await fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
+    signal: timeout("ai"),
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
     body: JSON.stringify({ model: "tts-1", voice: "nova", input: text, response_format: "mp3" }),
   });

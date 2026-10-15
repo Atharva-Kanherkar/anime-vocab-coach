@@ -347,7 +347,7 @@ const STYLES = `
   }
   .avc-agent-brand {
     font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
-    color: rgba(227, 186, 99, 0.55);
+    color: rgba(227, 186, 99, 0.7);
   }
   .avc-agent-mode-select {
     font-size: 11px; letter-spacing: 0.04em;
@@ -366,7 +366,7 @@ const STYLES = `
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.04);
-    color: rgba(236, 234, 228, 0.45);
+    color: rgba(236, 234, 228, 0.6);
     font-size: 11px; line-height: 1; letter-spacing: 0.04em;
     cursor: pointer; font-family: inherit;
     text-decoration: line-through;
@@ -402,10 +402,22 @@ const STYLES = `
   }
   .avc-agent-idle {
     padding: 24px 8px 20px; text-align: center;
-    color: rgba(236, 234, 228, 0.32);
+    color: rgba(236, 234, 228, 0.58);
     font-size: 12px; line-height: 1.6;
   }
-  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.5); font-weight: 500; }
+  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.75); font-weight: 500; }
+  .avc-agent-undo {
+    margin-top: 14px; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.03);
+    color: rgba(236, 234, 228, 0.8); font-size: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .avc-agent-undo button {
+    padding: 3px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 12px;
+    border: 1px solid rgba(227, 186, 99, 0.45); background: transparent;
+    color: rgba(227, 186, 99, 0.95);
+  }
+  .avc-agent-undo button:hover { background: rgba(227, 186, 99, 0.12); }
   .avc-agent-word-block { display: none; }
   .avc-agent-word-block.avc-active { display: block; }
   /* Ambient: readable text on a small local card — sidebar background stays glassy */
@@ -486,10 +498,10 @@ const STYLES = `
     background: rgba(255, 255, 255, 0.08);
   }
   .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-foot.avc-active .avc-agent-ignore {
-    color: rgba(236, 234, 228, 0.62);
+    color: rgba(236, 234, 228, 0.68);
   }
   .avc-agent-sidebar:not(.avc-focus-sidebar) .avc-agent-foot.avc-active .avc-agent-hint {
-    color: rgba(236, 234, 228, 0.45);
+    color: rgba(236, 234, 228, 0.6);
   }
   .avc-agent-chip {
     display: inline-block; font-size: 9px; letter-spacing: 0.08em;
@@ -565,7 +577,7 @@ const STYLES = `
   }
   .avc-agent-chat-label {
     font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: rgba(236, 234, 228, 0.32); margin-bottom: 8px;
+    color: rgba(236, 234, 228, 0.55); margin-bottom: 8px;
   }
   .avc-agent-chat-log {
     flex: 1; min-height: 80px; overflow-y: auto; margin-bottom: 0;
@@ -655,7 +667,7 @@ const STYLES = `
   .avc-agent-buttons button:hover { filter: brightness(1.1); }
   .avc-agent-buttons button span {
     display: block; font-size: 9px; margin-top: 2px;
-    letter-spacing: 0.02em; opacity: 0.5;
+    letter-spacing: 0.02em; opacity: 0.85;
   }
   .avc-agent-know {
     background: rgba(255,255,255,.04); color: rgba(236,234,228,.7);
@@ -663,7 +675,7 @@ const STYLES = `
   }
   .avc-agent-learn { background: rgba(196, 85, 58, 0.65); color: rgba(255,255,255,.92); }
   .avc-agent-ignore {
-    background: transparent; color: rgba(236,234,228,.35);
+    background: transparent; color: rgba(236,234,228,.6);
     border-color: rgba(255,255,255,.06);
   }
   .avc-agent-review-pass { background: rgba(61, 138, 99, 0.65); color: rgba(255,255,255,.92); }
@@ -678,7 +690,7 @@ const STYLES = `
     font-size: 12px; cursor: pointer; font-family: inherit;
   }
   .avc-agent-hint {
-    font-size: 9px; color: rgba(236, 234, 228, 0.22);
+    font-size: 9px; color: rgba(236, 234, 228, 0.55);
     text-align: center; letter-spacing: 0.03em;
   }
 
@@ -1391,6 +1403,7 @@ function populateWordSection(ctx: WordContext): void {
   const displayScript: DisplayScript = opts.displayScript || "romaji";
 
   shell.wordIdle.style.display = "none";
+  clearUndo();
   shell.wordActive.classList.add("avc-active");
   shell.wordActive.textContent = "";
   shell.aiOut.classList.remove("avc-visible");
@@ -1503,6 +1516,10 @@ function buildShell(root: ShadowRoot): Shell {
 
   const resize = document.createElement("div");
   resize.className = "avc-agent-resize";
+  // A pointer-only drag handle: a named vertical separator, which is the role
+  // that may carry a label (a bare div with aria-label is invalid ARIA).
+  resize.setAttribute("role", "separator");
+  resize.setAttribute("aria-orientation", "vertical");
   resize.setAttribute("aria-label", "Resize panel");
   resize.title = "Drag to resize";
   attachResizeHandle(sidebar, resize);
@@ -1727,6 +1744,42 @@ function buildShell(root: ShadowRoot): Shell {
     wordIdle, wordActive, foot, buttons, hint, chatLog, chatInput, chatSend,
     aiOut, explainBtn, hookBtn, collapseBtn, rail,
   };
+}
+
+/**
+ * Offer to take back the judgment just made on a card (ISO 25010 usability:
+ * user error protection). Shown in the panel's idle area, where the card was,
+ * until the next card replaces it; a mis-click on Know or Skip used to be final.
+ */
+export function offerUndo(text: string, onUndo: () => Promise<string>): void {
+  if (!shell) return;
+  clearUndo();
+  const row = document.createElement("div");
+  row.className = "avc-agent-undo";
+  row.setAttribute("role", "status");
+  const label = document.createElement("span");
+  label.textContent = text;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.textContent = "Undo";
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    btn.disabled = true;
+    void onUndo()
+      .then((outcome) => {
+        label.textContent = outcome;
+        btn.remove();
+      })
+      .catch(() => {
+        btn.disabled = false;
+      });
+  });
+  row.append(label, btn);
+  shell.wordIdle.appendChild(row);
+}
+
+function clearUndo(): void {
+  shell?.wordIdle.querySelector(".avc-agent-undo")?.remove();
 }
 
 /**

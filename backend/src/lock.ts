@@ -1,3 +1,4 @@
+import { atomicFor } from "./atomic";
 import type { Env } from "./index";
 import { chunkBucket } from "./validate";
 
@@ -10,24 +11,30 @@ function lockKey(cacheKey: string, startSec: number): string {
   return `txlock:${cacheKey}:${chunkBucket(startSec)}`;
 }
 
-/** Try to acquire an in-flight transcription lock. Returns true if acquired. */
+const lockFor = (env: Env, cacheKey: string, startSec: number) =>
+  atomicFor(env.ATOMIC, lockKey(cacheKey, startSec));
+
+/**
+ * Try to acquire an in-flight transcription lock. Returns true if acquired.
+ *
+ * Backed by a Durable Object, so of N simultaneous callers exactly one wins;
+ * the KV get-then-put this replaced let several "win" at once and each paid a
+ * provider for the same chunk.
+ */
 export async function acquireTranscribeLock(
   env: Env,
   cacheKey: string,
   startSec: number,
   owner: string
 ): Promise<boolean> {
-  const key = lockKey(cacheKey, startSec);
-  const existing = await env.AVC_KV.get(key);
-  if (existing && existing !== owner) return false;
   try {
-    await env.AVC_KV.put(key, owner, { expirationTtl: LOCK_TTL_SEC });
+    return await lockFor(env, cacheKey, startSec).claim(owner, LOCK_TTL_SEC * 1000);
   } catch (err) {
-    // If KV writes are blocked, proceed without a durable lock rather than
-    // failing every cache miss (duplicate Whisper spend is better than offline).
-    console.warn("[lock] acquire put failed; proceeding unlocked", err);
+    // Duplicate provider spend is better than taking Listening Mode offline,
+    // but it must be visible, not silent.
+    console.error("[lock] claim failed; proceeding unlocked", err);
+    return true;
   }
-  return true;
 }
 
 export async function releaseTranscribeLock(
@@ -36,9 +43,12 @@ export async function releaseTranscribeLock(
   startSec: number,
   owner: string
 ): Promise<void> {
-  const key = lockKey(cacheKey, startSec);
-  const existing = await env.AVC_KV.get(key);
-  if (existing === owner) await env.AVC_KV.delete(key);
+  try {
+    await lockFor(env, cacheKey, startSec).release(owner);
+  } catch (err) {
+    // The lock expires on its own after LOCK_TTL_SEC.
+    console.warn("[lock] release failed", err);
+  }
 }
 
 export async function waitForPeerLock(
@@ -47,11 +57,10 @@ export async function waitForPeerLock(
   startSec: number,
   maxWaitMs = 3000
 ): Promise<boolean> {
-  const key = lockKey(cacheKey, startSec);
+  const lock = lockFor(env, cacheKey, startSec);
   const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
-    const existing = await env.AVC_KV.get(key);
-    if (!existing) return true;
+    if (!(await lock.held().catch(() => false))) return true;
     await new Promise((r) => setTimeout(r, 250));
   }
   return false;

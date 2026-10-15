@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server";
 import { getOpenAiKey } from "@/lib/ai-store";
 import { getStudioConfig } from "@/lib/studio-store";
-import { trackEndingEvent } from "@/lib/ending-store";
+import {
+  currentStatsDay,
+  getEndingConfig,
+  hashIp,
+  spendOptionsBudget,
+  trackEndingEvent,
+} from "@/lib/ending-store";
+import { clientIp } from "@/lib/studio-store";
+import { resolveProfile } from "@/lib/auth";
 import { STUDIO_STYLES } from "@/lib/studio";
 import type { StyleKey } from "@/lib/cards";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export const dynamic = "force-dynamic";
 
 // Agentic: given ANY manga/anime title, invent 3 fan-ending options plus a
 // matching art style. A cheap chat call — the free slot is only spent when the
 // visitor commits at /api/ending/generate, so browsing endings costs nothing.
+// It needs no account, so it carries its own daily budget per caller (hashed
+// IP, or user when signed in) plus a global one; before that, a loop could
+// call OpenAI on the owner's key without limit.
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -26,6 +38,22 @@ export async function POST(req: Request) {
 
   const apiKey = await getOpenAiKey();
   if (!apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
+
+  const [profile, config] = await Promise.all([resolveProfile(req), getEndingConfig()]);
+  const day = currentStatsDay();
+  const caller = profile ? `u:${profile.id}` : `ip:${await hashIp(clientIp(req))}`;
+  const callerLimit = profile ? config.optionsPerUserPerDay : config.optionsPerIpPerDay;
+  // Spend first and decide on the total that comes back: atomic, so parallel
+  // requests each see their own count. Spending before the upstream call also
+  // means a request that times out there is still counted.
+  const spent = await spendOptionsBudget(caller, day, { caller: callerLimit, global: config.optionsGlobalPerDay });
+  if (!spent.ok) {
+    return NextResponse.json(
+      { error: spent.reason, needsLogin: !profile },
+      { status: 429, headers: { "Retry-After": "3600" } }
+    );
+  }
+
   const { scriptModel } = await getStudioConfig();
 
   const system =
@@ -46,6 +74,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
+      signal: upstreamTimeout("chat"),
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: scriptModel,

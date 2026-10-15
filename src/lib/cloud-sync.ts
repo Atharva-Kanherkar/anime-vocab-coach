@@ -23,6 +23,7 @@ import {
 } from "./storage";
 import { toastActiveTab } from "./notify";
 import { log, warn } from "./log";
+import { timeout } from "./net";
 
 const SNAPSHOT_URL = WEB_URL + "/api/sync/snapshot";
 
@@ -77,7 +78,7 @@ let syncQueued = false;
 async function pullRevision(token: string): Promise<number | null> {
   let data: SnapshotResponse;
   try {
-    const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+    const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token }, signal: timeout("quick") });
     if (!res.ok) return null;
     data = (await res.json()) as SnapshotResponse;
   } catch {
@@ -105,7 +106,7 @@ export async function pullSettingsFromCloud(): Promise<void> {
   if (!token) return;
 
   try {
-    const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
+    const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token }, signal: timeout("quick") });
     if (res.status === 401) {
       await noteAuthFailure();
       return;
@@ -177,6 +178,7 @@ async function pushSnapshotOnce(): Promise<void> {
       const appliedWebReviewSeq = await getWebReviewSeq();
       const res = await fetch(SNAPSHOT_URL, {
         method: "PUT",
+        signal: timeout("upload"),
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
       });

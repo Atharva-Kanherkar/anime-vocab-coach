@@ -1,4 +1,5 @@
 import { getOpenAiKey, getCachedResult, putCachedResult } from "./ai-store";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export const DEFAULT_TTS_MODEL = "tts-1";
 export const DEFAULT_TTS_VOICE = "nova";
@@ -54,6 +55,7 @@ export async function synthesizeSpeech(
 
   const res = await fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
+    signal: upstreamTimeout("tts"),
     headers: {
       authorization: `Bearer ${apiKey}`,
       "content-type": "application/json",

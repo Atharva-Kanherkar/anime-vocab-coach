@@ -1,14 +1,14 @@
 import { DEFAULTS } from "../types";
 import { BACKEND_URL } from "../config";
 import { pullSettingsFromCloud, syncWithCloud } from "../lib/cloud-sync";
-import { attemptAutoLink } from "../lib/account-link";
+import { attemptAutoLink, verifyAndLinkToken } from "../lib/account-link";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
 import { fetchWordPick, type WordPickRequest } from "../lib/word-picker-client";
 import { fetchExtractWords, type ExtractWordsRequest } from "../lib/extract-words-client";
 import { fetchAnimeContext } from "../lib/anime-context-client";
 import { fetchTtsAudio } from "../lib/tts-client";
 import { fetchUsage } from "../lib/usage-client";
-import { getSyncToken } from "../lib/storage";
+import { getSyncToken, handleStorageWrite } from "../lib/storage";
 import { stampOnboarding } from "../lib/onboarding-store";
 import {
   TRACK_FEATURE_MESSAGE,
@@ -404,10 +404,14 @@ interface RuntimeMsg {
   kind?: string;
   trigger?: string;
   force?: boolean;
+  token?: string;
   open?: boolean;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
+  // Every vocab/stats/settings write runs here, behind one queue (storage.ts).
+  if (handleStorageWrite(msg, sendResponse)) return true;
+
   if (msg.type === "avc-badge") {
     const text = (msg.count || 0) > 0 ? String(msg.count) : "";
     chrome.action.setBadgeText({ text });
@@ -493,6 +497,18 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   if (msg.type === "avc-account-link") {
     linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true })
       .then((result) => sendResponse({ ok: true, ...result }))
+      .catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
+    return true;
+  }
+
+  // The animevocab.com page handed the sync bridge a token. Verified against
+  // this browser's own session before it is stored (see verifyAndLinkToken).
+  if (msg.type === "avc-link-token") {
+    verifyAndLinkToken(typeof msg.token === "string" ? msg.token : "")
+      .then((result) => {
+        if (result.outcome === "linked") syncWithCloud().catch(() => {});
+        sendResponse({ ok: true, ...result });
+      })
       .catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
     return true;
   }

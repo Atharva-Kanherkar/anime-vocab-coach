@@ -6,6 +6,9 @@
 // the window in the capture phase: Space toggles playback, as Netflix's does.
 // The extension under test is the shipped build; nothing in it is mocked.
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { NO_PRODUCTION_ARGS, keepOffProduction } from "./support/no-production.mjs";
 
 const EXT = process.argv[2] || `${process.cwd()}/extension`;
 const results = [];
@@ -55,8 +58,10 @@ const LINES = ["父はまだ帰らない。", "約束を守ると言った。", 
 const ctx = await chromium.launchPersistentContext("", {
   channel: "chromium",
   headless: !process.env.AVC_E2E_HEADED,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  args: [...NO_PRODUCTION_ARGS, `--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
 });
+// Beacons and the account-link probe stay off the real site (support/no-production.mjs).
+await keepOffProduction(ctx);
 
 try {
   const sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 15000 }));
@@ -115,6 +120,30 @@ try {
   await page.evaluate((l) => window.avcCaption(l), LINES[0]);
   const firstMs = await lensShows(LINES[0], 5000);
   check("Lens mirrors a new subtitle despite constant DOM churn", firstMs !== null, `${firstMs}ms`);
+
+  // ── The Lens and its word tip pass axe (ISO 25010 usability audit) ────────
+  // Hover a word so the tip (meaning + judge buttons) is up too. Both live in
+  // an open shadow root, which axe walks into.
+  await page.evaluate(() => {
+    const root = document.querySelector("[data-avc-sub-lens]")?.shadowRoot;
+    root?.querySelector(".lens .line.jp [data-base], .lens .line.jp span")?.dispatchEvent(new MouseEvent("mouseenter"));
+  });
+  await page.waitForTimeout(300);
+  const tipUp = await page.evaluate(() =>
+    !!document.querySelector("[data-avc-sub-lens]")?.shadowRoot?.querySelector(".tip.on .tip-actions button"));
+  check("hovering a Lens word opens its tip (so axe sees it)", tipUp);
+  await page.evaluate(readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8"));
+  const lensAxe = await page.evaluate(async () => {
+    const r = await window.axe.run(
+      { include: [["[data-avc-sub-lens]"]] },
+      { runOnly: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa", "best-practice"] }
+    );
+    return r.violations.flatMap((v) => v.nodes.map((n) => {
+      const m = (n.any[0]?.message || "").match(/contrast of ([0-9.]+).*?foreground color: (#[0-9a-f]+), background color: (#[0-9a-f]+)/);
+      return `${v.impact} ${v.id}: ${n.target.flat().join(" > ")}${m ? ` (${m[2]} on ${m[3]}, ${m[1]}:1)` : ""}`;
+    }));
+  });
+  check("the Lens and its word tip have no axe violations", lensAxe.length === 0, lensAxe.join(" | ").slice(0, 900));
 
   // ── A card comes up; the Lens must keep following the video behind it ─────
   let carded = false;

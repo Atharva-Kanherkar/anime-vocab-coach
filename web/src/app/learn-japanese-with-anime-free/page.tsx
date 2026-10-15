@@ -180,7 +180,7 @@ export default function LearnJapaneseWithAnimeFreePage() {
             </ul>
 
             <h2>Free tools compared</h2>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>

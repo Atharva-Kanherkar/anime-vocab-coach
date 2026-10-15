@@ -4,6 +4,7 @@ import {
   AUTO_LINK_COOLDOWN_MS,
   SIGN_OUT_SUPPRESSION_MS,
   interpretMintResponse,
+  interpretVerifyResponse,
   planLabel,
   shouldAttemptAutoLink,
   type AutoLinkGateInput,
@@ -195,5 +196,32 @@ describe("account copy house style", () => {
   it("keeps the onboarding page free of em and en dashes", () => {
     const html = readFileSync(new URL("../extension/welcome/welcome.html", import.meta.url), "utf8");
     expect(html).not.toMatch(LONG_DASH);
+  });
+});
+
+describe("page-supplied token trust (ISO 25010 security: authenticity)", () => {
+  it("links only on a 2xx that says ok, with the server's profile", () => {
+    const out = interpretVerifyResponse(200, { ok: true, profile: { email: "me@example.com", name: "Me", plan: "pro" } });
+    expect(out).toEqual({ status: "linked", profile: { email: "me@example.com", name: "Me", plan: "pro" } });
+  });
+
+  it("refuses a token that belongs to another account", () => {
+    expect(interpretVerifyResponse(403, { error: "token_mismatch" })).toEqual({ status: "mismatch" });
+  });
+
+  it("does nothing when the browser is signed out", () => {
+    expect(interpretVerifyResponse(401, { error: "unauthorized" })).toEqual({ status: "signed-out" });
+  });
+
+  it("treats an old server (no verify endpoint) as an error, never as linked", () => {
+    expect(interpretVerifyResponse(405, null).status).toBe("error");
+    expect(interpretVerifyResponse(200, { token: "avc_st_x" }).status).toBe("error");
+  });
+
+  it("the bridge never writes the page's token to storage itself", () => {
+    const source = readFileSync(new URL("../src/entries/sync-bridge.ts", import.meta.url), "utf8");
+    const handler = source.slice(source.indexOf('data.type === "avc-sync-token"'), source.indexOf('data.type === "avc-sync-now"'));
+    expect(handler).toContain('type: "avc-link-token"');
+    expect(handler).not.toMatch(/storage\.local\.set/);
   });
 });

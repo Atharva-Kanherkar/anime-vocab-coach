@@ -19,6 +19,7 @@ import {
   type LearningDirection,
 } from "@/lib/direction";
 import { EMPTY_USAGE, parseUsage, type TokenUsage } from "@/lib/llm-pricing";
+import { upstreamTimeout } from "@/lib/upstream";
 
 /**
  * Called with the provider's token accounting once a call finishes.
@@ -396,6 +397,7 @@ export async function runCoach(
   const { system, user } = buildPrompt(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
@@ -487,6 +489,7 @@ async function runChatCoach(
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
@@ -522,6 +525,7 @@ export async function* streamChatCoach(
   const messages = buildChatMessages(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("stream"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,

@@ -189,7 +189,7 @@ export default function DoesMigakuWorkOnCrunchyrollPage() {
             </p>
 
             <h2>What works on Crunchyroll instead</h2>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>
