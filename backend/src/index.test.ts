@@ -75,3 +75,21 @@ describe("legacy realtime sessions (ISO 25010 security: resistance)", () => {
     }
   });
 });
+
+describe("/v1/health (ISO 25010 reliability: availability)", () => {
+  it("answers 200 when KV and the Atomic object respond", async () => {
+    const res = await call("/v1/health");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, checks: { kv: "ok", atomic: "ok" } });
+  });
+
+  it("answers 503 and names the dependency when one fails", async () => {
+    const env = fakeEnv();
+    (env.AVC_KV as unknown as { get: () => Promise<never> }).get = async () => {
+      throw new Error("kv down");
+    };
+    const res = await call("/v1/health", undefined, env);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ ok: false, checks: { kv: "fail", atomic: "ok" } });
+  });
+});

@@ -1,0 +1,59 @@
+name: Uptime
+
+# Production availability check (ISO 25010 reliability audit: nothing told
+# anyone when the site, the API or a dependency went down). Every 15 minutes it
+# reads the two health endpoints, the home page and the API config, and checks
+# the security headers are still being sent. A failed scheduled run emails the
+# repository owner, which is the alert. Reads only: no KV writes, no telemetry.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe production
+        run: |
+          set -u
+          fail=0
+          probe() {
+            local url="$1" want="$2"
+            local out code time
+            rm -f /tmp/body /tmp/headers
+            out=$(curl -sS -o /tmp/body -D /tmp/headers -w "%{http_code} %{time_total}" --max-time 20 "$url") || out="000 20"
+            code=${out%% *}; time=${out##* }
+            echo "$url -> HTTP $code in ${time}s"
+            if [ "$code" != "$want" ]; then
+              echo "::error title=Down::$url answered $code (want $want): $(head -c 300 /tmp/body 2>/dev/null)"
+              fail=1
+            elif awk "BEGIN { exit !($time > 10) }"; then
+              echo "::warning title=Slow::$url took ${time}s"
+            fi
+          }
+          need_header() {
+            if ! grep -qi "^$2:" /tmp/headers; then
+              echo "::error title=Header missing::$1 no longer sends $2"
+              fail=1
+            fi
+          }
+
+          probe https://animevocab.com/api/health 200
+          probe https://api.animevocab.com/v1/health 200
+          probe https://api.animevocab.com/v1/public/config 200
+          need_header https://api.animevocab.com/v1/public/config strict-transport-security
+          probe https://animevocab.com/ 200
+          need_header https://animevocab.com/ content-security-policy
+          need_header https://animevocab.com/ strict-transport-security
+          need_header https://animevocab.com/ x-frame-options
+          exit $fail

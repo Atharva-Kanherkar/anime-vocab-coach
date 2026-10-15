@@ -105,6 +105,18 @@ export default {
     }
 
     try {
+      // Liveness for the uptime check (.github/workflows/uptime.yml): reads
+      // only, so frequent probes spend no KV writes. 503 names what failed.
+      if (path === "/v1/health" && req.method === "GET") {
+        const checks: Record<string, "ok" | "fail"> = {};
+        await Promise.all([
+          env.AVC_KV.get("health:probe").then(() => { checks.kv = "ok"; }, () => { checks.kv = "fail"; }),
+          atomicFor(env.ATOMIC, "health:probe").get().then(() => { checks.atomic = "ok"; }, () => { checks.atomic = "fail"; }),
+        ]);
+        const ok = Object.values(checks).every((v) => v === "ok");
+        return json(req, { ok, checks }, ok ? 200 : 503, { "Cache-Control": "no-store" });
+      }
+
       if (path === "/v1/public/config" && req.method === "GET") {
         return json(req, publicConfig(env));
       }
