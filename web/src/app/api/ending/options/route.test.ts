@@ -12,6 +12,7 @@ vi.mock("@/lib/auth", () => ({ resolveProfile: async () => null }));
 
 const { POST } = await import("./route");
 const { DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY } = await import("@/lib/ending-funnel");
+const { currentStatsDay, globalOptionsSpentForTests } = await import("@/lib/ending-store");
 
 const openaiCalls = vi.fn();
 const options = [1, 2, 3].map((i) => ({ id: `o${i}`, title: `T${i}`, blurb: "b", tone: "Heartfelt", premiseBeat: "p" }));
@@ -50,5 +51,40 @@ describe("/api/ending/options budget (ISO 25010 security: resistance)", () => {
 
   it("budgets each caller separately", async () => {
     expect((await ask("198.51.100.9")).status).toBe(200);
+  });
+});
+
+describe("one caller cannot spend everyone's global allowance (PR #172 review, finding 3)", () => {
+  it("refused calls do not count against the global budget", async () => {
+    const day = currentStatsDay();
+    const globalBefore = await globalOptionsSpentForTests(day);
+    // Room for exactly this caller's allowance plus one fresh caller.
+    process.env.ENDING_OPTIONS_GLOBAL_PER_DAY = String(globalBefore + DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY + 1);
+    try {
+      // 100 calls from one hammering caller: 15 allowed, 85 refused.
+      const statuses = [];
+      for (let i = 0; i < 100; i++) statuses.push((await ask("192.0.2.66")).status);
+      expect(statuses.filter((s) => s === 200)).toHaveLength(DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY);
+      expect((await globalOptionsSpentForTests(day)) - globalBefore).toBe(DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY);
+      // A fresh caller is still served.
+      expect((await ask("192.0.2.77")).status).toBe(200);
+    } finally {
+      delete process.env.ENDING_OPTIONS_GLOBAL_PER_DAY;
+    }
+  });
+
+  it("a caller refused by the global limit gets its own unit back", async () => {
+    process.env.ENDING_OPTIONS_GLOBAL_PER_DAY = "0";
+    try {
+      const res = await ask("192.0.2.88");
+      expect(res.status).toBe(429);
+      expect(await res.json()).toMatchObject({ error: "capacity" });
+    } finally {
+      delete process.env.ENDING_OPTIONS_GLOBAL_PER_DAY;
+    }
+    // With capacity back, the same caller still has its full allowance.
+    const statuses = [];
+    for (let i = 0; i < DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY; i++) statuses.push((await ask("192.0.2.88")).status);
+    expect(statuses.every((s) => s === 200)).toBe(true);
   });
 });

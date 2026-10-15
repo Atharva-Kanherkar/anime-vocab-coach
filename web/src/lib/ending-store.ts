@@ -160,11 +160,32 @@ export const incrementGlobalEndingCount = (day: string) =>
 const optionsCallerKey = (caller: string, day: string) => `ending:options:${caller}:${day}`;
 const optionsGlobalKey = (day: string) => `ending:options:global:${day}`;
 
-/** Spend one unit of each budget and return the totals after spending. */
-export async function spendOptionsBudget(caller: string, day: string): Promise<{ caller: number; global: number }> {
-  const [c, g] = await Promise.all([atomic(optionsCallerKey(caller, day)), atomic(optionsGlobalKey(day))]);
-  const [callerTotal, globalTotal] = await Promise.all([c.add(1, DAY_TTL_SECONDS), g.add(1, DAY_TTL_SECONDS)]);
-  return { caller: callerTotal, global: globalTotal };
+/**
+ * Spend one "invent endings" call against the caller's budget, then the global
+ * one. Each step is atomic and decides on the total it returns. A caller that
+ * is already over its own limit never touches the global counter (otherwise
+ * one caller hammering the route would spend everybody's daily capacity), and
+ * a caller refused by the global limit gets its own unit back. A call that
+ * passes both stays spent even if the upstream request then times out.
+ */
+export async function spendOptionsBudget(
+  caller: string,
+  day: string,
+  limits: { caller: number; global: number }
+): Promise<{ ok: true } | { ok: false; reason: "options_limit" | "capacity" }> {
+  const mine = await atomic(optionsCallerKey(caller, day));
+  if ((await mine.add(1, DAY_TTL_SECONDS)) > limits.caller) return { ok: false, reason: "options_limit" };
+  const global = await atomic(optionsGlobalKey(day));
+  if ((await global.add(1, DAY_TTL_SECONDS)) > limits.global) {
+    await mine.add(-1, DAY_TTL_SECONDS);
+    return { ok: false, reason: "capacity" };
+  }
+  return { ok: true };
+}
+
+/** Test-only: the global counter's current value. */
+export async function globalOptionsSpentForTests(day: string): Promise<number> {
+  return (await atomic(optionsGlobalKey(day))).get();
 }
 
 // One drawer per panel. Without this, N simultaneous requests for a panel that

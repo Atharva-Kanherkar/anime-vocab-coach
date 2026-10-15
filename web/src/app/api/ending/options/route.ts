@@ -46,10 +46,10 @@ export async function POST(req: Request) {
   // Spend first and decide on the total that comes back: atomic, so parallel
   // requests each see their own count. Spending before the upstream call also
   // means a request that times out there is still counted.
-  const spent = await spendOptionsBudget(caller, day);
-  if (spent.caller > callerLimit || spent.global > config.optionsGlobalPerDay) {
+  const spent = await spendOptionsBudget(caller, day, { caller: callerLimit, global: config.optionsGlobalPerDay });
+  if (!spent.ok) {
     return NextResponse.json(
-      { error: spent.caller > callerLimit ? "options_limit" : "capacity", needsLogin: !profile },
+      { error: spent.reason, needsLogin: !profile },
       { status: 429, headers: { "Retry-After": "3600" } }
     );
   }
