@@ -57,6 +57,7 @@ const ERRORS: Record<string, string> = {
   ending_not_found: "Pick one of the endings first.",
   title_required: "Type a manga or anime title.",
   capacity: "Today's drawing capacity is maxed out — come back tomorrow, it resets.",
+  options_limit: "You've invented a lot of endings today. Pick one, or come back tomorrow for more.",
 };
 
 const DRAWING_LINES = [

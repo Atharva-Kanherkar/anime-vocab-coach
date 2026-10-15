@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
 import { getOpenAiKey } from "@/lib/ai-store";
 import { getStudioConfig } from "@/lib/studio-store";
-import { trackEndingEvent } from "@/lib/ending-store";
+import {
+  currentStatsDay,
+  getEndingConfig,
+  getGlobalOptionsCount,
+  getOptionsCount,
+  hashIp,
+  incrementGlobalOptionsCount,
+  incrementOptionsCount,
+  trackEndingEvent,
+} from "@/lib/ending-store";
+import { clientIp } from "@/lib/studio-store";
+import { resolveProfile } from "@/lib/auth";
 import { STUDIO_STYLES } from "@/lib/studio";
 import type { StyleKey } from "@/lib/cards";
 
@@ -10,6 +21,9 @@ export const dynamic = "force-dynamic";
 // Agentic: given ANY manga/anime title, invent 3 fan-ending options plus a
 // matching art style. A cheap chat call — the free slot is only spent when the
 // visitor commits at /api/ending/generate, so browsing endings costs nothing.
+// It needs no account, so it carries its own daily budget per caller (hashed
+// IP, or user when signed in) plus a global one; before that, a loop could
+// call OpenAI on the owner's key without limit.
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -26,6 +40,21 @@ export async function POST(req: Request) {
 
   const apiKey = await getOpenAiKey();
   if (!apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
+
+  const [profile, config] = await Promise.all([resolveProfile(req), getEndingConfig()]);
+  const day = currentStatsDay();
+  const caller = profile ? `u:${profile.id}` : `ip:${await hashIp(clientIp(req))}`;
+  const callerLimit = profile ? config.optionsPerUserPerDay : config.optionsPerIpPerDay;
+  const [used, globalUsed] = await Promise.all([getOptionsCount(caller, day), getGlobalOptionsCount(day)]);
+  if (used >= callerLimit || globalUsed >= config.optionsGlobalPerDay) {
+    return NextResponse.json(
+      { error: used >= callerLimit ? "options_limit" : "capacity", needsLogin: !profile },
+      { status: 429, headers: { "Retry-After": "3600" } }
+    );
+  }
+  // Spend before the call: a request that times out upstream still cost money.
+  await Promise.all([incrementOptionsCount(caller, day), incrementGlobalOptionsCount(day)]);
+
   const { scriptModel } = await getStudioConfig();
 
   const system =

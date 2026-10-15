@@ -27,6 +27,14 @@ export const DEFAULT_ENDING_SIGNED_PER_MONTH = 3;
 /** Global creations/day safety valve for ad-traffic spikes / IP rotation. */
 export const DEFAULT_ENDING_GLOBAL_PER_DAY = 400;
 
+/** "Invent 3 endings" calls (a chat completion each) per caller per UTC day.
+ * Browsing endings is free and stays generous; this only stops a loop from
+ * running up the owner-funded OpenAI bill through an anonymous endpoint. */
+export const DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY = 15;
+export const DEFAULT_ENDING_OPTIONS_PER_USER_PER_DAY = 50;
+/** Global safety valve for IP rotation. */
+export const DEFAULT_ENDING_OPTIONS_GLOBAL_PER_DAY = 3000;
+
 export const ENDING_IMAGE_SIZE = "1024x1024";
 
 export const MAX_ENDING_LINES_PER_PANEL = 2;

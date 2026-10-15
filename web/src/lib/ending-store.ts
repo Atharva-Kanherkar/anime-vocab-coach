@@ -14,6 +14,9 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import {
   DEFAULT_ENDING_FREE_PER_IP,
   DEFAULT_ENDING_GLOBAL_PER_DAY,
+  DEFAULT_ENDING_OPTIONS_GLOBAL_PER_DAY,
+  DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY,
+  DEFAULT_ENDING_OPTIONS_PER_USER_PER_DAY,
   DEFAULT_ENDING_SIGNED_PER_MONTH,
   ENDING_EVENTS,
   type EndingCreation,
@@ -30,6 +33,9 @@ interface FunnelEnv {
   ENDING_FREE_PER_IP?: string;
   ENDING_SIGNED_PER_MONTH?: string;
   ENDING_GLOBAL_PER_DAY?: string;
+  ENDING_OPTIONS_PER_IP_PER_DAY?: string;
+  ENDING_OPTIONS_PER_USER_PER_DAY?: string;
+  ENDING_OPTIONS_GLOBAL_PER_DAY?: string;
 }
 
 const localStore = new Map<string, string>();
@@ -71,6 +77,9 @@ export async function getEndingConfig(): Promise<{
   freePerIp: number;
   signedPerMonth: number;
   globalPerDay: number;
+  optionsPerIpPerDay: number;
+  optionsPerUserPerDay: number;
+  optionsGlobalPerDay: number;
 }> {
   const env = await cfEnv();
   const num = (v: string | undefined, fallback: number) => {
@@ -86,6 +95,18 @@ export async function getEndingConfig(): Promise<{
     globalPerDay: num(
       process.env.ENDING_GLOBAL_PER_DAY || env.ENDING_GLOBAL_PER_DAY,
       DEFAULT_ENDING_GLOBAL_PER_DAY
+    ),
+    optionsPerIpPerDay: num(
+      process.env.ENDING_OPTIONS_PER_IP_PER_DAY || env.ENDING_OPTIONS_PER_IP_PER_DAY,
+      DEFAULT_ENDING_OPTIONS_PER_IP_PER_DAY
+    ),
+    optionsPerUserPerDay: num(
+      process.env.ENDING_OPTIONS_PER_USER_PER_DAY || env.ENDING_OPTIONS_PER_USER_PER_DAY,
+      DEFAULT_ENDING_OPTIONS_PER_USER_PER_DAY
+    ),
+    optionsGlobalPerDay: num(
+      process.env.ENDING_OPTIONS_GLOBAL_PER_DAY || env.ENDING_OPTIONS_GLOBAL_PER_DAY,
+      DEFAULT_ENDING_OPTIONS_GLOBAL_PER_DAY
     ),
   };
 }
@@ -131,6 +152,18 @@ export const incrementSignedEndingCount = (userId: string, month: string) =>
 export const getGlobalEndingCount = (day: string) => readCounter(globalKey(day));
 export const incrementGlobalEndingCount = (day: string) =>
   bumpCounter(globalKey(day), DAY_TTL_SECONDS);
+
+// "Invent endings" (/api/ending/options) budgets: per caller (hashed IP, or
+// user id when signed in) and global, per UTC day.
+const optionsCallerKey = (caller: string, day: string) => `ending:options:${caller}:${day}`;
+const optionsGlobalKey = (day: string) => `ending:options:global:${day}`;
+
+export const getOptionsCount = (caller: string, day: string) => readCounter(optionsCallerKey(caller, day));
+export const incrementOptionsCount = (caller: string, day: string) =>
+  bumpCounter(optionsCallerKey(caller, day), DAY_TTL_SECONDS);
+export const getGlobalOptionsCount = (day: string) => readCounter(optionsGlobalKey(day));
+export const incrementGlobalOptionsCount = (day: string) =>
+  bumpCounter(optionsGlobalKey(day), DAY_TTL_SECONDS);
 
 // ── Creations ──────────────────────────────────────────────────────────────
 
