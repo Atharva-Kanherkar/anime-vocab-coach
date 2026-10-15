@@ -268,6 +268,104 @@
     });
   }
 
+  // src/lib/backup.ts
+  var BACKUP_MAX_BYTES = 20 * 1024 * 1024;
+  var MAX_CARD_TIMESTAMPS = 1e4;
+  var STATES = ["new", "learning", "known", "ignored"];
+  var num = (v) => typeof v === "number" && Number.isFinite(v);
+  var str = (v) => typeof v === "string";
+  function readRecord(raw) {
+    const r = raw;
+    if (!r || typeof r !== "object") return null;
+    if (!STATES.includes(r.state) || !str(r.reading) || !str(r.gloss)) return null;
+    if (![r.level, r.freqRank, r.seenCount, r.shownCount, r.firstSeenAt, r.lastSeenAt].every(num)) return null;
+    let srs = null;
+    if (r.srs != null) {
+      const s = r.srs;
+      if (!num(s.stage) || s.stage < 1 || s.stage > 5 || !num(s.dueAt) || !num(s.lapses)) return null;
+      srs = { stage: s.stage, dueAt: s.dueAt, lapses: s.lapses };
+    }
+    const source = r.source && typeof r.source === "object" ? { title: str(r.source.title) ? r.source.title : null, line: str(r.source.line) ? r.source.line : null, en: str(r.source.en) ? r.source.en : null } : null;
+    return {
+      state: r.state,
+      reading: r.reading,
+      gloss: r.gloss,
+      level: r.level,
+      freqRank: r.freqRank,
+      seenCount: r.seenCount,
+      shownCount: r.shownCount,
+      firstSeenAt: r.firstSeenAt,
+      lastSeenAt: r.lastSeenAt,
+      srs,
+      ...source ? { source } : {}
+    };
+  }
+  function readDaily(raw) {
+    const d = raw;
+    if (!d || typeof d !== "object") return null;
+    const n = (v) => num(v) && v >= 0 ? v : 0;
+    return { met: n(d.met), judged: n(d.judged), reviews: n(d.reviews), watchMin: n(d.watchMin) };
+  }
+  function parseBackup(json) {
+    const data = json;
+    if (!data || typeof data !== "object" || !data.vocab || typeof data.vocab !== "object") {
+      return { ok: false, error: "This isn't an AnimeVocab backup (no word list in it)." };
+    }
+    const vocab = {};
+    let skipped = 0;
+    for (const [base, raw] of Object.entries(data.vocab)) {
+      const rec = base && base.length <= 64 ? readRecord(raw) : null;
+      if (rec) vocab[base] = rec;
+      else skipped++;
+    }
+    const rawStats = data.stats || {};
+    const daily = {};
+    if (rawStats.daily && typeof rawStats.daily === "object") {
+      for (const [day, raw] of Object.entries(rawStats.daily)) {
+        const d = /^\d{4}-\d{2}-\d{2}$/.test(day) ? readDaily(raw) : null;
+        if (d) daily[day] = d;
+      }
+    }
+    const cardTimestamps = Array.isArray(rawStats.cardTimestamps) ? rawStats.cardTimestamps.filter(num) : [];
+    return { ok: true, backup: { vocab, stats: { daily, cardTimestamps } }, skipped };
+  }
+  function mergeRecord(mine, theirs) {
+    const winner = theirs.lastSeenAt > mine.lastSeenAt ? theirs : mine;
+    return {
+      ...winner,
+      firstSeenAt: Math.min(mine.firstSeenAt, theirs.firstSeenAt),
+      seenCount: Math.max(mine.seenCount, theirs.seenCount),
+      shownCount: Math.max(mine.shownCount, theirs.shownCount)
+    };
+  }
+  function mergeBackup(current, incoming) {
+    const vocab = { ...current.vocab };
+    let added = 0;
+    let updated = 0;
+    for (const [base, rec] of Object.entries(incoming.vocab)) {
+      const mine = vocab[base];
+      if (!mine) {
+        vocab[base] = rec;
+        added++;
+        continue;
+      }
+      const next = mergeRecord(mine, rec);
+      if (JSON.stringify(next) !== JSON.stringify(mine)) updated++;
+      vocab[base] = next;
+    }
+    const daily = { ...current.stats.daily || {} };
+    for (const [day, d] of Object.entries(incoming.stats.daily)) {
+      const e = daily[day];
+      daily[day] = e ? { met: Math.max(e.met, d.met), judged: Math.max(e.judged, d.judged), reviews: Math.max(e.reviews, d.reviews), watchMin: Math.max(e.watchMin, d.watchMin) } : d;
+    }
+    const stamps = [.../* @__PURE__ */ new Set([...current.stats.cardTimestamps || [], ...incoming.stats.cardTimestamps])].sort((a, b) => a - b);
+    return {
+      merged: { vocab, stats: { daily, cardTimestamps: stamps.slice(-MAX_CARD_TIMESTAMPS) } },
+      added,
+      updated
+    };
+  }
+
   // src/lib/storage.ts
   var queue2 = Promise.resolve();
   function todayKey() {
@@ -484,6 +582,19 @@
       return vocab[base];
     });
   }
+  function localImportBackup(incoming) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const current = {
+        vocab: r.vocab || {},
+        stats: r.stats || emptyStats()
+      };
+      const { merged, added, updated } = mergeBackup(current, incoming);
+      await chrome.storage.local.set({ vocab: merged.vocab, stats: merged.stats });
+      sendBadge(merged.stats);
+      return { added, updated };
+    });
+  }
   function localUndoJudgment(undo) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
@@ -529,6 +640,12 @@
       await chrome.storage.local.set({ stats });
     });
   }
+  async function exportForBackup() {
+    const data = await exportAll();
+    const settings = { ...data.settings };
+    delete settings.openaiKey;
+    return { ...data, settings };
+  }
   function exportAll() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
@@ -557,7 +674,8 @@
     recordCardShown: localRecordCardShown,
     recordWatchTick: localRecordWatchTick,
     resetProgress: localResetProgress,
-    undoJudgment: localUndoJudgment
+    undoJudgment: localUndoJudgment,
+    importBackup: localImportBackup
   };
   async function write(op, ...args) {
     const run = () => writers[op](...args);
@@ -575,6 +693,9 @@
   }
   function setSettings(partial) {
     return write("setSettings", partial);
+  }
+  function importBackup(backup) {
+    return write("importBackup", backup);
   }
   function resetProgress() {
     return write("resetProgress");
@@ -725,7 +846,7 @@
       savePartial({ transcribeModel: e.target.value });
     });
     byId("export-btn").addEventListener("click", async () => {
-      const data = await exportAll();
+      const data = await exportForBackup();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -733,6 +854,36 @@
       a.download = `animevocab-export-${todayKey2()}.json`;
       a.click();
       URL.revokeObjectURL(url);
+    });
+    const status = byId("backup-status");
+    const fileInput = byId("import-file");
+    byId("import-btn").addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+      fileInput.value = "";
+      if (!file) return;
+      if (file.size > BACKUP_MAX_BYTES) {
+        status.textContent = "That file is too large to be an AnimeVocab backup.";
+        return;
+      }
+      let parsed;
+      try {
+        parsed = parseBackup(JSON.parse(await file.text()));
+      } catch {
+        parsed = { ok: false, error: "That file isn't valid JSON." };
+      }
+      if (!parsed.ok) {
+        status.textContent = parsed.error;
+        return;
+      }
+      const n = Object.keys(parsed.backup.vocab).length;
+      if (!confirm(`Merge ${n} word${n === 1 ? "" : "s"} from this backup? Nothing in this browser is deleted; where both have a word, the more recently seen copy is kept.`)) return;
+      try {
+        const { added, updated } = await importBackup(parsed.backup);
+        status.textContent = `Imported: ${added} new word${added === 1 ? "" : "s"}, ${updated} updated` + (parsed.skipped ? `, ${parsed.skipped} unreadable entr${parsed.skipped === 1 ? "y" : "ies"} skipped.` : ".");
+      } catch (err) {
+        status.textContent = "Import failed: " + (err instanceof Error ? err.message : String(err));
+      }
     });
     byId("reset-btn").addEventListener("click", async () => {
       if (!confirm("Reset all vocab and stats? Settings will be kept.")) return;

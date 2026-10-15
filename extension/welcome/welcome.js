@@ -231,6 +231,9 @@
     }
   }
 
+  // src/lib/backup.ts
+  var BACKUP_MAX_BYTES = 20 * 1024 * 1024;
+
   // src/lib/storage.ts
   var queue2 = Promise.resolve();
   function getSyncToken() {

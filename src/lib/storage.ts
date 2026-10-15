@@ -25,6 +25,7 @@ import { trackExtensionMilestone } from "./extension-events";
 import { trackFeature } from "./feature-events";
 import { stampOnboarding } from "./onboarding-store";
 import { inServiceWorker } from "./run-context";
+import { mergeBackup, type Backup } from "./backup";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -422,6 +423,22 @@ function localJudgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, so
   });
 }
 
+/** Merge a validated backup (lib/backup.ts parseBackup) into this browser's
+ * words and stats. Never deletes, never rolls a word or a day backwards. */
+function localImportBackup(incoming: Backup): Promise<{ added: number; updated: number }> {
+  return enqueue(async () => {
+    const r = await chrome.storage.local.get(["vocab", "stats"]);
+    const current: Backup = {
+      vocab: (r.vocab as VocabMap | undefined) || {},
+      stats: (r.stats as Stats | undefined) || emptyStats(),
+    };
+    const { merged, added, updated } = mergeBackup(current, incoming);
+    await chrome.storage.local.set({ vocab: merged.vocab, stats: merged.stats });
+    sendBadge(merged.stats);
+    return { added, updated };
+  });
+}
+
 /** What undoJudgment needs to put a word back exactly as it was. */
 export interface JudgmentUndo {
   base: string;
@@ -495,6 +512,16 @@ export interface ExportData {
   vocab: VocabMap;
   stats: Stats;
   exportedAt: string;
+}
+
+/** The downloadable backup: everything exportAll returns except the learner's
+ * OpenAI key. A backup file gets attached to support emails and copied
+ * between machines; a live API key does not belong in it. */
+export async function exportForBackup(): Promise<ExportData> {
+  const data = await exportAll();
+  const settings = { ...data.settings };
+  delete (settings as Partial<Settings>).openaiKey;
+  return { ...data, settings: settings as Settings };
 }
 
 export function exportAll(): Promise<ExportData> {
@@ -757,6 +784,7 @@ const writers = {
   recordWatchTick: localRecordWatchTick,
   resetProgress: localResetProgress,
   undoJudgment: localUndoJudgment,
+  importBackup: localImportBackup,
 };
 
 type Writers = typeof writers;
@@ -834,6 +862,10 @@ export function recordCardShown(base: string): Promise<void> {
 
 export function undoJudgment(undo: JudgmentUndo): Promise<void> {
   return write("undoJudgment", undo);
+}
+
+export function importBackup(backup: Backup): Promise<{ added: number; updated: number }> {
+  return write("importBackup", backup);
 }
 
 export function recordWatchTick(): Promise<void> {

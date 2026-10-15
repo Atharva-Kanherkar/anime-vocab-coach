@@ -14,6 +14,7 @@ const SUITES = [
   "dashboard-escape",
   "a11y-extension",
   "undo",
+  "backup",
   "extension-review",
   "onboarding",
   "learning-loop",

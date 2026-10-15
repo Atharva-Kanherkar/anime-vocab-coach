@@ -114,9 +114,13 @@
       </label>
     </section>
 
-    <section class="av-card av-actions">
-      <button type="button" id="export-btn" class="av-btn av-btn-ghost">Export JSON</button>
+    <section class="av-card av-actions" aria-labelledby="backup-title">
+      <h2 id="backup-title" class="sr-only">Backup</h2>
+      <button type="button" id="export-btn" class="av-btn av-btn-ghost">Export backup</button>
+      <button type="button" id="import-btn" class="av-btn av-btn-ghost">Import backup</button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
       <button type="button" id="reset-btn" class="av-btn av-btn-quiet av-danger-text">Reset progress</button>
+      <p class="av-backup-status" id="backup-status" role="status"></p>
     </section>
   </main>
 

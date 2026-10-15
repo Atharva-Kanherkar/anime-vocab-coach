@@ -445,6 +445,46 @@
     });
   }
 
+  // src/lib/backup.ts
+  var BACKUP_MAX_BYTES = 20 * 1024 * 1024;
+  var MAX_CARD_TIMESTAMPS = 1e4;
+  function mergeRecord(mine, theirs) {
+    const winner = theirs.lastSeenAt > mine.lastSeenAt ? theirs : mine;
+    return {
+      ...winner,
+      firstSeenAt: Math.min(mine.firstSeenAt, theirs.firstSeenAt),
+      seenCount: Math.max(mine.seenCount, theirs.seenCount),
+      shownCount: Math.max(mine.shownCount, theirs.shownCount)
+    };
+  }
+  function mergeBackup(current, incoming) {
+    const vocab = { ...current.vocab };
+    let added = 0;
+    let updated = 0;
+    for (const [base, rec] of Object.entries(incoming.vocab)) {
+      const mine = vocab[base];
+      if (!mine) {
+        vocab[base] = rec;
+        added++;
+        continue;
+      }
+      const next = mergeRecord(mine, rec);
+      if (JSON.stringify(next) !== JSON.stringify(mine)) updated++;
+      vocab[base] = next;
+    }
+    const daily = { ...current.stats.daily || {} };
+    for (const [day, d] of Object.entries(incoming.stats.daily)) {
+      const e = daily[day];
+      daily[day] = e ? { met: Math.max(e.met, d.met), judged: Math.max(e.judged, d.judged), reviews: Math.max(e.reviews, d.reviews), watchMin: Math.max(e.watchMin, d.watchMin) } : d;
+    }
+    const stamps = [.../* @__PURE__ */ new Set([...current.stats.cardTimestamps || [], ...incoming.stats.cardTimestamps])].sort((a, b) => a - b);
+    return {
+      merged: { vocab, stats: { daily, cardTimestamps: stamps.slice(-MAX_CARD_TIMESTAMPS) } },
+      added,
+      updated
+    };
+  }
+
   // src/lib/storage.ts
   var queue2 = Promise.resolve();
   function todayKey() {
@@ -675,6 +715,19 @@
       return vocab[base];
     });
   }
+  function localImportBackup(incoming) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const current = {
+        vocab: r.vocab || {},
+        stats: r.stats || emptyStats()
+      };
+      const { merged, added, updated } = mergeBackup(current, incoming);
+      await chrome.storage.local.set({ vocab: merged.vocab, stats: merged.stats });
+      sendBadge(merged.stats);
+      return { added, updated };
+    });
+  }
   function localUndoJudgment(undo) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
@@ -719,6 +772,12 @@
       daily.watchMin += 1;
       await chrome.storage.local.set({ stats });
     });
+  }
+  async function exportForBackup() {
+    const data = await exportAll();
+    const settings = { ...data.settings };
+    delete settings.openaiKey;
+    return { ...data, settings };
   }
   function exportAll() {
     return new Promise((resolve) => {
@@ -818,7 +877,8 @@
     recordCardShown: localRecordCardShown,
     recordWatchTick: localRecordWatchTick,
     resetProgress: localResetProgress,
-    undoJudgment: localUndoJudgment
+    undoJudgment: localUndoJudgment,
+    importBackup: localImportBackup
   };
   async function write(op, ...args) {
     const run = () => writers[op](...args);
@@ -1431,7 +1491,7 @@
     });
     byId("export-link").addEventListener("click", async (e) => {
       e.preventDefault();
-      const data = await exportAll();
+      const data = await exportForBackup();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

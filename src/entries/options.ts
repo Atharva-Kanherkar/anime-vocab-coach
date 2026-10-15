@@ -1,6 +1,7 @@
 import * as storage from "../lib/storage";
 import { isJapaneseUiLocale } from "../lib/locale-direction";
 import type { DisplayScript, LearningDirection, PauseMode, Settings } from "../types";
+import { BACKUP_MAX_BYTES, parseBackup } from "../lib/backup";
 
 type Theme = "dark" | "light";
 
@@ -189,7 +190,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   byId("export-btn").addEventListener("click", async () => {
-    const data = await storage.exportAll();
+    const data = await storage.exportForBackup();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -197,6 +198,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     a.download = `animevocab-export-${todayKey()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  });
+
+  // Restore from a backup file (ISO 25010 reliability: recoverability). It
+  // merges into what is here; nothing is deleted or rolled back.
+  const status = byId("backup-status");
+  const fileInput = byId<HTMLInputElement>("import-file");
+  byId("import-btn").addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = "";
+    if (!file) return;
+    if (file.size > BACKUP_MAX_BYTES) {
+      status.textContent = "That file is too large to be an AnimeVocab backup.";
+      return;
+    }
+    let parsed: ReturnType<typeof parseBackup>;
+    try {
+      parsed = parseBackup(JSON.parse(await file.text()));
+    } catch {
+      parsed = { ok: false, error: "That file isn't valid JSON." };
+    }
+    if (!parsed.ok) {
+      status.textContent = parsed.error;
+      return;
+    }
+    const n = Object.keys(parsed.backup.vocab).length;
+    if (!confirm(`Merge ${n} word${n === 1 ? "" : "s"} from this backup? Nothing in this browser is deleted; where both have a word, the more recently seen copy is kept.`)) return;
+    try {
+      const { added, updated } = await storage.importBackup(parsed.backup);
+      status.textContent =
+        `Imported: ${added} new word${added === 1 ? "" : "s"}, ${updated} updated` +
+        (parsed.skipped ? `, ${parsed.skipped} unreadable entr${parsed.skipped === 1 ? "y" : "ies"} skipped.` : ".");
+    } catch (err) {
+      status.textContent = "Import failed: " + (err instanceof Error ? err.message : String(err));
+    }
   });
 
   byId("reset-btn").addEventListener("click", async () => {
