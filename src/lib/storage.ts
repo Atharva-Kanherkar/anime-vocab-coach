@@ -422,6 +422,41 @@ function localJudgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, so
   });
 }
 
+/** What undoJudgment needs to put a word back exactly as it was. */
+export interface JudgmentUndo {
+  base: string;
+  /** The record before the judgment, or null if the judgment created it. */
+  previous: VocabRecord | null;
+  judgment: Judgment;
+  /** The day (todayKey) whose counters the judgment bumped. */
+  day: string;
+}
+
+/**
+ * Take back one judgment (ISO 25010 usability: user error protection). A
+ * mis-click on Know or Ignore used to be permanent: the word left the review
+ * pipeline with no way back short of finding it again. This restores the
+ * record and backs the day's counters out; the beacon already sent stays sent.
+ */
+function localUndoJudgment(undo: JudgmentUndo): Promise<void> {
+  return enqueue(async () => {
+    const r = await chrome.storage.local.get(["vocab", "stats"]);
+    const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
+    const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
+    if (undo.previous) vocab[undo.base] = undo.previous;
+    else delete vocab[undo.base];
+    const daily = stats.daily?.[undo.day];
+    if (daily && undo.judgment !== "dismiss") {
+      daily.judged = Math.max(0, (daily.judged || 0) - 1);
+      if (undo.judgment === "review-pass" || undo.judgment === "review-fail") {
+        daily.reviews = Math.max(0, (daily.reviews || 0) - 1);
+      }
+    }
+    await chrome.storage.local.set({ vocab, stats });
+    sendBadge(stats);
+  });
+}
+
 function localRecordCardShown(base: string): Promise<void> {
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
@@ -721,6 +756,7 @@ const writers = {
   recordCardShown: localRecordCardShown,
   recordWatchTick: localRecordWatchTick,
   resetProgress: localResetProgress,
+  undoJudgment: localUndoJudgment,
 };
 
 type Writers = typeof writers;
@@ -794,6 +830,10 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
 
 export function recordCardShown(base: string): Promise<void> {
   return write("recordCardShown", base);
+}
+
+export function undoJudgment(undo: JudgmentUndo): Promise<void> {
+  return write("undoJudgment", undo);
 }
 
 export function recordWatchTick(): Promise<void> {

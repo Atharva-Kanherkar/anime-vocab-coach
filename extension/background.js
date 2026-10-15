@@ -517,6 +517,24 @@
       return vocab[base];
     });
   }
+  function localUndoJudgment(undo) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      if (undo.previous) vocab[undo.base] = undo.previous;
+      else delete vocab[undo.base];
+      const daily = stats.daily?.[undo.day];
+      if (daily && undo.judgment !== "dismiss") {
+        daily.judged = Math.max(0, (daily.judged || 0) - 1);
+        if (undo.judgment === "review-pass" || undo.judgment === "review-fail") {
+          daily.reviews = Math.max(0, (daily.reviews || 0) - 1);
+        }
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      sendBadge(stats);
+    });
+  }
   function localRecordCardShown(base) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
@@ -682,7 +700,8 @@
     judgeWord: localJudgeWord,
     recordCardShown: localRecordCardShown,
     recordWatchTick: localRecordWatchTick,
-    resetProgress: localResetProgress
+    resetProgress: localResetProgress,
+    undoJudgment: localUndoJudgment
   };
   async function write(op, ...args) {
     const run = () => writers[op](...args);

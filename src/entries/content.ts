@@ -30,7 +30,7 @@ import {
   onCaptions,
   resetCaptions,
 } from "../lib/caption-status";
-import type { DictEntry, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
+import type { DictEntry, Judgment, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
 
 /** An audio line whose speech began longer ago than this is too late for the
  * Subtitle Lens: by then the scene has moved on. It still reaches the card
@@ -47,6 +47,15 @@ const MAX_EARLY_HOLD_SEC = 10;
 /** After kuromoji or the dictionary fails to load, wait this long before the
  * next line tries again, so a persistent failure is not refetched per line. */
 const JA_RETRY_MS = 30_000;
+
+/** How the copilot panel's Undo line names a judgment that just happened. */
+const JUDGMENT_DONE: Partial<Record<Judgment, string>> = {
+  know: "marked known",
+  learn: "added to your deck",
+  ignore: "skipped",
+  "review-pass": "review passed",
+  "review-fail": "review missed",
+};
 /** Most lines the card pipeline holds while a card is up; older ones go. */
 const MAX_PENDING_LINES = 40;
 
@@ -474,8 +483,15 @@ declare global {
         line: sentence,
         en: context?.en || null
       };
-      await storage.judgeWord(target.token.base, judgment, meta, source);
+      const base = target.token.base;
+      const previous = await storage.getWord(base);
+      const day = storage.todayKey();
+      await storage.judgeWord(base, judgment, meta, source);
       await refreshState();
+      overlay.offerUndo(`${base}: ${JUDGMENT_DONE[judgment] ?? "saved"}`, async () => {
+        await storage.undoJudgment({ base, previous, judgment, day });
+        await refreshState();
+      });
     }
   }
 

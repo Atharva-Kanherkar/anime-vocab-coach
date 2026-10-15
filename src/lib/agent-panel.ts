@@ -402,10 +402,22 @@ const STYLES = `
   }
   .avc-agent-idle {
     padding: 24px 8px 20px; text-align: center;
-    color: rgba(236, 234, 228, 0.32);
+    color: rgba(236, 234, 228, 0.58);
     font-size: 12px; line-height: 1.6;
   }
-  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.5); font-weight: 500; }
+  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.75); font-weight: 500; }
+  .avc-agent-undo {
+    margin-top: 14px; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.03);
+    color: rgba(236, 234, 228, 0.8); font-size: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .avc-agent-undo button {
+    padding: 3px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 12px;
+    border: 1px solid rgba(227, 186, 99, 0.45); background: transparent;
+    color: rgba(227, 186, 99, 0.95);
+  }
+  .avc-agent-undo button:hover { background: rgba(227, 186, 99, 0.12); }
   .avc-agent-word-block { display: none; }
   .avc-agent-word-block.avc-active { display: block; }
   /* Ambient: readable text on a small local card — sidebar background stays glassy */
@@ -1391,6 +1403,7 @@ function populateWordSection(ctx: WordContext): void {
   const displayScript: DisplayScript = opts.displayScript || "romaji";
 
   shell.wordIdle.style.display = "none";
+  clearUndo();
   shell.wordActive.classList.add("avc-active");
   shell.wordActive.textContent = "";
   shell.aiOut.classList.remove("avc-visible");
@@ -1731,6 +1744,42 @@ function buildShell(root: ShadowRoot): Shell {
     wordIdle, wordActive, foot, buttons, hint, chatLog, chatInput, chatSend,
     aiOut, explainBtn, hookBtn, collapseBtn, rail,
   };
+}
+
+/**
+ * Offer to take back the judgment just made on a card (ISO 25010 usability:
+ * user error protection). Shown in the panel's idle area, where the card was,
+ * until the next card replaces it; a mis-click on Know or Skip used to be final.
+ */
+export function offerUndo(text: string, onUndo: () => Promise<void>): void {
+  if (!shell) return;
+  clearUndo();
+  const row = document.createElement("div");
+  row.className = "avc-agent-undo";
+  row.setAttribute("role", "status");
+  const label = document.createElement("span");
+  label.textContent = text;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.textContent = "Undo";
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    btn.disabled = true;
+    void onUndo()
+      .then(() => {
+        label.textContent = "Undone.";
+        btn.remove();
+      })
+      .catch(() => {
+        btn.disabled = false;
+      });
+  });
+  row.append(label, btn);
+  shell.wordIdle.appendChild(row);
+}
+
+function clearUndo(): void {
+  shell?.wordIdle.querySelector(".avc-agent-undo")?.remove();
 }
 
 /**

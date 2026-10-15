@@ -731,6 +731,9 @@
       });
     });
   }
+  function getWord(base) {
+    return getVocab().then((v) => v[base] || null);
+  }
   function localSetWordState(base, state) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab"]);
@@ -906,6 +909,24 @@
       return vocab[base];
     });
   }
+  function localUndoJudgment(undo) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      if (undo.previous) vocab[undo.base] = undo.previous;
+      else delete vocab[undo.base];
+      const daily = stats.daily?.[undo.day];
+      if (daily && undo.judgment !== "dismiss") {
+        daily.judged = Math.max(0, (daily.judged || 0) - 1);
+        if (undo.judgment === "review-pass" || undo.judgment === "review-fail") {
+          daily.reviews = Math.max(0, (daily.reviews || 0) - 1);
+        }
+      }
+      await chrome.storage.local.set({ vocab, stats });
+      sendBadge(stats);
+    });
+  }
   function localRecordCardShown(base) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
@@ -953,7 +974,8 @@
     judgeWord: localJudgeWord,
     recordCardShown: localRecordCardShown,
     recordWatchTick: localRecordWatchTick,
-    resetProgress: localResetProgress
+    resetProgress: localResetProgress,
+    undoJudgment: localUndoJudgment
   };
   async function write(op, ...args) {
     const run = () => writers[op](...args);
@@ -981,6 +1003,9 @@
   }
   function recordCardShown(base) {
     return write("recordCardShown", base);
+  }
+  function undoJudgment(undo) {
+    return write("undoJudgment", undo);
   }
   function recordWatchTick() {
     return write("recordWatchTick");
@@ -2131,10 +2156,22 @@
   }
   .avc-agent-idle {
     padding: 24px 8px 20px; text-align: center;
-    color: rgba(236, 234, 228, 0.32);
+    color: rgba(236, 234, 228, 0.58);
     font-size: 12px; line-height: 1.6;
   }
-  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.5); font-weight: 500; }
+  .avc-agent-idle strong { color: rgba(227, 186, 99, 0.75); font-weight: 500; }
+  .avc-agent-undo {
+    margin-top: 14px; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.03);
+    color: rgba(236, 234, 228, 0.8); font-size: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .avc-agent-undo button {
+    padding: 3px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 12px;
+    border: 1px solid rgba(227, 186, 99, 0.45); background: transparent;
+    color: rgba(227, 186, 99, 0.95);
+  }
+  .avc-agent-undo button:hover { background: rgba(227, 186, 99, 0.12); }
   .avc-agent-word-block { display: none; }
   .avc-agent-word-block.avc-active { display: block; }
   /* Ambient: readable text on a small local card \u2014 sidebar background stays glassy */
@@ -3017,6 +3054,7 @@
     const direction = normalizeDirection(opts2.learningDirection);
     const displayScript = opts2.displayScript || "romaji";
     shell.wordIdle.style.display = "none";
+    clearUndo();
     shell.wordActive.classList.add("avc-active");
     shell.wordActive.textContent = "";
     shell.aiOut.classList.remove("avc-visible");
@@ -3333,6 +3371,33 @@
       collapseBtn,
       rail
     };
+  }
+  function offerUndo(text, onUndo) {
+    if (!shell) return;
+    clearUndo();
+    const row = document.createElement("div");
+    row.className = "avc-agent-undo";
+    row.setAttribute("role", "status");
+    const label = document.createElement("span");
+    label.textContent = text;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Undo";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      btn.disabled = true;
+      void onUndo().then(() => {
+        label.textContent = "Undone.";
+        btn.remove();
+      }).catch(() => {
+        btn.disabled = false;
+      });
+    });
+    row.append(label, btn);
+    shell.wordIdle.appendChild(row);
+  }
+  function clearUndo() {
+    shell?.wordIdle.querySelector(".avc-agent-undo")?.remove();
   }
   function showToast(text, kind = "info", action) {
     if (!text) return;
@@ -3939,6 +4004,7 @@
     white-space: nowrap;
   }
   .tip-btn:hover { background: rgba(255, 255, 255, 0.1); }
+  .tip-undo { margin-left: 10px; padding: 3px 9px; font-size: 11px; }
   .tip-btn.primary {
     border-color: rgba(240, 196, 104, 0.55); background: rgba(240, 196, 104, 0.18);
     color: rgba(252, 214, 134, 1); font-weight: 600;
@@ -3959,6 +4025,7 @@
   var tipEl = null;
   var opts = null;
   var vocabSnapshot = {};
+  var lastUndo = null;
   var hover = null;
   var hideTimer = null;
   var pointerLeaveTimer = null;
@@ -4161,10 +4228,18 @@
     }
     tipEl.appendChild(metaRow);
     const rec = vocabSnapshot[ctx.base];
+    const undo = lastUndo?.base === ctx.base ? lastUndo : null;
     if (rec && (rec.state === "learning" || rec.state === "known")) {
       const saved = document.createElement("div");
       saved.className = "tip-saved";
       saved.textContent = rec.state === "learning" ? "\u2713 In your deck" : "\u2713 Marked known";
+      if (undo) saved.appendChild(undoButton(ctx, undo));
+      tipEl.appendChild(saved);
+    } else if (undo && rec?.state === "ignored") {
+      const saved = document.createElement("div");
+      saved.className = "tip-saved";
+      saved.textContent = "Skipped";
+      saved.appendChild(undoButton(ctx, undo));
       tipEl.appendChild(saved);
     } else {
       const actions = document.createElement("div");
@@ -4193,13 +4268,39 @@
     tipEl.style.left = `${left}px`;
     tipEl.style.top = `${top}px`;
   }
+  function undoButton(ctx, undo) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "tip-btn tip-undo";
+    b.textContent = "Undo";
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void (async () => {
+        await undoJudgment(undo);
+        if (lastUndo === undo) lastUndo = null;
+        const next = { ...vocabSnapshot };
+        if (undo.previous) next[undo.base] = undo.previous;
+        else delete next[undo.base];
+        vocabSnapshot = next;
+        ctx.el.classList.remove("saved", "new", "learning");
+        const cls = tokenClass(undo.base);
+        if (cls) ctx.el.classList.add(cls);
+        if (hover === ctx && ctx.el.isConnected) showTip(ctx);
+        log("sub-lens undo:", undo.base, undo.judgment);
+      })();
+    });
+    return b;
+  }
   async function judgeHovered(judgment) {
     const ctx = hover;
     if (!ctx || judgmentsInFlight.has(ctx.base)) return;
     judgmentsInFlight.add(ctx.base);
     try {
       opts?.onJudgeStart?.();
+      const previous = await getWord(ctx.base);
+      const day = todayKey();
       await judgeWord(ctx.base, judgment, ctx.meta, ctx.source);
+      lastUndo = { base: ctx.base, previous, judgment, day };
       const state = judgment === "learn" ? "learning" : judgment === "know" ? "known" : "ignored";
       vocabSnapshot = { ...vocabSnapshot, [ctx.base]: { ...vocabSnapshot[ctx.base] || {}, state } };
       ctx.el.classList.remove("new", "learning");
@@ -5181,6 +5282,13 @@
   var EARLY_LINE_TOLERANCE_SEC = 0.3;
   var MAX_EARLY_HOLD_SEC = 10;
   var JA_RETRY_MS = 3e4;
+  var JUDGMENT_DONE = {
+    know: "marked known",
+    learn: "added to your deck",
+    ignore: "skipped",
+    "review-pass": "review passed",
+    "review-fail": "review missed"
+  };
   var MAX_PENDING_LINES = 40;
   (function main() {
     if (window.__avcMainLoaded) {
@@ -5482,8 +5590,15 @@
           line: sentence,
           en: context?.en || null
         };
-        await judgeWord(target.token.base, judgment, meta, source);
+        const base = target.token.base;
+        const previous = await getWord(base);
+        const day = todayKey();
+        await judgeWord(base, judgment, meta, source);
         await refreshState();
+        offerUndo(`${base}: ${JUDGMENT_DONE[judgment] ?? "saved"}`, async () => {
+          await undoJudgment({ base, previous, judgment, day });
+          await refreshState();
+        });
       }
     }
     function currentTitle() {

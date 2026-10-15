@@ -138,6 +138,7 @@ const STYLES = `
     white-space: nowrap;
   }
   .tip-btn:hover { background: rgba(255, 255, 255, 0.1); }
+  .tip-undo { margin-left: 10px; padding: 3px 9px; font-size: 11px; }
   .tip-btn.primary {
     border-color: rgba(240, 196, 104, 0.55); background: rgba(240, 196, 104, 0.18);
     color: rgba(252, 214, 134, 1); font-weight: 600;
@@ -159,6 +160,8 @@ let lensEl: HTMLDivElement | null = null;
 let tipEl: HTMLDivElement | null = null;
 let opts: SubLensOptions | null = null;
 let vocabSnapshot: VocabMap = {};
+/** The last judgment made from the tip, so it can be taken back from there. */
+let lastUndo: storage.JudgmentUndo | null = null;
 let hover: HoverContext | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
 let pointerLeaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -402,10 +405,18 @@ function showTip(ctx: HoverContext, linkedFrom?: string): void {
   tipEl.appendChild(metaRow);
 
   const rec = vocabSnapshot[ctx.base];
+  const undo = lastUndo?.base === ctx.base ? lastUndo : null;
   if (rec && (rec.state === "learning" || rec.state === "known")) {
     const saved = document.createElement("div");
     saved.className = "tip-saved";
     saved.textContent = rec.state === "learning" ? "✓ In your deck" : "✓ Marked known";
+    if (undo) saved.appendChild(undoButton(ctx, undo));
+    tipEl.appendChild(saved);
+  } else if (undo && rec?.state === "ignored") {
+    const saved = document.createElement("div");
+    saved.className = "tip-saved";
+    saved.textContent = "Skipped";
+    saved.appendChild(undoButton(ctx, undo));
     tipEl.appendChild(saved);
   } else {
     const actions = document.createElement("div");
@@ -437,13 +448,42 @@ function showTip(ctx: HoverContext, linkedFrom?: string): void {
   tipEl.style.top = `${top}px`;
 }
 
+/** Take back the judgment just made from this tip (a mis-click on Know or
+ * Skip used to be final). Restores the word exactly as it was. */
+function undoButton(ctx: HoverContext, undo: storage.JudgmentUndo): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tip-btn tip-undo";
+  b.textContent = "Undo";
+  b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    void (async () => {
+      await storage.undoJudgment(undo);
+      if (lastUndo === undo) lastUndo = null;
+      const next = { ...vocabSnapshot };
+      if (undo.previous) next[undo.base] = undo.previous;
+      else delete next[undo.base];
+      vocabSnapshot = next;
+      ctx.el.classList.remove("saved", "new", "learning");
+      const cls = tokenClass(undo.base);
+      if (cls) ctx.el.classList.add(cls);
+      if (hover === ctx && ctx.el.isConnected) showTip(ctx);
+      log("sub-lens undo:", undo.base, undo.judgment);
+    })();
+  });
+  return b;
+}
+
 async function judgeHovered(judgment: Judgment): Promise<void> {
   const ctx = hover;
   if (!ctx || judgmentsInFlight.has(ctx.base)) return;
   judgmentsInFlight.add(ctx.base);
   try {
     opts?.onJudgeStart?.();
+    const previous = await storage.getWord(ctx.base);
+    const day = storage.todayKey();
     await storage.judgeWord(ctx.base, judgment, ctx.meta, ctx.source);
+    lastUndo = { base: ctx.base, previous, judgment, day };
     const state = judgment === "learn" ? "learning" : judgment === "know" ? "known" : "ignored";
     vocabSnapshot = { ...vocabSnapshot, [ctx.base]: { ...(vocabSnapshot[ctx.base] || {}), state } as VocabMap[string] };
     ctx.el.classList.remove("new", "learning");

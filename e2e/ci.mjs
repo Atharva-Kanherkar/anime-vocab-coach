@@ -13,6 +13,7 @@ const SUITES = [
   "generic-cues",
   "dashboard-escape",
   "a11y-extension",
+  "undo",
   "extension-review",
   "onboarding",
   "learning-loop",
