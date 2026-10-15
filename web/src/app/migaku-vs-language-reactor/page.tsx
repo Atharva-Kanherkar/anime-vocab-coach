@@ -106,11 +106,11 @@ export default function MigakuVsLanguageReactorPage() {
 
         <section style={{ paddingTop: 0 }}>
           <div className="wrap">
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>
-                    <th scope="col">&nbsp;</th>
+                    <th scope="col"><span className="sr-only">Feature</span></th>
                     <th scope="col">Migaku</th>
                     <th scope="col">Language Reactor</th>
                     <th scope="col" className="us">

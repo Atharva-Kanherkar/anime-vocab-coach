@@ -150,7 +150,7 @@ export default function AiMangaEndingGeneratorPage() {
             </ol>
 
             <h2>AI manga ending generator vs other tools (2026)</h2>
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>

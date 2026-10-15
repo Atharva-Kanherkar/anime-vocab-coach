@@ -100,7 +100,7 @@ export default function LearnJapaneseWithAnimePage() {
 
         <section style={{ paddingTop: 0 }}>
           <div className="wrap">
-            <div className="table-scroll">
+            <div className="table-scroll" tabIndex={0} role="region" aria-label="Comparison table">
               <table className="cmp">
                 <thead>
                   <tr>
