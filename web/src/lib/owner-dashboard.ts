@@ -21,9 +21,7 @@ import {
   extensionFunnelSql,
   llmByUserSql,
   llmErrorsSql,
-  llmGroupSql,
   llmSeriesSql,
-  llmTotalsSql,
   num,
   runQuery,
   sqlHours,
@@ -35,8 +33,6 @@ import {
   type EventUserRow,
   type ExtensionFunnelRow,
   type LlmErrorRow,
-  type LlmGroupRow,
-  type LlmTotals,
   type LlmUserRow,
   type TimeBucketRow,
   animeContextCacheSql,
@@ -199,28 +195,6 @@ export function foldFacets(rows: LlmFacetRow[]): {
   };
 }
 
-function toTotals(row: LlmTotals | undefined): Totals {
-  if (!row) return EMPTY_TOTALS;
-  const calls = num(row.calls);
-  // Latency is averaged over calls that actually ran: cached hits never touch
-  // the provider and would drag a "model latency" number toward zero.
-  const provider = Math.max(0, calls - num(row.cachedHits));
-  return {
-    calls,
-    cost: num(row.cost),
-    inputTokens: num(row.inputTokens),
-    outputTokens: num(row.outputTokens),
-    reasoningTokens: num(row.reasoningTokens),
-    cachedInputTokens: num(row.cachedInputTokens),
-    avgLatencyMs: provider > 0 ? num(row.latencySum) / provider : 0,
-    errors: num(row.errors),
-    cachedHits: num(row.cachedHits),
-    users: num(row.users),
-    cacheHitRate: calls > 0 ? num(row.cachedHits) / calls : 0,
-    errorRate: calls > 0 ? num(row.errors) / calls : 0,
-  };
-}
-
 export interface GroupRow {
   label: string;
   calls: number;
@@ -231,22 +205,6 @@ export interface GroupRow {
   errors: number;
   /** Only meaningful for the model breakdown: cost is a guess without a rate. */
   unpricedModel?: boolean;
-}
-
-function toGroupRows(rows: LlmGroupRow[], isModel = false): GroupRow[] {
-  return rows.map((r) => {
-    const calls = num(r.calls);
-    return {
-      label: r.label || "(none)",
-      calls,
-      cost: num(r.cost),
-      outputTokens: num(r.outputTokens),
-      reasoningTokens: num(r.reasoningTokens),
-      avgLatencyMs: calls > 0 ? num(r.latencySum) / calls : 0,
-      errors: num(r.errors),
-      unpricedModel: isModel && !!r.label && !isKnownModel(r.label),
-    };
-  });
 }
 
 export interface UserRow {

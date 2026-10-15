@@ -374,6 +374,8 @@ function Reader({
                   <li key={i} className="fnl-reader__panelwrap">
                     {state.status === "done" ? (
                       <>
+                        {/* A generated data: URL; next/image has nothing to optimise. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           className="fnl-panel fnl-panel--art"
                           src={state.src}

@@ -1,4 +1,4 @@
-import { CARDS, getCardById, type CardDef } from "@/lib/cards";
+import { getCardById, type CardDef } from "@/lib/cards";
 import { CARD_STORIES, KOTODAMA_INTRO, type CardStory, type StoryLang } from "./data";
 
 export type { CardStory, StoryLang };
