@@ -36,20 +36,7 @@
       if (data.type === "avc-sync-token") {
         const token = typeof data.token === "string" ? data.token : "";
         if (!token) return;
-        const p = data.profile;
-        const plan = p?.plan;
-        const syncProfile = p && typeof p === "object" ? {
-          email: typeof p.email === "string" ? p.email : null,
-          name: typeof p.name === "string" ? p.name : null,
-          plan: plan === "free" || plan === "pro" || plan === "max" ? plan : null
-        } : void 0;
-        const update = { syncToken: token };
-        if (syncProfile !== void 0) update.syncProfile = syncProfile;
-        update.relinkNeeded = false;
-        update.syncAuthFailures = 0;
-        chrome.storage.local.set(update, () => {
-          chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {
-          });
+        chrome.runtime.sendMessage({ type: "avc-link-token", token }).catch(() => {
         });
         return;
       }

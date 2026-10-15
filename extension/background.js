@@ -719,7 +719,8 @@
       const res = await fetch(TOKEN_URL, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(15e3)
       });
       const body = await res.json().catch(() => null);
       outcome = interpretMintResponse(res.status, body);
@@ -735,6 +736,47 @@
     await trackExtensionMilestone("signup_completed");
     log(`auto-link (${trigger}) ok`);
     return { linked: true, outcome: "linked" };
+  }
+  function interpretVerifyResponse(httpStatus, body) {
+    if (httpStatus === 401) return { status: "signed-out" };
+    if (httpStatus === 403) return { status: "mismatch" };
+    if (httpStatus < 200 || httpStatus >= 300) return { status: "error", detail: `HTTP ${httpStatus}` };
+    const data = body || {};
+    if (data.ok !== true) return { status: "error", detail: "unexpected verify response" };
+    const p = data.profile && typeof data.profile === "object" ? data.profile : {};
+    return {
+      status: "linked",
+      profile: {
+        email: typeof p.email === "string" ? p.email : null,
+        name: typeof p.name === "string" ? p.name : null,
+        plan: normalizeSyncPlan(p.plan)
+      }
+    };
+  }
+  async function verifyAndLinkToken(token) {
+    if (!/^avc_st_[A-Za-z0-9]+$/.test(token)) return { linked: false, outcome: "mismatch" };
+    let outcome;
+    try {
+      const res = await fetch(TOKEN_URL, {
+        method: "GET",
+        credentials: "include",
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15e3)
+      });
+      const body = await res.json().catch(() => null);
+      outcome = interpretVerifyResponse(res.status, body);
+    } catch (err) {
+      outcome = { status: "error", detail: err instanceof Error ? err.message : "network error" };
+    }
+    if (outcome.status !== "linked") {
+      if (outcome.status === "mismatch") warn("page-supplied sync token refused: not this browser's account");
+      else if (outcome.status === "error") warn("page-supplied sync token not verified:", outcome.detail);
+      return { linked: false, outcome: outcome.status };
+    }
+    const already = await getSyncToken() === token;
+    await setSyncToken(token);
+    await setSyncProfile(outcome.profile);
+    return { linked: !already, outcome: "linked" };
   }
 
   // src/lib/coach-client.ts
@@ -1316,6 +1358,14 @@
     }
     if (msg.type === "avc-account-link") {
       linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true }).then((result) => sendResponse({ ok: true, ...result })).catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
+      return true;
+    }
+    if (msg.type === "avc-link-token") {
+      verifyAndLinkToken(typeof msg.token === "string" ? msg.token : "").then((result) => {
+        if (result.outcome === "linked") syncWithCloud().catch(() => {
+        });
+        sendResponse({ ok: true, ...result });
+      }).catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
       return true;
     }
     if (msg.type === "avc-pull-settings") {
