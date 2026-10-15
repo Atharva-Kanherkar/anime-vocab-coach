@@ -1111,14 +1111,14 @@
       const romaji = toRomaji(r.reading || "");
       const due = r.state === "learning" && r.srs ? relDue(r.srs.dueAt) : "\u2014";
       return `<tr>
-      <td class="romaji">${romaji || w}</td>
-      <td class="jp">${r.reading || ""}</td>
-      <td class="jp">${w}</td>
-      <td class="meaning">${r.gloss || ""}</td>
-      <td>${commonnessShort(r.level)}</td>
-      <td>${r.seenCount || 0}</td>
-      <td><span class="state-tag ${r.state}">${r.state}</span></td>
-      <td>${due}</td></tr>`;
+      <td class="romaji">${esc(romaji || w)}</td>
+      <td class="jp">${esc(r.reading || "")}</td>
+      <td class="jp">${esc(w)}</td>
+      <td class="meaning">${esc(r.gloss || "")}</td>
+      <td>${esc(commonnessShort(r.level))}</td>
+      <td>${Number(r.seenCount) || 0}</td>
+      <td><span class="state-tag ${esc(r.state)}">${esc(r.state)}</span></td>
+      <td>${esc(due)}</td></tr>`;
     }).join("");
   }
   function esc(s) {

@@ -340,18 +340,20 @@ function renderList(): void {
   const total = rows.length, shown = rows.slice(0, 300);
   document.getElementById("list-note")!.textContent =
     total > 300 ? `Showing 300 of ${total}` : `${total} word${total === 1 ? "" : "s"}`;
+  // Every field is escaped: words come from subtitles, glosses can come from a
+  // model reading those subtitles, and either could carry markup.
   tbody.innerHTML = shown.map(([w, r]) => {
     const romaji = toRomaji(r.reading || "");
     const due = r.state === "learning" && r.srs ? relDue(r.srs.dueAt) : "—";
     return `<tr>
-      <td class="romaji">${romaji || w}</td>
-      <td class="jp">${r.reading || ""}</td>
-      <td class="jp">${w}</td>
-      <td class="meaning">${r.gloss || ""}</td>
-      <td>${commonnessShort(r.level)}</td>
-      <td>${r.seenCount || 0}</td>
-      <td><span class="state-tag ${r.state}">${r.state}</span></td>
-      <td>${due}</td></tr>`;
+      <td class="romaji">${esc(romaji || w)}</td>
+      <td class="jp">${esc(r.reading || "")}</td>
+      <td class="jp">${esc(w)}</td>
+      <td class="meaning">${esc(r.gloss || "")}</td>
+      <td>${esc(commonnessShort(r.level))}</td>
+      <td>${Number(r.seenCount) || 0}</td>
+      <td><span class="state-tag ${esc(r.state)}">${esc(r.state)}</span></td>
+      <td>${esc(due)}</td></tr>`;
   }).join("");
 }
 
