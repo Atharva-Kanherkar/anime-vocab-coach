@@ -1,27 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import worker, { SECURITY_HEADERS, type Env } from "./index";
+import { fakeEnv } from "./test-fakes";
 
-function fakeEnv(): Env {
-  const kv = new Map<string, string>();
-  return {
-    AVC_KV: {
-      get: async (k: string) => kv.get(k) ?? null,
-      put: async (k: string, v: string) => void kv.set(k, v),
-      delete: async (k: string) => void kv.delete(k),
-    } as unknown as KVNamespace,
-    OPENAI_API_KEY: "sk-test",
-    CAP_MINUTES: "60",
-    TRANSCRIBE_MODEL: "gpt-4o-transcribe",
-    OPENAI_WHISPER_MODEL: "whisper-1",
-    GROQ_WHISPER_MODEL: "x",
-    DEEPINFRA_WHISPER_MODEL: "x",
-    TRANSCRIBE_PROVIDERS: "openai",
-    TRANSCRIPT_MODEL_VERSION: "v1",
-  } as Env;
+const call = (path: string, init?: RequestInit, env: Env = fakeEnv()) =>
+  worker.fetch(new Request("https://api.animevocab.com" + path, init), env);
+
+/** A signed-in extension: a sync token whose KV record is a free-plan profile. */
+function signedIn(env = fakeEnv()) {
+  env.AVC_KV.store.set(
+    "synctoken:avc_st_test1:v1",
+    JSON.stringify({ id: "user_1", email: "u@example.com", name: "U", plan: "free", touchedAt: Date.now() })
+  );
+  return { env, auth: { Authorization: "Bearer avc_st_test1", "Content-Type": "application/json" } };
 }
-
-const call = (path: string, init?: RequestInit) =>
-  worker.fetch(new Request("https://api.animevocab.com" + path, init), fakeEnv());
 
 describe("API security headers (ISO 25010 security audit)", () => {
   it.each([
@@ -32,5 +23,53 @@ describe("API security headers (ISO 25010 security audit)", () => {
   ])("%s carries every security header", async (_label, path, init) => {
     const res = await call(path, init as RequestInit | undefined);
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) expect(res.headers.get(k)).toBe(v);
+  });
+});
+
+describe("listening meter is atomic (ISO 25010 reliability: faultlessness)", () => {
+  it("counts every one of 40 concurrent heartbeats", async () => {
+    const { env, auth } = signedIn();
+    await Promise.all(
+      Array.from({ length: 40 }, () =>
+        call("/v1/usage/heartbeat", { method: "POST", headers: auth, body: JSON.stringify({ minutes: 1 }) }, env)
+      )
+    );
+    const usage = await (await call("/v1/usage", { headers: auth }, env)).json();
+    expect(usage).toMatchObject({ usedMinutes: 40 });
+    // The /owner dashboard still reads the KV copy.
+    expect([...env.AVC_KV.store.entries()].find(([k]) => k.startsWith("use:user_1:"))?.[1]).toBe("40");
+  });
+
+  it("carries a mid-month KV total over instead of restarting at zero", async () => {
+    const { env, auth } = signedIn();
+    const d = new Date();
+    const month = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    env.AVC_KV.store.set(`use:user_1:${month}`, "12.5");
+    const res = await call("/v1/usage/heartbeat", { method: "POST", headers: auth, body: JSON.stringify({ minutes: 2 }) }, env);
+    expect(await res.json()).toMatchObject({ usedMinutes: 14 });
+  });
+});
+
+describe("legacy realtime sessions (ISO 25010 security: resistance)", () => {
+  it("are refused outright once LEGACY_REALTIME_SESSIONS is 0", async () => {
+    const { env, auth } = signedIn(fakeEnv({ LEGACY_REALTIME_SESSIONS: "0" }));
+    const res = await call("/v1/session", { method: "POST", headers: auth, body: "{}" }, env);
+    expect(res.status).toBe(410);
+  });
+
+  it("stop minting after the daily budget, without calling OpenAI", async () => {
+    const { env, auth } = signedIn(fakeEnv({ REALTIME_MINTS_PER_DAY: "3" }));
+    const openai = vi.fn(async () => new Response(JSON.stringify({ value: "ek_x", expires_at: 1 }), { status: 200 }));
+    vi.stubGlobal("fetch", openai);
+    try {
+      const statuses = [];
+      for (let i = 0; i < 5; i++) {
+        statuses.push((await call("/v1/session", { method: "POST", headers: auth, body: "{}" }, env)).status);
+      }
+      expect(statuses).toEqual([200, 200, 200, 429, 429]);
+      expect(openai).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

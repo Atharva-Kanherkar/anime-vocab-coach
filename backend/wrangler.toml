@@ -23,6 +23,18 @@ kv_namespaces = [
   { binding = "AVC_KV", id = "8e67f3701aa04195975a583cc59d8425" }
 ]
 
+# Atomic counters and locks (src/atomic.ts): listening meter, transcription
+# locks, session-mint budget. The web Worker binds the same class by
+# script_name, so this Worker must deploy first (deploy.yml orders it).
+# SQLite-backed, which the Workers Free plan supports.
+[[durable_objects.bindings]]
+name = "ATOMIC"
+class_name = "Atomic"
+
+[[migrations]]
+tag = "v1-atomic"
+new_sqlite_classes = ["Atomic"]
+
 # Ship Worker logs to the dashboard so failures are visible without a live
 # `wrangler tail`. Without this, every console.error (including the 17 silent
 # transcription 400s) went nowhere.

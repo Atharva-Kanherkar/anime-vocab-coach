@@ -3,6 +3,7 @@
 // Authenticates extension callers via Clerk-linked sync tokens (avc_st_*).
 // BYO-key users stream audio directly to OpenAI Realtime and never hit this API.
 
+import { atomicFor } from "./atomic";
 import { economicsSnapshot } from "./economics";
 import { getMetrics } from "./metrics";
 import { mintTranscriptionToken } from "./openai";
@@ -15,8 +16,12 @@ import { countryOf, type AnalyticsEngineDataset } from "./telemetry";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
 
+export { Atomic } from "./atomic";
+
 export interface Env {
   AVC_KV: KVNamespace;
+  /** Atomic counters and locks (see atomic.ts). */
+  ATOMIC: DurableObjectNamespace<import("./atomic").Atomic>;
   /** Listening Mode transcription observability (dataset avc_transcribe).
    *  Optional: a missing binding degrades to no telemetry, never an error. */
   TRANSCRIBE_AE?: AnalyticsEngineDataset;
@@ -38,6 +43,11 @@ export interface Env {
   FREE_AI_CALLS_PER_MONTH?: string;
   PRO_AI_CALLS_PER_MONTH?: string;
   MAX_AI_CALLS_PER_MONTH?: string;
+  /** "0" turns off /v1/session (direct-to-OpenAI realtime tokens). Kept on only
+   * for extension builds 0.6.x and older, which still use it. */
+  LEGACY_REALTIME_SESSIONS?: string;
+  /** Realtime tokens one account may mint per UTC day while legacy is on. */
+  REALTIME_MINTS_PER_DAY?: string;
 }
 
 function corsHeaders(req: Request): Record<string, string> {
@@ -99,9 +109,28 @@ export default {
         return json(req, publicConfig(env));
       }
 
+      // Legacy: hands the extension a short-lived OpenAI realtime token. The
+      // audio then goes straight to OpenAI, so this server never sees a minute
+      // of it and billing rests on the client's own heartbeat; a modified
+      // client could skip that and transcribe without limit (ISO 25010
+      // security audit). After 0.6.x the extension sends all signed-in audio
+      // through /v1/transcript/transcribe, which bills real audio length.
+      // Until old builds age out, each account gets a daily mint budget.
       if (path === "/v1/session" && req.method === "POST") {
+        if (env.LEGACY_REALTIME_SESSIONS === "0") {
+          return json(req, { error: "update the AnimeVocab extension to keep using Listening Mode" }, 410);
+        }
         const auth = await requireAuth(env.AVC_KV, req, json);
         if (!auth.ok) return auth.response;
+
+        const mintsPerDay = Number(env.REALTIME_MINTS_PER_DAY) || 60;
+        const day = new Date().toISOString().slice(0, 10);
+        const mintKey = `rtmint:${auth.userId}:${day}`;
+        const minted = await atomicFor(env.ATOMIC, mintKey).add(1, 2 * 24 * 3600);
+        if (minted > mintsPerDay) {
+          console.warn("[session] realtime mint budget exhausted", auth.userId, minted);
+          return json(req, { error: "too many listening sessions today, try again tomorrow" }, 429);
+        }
 
         const cap = capMinutesForPlan(env, effectivePlanFromProfile(auth.profile));
         const capErr = await checkUsageCap(env, req, auth.userId, cap);
