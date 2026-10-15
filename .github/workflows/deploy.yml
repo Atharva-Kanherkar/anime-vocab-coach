@@ -24,7 +24,9 @@ jobs:
 
   deploy-site:
     name: Deploy marketing site (Next.js)
-    needs: ci
+    # The site binds the API Worker's Atomic Durable Object (script_name
+    # avc-api), so the API, which defines the class, has to be live first.
+    needs: [ci, deploy-api]
     runs-on: ubuntu-latest
     permissions:
       contents: read

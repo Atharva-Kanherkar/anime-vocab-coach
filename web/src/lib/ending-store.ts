@@ -11,6 +11,7 @@
 // (same pattern as studio-store.ts).
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { atomic } from "./atomic";
 import {
   DEFAULT_ENDING_FREE_PER_IP,
   DEFAULT_ENDING_GLOBAL_PER_DAY,
@@ -154,16 +155,35 @@ export const incrementGlobalEndingCount = (day: string) =>
   bumpCounter(globalKey(day), DAY_TTL_SECONDS);
 
 // "Invent endings" (/api/ending/options) budgets: per caller (hashed IP, or
-// user id when signed in) and global, per UTC day.
+// user id when signed in) and global, per UTC day. Atomic, so a burst of
+// parallel requests cannot all read the same count and slip past the limit.
 const optionsCallerKey = (caller: string, day: string) => `ending:options:${caller}:${day}`;
 const optionsGlobalKey = (day: string) => `ending:options:global:${day}`;
 
-export const getOptionsCount = (caller: string, day: string) => readCounter(optionsCallerKey(caller, day));
-export const incrementOptionsCount = (caller: string, day: string) =>
-  bumpCounter(optionsCallerKey(caller, day), DAY_TTL_SECONDS);
-export const getGlobalOptionsCount = (day: string) => readCounter(optionsGlobalKey(day));
-export const incrementGlobalOptionsCount = (day: string) =>
-  bumpCounter(optionsGlobalKey(day), DAY_TTL_SECONDS);
+/** Spend one unit of each budget and return the totals after spending. */
+export async function spendOptionsBudget(caller: string, day: string): Promise<{ caller: number; global: number }> {
+  const [c, g] = await Promise.all([atomic(optionsCallerKey(caller, day)), atomic(optionsGlobalKey(day))]);
+  const [callerTotal, globalTotal] = await Promise.all([c.add(1, DAY_TTL_SECONDS), g.add(1, DAY_TTL_SECONDS)]);
+  return { caller: callerTotal, global: globalTotal };
+}
+
+// One drawer per panel. Without this, N simultaneous requests for a panel that
+// is not cached yet each paid for an image generation (check-then-draw).
+const PANEL_DRAW_TTL_MS = 3 * 60 * 1000;
+const panelLockKey = (id: string, i: number) => `ending:draw:${id}:${i}`;
+
+export async function claimPanelDraw(id: string, i: number, owner: string): Promise<boolean> {
+  return (await atomic(panelLockKey(id, i))).claim(owner, PANEL_DRAW_TTL_MS);
+}
+
+export async function releasePanelDraw(id: string, i: number, owner: string): Promise<void> {
+  try {
+    await (await atomic(panelLockKey(id, i))).release(owner);
+  } catch (err) {
+    // Expires on its own after PANEL_DRAW_TTL_MS.
+    console.warn("[ending] panel draw lock release failed", err);
+  }
+}
 
 // ── Creations ──────────────────────────────────────────────────────────────
 

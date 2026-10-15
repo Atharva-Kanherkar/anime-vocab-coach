@@ -116,12 +116,21 @@ function useEndingMaker() {
     if (!liveRef.current) return;
     setPanels((prev) => prev.map((p, j) => (j === i ? { status: "drawing" } : p)));
     try {
-      const res = await fetch("/api/ending/panel", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, i }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { image?: string };
+      let res: Response;
+      let data: { image?: string; error?: string };
+      // 409 "drawing": another request (a second tab, a retry) holds this
+      // panel's draw lock. Wait for it rather than paying for the same image
+      // twice; the next call returns its cached result.
+      for (let attempt = 0; ; attempt++) {
+        res = await fetch("/api/ending/panel", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id, i }),
+        });
+        data = (await res.json().catch(() => ({}))) as { image?: string; error?: string };
+        if (res.status !== 409 || attempt >= 40 || !liveRef.current) break;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
       if (!res.ok || !data.image) throw new Error("panel_failed");
       if (!liveRef.current) return;
       setPanels((prev) => prev.map((p, j) => (j === i ? { status: "done", src: data.image! } : p)));

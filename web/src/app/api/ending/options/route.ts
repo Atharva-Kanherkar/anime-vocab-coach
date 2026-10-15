@@ -4,11 +4,8 @@ import { getStudioConfig } from "@/lib/studio-store";
 import {
   currentStatsDay,
   getEndingConfig,
-  getGlobalOptionsCount,
-  getOptionsCount,
   hashIp,
-  incrementGlobalOptionsCount,
-  incrementOptionsCount,
+  spendOptionsBudget,
   trackEndingEvent,
 } from "@/lib/ending-store";
 import { clientIp } from "@/lib/studio-store";
@@ -45,15 +42,16 @@ export async function POST(req: Request) {
   const day = currentStatsDay();
   const caller = profile ? `u:${profile.id}` : `ip:${await hashIp(clientIp(req))}`;
   const callerLimit = profile ? config.optionsPerUserPerDay : config.optionsPerIpPerDay;
-  const [used, globalUsed] = await Promise.all([getOptionsCount(caller, day), getGlobalOptionsCount(day)]);
-  if (used >= callerLimit || globalUsed >= config.optionsGlobalPerDay) {
+  // Spend first and decide on the total that comes back: atomic, so parallel
+  // requests each see their own count. Spending before the upstream call also
+  // means a request that times out there is still counted.
+  const spent = await spendOptionsBudget(caller, day);
+  if (spent.caller > callerLimit || spent.global > config.optionsGlobalPerDay) {
     return NextResponse.json(
-      { error: used >= callerLimit ? "options_limit" : "capacity", needsLogin: !profile },
+      { error: spent.caller > callerLimit ? "options_limit" : "capacity", needsLogin: !profile },
       { status: 429, headers: { "Retry-After": "3600" } }
     );
   }
-  // Spend before the call: a request that times out upstream still cost money.
-  await Promise.all([incrementOptionsCount(caller, day), incrementGlobalOptionsCount(day)]);
 
   const { scriptModel } = await getStudioConfig();
 
