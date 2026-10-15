@@ -54,6 +54,17 @@ function corsHeaders(req: Request): Record<string, string> {
   };
 }
 
+// The API only ever returns JSON to the extension, so nothing here should be
+// sniffed as HTML, framed, or allowed to load anything (ISO 25010 audit: the
+// worker sent none of these before).
+export const SECURITY_HEADERS: Record<string, string> = {
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer"
+};
+
 function json(
   req: Request,
   body: unknown,
@@ -62,7 +73,7 @@ function json(
 ): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders(req), ...extraHeaders }
+    headers: { "Content-Type": "application/json", ...SECURITY_HEADERS, ...corsHeaders(req), ...extraHeaders }
   });
 }
 
@@ -80,7 +91,7 @@ export default {
     const path = url.pathname;
 
     if (req.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(req) });
+      return new Response(null, { status: 204, headers: { ...SECURITY_HEADERS, ...corsHeaders(req) } });
     }
 
     try {
