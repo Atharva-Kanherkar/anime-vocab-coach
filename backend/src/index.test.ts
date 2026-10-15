@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import worker, { SECURITY_HEADERS, type Env } from "./index";
-import { hashSyncToken } from "./sync-auth";
 import { fakeEnv } from "./test-fakes";
 
 const call = (path: string, init?: RequestInit, env: Env = fakeEnv()) =>
   worker.fetch(new Request("https://api.animevocab.com" + path, init), env);
 
 /** A signed-in extension: a sync token whose KV record is a free-plan profile. */
-const TOKEN_RECORD_KEY = `synctoken:h:${await hashSyncToken("avc_st_test1")}:v1`;
+const TOKEN_RECORD_KEY = "synctoken:avc_st_test1:v1";
 function signedIn(env = fakeEnv()) {
   env.AVC_KV.store.set(
     TOKEN_RECORD_KEY,

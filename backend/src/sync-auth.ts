@@ -14,33 +14,31 @@ export interface CloudUserProfile {
   planExpiresAt?: string | null;
 }
 
-// Mirrors web/src/lib/sync-store.ts: records are keyed by the token's SHA-256,
-// never the token itself, and the reverse pointer never holds it in the clear
-// (ISO 25010 security audit). Pre-hashing records (`synctoken:<token>:v1`) are
-// still honoured and are moved under the hash the first time they are used.
-// This Worker has no key for the pointer's encrypted copy, so it only ever
-// keeps an existing pointer as written or, when it must write one, stores the
-// hash alone (the web app then mints a fresh token on its next visit).
+// Mirrors web/src/lib/sync-store.ts, release 1 of 2 of moving tokens off
+// plaintext (review of #172, findings 1-2): this Worker reads both the
+// plaintext record `synctoken:<token>:v1` and the hashed `synctoken:h:<sha256>:v1`,
+// and both pointer forms (the token string, or JSON { h, e? }), but writes only
+// what master wrote, in the layout it found. Nothing is migrated or deleted,
+// so it interoperates with the old and the new site in either deploy order.
 
 export async function hashSyncToken(token: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function tokenKey(hash: string): string {
-  return `synctoken:h:${hash}:v1`;
+function tokenKey(token: string): string {
+  return `synctoken:${token}:v1`;
 }
 
-function legacyTokenKey(token: string): string {
-  return `synctoken:${token}:v1`;
+function hashedTokenKey(hash: string): string {
+  return `synctoken:h:${hash}:v1`;
 }
 
 function userTokenKey(userId: string): string {
   return `synctoken:user:${userId}:v1`;
 }
 
-/** Whether a stored pointer names this token: a legacy plaintext pointer, or
- * the JSON { h, e? } form keyed by hash. */
+/** Whether a stored pointer names this token, in either form. */
 function pointerIsFor(raw: string, token: string, hash: string): boolean {
   if (raw.startsWith("avc_st_")) return raw === token;
   try {
@@ -68,19 +66,18 @@ async function touchToken(
   kv: KVNamespace,
   token: string,
   profile: CloudUserProfile,
-  retireLegacy: boolean
+  foundAt: string
 ): Promise<void> {
-  const hash = await hashSyncToken(token);
   const record: StoredTokenProfile = { ...profile, touchedAt: Date.now() };
-  await kv.put(tokenKey(hash), JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
-  if (retireLegacy) await kv.delete(legacyTokenKey(token)).catch(() => {});
+  await kv.put(foundAt, JSON.stringify(record), { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
   // Re-take the pointer only when it is ours or gone, so a stale second token
-  // can't steal it from the one plan refreshes should reach. An encrypted
-  // pointer is kept byte for byte; a plaintext one is replaced by the hash.
+  // can't steal it from the one plan refreshes should reach. Ours is kept byte
+  // for byte; a missing one is written the way master writes it.
   const current = await kv.get(userTokenKey(profile.id));
-  if (!current || pointerIsFor(current, token, hash)) {
-    const keep = current && !current.startsWith("avc_st_") ? current : JSON.stringify({ h: hash });
-    await kv.put(userTokenKey(profile.id), keep, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  if (!current) {
+    await kv.put(userTokenKey(profile.id), token, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
+  } else if (pointerIsFor(current, token, await hashSyncToken(token))) {
+    await kv.put(userTokenKey(profile.id), current, { expirationTtl: SYNC_TOKEN_TTL_SECONDS });
   }
 }
 
@@ -95,19 +92,18 @@ export async function getSyncTokenProfile(
   token: string
 ): Promise<CloudUserProfile | null> {
   if (!token) return null;
-  let raw = await kv.get(tokenKey(await hashSyncToken(token)));
-  let legacy = false;
+  let foundAt = tokenKey(token);
+  let raw = await kv.get(foundAt);
   if (!raw) {
-    raw = await kv.get(legacyTokenKey(token));
-    legacy = !!raw;
+    foundAt = hashedTokenKey(await hashSyncToken(token));
+    raw = await kv.get(foundAt);
   }
   if (!raw) return null;
   const { touchedAt, ...profile } = JSON.parse(raw) as StoredTokenProfile;
-  if (legacy || tokenNeedsTouch({ touchedAt }, Date.now())) {
-    // Best effort: a failed slide (or migration) must not turn a valid token
-    // into a 401.
+  if (tokenNeedsTouch({ touchedAt }, Date.now())) {
+    // Best effort: a failed slide must not turn a valid token into a 401.
     try {
-      await touchToken(kv, token, profile, legacy);
+      await touchToken(kv, token, profile, foundAt);
     } catch (err) {
       console.warn("[sync-auth] token TTL slide failed", err);
     }
