@@ -11,7 +11,7 @@ import type { Env } from "./index";
 import { acquireTranscribeLock, releaseTranscribeLock, waitForPeerLock } from "./lock";
 import type { TranscriptSegment } from "./transcript-types";
 import { transcribeWithFallback, recordProviderSuccess } from "./transcribe/providers";
-import { chunkBucket, decodePcmBase64, pcmDurationMinutes } from "./validate";
+import { chunkBucket, decodePcmBase64, isSharedCacheKey, pcmDurationMinutes } from "./validate";
 import { addMinutes, getUsage } from "./usage";
 import { recordTranscription } from "./telemetry";
 
@@ -28,6 +28,8 @@ export async function lookupTranscript(
   t: number,
   windowSec = 8
 ): Promise<LookupResult> {
+  // Transcribe-only keys are never stored, so there is nothing to look up.
+  if (!isSharedCacheKey(cacheKey)) return { hit: false, segments: [] };
   const record = await getRecord(env, cacheKey);
   if (!record || !isRecordCurrent(record, env.TRANSCRIPT_MODEL_VERSION)) {
     return { hit: false, segments: [], stale: !!record };
@@ -66,6 +68,11 @@ export async function transcribeAndStore(
 
   const { pcm, error: pcmErr } = decodePcmBase64(pcmBase64);
   if (pcmErr) throw new Error(pcmErr);
+
+  // English-audio and per-session keys: billed like any miss, but no shared
+  // cache to read, no peers to wait for, and nothing stored.
+  const shared = isSharedCacheKey(cacheKey);
+  if (!shared) return transcribeAndCharge(env, licenseId, cacheKey, pcm, startSec, capMinutes, language, base, startedAt, false);
 
   const existing = await getRecord(env, cacheKey);
   if (existing && isRecordCurrent(existing, env.TRANSCRIPT_MODEL_VERSION) && coversTime(existing, startSec)) {
@@ -110,74 +117,99 @@ export async function transcribeAndStore(
   }
 
   try {
-    const minutes = pcmDurationMinutes(pcm.length);
-    const usedBefore = await getUsage(env, licenseId);
-    if (usedBefore + minutes > capMinutes) {
-      recordTranscription(env, {
-        ...base,
-        outcome: "cap_exceeded",
-        errorCode: "cap_exceeded",
-        audioMinutes: minutes,
-        monthMinutesAfter: usedBefore,
-        latencyMs: Date.now() - startedAt,
-      });
-      throw new Error("monthly listening hours used up");
-    }
-
-    // Count the miss attempt before the provider call so empty responses and
-    // provider failures still increment missCount (same meaning as before).
-    await bumpTranscribeMiss(env, cacheKey);
-
-    let tx;
-    try {
-      tx = await transcribeWithFallback(env, pcm, { language, startSec });
-    } catch (err) {
-      recordTranscription(env, {
-        ...base,
-        outcome: "provider_error",
-        errorCode: err instanceof Error ? err.message.slice(0, 120) : "provider_failed",
-        audioMinutes: minutes,
-        latencyMs: Date.now() - startedAt,
-      });
-      throw err;
-    }
-
-    // Charge only AFTER a provider actually returned a transcript. The old path
-    // charged upfront then refunded on failure, but the refund hit the same KV
-    // key <1s later and was rejected by KV's 1-write/sec/key limit — silently
-    // burning the user's monthly minutes on every failed chunk. A thrown
-    // TranscriptionError now exits here having charged nothing. (addMinutes
-    // itself soft-fails its KV put, so a metering write can't turn a successful
-    // transcription into an error.)
-    const monthMinutesAfter = await addMinutes(env, licenseId, minutes);
-    await recordProviderSuccess(env, tx.provider, tx.durationMinutes, tx.estimatedCostUsd);
-    recordTranscription(env, {
-      ...base,
-      outcome: "provider_call",
-      provider: tx.provider,
-      model: tx.model,
-      fallbackUsed: tx.fallbackUsed,
-      audioMinutes: tx.durationMinutes,
-      costUsd: tx.estimatedCostUsd,
-      segments: tx.segments.length,
-      monthMinutesAfter,
-      latencyMs: Date.now() - startedAt,
-    });
-
-    if (tx.segments.length) {
-      try {
-        await storeSegments(env, cacheKey, tx.segments, "whisper", env.TRANSCRIPT_MODEL_VERSION);
-      } catch (err) {
-        // Still return live segments if cache persistence is blocked (KV put limit).
-        console.warn("[transcript] storeSegments failed; returning uncached segments", err);
-      }
-    }
-    return {
-      hit: false,
-      segments: tx.segments,
-      source: "whisper"
-    };
+    return await transcribeAndCharge(env, licenseId, cacheKey, pcm, startSec, capMinutes, language, base, startedAt, true);
   } finally {
     await releaseTranscribeLock(env, cacheKey, startSec, lockOwner);
   }
+}
+
+/** The cache-miss path: cap check, provider call, charge, and (for shared keys)
+ * store. Charges only after a provider actually returned a transcript. */
+async function transcribeAndCharge(
+  env: Env,
+  licenseId: string,
+  cacheKey: string,
+  pcm: Uint8Array,
+  startSec: number,
+  capMinutes: number,
+  language: string,
+  base: { userId: string; plan?: string; country?: string; language: string },
+  startedAt: number,
+  shared: boolean
+): Promise<LookupResult> {
+  const minutes = pcmDurationMinutes(pcm.length);
+  const usedBefore = await getUsage(env, licenseId);
+  if (usedBefore + minutes > capMinutes) {
+    recordTranscription(env, {
+      ...base,
+      outcome: "cap_exceeded",
+      errorCode: "cap_exceeded",
+      audioMinutes: minutes,
+      monthMinutesAfter: usedBefore,
+      latencyMs: Date.now() - startedAt,
+    });
+    throw new Error("monthly listening hours used up");
+  }
+
+  // Count the miss attempt before the provider call so empty responses and
+  // provider failures still increment missCount (same meaning as before).
+  // Shared keys only: a per-session key's miss count is never read.
+  if (shared) await bumpTranscribeMiss(env, cacheKey);
+
+  let tx;
+  try {
+    tx = await transcribeWithFallback(env, pcm, { language, startSec });
+  } catch (err) {
+    recordTranscription(env, {
+      ...base,
+      outcome: "provider_error",
+      errorCode: err instanceof Error ? err.message.slice(0, 120) : "provider_failed",
+      audioMinutes: minutes,
+      latencyMs: Date.now() - startedAt,
+    });
+    throw err;
+  }
+
+  // Charge only AFTER a provider actually returned a transcript. The old path
+  // charged upfront then refunded on failure, but the refund hit the same KV
+  // key <1s later and was rejected by KV's 1-write/sec/key limit — silently
+  // burning the user's monthly minutes on every failed chunk. A thrown
+  // TranscriptionError now exits here having charged nothing. (addMinutes
+  // itself soft-fails its KV put, so a metering write can't turn a successful
+  // transcription into an error.) The provider has been paid by now, so a
+  // meter outage logs loudly and serves the transcript rather than failing it.
+  let monthMinutesAfter: number;
+  try {
+    monthMinutesAfter = await addMinutes(env, licenseId, minutes);
+  } catch (err) {
+    console.error("[transcript] usage charge failed after a paid transcription", err);
+    monthMinutesAfter = usedBefore + minutes;
+  }
+  await recordProviderSuccess(env, tx.provider, tx.durationMinutes, tx.estimatedCostUsd);
+  recordTranscription(env, {
+    ...base,
+    outcome: "provider_call",
+    provider: tx.provider,
+    model: tx.model,
+    fallbackUsed: tx.fallbackUsed,
+    audioMinutes: tx.durationMinutes,
+    costUsd: tx.estimatedCostUsd,
+    segments: tx.segments.length,
+    monthMinutesAfter,
+    latencyMs: Date.now() - startedAt,
+  });
+
+  if (shared && tx.segments.length) {
+    try {
+      await storeSegments(env, cacheKey, tx.segments, "whisper", env.TRANSCRIPT_MODEL_VERSION);
+    } catch (err) {
+      // Still return live segments if cache persistence is blocked (KV put limit).
+      console.warn("[transcript] storeSegments failed; returning uncached segments", err);
+    }
+  }
+  return {
+    hit: false,
+    segments: tx.segments,
+    source: "whisper"
+  };
 }

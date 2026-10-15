@@ -1,9 +1,17 @@
 // Offscreen document: captures tab audio for Listening Mode.
 //
 // BYO key: streams audio to OpenAI Realtime WebSocket.
-// Cloud (signed in): shared transcript cache — lookup first, transcribe on miss.
+// Cloud (signed in): always the chunked /v1/transcript/transcribe path, which
+// bills the real audio length on the server. Shared-cache lookup first when the
+// episode has a key; a private per-session key until it does.
+//
+// Cloud used to fall back to a direct-to-OpenAI realtime socket when there was
+// no episode key, billed only by this document's own heartbeat. A modified
+// client could skip the heartbeat and transcribe without limit (ISO 25010
+// security audit), so that fallback is gone.
 
 import { CueLedger } from "../lib/cue-ledger";
+import { privateSessionKey } from "../lib/session-key";
 
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
@@ -30,8 +38,10 @@ interface Session {
   tabId: number;
   srcRate: number;
   reconnects: number;
-  heartbeat: ReturnType<typeof setInterval> | null;
   cacheKey: string;
+  /** Cloud only: the private `sess:` key used whenever the page has no episode
+   * key, so audio still goes through the metered endpoint. */
+  privateKey: string;
   playbackTime: number;
   playbackPaused: boolean;
   pcmBuffer: Int16Array[];
@@ -45,11 +55,6 @@ interface Session {
    * wider than one chunk, so consecutive 6s chunks overlap — without this the
    * same line is fanned out (and carded) more than once. */
   sentCues: CueLedger;
-  /** Start of the current unpaused stretch on the realtime path, or null while
-   * paused/stopped. */
-  billedFromMs: number | null;
-  /** Unpaused milliseconds accrued but not yet reported to the backend. */
-  pendingBillMs: number;
   /** Bumped on every mode change so work resumed after an await can tell that
    * the session moved on while it was suspended. */
   modeGeneration: number;
@@ -62,26 +67,10 @@ interface Session {
   speechTimes: Map<string, { start: number; end?: number }>;
 }
 
+/** The realtime socket is only ever opened with the learner's own key. */
 async function getWsKey(session: Session): Promise<string> {
   if (session.auth.kind === "byo") return session.auth.key;
-  const res = await fetch(session.auth.backendUrl + "/v1/session", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + session.auth.syncToken,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ language: session.language || "ja" })
-  });
-  const data = (await res.json().catch(() => ({}))) as {
-    token?: { value: string };
-    model?: string;
-    error?: string;
-  };
-  if (res.status === 401) throw new CodedError("not-signed-in", data.error || "sign in at animevocab.com");
-  if (res.status === 429) throw new CodedError("quota-exceeded", data.error || "monthly listening hours used up");
-  if (!res.ok || !data.token) throw new CodedError("capture-failed", data.error || ("backend HTTP " + res.status));
-  if (data.model) session.model = data.model;
-  return data.token.value;
+  throw new CodedError("capture-failed", "realtime transcription needs your own OpenAI key");
 }
 
 class CodedError extends Error {
@@ -90,104 +79,6 @@ class CodedError extends Error {
     super(message);
     this.code = code;
   }
-}
-
-/**
- * Wall-clock meter for the realtime-WS path ONLY. There, audio goes straight to
- * OpenAI and the backend never sees a minute of it, so the heartbeat is the only
- * way to bill listening.
- *
- * The cached path must NOT call this: /v1/transcript/transcribe already charges
- * the real audio duration of every chunk it transcribes. Running both billed the
- * same playback twice (5 min/tick of wall clock PLUS ~5 min of chunk audio per
- * 5 min watched), so an "8 hour" free month died at ~4 hours — and cache hits,
- * which cost the business nothing, still burned quota.
- */
-/** Below this, a flush isn't worth a request — the time stays accrued and rides
- * along with the next one. A final flush ignores it so nothing is dropped. */
-const MIN_FLUSH_MS = 30_000;
-const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000;
-
-/** Move elapsed unpaused time into the pending bill. Safe to call repeatedly. */
-function accrueListening(session: Session, now = Date.now()): void {
-  if (session.billedFromMs == null) return;
-  const delta = now - session.billedFromMs;
-  if (delta > 0) session.pendingBillMs += delta;
-  session.billedFromMs = now;
-}
-
-/**
- * Start or stop the realtime billing clock. Charging was previously decided by
- * sampling `playbackPaused` at the tick boundary and then billing a flat five
- * minutes, so playing 4:59 and pausing cost nothing while resuming a second
- * before a tick cost a full five minutes. Time is now measured, not sampled.
- */
-function setListeningClock(session: Session, playing: boolean): void {
-  if (session.auth.kind !== "cloud" || session.useCache) {
-    // Cached path bills per transcribed chunk; nothing to accrue here.
-    session.billedFromMs = null;
-    return;
-  }
-  if (playing) {
-    if (session.billedFromMs == null) session.billedFromMs = Date.now();
-    return;
-  }
-  accrueListening(session);
-  session.billedFromMs = null;
-}
-
-/** Report accrued time. `final` forces a flush of whatever is left (stop, or a
- * switch to the cached path) so partial intervals aren't discarded. */
-async function flushListening(session: Session, final = false): Promise<void> {
-  if (session.auth.kind !== "cloud") return;
-  accrueListening(session);
-  if (session.pendingBillMs <= 0) return;
-  if (!final && session.pendingBillMs < MIN_FLUSH_MS) return;
-
-  const { backendUrl, syncToken } = session.auth;
-  // The backend clamps a single report to 10 minutes; anything above that stays
-  // pending and goes out on the next flush.
-  const minutes = Math.min(10, session.pendingBillMs / 60_000);
-  const sentMs = minutes * 60_000;
-  session.pendingBillMs = Math.max(0, session.pendingBillMs - sentMs);
-
-  try {
-    const res = await fetch(backendUrl + "/v1/usage/heartbeat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + syncToken },
-      body: JSON.stringify({ minutes })
-    });
-    if (res.status === 429) {
-      olog("monthly cap reached — stopping");
-      report(session.tabId, "quota-exceeded", "monthly listening hours used up");
-      stop(session.tabId);
-    }
-  } catch (err) {
-    // Put the time back so a transient failure doesn't hand out free minutes.
-    session.pendingBillMs += sentMs;
-    olog("heartbeat failed (will retry):", String(err));
-  }
-}
-
-/**
- * Wall-clock meter for the realtime-WS path ONLY. There, audio goes straight to
- * OpenAI and the backend never sees a minute of it, so this is the only way to
- * bill listening.
- *
- * The cached path must NOT call this: /v1/transcript/transcribe already charges
- * the real audio duration of every chunk it transcribes. Running both billed the
- * same playback twice (5 min/tick of wall clock PLUS ~5 min of chunk audio per
- * 5 min watched), so an "8 hour" free month died at ~4 hours — and cache hits,
- * which cost the business nothing, still burned quota.
- */
-function startHeartbeat(session: Session): void {
-  if (session.auth.kind !== "cloud") return;
-  if (session.useCache) return;
-  if (session.heartbeat) return;
-  setListeningClock(session, session.active && !session.playbackPaused);
-  session.heartbeat = setInterval(() => {
-    void flushListening(session);
-  }, HEARTBEAT_INTERVAL_MS);
 }
 
 /** Tear the realtime socket down without tripping the reconnect path in
@@ -218,14 +109,6 @@ function applyCacheMode(session: Session): void {
   // Any in-flight work that resumes after this point belongs to the old mode.
   session.modeGeneration += 1;
   if (session.useCache) {
-    if (session.heartbeat) {
-      clearInterval(session.heartbeat);
-      session.heartbeat = null;
-    }
-    // Bank whatever realtime time was watched before the switch — dropping the
-    // partial interval here was a small silent giveaway on every mode flip.
-    void flushListening(session, true);
-    session.billedFromMs = null;
     closeRealtimeSocket(session);
     if (!session.chunkTimer) {
       session.chunkTimer = setInterval(() => {
@@ -243,7 +126,6 @@ function applyCacheMode(session: Session): void {
   if (!session.ws && session.active) {
     connectWS(session).catch((err) => olog("reconnect after cache-key loss failed:", String(err)));
   }
-  startHeartbeat(session);
 }
 
 const sessions: Record<number, Session> = {};
@@ -282,13 +164,8 @@ function resetAudioBuffer(session: Session, atSec?: number): void {
 
 function onPlaybackUpdate(session: Session, time: number, paused: boolean): void {
   const prev = session.playbackTime;
-  const wasPaused = session.playbackPaused;
   session.playbackTime = time;
   session.playbackPaused = paused;
-  // Bank the stretch that just ended (or open a new one) the moment playback
-  // state actually flips, so billing tracks real watched time rather than
-  // whatever the state happened to be when a timer fired.
-  if (paused !== wasPaused) setListeningClock(session, !paused);
   if (Math.abs(time - prev) > SEEK_THRESHOLD_SEC) {
     olog("playback seek detected", prev, "→", time, "— resetting audio buffer");
     resetAudioBuffer(session, time);
@@ -320,10 +197,12 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, send
   if (msg.type === "avc-offscreen-update-key" && msg.tabId != null) {
     const session = sessions[msg.tabId];
     if (session) {
-      const newKey = msg.cacheKey || "";
+      // Cloud sessions never leave the metered path: losing the episode key
+      // drops back to the session's private key, not to a realtime socket.
+      const newKey = msg.cacheKey || session.privateKey;
       if (newKey !== session.cacheKey) {
         session.cacheKey = newKey;
-        session.useCache = session.auth.kind === "cloud" && !!newKey;
+        session.useCache = session.auth.kind === "cloud";
         // Cue timestamps repeat from zero in every episode. Retaining the old
         // episode's ledger can suppress an identical opening line in the next.
         session.sentCues.clear();
@@ -414,7 +293,9 @@ async function flushChunk(session: Session): Promise<void> {
         "Content-Type": "application/json",
         Authorization: "Bearer " + session.auth.syncToken
       },
-      body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) })
+      body: JSON.stringify({ key: requestKey, startSec, audio: base64Int16(pcm) }),
+      // A hung request would hold this session's only transcription slot.
+      signal: AbortSignal.timeout(30_000)
     });
     const data = (await res.json().catch(() => ({}))) as {
       hit?: boolean;
@@ -483,12 +364,15 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
   proc.connect(sink);
   sink.connect(ctx.destination);
 
-  const useCache = auth.kind === "cloud" && !!cacheKey;
+  const useCache = auth.kind === "cloud";
+  const lang = language === "en" ? "en" : "ja";
+  const privateKey = useCache ? privateSessionKey(lang) : "";
   const session: Session = {
     ws: null, ctx, stream, proc, sink, source,
-    active: true, ready: false, auth, model, language: language === "en" ? "en" : "ja", tabId,
-    srcRate: ctx.sampleRate, reconnects: 0, heartbeat: null,
-    cacheKey: cacheKey || "",
+    active: true, ready: false, auth, model, language: lang, tabId,
+    srcRate: ctx.sampleRate, reconnects: 0,
+    cacheKey: cacheKey || privateKey,
+    privateKey,
     playbackTime: 0,
     // Assume PLAYING until a playback relay says otherwise. A session only
     // starts on a playing video, and the content→background→offscreen relay
@@ -505,8 +389,6 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
     chunkTimer: null,
     useCache,
     sentCues: new CueLedger(),
-    billedFromMs: null,
-    pendingBillMs: 0,
     modeGeneration: 0,
     flushDeferred: false,
     speechTimes: new Map()
@@ -533,7 +415,7 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
   };
 
   if (useCache) {
-    olog("using shared transcript cache for", cacheKey);
+    olog("using metered transcription for", session.cacheKey);
     applyCacheMode(session);
     return;
   }
@@ -669,12 +551,6 @@ function stop(tabId: number): void {
   const session = sessions[tabId];
   if (!session) return;
   session.active = false;
-  // Last chance to report the tail of the current stretch. Fire-and-forget: the
-  // offscreen document may be torn down right after this, and a dropped final
-  // report only ever under-bills.
-  setListeningClock(session, false);
-  void flushListening(session, true);
-  if (session.heartbeat) clearInterval(session.heartbeat);
   if (session.chunkTimer) clearInterval(session.chunkTimer);
   if (session.useCache && session.pcmBuffer.length && !session.playbackPaused) {
     flushChunk(session).catch(() => {});
