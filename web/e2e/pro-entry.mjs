@@ -12,6 +12,7 @@
 // Screenshots land in web/e2e/shots/. Exit code is non-zero on any failure.
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
+import { stopDevServer } from "./support/dev-server.mjs";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
@@ -49,7 +50,11 @@ if (OWN_SERVER) {
       )}`.trim(),
     },
     stdio: ["ignore", "pipe", "pipe"],
+    // Its own process group, so stopDevServer can stop next dev and not just npx.
+    detached: true,
   });
+  // Detached children outlive a crash; never leave one holding a port.
+  process.on("exit", () => stopDevServer(server));
   let log = "";
   server.stdout.on("data", (d) => {
     log += d;
@@ -289,7 +294,7 @@ try {
   check("no console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 } finally {
   await browser.close();
-  if (server) server.kill("SIGTERM");
+  stopDevServer(server);
 }
 
 const failed = results.filter((r) => !r.ok);
@@ -299,3 +304,4 @@ if (failed.length) {
   console.log(`failed: ${failed.map((f) => f.n).join(" | ")}`);
   process.exit(1);
 }
+process.exit(0);

@@ -43,6 +43,7 @@ jobs:
       # extension in Chromium (it used to be the cue-text one alone). None of
       # them reaches production: see e2e/support/no-production.mjs.
       - name: E2E — extension suites
+        timeout-minutes: 15
         run: npm run test:e2e:ci
 
       - name: Pack extension (the exact zip deploy ships)
@@ -171,6 +172,7 @@ jobs:
           exit 1
 
       - name: Run e2e core loop
+        timeout-minutes: 8
         run: SKIP_AI=1 node e2e/core-loop.mjs
 
       # Lives with the extension e2e (it plays the extension's side of the
@@ -180,19 +182,32 @@ jobs:
         run: npm ci
 
       - name: Run e2e /app extension-link banner (#133)
+        timeout-minutes: 8
         run: node ../e2e/app-link-status.mjs http://localhost:3400
 
       # The /owner suites start their own dev server with a mocked Analytics
       # Engine; two dev servers cannot share web/.next.
       - name: Stop the shared dev server
+        if: ${{ !cancelled() }}
         # The saved pid is npm's; next dev is its child, so match the server.
         run: pkill -f "next dev" || true; sleep 3
 
-      - name: Run e2e /owner observability, scope and Pro funnel
-        run: |
-          node e2e/observability.mjs
-          node e2e/owner-scope.mjs
-          node e2e/pro-entry.mjs
+      # One step each, with its own ceiling: a hang fails in minutes and the
+      # other suites still run (if: !cancelled()), instead of one stuck
+      # process eating the job's 40 minutes.
+      - name: Run e2e /owner observability
+        timeout-minutes: 8
+        run: node e2e/observability.mjs
+
+      - name: Run e2e /owner scope (#163)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        run: node e2e/owner-scope.mjs
+
+      - name: Run e2e Pro funnel entry (#162)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        run: node e2e/pro-entry.mjs
 
       - name: Dev server log (on failure)
         if: failure()
