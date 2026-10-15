@@ -194,6 +194,7 @@ async function runAutoLink(
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(15_000),
     });
     const body = await res.json().catch(() => null);
     outcome = interpretMintResponse(res.status, body);
@@ -213,4 +214,64 @@ async function runAutoLink(
   await trackExtensionMilestone("signup_completed");
   log(`auto-link (${trigger}) ok`);
   return { linked: true, outcome: "linked" };
+}
+
+export type VerifyOutcome =
+  | { status: "linked"; profile: LinkedProfile }
+  /** The token is real but belongs to a different account than the one this
+   * browser is signed in as: a planted token. Refuse it. */
+  | { status: "mismatch" }
+  | { status: "signed-out" }
+  | { status: "error"; detail: string };
+
+/** Map one verify response to an outcome. Pure, so the trust rule is testable
+ * without a browser: only a 2xx that says ok links anything. */
+export function interpretVerifyResponse(httpStatus: number, body: unknown): VerifyOutcome {
+  if (httpStatus === 401) return { status: "signed-out" };
+  if (httpStatus === 403) return { status: "mismatch" };
+  if (httpStatus < 200 || httpStatus >= 300) return { status: "error", detail: `HTTP ${httpStatus}` };
+  const data = (body || {}) as { ok?: unknown; profile?: MintBody["profile"] };
+  if (data.ok !== true) return { status: "error", detail: "unexpected verify response" };
+  const p = data.profile && typeof data.profile === "object" ? data.profile : {};
+  return {
+    status: "linked",
+    profile: {
+      email: typeof p.email === "string" ? p.email : null,
+      name: typeof p.name === "string" ? p.name : null,
+      plan: normalizeSyncPlan(p.plan),
+    },
+  };
+}
+
+/**
+ * Link a token the animevocab.com page handed to the sync bridge, but only
+ * after the server confirms it belongs to the account this browser's own
+ * session cookie is signed in as. The page channel is open to every script on
+ * the site, so the token alone is never trusted; the profile shown in the popup
+ * comes from the server too, not from the page.
+ */
+export async function verifyAndLinkToken(token: string): Promise<{ linked: boolean; outcome: VerifyOutcome["status"] }> {
+  if (!/^avc_st_[A-Za-z0-9]+$/.test(token)) return { linked: false, outcome: "mismatch" };
+  let outcome: VerifyOutcome;
+  try {
+    const res = await fetch(TOKEN_URL, {
+      method: "GET",
+      credentials: "include",
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = await res.json().catch(() => null);
+    outcome = interpretVerifyResponse(res.status, body);
+  } catch (err) {
+    outcome = { status: "error", detail: err instanceof Error ? err.message : "network error" };
+  }
+  if (outcome.status !== "linked") {
+    if (outcome.status === "mismatch") warn("page-supplied sync token refused: not this browser's account");
+    else if (outcome.status === "error") warn("page-supplied sync token not verified:", outcome.detail);
+    return { linked: false, outcome: outcome.status };
+  }
+  const already = (await getSyncToken()) === token;
+  await setSyncToken(token);
+  await setSyncProfile(outcome.profile);
+  return { linked: !already, outcome: "linked" };
 }

@@ -1,6 +1,7 @@
 // Content script on the hosted web app (animevocab.com). The signed-in page
-// broadcasts a sync token via postMessage; we store it and ask the background
-// to push. Kept dependency-free so it stays a tiny bundle on the site.
+// broadcasts a sync token via postMessage; we hand it to the background, which
+// verifies it with the server before storing it. Kept dependency-free so it
+// stays a tiny bundle on the site.
 (function initSyncBridge() {
 const bridgeWindow = window as Window & { __avcSyncBridgeLoaded?: boolean };
 if (bridgeWindow.__avcSyncBridgeLoaded) return;
@@ -54,7 +55,6 @@ window.addEventListener("message", (event) => {
     source?: string;
     type?: string;
     token?: string;
-    profile?: { email?: string | null; name?: string | null; plan?: string | null } | null;
   } | null;
   if (!data || data.source !== "avc-web") return;
 
@@ -66,26 +66,13 @@ window.addEventListener("message", (event) => {
   if (data.type === "avc-sync-token") {
     const token = typeof data.token === "string" ? data.token : "";
     if (!token) return;
-    // Profile is display-only (popup account status). Older web builds don't
-    // send it; keep whatever we had rather than wiping it. `plan` is what lets
-    // the popup name the tier instead of just saying "signed in" (#123).
-    const p = data.profile;
-    const plan = p?.plan;
-    const syncProfile =
-      p && typeof p === "object"
-        ? {
-            email: typeof p.email === "string" ? p.email : null,
-            name: typeof p.name === "string" ? p.name : null,
-            plan: plan === "free" || plan === "pro" || plan === "max" ? plan : null,
-          }
-        : undefined;
-    const update: Record<string, unknown> = { syncToken: token };
-    if (syncProfile !== undefined) update.syncProfile = syncProfile;
-    update.relinkNeeded = false;
-    update.syncAuthFailures = 0;
-    chrome.storage.local.set(update, () => {
-      chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
-    });
+    // Never store a token straight from the page. Every script on this origin
+    // can post here (third-party tags included), and a planted token would link
+    // the extension to another account and send this learner's words there.
+    // The background worker asks the server whether the token belongs to the
+    // account this browser's own cookie is signed in as, and stores it (with
+    // the server's profile, not the page's) only if it does.
+    chrome.runtime.sendMessage({ type: "avc-link-token", token }).catch(() => {});
     return;
   }
 
