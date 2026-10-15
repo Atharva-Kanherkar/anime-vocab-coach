@@ -8,6 +8,7 @@ import {
   targetLangName,
   type LearningDirection,
 } from "./direction";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export const MAX_EXTRACT_LINE_LEN = 400;
 export const MAX_EXTRACT_WORDS = 12;
@@ -100,6 +101,7 @@ export async function runExtractWords(
   const { system, user } = buildExtractPrompt(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,

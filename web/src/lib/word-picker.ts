@@ -7,6 +7,7 @@ import {
 } from "./direction";
 import { parseUsage } from "./llm-pricing";
 import { recordLlmCall, type LlmContext } from "./telemetry";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export const MAX_PICK_LINE_LEN = 400;
 export const MAX_PICK_CANDIDATES = 12;
@@ -163,6 +164,7 @@ export async function runWordPick(
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,

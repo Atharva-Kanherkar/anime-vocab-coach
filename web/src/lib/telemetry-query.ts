@@ -27,6 +27,7 @@ import {
   llmColumn,
   transcribeColumn,
 } from "./telemetry-schema";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export interface AnalyticsCredentials {
   accountId: string;
@@ -165,6 +166,7 @@ export async function runQuery<T>(
     try {
       const res = await fetch(`${SQL_API}/${resolved.accountId}/analytics_engine/sql`, {
         method: "POST",
+        signal: upstreamTimeout("quick"),
         headers: { Authorization: `Bearer ${resolved.apiToken}` },
         body: sql,
       });

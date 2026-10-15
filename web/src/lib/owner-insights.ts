@@ -21,6 +21,7 @@ import {
 } from "./owner-dashboard";
 import type { OwnerHistory } from "./owner-history";
 import type { PlanTagCheck } from "./owner-plan-tags";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export interface OwnerInsights {
   summary: string;
@@ -320,6 +321,7 @@ export async function runOwnerInsights(
   const startedAt = Date.now();
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("reasoning"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,

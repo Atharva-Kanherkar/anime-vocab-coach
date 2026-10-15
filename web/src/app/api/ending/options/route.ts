@@ -12,6 +12,7 @@ import { clientIp } from "@/lib/studio-store";
 import { resolveProfile } from "@/lib/auth";
 import { STUDIO_STYLES } from "@/lib/studio";
 import type { StyleKey } from "@/lib/cards";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
+      signal: upstreamTimeout("chat"),
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: scriptModel,

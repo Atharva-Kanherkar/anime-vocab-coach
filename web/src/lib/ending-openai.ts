@@ -12,6 +12,7 @@ import {
 } from "./ending-funnel";
 import type { MangaLine, StudioCastMember } from "./studio";
 import type { StyleKey } from "./cards";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export async function generateEndingScript(
   apiKey: string,
@@ -21,6 +22,7 @@ export async function generateEndingScript(
   const { system, user } = buildEndingScriptPrompt(req);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal: upstreamTimeout("chat"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
@@ -55,6 +57,7 @@ export async function generateEndingPanelImage(
 ): Promise<string> {
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
+    signal: upstreamTimeout("image"),
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: opts.model,
