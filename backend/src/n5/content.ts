@@ -31,6 +31,22 @@ interface PrivateQuestion {
   correctOption?: string;
 }
 const t = (romaji: string, kana: string): N5Text => ({ romaji, kana });
+export const VOCABULARY = [
+  { id: "hajimemashite", text: t("hajimemashite", "はじめまして"), meaning: "Nice to meet you" },
+  { id: "watashi", text: t("watashi", "わたし"), meaning: "I / me" },
+  { id: "gakusei", text: t("gakusei", "がくせい"), meaning: "Student" },
+  { id: "sensei", text: t("sensei", "せんせい"), meaning: "Teacher" },
+  { id: "tomodachi", text: t("tomodachi", "ともだち"), meaning: "Friend" },
+  { id: "arigatou", text: t("arigatou gozaimasu", "ありがとうございます"), meaning: "Thank you (polite)" },
+  { id: "ohayou", text: t("ohayou gozaimasu", "おはようございます"), meaning: "Good morning (polite)" },
+  { id: "oyasumi", text: t("oyasuminasai", "おやすみなさい"), meaning: "Good night" },
+  { id: "konbanwa", text: t("konbanwa", "こんばんは"), meaning: "Good evening" },
+  { id: "itadakimasu", text: t("itadakimasu", "いただきます"), meaning: "Said before eating" },
+];
+export const GRAMMAR = [
+  { id: "introduce", explanation: "The topic particle marks what you are talking about. This example gives a name politely.", text: t("watashi wa Haru desu", "わたしはハルです") },
+  { id: "question", explanation: "Add the question particle to make a polite question. This is an original practice name, not an episode quote.", text: t("Haru desu ka", "ハルですか") },
+];
 // Original pedagogical examples, not quoted episode dialogue. No educator review claimed.
 export const QUESTIONS: readonly PrivateQuestion[] = [
   { id: "greeting", kind: "choice", objectiveId: "greet", prompt: "Choose a polite greeting for a first meeting.", correctOption: "b", choices: [

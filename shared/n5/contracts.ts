@@ -20,6 +20,9 @@ export interface N5Lesson {
   summary: string;
   summarySource: string;
   canDo: string;
+  vocabulary: { id: string; reading: string; meaning: string }[];
+  grammar: { id: string; explanation: string; example: string }[];
+  watchLinks: { provider: string; url: string; region: "unknown"; availability: "unknown"; checkedAt: null }[];
   questions: N5Question[];
 }
 export interface N5Answer { questionId: string; value: string }

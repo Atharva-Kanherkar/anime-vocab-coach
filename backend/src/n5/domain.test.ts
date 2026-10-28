@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, fingerprint, finishSchema, grade, publicLesson, validScript, validateAnswers } from "./domain";
-import { CONTENT_VERSION, EPISODE_ID, LESSON_ID, QUESTIONS, TRACK_ID } from "./content";
-import type { N5Answer, N5Script } from "../../../shared/n5/contracts";
-
-export function correctAnswers(script: N5Script = "romaji"): N5Answer[] {
-  return QUESTIONS.map((q) => ({ questionId: q.id, value: q.correctOption ?? (script === "romaji" ? "Haru desu" : "ハルです") }));
-}
+import { CONTENT_VERSION, EPISODE_ID, GRAMMAR, LESSON_ID, QUESTIONS, TRACK_ID, VOCABULARY } from "./content";
+import { correctAnswers } from "../../test/answers";
 
 describe("strict request contracts", () => {
   const enrolment = { trackId: TRACK_ID, script: "romaji", idempotencyKey: "abc_1-z" };
@@ -54,7 +50,7 @@ describe("pure script validation", () => {
   it("requires actual letters and rejects mixed text, kanji, controls and unreviewed Unicode", () => {
     expect(validScript("Haru desu!", "romaji")).toBe(true);
     expect(validScript("ハルです。", "kana")).toBe(true);
-    for (const text of ["", "123", " ", "Haruです", "春", "😀", "\u200b"]) for (const script of ["romaji", "kana"] as const) expect(validScript(text, script)).toBe(false);
+    for (const text of ["", "123", " ", "Haruです", "春", "😀", "\u200b", "Haru\n", "ハル\t"]) for (const script of ["romaji", "kana"] as const) expect(validScript(text, script)).toBe(false);
   });
 });
 
@@ -63,6 +59,9 @@ describe("public rendering and server grading", () => {
     const lesson = publicLesson(script);
     expect(lesson).toMatchObject({ apiVersion: 1, id: LESSON_ID, courseId: "n5-foundations", contentVersion: CONTENT_VERSION, episodeId: EPISODE_ID, script, status: "unreviewed_preview", canDo: expect.stringContaining("Greet"), summarySource: "https://www.yourlieinapril.com/story/01.html" });
     expect(lesson.summary).toContain("student");
+    expect(lesson.vocabulary).toEqual(VOCABULARY.map((v) => ({ id: v.id, reading: v.text[script], meaning: v.meaning })));
+    expect(lesson.grammar).toEqual(GRAMMAR.map((g) => ({ id: g.id, explanation: g.explanation, example: g.text[script] })));
+    expect(lesson.watchLinks).toEqual([{ provider: "Crunchyroll", url: "https://www.crunchyroll.com/series/G63V7KN9Y/your-lie-in-april", region: "unknown", availability: "unknown", checkedAt: null }]);
     expect(lesson.questions).toHaveLength(10);
     lesson.questions.forEach((q, i) => {
       expect(Object.keys(q).sort()).toEqual(q.kind === "choice" ? ["choices", "id", "kind", "objectiveId", "prompt"] : ["id", "kind", "objectiveId", "prompt"]);

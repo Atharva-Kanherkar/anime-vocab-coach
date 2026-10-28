@@ -14,8 +14,9 @@ import { capMinutesForPlan, effectivePlanFromProfile } from "./plan";
 import { countryOf, type AnalyticsEngineDataset } from "./telemetry";
 import { addMinutes, getUsage } from "./usage";
 import { validateCacheKey, validateStartSec, validateWindowSec } from "./validate";
+import { handleN5, type N5Environment } from "./n5/router";
 
-export interface Env {
+export interface Env extends N5Environment {
   AVC_KV: KVNamespace;
   /** Listening Mode transcription observability (dataset avc_transcribe).
    *  Optional: a missing binding degrades to no telemetry, never an error. */
@@ -78,6 +79,8 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const path = url.pathname;
+
+    if (path === "/v1/n5" || path.startsWith("/v1/n5/")) return handleN5(req, env);
 
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(req) });

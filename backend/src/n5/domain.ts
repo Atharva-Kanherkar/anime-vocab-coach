@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { N5Answer, N5Lesson, N5Result, N5Script } from "../../../shared/n5/contracts";
-import { CONTENT_VERSION, COURSE_ID, EPISODE_ID, LESSON_ID, QUESTIONS, TRACK_ID } from "./content";
+import { CONTENT_VERSION, COURSE_ID, EPISODE_ID, GRAMMAR, LESSON_ID, QUESTIONS, TRACK_ID, VOCABULARY } from "./content";
 
 const key = z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/);
 const revision = z.number().int().min(0).max(1_000_000);
@@ -21,8 +21,8 @@ export const finishSchema = z.strictObject({ revision });
 
 /** Reject rather than transliterate submitted production into another script. */
 export function validScript(text: string, script: N5Script): boolean {
-  if (script === "romaji") return /^[A-Za-z0-9\s.,!?'"():;-]+$/.test(text) && /[A-Za-z]/.test(text);
-  return /^[\u3041-\u3096\u30a1-\u30faー\s。、！？「」・]+$/.test(text) && /[\u3041-\u3096\u30a1-\u30fa]/.test(text);
+  if (script === "romaji") return /^[A-Za-z0-9 .,!?'"():;-]+$/.test(text) && /[A-Za-z]/.test(text);
+  return /^[\u3041-\u3096\u30a1-\u30faー 。、！？「」・]+$/.test(text) && /[\u3041-\u3096\u30a1-\u30fa]/.test(text);
 }
 
 export function validateAnswers(answers: N5Answer[], script: N5Script): boolean {
@@ -47,6 +47,9 @@ export function publicLesson(script: N5Script): N5Lesson {
     summary: "A student whose life once revolved around the piano encounters a violinist through his school friends. This lesson uses meeting a new classmate as a setting for original introduction practice.",
     summarySource: "https://www.yourlieinapril.com/story/01.html",
     canDo: "Greet a new classmate and introduce yourself politely.",
+    vocabulary: VOCABULARY.map((item) => ({ id: item.id, reading: item.text[script], meaning: item.meaning })),
+    grammar: GRAMMAR.map((item) => ({ id: item.id, explanation: item.explanation, example: item.text[script] })),
+    watchLinks: [{ provider: "Crunchyroll", url: "https://www.crunchyroll.com/series/G63V7KN9Y/your-lie-in-april", region: "unknown", availability: "unknown", checkedAt: null }],
     questions: QUESTIONS.map((question) => ({
       id: question.id, kind: question.kind, objectiveId: question.objectiveId, prompt: question.prompt,
       ...(question.choices ? { choices: question.choices.map((choice) => ({ id: choice.id, text: choice.text[script] })) } : {}),
