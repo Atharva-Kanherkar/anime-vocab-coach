@@ -11,8 +11,15 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/vitest-runner": "^10.1.1",
+    "fast-check": "^4.10.2",
+    "miniflare": "^4.20260730.0",
     "typescript": "^5.5.0",
     "vitest": "^4.1.10",
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
   }
 }
