@@ -147,7 +147,10 @@ describe("real Worker and D1 end-to-end", () => {
     expect((await app.request("/catalog", { headers: { Origin: "https://evil.example" } })).status).toBe(403);
     expect((await app.request("/catalog", { headers: { Origin: "https://animevocab.com" } })).headers.get("Access-Control-Allow-Origin")).toBe("https://animevocab.com");
     expect((await app.request("/catalog", { method: "OPTIONS", token: null })).status).toBe(200);
-    expect((await app.request("/catalog", { method: "POST" })).status).toBe(405);
+    const wrongMethod = await app.request("/catalog", { method: "POST" });
+    expect(wrongMethod.status).toBe(405);
+    expect(wrongMethod.headers.get("Allow")).toBe("GET");
+    expect((await app.request("/me", { method: "DELETE", body: { userId: "other" } })).status).toBe(400);
     expect((await app.request("/catalog?userId=other")).status).toBe(400);
     expect((await app.request("/missing")).status).toBe(404);
     expect((await app.request("/attempts/not-a-uuid")).status).toBe(404);
@@ -165,7 +168,7 @@ describe("real Worker and D1 end-to-end", () => {
 });
 
 describe("runtime availability and persistence", () => {
-  it.each([{ enabled: "0", status: 404 }, { enabled: "true", status: 404 }, { allowed: "", status: 404 }, { database: false, status: 503 }])("fails closed with $status", async ({ status, ...options }) => {
+  it.each([{ enabled: "0", status: 404 }, { enabled: null, database: false, status: 404 }, { enabled: "true", status: 404 }, { allowed: "", status: 404 }, { allowed: "n5-local-user-other", status: 404 }, { database: false, status: 503 }])("fails closed with $status", async ({ status, ...options }) => {
     const isolated = await runtime(options);
     try {
       expect((await isolated.request("/catalog")).status).toBe(status);

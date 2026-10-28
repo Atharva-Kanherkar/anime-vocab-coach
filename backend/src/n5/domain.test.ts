@@ -50,7 +50,7 @@ describe("pure script validation", () => {
   it("requires actual letters and rejects mixed text, kanji, controls and unreviewed Unicode", () => {
     expect(validScript("Haru desu!", "romaji")).toBe(true);
     expect(validScript("ハルです。", "kana")).toBe(true);
-    for (const text of ["", "123", " ", "Haruです", "春", "😀", "\u200b", "Haru\n", "ハル\t"]) for (const script of ["romaji", "kana"] as const) expect(validScript(text, script)).toBe(false);
+    for (const text of ["", "123", " ", "Haruです", "ですHaru", "春", "😀", "\u200b", "Haru\n", "ハル\t"]) for (const script of ["romaji", "kana"] as const) expect(validScript(text, script)).toBe(false);
   });
 });
 

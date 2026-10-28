@@ -125,6 +125,26 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: N5 request contracts and generated bindings
+        run: npm run contracts:n5:check && npm run types:n5:check
+
+      - name: N5 Worker/D1 end-to-end tests
+        run: npm run test:e2e
+
+      - name: N5 seeded fuzz tests
+        run: npm run test:fuzz
+
+      - name: N5 mutation gate (90 percent minimum)
+        run: npm run test:mutation
+
+      - name: Mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: n5-mutation-report
+          path: backend/reports/mutation/
+          if-no-files-found: ignore
+
       - name: Wrangler dry-run (validates the exact deploy bundle)
         run: npx wrangler deploy --dry-run --outdir=/tmp/wrangler-dry-run --config wrangler.toml
 

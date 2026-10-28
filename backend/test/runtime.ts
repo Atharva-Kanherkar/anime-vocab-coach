@@ -2,11 +2,11 @@ import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 import { readFile } from "node:fs/promises";
 
-export async function runtime(options: { enabled?: string; allowed?: string; database?: boolean; persist?: string } = {}) {
+export async function runtime(options: { enabled?: string | null; allowed?: string; database?: boolean; persist?: string } = {}) {
   const built = await build({ entryPoints: ["src/index.ts"], bundle: true, write: false, format: "esm", platform: "browser", target: "es2022" });
   const mf = new Miniflare({
     modules: true, script: built.outputFiles[0].text, compatibilityDate: "2026-06-01",
-    bindings: { N5_ENABLED: options.enabled ?? "1", N5_PREVIEW_USERS: options.allowed ?? "n5-local-user,n5-other-user" },
+    bindings: { ...(options.enabled === null ? {} : { N5_ENABLED: options.enabled ?? "1" }), N5_PREVIEW_USERS: options.allowed ?? "n5-local-user,n5-other-user" },
     kvNamespaces: ["AVC_KV"], d1Databases: options.database === false ? {} : { N5_DB: "n5-preview-test" },
     ...(options.persist ? { d1Persist: options.persist } : {}),
   });

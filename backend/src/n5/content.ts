@@ -1,4 +1,4 @@
-import type { N5Text } from "../../../shared/n5/contracts";
+import type { N5Course, N5Text } from "../../../shared/n5/contracts";
 
 export const COURSE_ID = "n5-foundations";
 export const CONTENT_VERSION = "preview-1";
@@ -20,7 +20,7 @@ export const UNITS = [
   "Ongoing actions", "Permission and rules", "Wants and purpose", "Abilities and activities",
   "Common casual forms", "Comparisons", "Simple reasons", "Everyday messages", "Unfamiliar situations",
   "Cumulative and delayed assessment",
-].map((title, index) => ({ id: `unit-${index + 1}`, title, status: index === 0 ? "unreviewed_preview" : "planned" }));
+].map((title, index): N5Course["units"][number] => ({ id: `unit-${index + 1}`, title, status: index === 0 ? "unreviewed_preview" : "planned" }));
 
 interface PrivateQuestion {
   id: string;

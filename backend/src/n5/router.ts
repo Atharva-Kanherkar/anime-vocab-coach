@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { N5Catalog, N5Course } from "../../../shared/n5/contracts";
 import { requireAuth } from "../sync-auth";
 import { CONTENT_VERSION, COURSE_ID, LESSON_ID, TRACKS, UNITS } from "./content";
 import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, finishSchema, publicLesson, scriptSchema, validateAnswers } from "./domain";
@@ -8,9 +9,10 @@ export type N5Environment = Partial<Pick<N5Bindings, "N5_ENABLED" | "N5_PREVIEW_
 const MAX_BODY_BYTES = 16_384;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-function response(req: Request, data: unknown, status = 200): Response {
+function response(req: Request, data: unknown, status = 200, allow?: string): Response {
   const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-N5-API-Version": "1", "Vary": "Origin" });
   const origin = req.headers.get("Origin");
+  if (allow) headers.set("Allow", allow);
   if (origin && allowedOrigin(origin)) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
@@ -49,7 +51,7 @@ async function body<T>(req: Request, schema: z.ZodType<T>): Promise<T> {
   } finally { reader.releaseLock(); }
 }
 function method(req: Request, expected: string): void {
-  if (req.method !== expected) throw new CourseError("method_not_allowed", 405, `Use ${expected}.`);
+  if (req.method !== expected) throw new CourseError("method_not_allowed", 405, `Use ${expected}.`, expected);
 }
 function notFound(): never { throw new CourseError("not_found", 404, "Course route not found."); }
 
@@ -70,12 +72,12 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
     if (path !== `/lessons/${LESSON_ID}` && url.search) throw new CourseError("invalid_request", 400, "Unexpected query parameters.");
     if (path === "/catalog") {
       method(req, "GET");
-      return response(req, { apiVersion: 1, courseId: COURSE_ID, contentVersion: CONTENT_VERSION, status: "private_preview", tracks: TRACKS });
+      return response(req, { apiVersion: 1, courseId: COURSE_ID, contentVersion: CONTENT_VERSION, status: "private_preview", tracks: TRACKS } satisfies N5Catalog);
     }
     if (path === `/courses/${COURSE_ID}`) {
       method(req, "GET");
       return response(req, { apiVersion: 1, courseId: COURSE_ID, contentVersion: CONTENT_VERSION, units: UNITS,
-        limitation: "Preview practice only. No JLPT pass prediction or complete literacy/speaking assessment.", availableLessons: [LESSON_ID] });
+        limitation: "Preview practice only. No JLPT pass prediction or complete literacy/speaking assessment.", availableLessons: [LESSON_ID] } satisfies N5Course);
     }
     if (path === "/enrolments") {
       method(req, "POST");
@@ -110,10 +112,14 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
     if (path === "/me/progress") { method(req, "GET"); return response(req, await store.progress()); }
     if (path === "/me/reviews") { method(req, "GET"); return response(req, { events: await store.reviews(), consumerStatus: "not_integrated" }); }
     if (path === "/me/export") { method(req, "GET"); return response(req, await store.exportData()); }
-    if (path === "/me") { method(req, "DELETE"); await store.deleteData(); return response(req, { deleted: true }); }
+    if (path === "/me") {
+      method(req, "DELETE");
+      if (req.body) throw new CourseError("invalid_request", 400, "Deletion does not accept a request body.");
+      await store.deleteData(); return response(req, { deleted: true });
+    }
     notFound();
   } catch (error) {
-    if (error instanceof CourseError) return response(req, { error: { code: error.code, message: error.message } }, error.status);
+    if (error instanceof CourseError) return response(req, { error: { code: error.code, message: error.message } }, error.status, error.allow);
     // Do not log typed answers, bearer tokens, database payloads or provider evidence.
     return response(req, { error: { code: "course_unavailable", message: "Course storage is unavailable; retry later." } }, 503);
   }

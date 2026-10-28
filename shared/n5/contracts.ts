@@ -1,5 +1,19 @@
 /** Shared wire types. No runtime/provider dependencies or private answer keys. */
 export type N5Script = "romaji" | "kana";
+export interface N5Enrolment { trackId: string; script: N5Script }
+export interface N5Track {
+  id: string; title: string; adaptation: string; season: string;
+  status: "planned" | "unreviewed_preview";
+}
+export interface N5Catalog {
+  apiVersion: 1; courseId: string; contentVersion: string; status: "private_preview";
+  tracks: readonly N5Track[];
+}
+export interface N5Course {
+  apiVersion: 1; courseId: string; contentVersion: string;
+  units: readonly { id: string; title: string; status: "planned" | "unreviewed_preview" }[];
+  limitation: string; availableLessons: string[];
+}
 export interface N5Text { romaji: string; kana: string }
 export interface N5Choice { id: string; text: string }
 export interface N5Question {
@@ -54,5 +68,11 @@ export interface N5ReviewEvent {
   attemptId: string;
   objectiveId: string;
   judgment: "review-pass" | "review-fail";
+}
+export interface N5Progress {
+  enrolment: N5Enrolment | null;
+  observations: { episodeId: string; kind: "watch_complete" | "practice_complete" }[];
+  attempts: Pick<N5Attempt, "id" | "status" | "script" | "result">[];
+  mastery: false;
 }
 export interface N5Error { error: { code: string; message: string } }

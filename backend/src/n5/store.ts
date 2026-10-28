@@ -4,7 +4,7 @@ import { CONTENT_VERSION, COURSE_ID, LESSON_ID, QUESTIONS } from "./content";
 import { type answersSchema, type attemptSchema, type enrolmentSchema, type eventSchema, completeAnswers, fingerprint, grade } from "./domain";
 
 export class CourseError extends Error {
-  constructor(readonly code: string, readonly status: number, message: string) { super(message); }
+  constructor(readonly code: string, readonly status: number, message: string, readonly allow?: string) { super(message); }
 }
 interface EnrolmentRow { track_id: string; script: N5Script; fingerprint: string }
 interface AttemptRow {
