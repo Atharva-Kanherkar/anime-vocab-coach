@@ -193,6 +193,25 @@ describe("runtime availability and persistence", () => {
 });
 
 describe("PR review regressions", () => {
+  it.each([
+    ["kana", "はじめまして　ハルです"], ["kana", "ハルです〜"], ["kana", "ハルです…"],
+    ["romaji", "Arigatō gozaimasu"], ["romaji", "I’m Haru"],
+  ])("preserves %s keyboard input in snapshots, replays and export", async (script, text) => {
+    await app.request("/enrolments", { body: { ...enrol, script } });
+    const fresh = await (await app.request("/attempts", { body: create })).json();
+    const snapshot = { revision: 0, idempotencyKey: "keyboard", answers: [{ questionId: "write-name", value: text }] };
+    const saved = await (await app.request(`/attempts/${fresh.id}/answers`, { body: snapshot })).json();
+    expect(saved).toEqual({ attemptId: fresh.id, revision: 1 });
+    expect(await (await app.request(`/attempts/${fresh.id}/answers`, { body: snapshot })).json()).toEqual(saved);
+    expect((await (await app.request(`/attempts/${fresh.id}`)).json()).answers).toEqual(snapshot.answers);
+    expect((await (await app.request("/me/export")).json()).attempts[0].answers).toEqual(snapshot.answers);
+    const invalid = await app.request(`/attempts/${fresh.id}/answers`, { body: { ...snapshot, revision: 1, idempotencyKey: "mixed", answers: [{ questionId: "write-name", value: "Haruです" }] } });
+    expect(invalid.status).toBe(400);
+    const error = await invalid.json();
+    expect(error.error).toEqual({ code: "invalid_answers", message: "Answers must match the pinned questions and script.", details: { questionId: "write-name" } });
+    expect(JSON.stringify(error)).not.toContain("Haruです");
+    expect((await (await app.request(`/attempts/${fresh.id}`)).json()).revision).toBe(1);
+  });
   it.each(["pack_hash", "content_version", "lesson_id"])("releases stale %s capacity while preserving history and current-pack bounds", async (column) => {
     const old = await attempt();
     for (let n = 1; n < 5; n++) expect((await app.request("/attempts", { body: { ...create, idempotencyKey: `old-${n}` } })).status).toBe(200);

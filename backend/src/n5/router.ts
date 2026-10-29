@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { N5Catalog, N5Course } from "../../../shared/n5/contracts";
 import { requireAuth } from "../sync-auth";
 import { CONTENT_VERSION, COURSE_ID, LESSON_ID, TRACKS, UNITS } from "./content";
-import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, finishSchema, publicLesson, scriptSchema, validateAnswers } from "./domain";
+import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, finishSchema, publicLesson, scriptSchema, invalidAnswerQuestionId } from "./domain";
 import { CourseError, CourseStore } from "./store";
 
 export type N5Environment = Partial<Pick<N5Bindings, "N5_ENABLED" | "N5_PREVIEW_USERS" | "N5_DB">>;
@@ -109,7 +109,8 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
       if (action === "voice") throw new CourseError("voice_unavailable", 503, "Speaking assessment is not available in this preview.");
       if (action === "answers") {
         const snapshot = await body(req, answersSchema);
-        if (!validateAnswers(snapshot.answers, attempt.script)) throw new CourseError("invalid_answers", 400, "Answers must match the pinned questions and script.");
+        const questionId = invalidAnswerQuestionId(snapshot.answers, attempt.script);
+        if (questionId !== null) throw new CourseError("invalid_answers", 400, "Answers must match the pinned questions and script.", undefined, { questionId });
         return response(req, await store.saveAnswers(id, snapshot));
       }
       const finish = await body(req, finishSchema);
@@ -126,7 +127,7 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
     }
     notFound();
   } catch (error) {
-    if (error instanceof CourseError) return response(req, { error: { code: error.code, message: error.message } }, error.status, error.allow);
+    if (error instanceof CourseError) return response(req, { error: { code: error.code, message: error.message, ...(error.details ? { details: error.details } : {}) } }, error.status, error.allow);
     // Do not log typed answers, bearer tokens, database payloads or provider evidence.
     return response(req, { error: { code: "course_unavailable", message: "Course storage is unavailable; retry later." } }, 503);
   }

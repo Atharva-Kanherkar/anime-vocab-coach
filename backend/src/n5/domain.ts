@@ -19,21 +19,29 @@ export const answersSchema = z.strictObject({
 });
 export const finishSchema = z.strictObject({ revision });
 
-/** Reject rather than transliterate submitted production into another script. */
+/** Validate a normalized view without changing stored text or transliterating scripts. */
 export function validScript(text: string, script: N5Script): boolean {
-  if (script === "romaji") return /^[A-Za-z0-9 .,!?'"():;-]+$/.test(text) && /[A-Za-z]/.test(text);
-  return /^[\u3041-\u3096\u30a1-\u30faー 。、！？「」・]+$/.test(text) && /[\u3041-\u3096\u30a1-\u30fa]/.test(text);
+  const normalized = text.normalize("NFKC").replace(/[’‘]/g, "'");
+  if (script === "romaji") return /^[A-Za-zāīūēōâîûêôĀĪŪĒŌÂÎÛÊÔ0-9 .,!?'"():;-]+$/.test(normalized) && /[A-Za-zāīūēōâîûêôĀĪŪĒŌÂÎÛÊÔ]/.test(normalized);
+  return /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」・〜~.]+$/.test(normalized) && /[\u3041-\u3096\u30a1-\u30fa]/.test(normalized);
+}
+
+export function invalidAnswerQuestionId(answers: N5Answer[], script: N5Script): string | null {
+  const seen = new Set<string>();
+  for (const answer of answers) {
+    const question = QUESTIONS.find((item) => item.id === answer.questionId);
+    if (!question || seen.has(answer.questionId)) return answer.questionId;
+    seen.add(answer.questionId);
+    const valid = question.kind === "choice"
+      ? question.choices!.some((choice) => choice.id === answer.value)
+      : validScript(answer.value, script);
+    if (!valid) return answer.questionId;
+  }
+  return null;
 }
 
 export function validateAnswers(answers: N5Answer[], script: N5Script): boolean {
-  const seen = new Set<string>();
-  return answers.every((answer) => {
-    const question = QUESTIONS.find((item) => item.id === answer.questionId);
-    if (!question || seen.has(answer.questionId)) return false;
-    seen.add(answer.questionId);
-    if (question.kind === "choice") return question.choices!.some((choice) => choice.id === answer.value);
-    return validScript(answer.value, script);
-  });
+  return invalidAnswerQuestionId(answers, script) === null;
 }
 
 export function completeAnswers(answers: N5Answer[], script: N5Script): boolean {

@@ -17,12 +17,25 @@ describe("seeded N5 domain fuzzing", () => {
     fc.assert(fc.property(fc.array(fc.integer({ min: 0, max: 0x10ffff }), { maxLength: 100 }), fc.constantFrom("romaji" as const, "kana" as const), (points, script) => {
       const text = String.fromCodePoint(...points);
       if (validScript(text, script)) {
-        if (script === "romaji") { expect([...text].every((c) => c.codePointAt(0)! < 128)).toBe(true); expect(/[a-z]/i.test(text)).toBe(true); }
-        else { expect(/[a-z\u4e00-\u9fff]/i.test(text)).toBe(false); expect(/[\u3041-\u3096\u30a1-\u30fa]/.test(text)).toBe(true); }
+        if (script === "romaji") {
+          const normalized = text.normalize("NFKC").replace(/[’‘]/g, "'");
+          const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZāīūēōâîûêôĀĪŪĒŌÂÎÛÊÔ0123456789 .,!?'\"():;-";
+          expect([...normalized].every((c) => alphabet.includes(c))).toBe(true);
+          expect(/[a-zāīūēōâîûêô]/i.test(normalized)).toBe(true);
+        }
+        else { const normalized = text.normalize("NFKC"); expect(/[a-z\u4e00-\u9fff]/i.test(normalized)).toBe(false); expect(/[\u3041-\u3096\u30a1-\u30fa]/.test(normalized)).toBe(true); }
       }
       if (/[a-z]/i.test(text)) expect(validScript(`ハル${text}`, "kana")).toBe(false);
       expect(validScript(`Haru${text}ハル`, "romaji")).toBe(false);
       expect(validScript(`ハル${text}Haru`, "romaji")).toBe(false);
+    }), options);
+  });
+  it("keyboard variants stay within the chosen script under normalization", () => {
+    fc.assert(fc.property(fc.array(fc.constantFrom("ā", "ī", "ū", "ē", "ō", "â", "î", "û", "ê", "ô", "a\u0304", "’", "‘", "　"), { maxLength: 50 }), (characters) => {
+      const text = `Haru${characters.join("")}`;
+      expect(validScript(text, "romaji")).toBe(true);
+      expect(validScript(text, "kana")).toBe(false);
+      expect(validScript(`${text}ハル`, "romaji")).toBe(false);
     }), options);
   });
   it("random objective answers have independently calculated bounded scores and never imply mastery", () => {

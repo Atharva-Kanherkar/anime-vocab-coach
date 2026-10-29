@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, fingerprint, finishSchema, grade, publicLesson, validScript, validateAnswers } from "./domain";
+import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, fingerprint, finishSchema, grade, publicLesson, validScript, validateAnswers, invalidAnswerQuestionId } from "./domain";
 import { CONTENT_VERSION, EPISODE_ID, GRAMMAR, LESSON_ID, QUESTIONS, TRACK_ID, VOCABULARY } from "./content";
 import { correctAnswers } from "../../test/answers";
 
@@ -37,6 +37,21 @@ describe("strict request contracts", () => {
 });
 
 describe("pure script validation", () => {
+  it.each(["Arigatō gozaimasu", "Tōkyō", "āīūēōâîûêô", "ĀĪŪĒŌÂÎÛÊÔ", "I’m Haru", "I‘m Haru", "a\u0304", "Ａｒｉｇａｔｏｕ"])("accepts normal romaji keyboard input: %s", (text) => {
+    expect(validScript(text, "romaji")).toBe(true);
+    expect(validScript(text, "kana")).toBe(false);
+  });
+  it.each(["はじめまして　ハルです", "ハルです〜", "ハルです～", "ハルです…", "ハルです！？", "はるて\u3099す", "ﾊﾙﾃﾞｽ"])("accepts normal kana keyboard input: %s", (text) => {
+    expect(validScript(text, "kana")).toBe(true);
+    expect(validScript(text, "romaji")).toBe(false);
+  });
+  it("identifies only the first invalid question, without echoing its typed text", () => {
+    expect(invalidAnswerQuestionId(correctAnswers(), "romaji")).toBeNull();
+    expect(invalidAnswerQuestionId([{ questionId: "write-name", value: "Haruです" }], "romaji")).toBe("write-name");
+    expect(invalidAnswerQuestionId([{ questionId: "unknown", value: "a" }], "romaji")).toBe("unknown");
+    expect(invalidAnswerQuestionId([{ questionId: "greeting", value: "invalid" }], "romaji")).toBe("greeting");
+    expect(invalidAnswerQuestionId([{ questionId: "greeting", value: "a" }, { questionId: "greeting", value: "a" }], "romaji")).toBe("greeting");
+  });
   it.each(["romaji", "kana"] as const)("accepts the %s fixture and rejects wrong-script production", (script) => {
     const answers = correctAnswers(script);
     expect(validateAnswers(answers, script)).toBe(true);
@@ -50,7 +65,7 @@ describe("pure script validation", () => {
   it("requires actual letters and rejects mixed text, kanji, controls and unreviewed Unicode", () => {
     expect(validScript("Haru desu!", "romaji")).toBe(true);
     expect(validScript("ハルです。", "kana")).toBe(true);
-    for (const text of ["", "123", " ", "Haruです", "ですHaru", "春", "😀", "\u200b", "Haru\n", "ハル\t"]) for (const script of ["romaji", "kana"] as const) expect(validScript(text, script)).toBe(false);
+    for (const text of ["", "123", " ", "Haruです", "ですHaru", "春", "😀", "\u200b", "Haru\n", "ハル\t", "āハル", "…", "〜", "’", "Haru\r", "はる\n", "Haru\u200d", "Haru\u2028"]) for (const script of ["romaji", "kana"] as const) expect(validScript(text, script)).toBe(false);
   });
 });
 
