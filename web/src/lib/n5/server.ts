@@ -8,6 +8,7 @@ import { gatewayRoute } from "./core";
 export async function n5Config(): Promise<{
   enabled: boolean;
   origin: string;
+  previewUsers: string[];
 }> {
   let env: Record<string, unknown> = {};
   try {
@@ -18,8 +19,10 @@ export async function n5Config(): Promise<{
   }
   const enabled =
     (env.N5_WEB_PREVIEW_ENABLED ?? process.env.N5_WEB_PREVIEW_ENABLED) === "1";
+  const users = env.N5_PREVIEW_USERS ?? process.env.N5_PREVIEW_USERS;
+  const previewUsers = typeof users === "string" ? users.split(",").map((id) => id.trim()).filter(Boolean) : [];
   if (!enabled)
-    return { enabled: false, origin: "https://avc-api.animevocab.workers.dev" };
+    return { enabled: false, origin: "https://avc-api.animevocab.workers.dev", previewUsers };
   const configured = env.N5_API_ORIGIN ?? process.env.N5_API_ORIGIN;
   const origin =
     typeof configured === "string"
@@ -46,7 +49,7 @@ export async function n5Config(): Promise<{
     u.hash
   )
     throw new Error("Invalid N5 upstream configuration");
-  return { enabled, origin: u.origin };
+  return { enabled, origin: u.origin, previewUsers };
 }
 /** The session id is verified locally; no Clerk Backend API read for N5 views. */
 export async function n5OwnerId(): Promise<string | null> {
@@ -88,15 +91,7 @@ export async function n5AvailableFor(
   if (!ownerId) return false;
   try {
     const config = await n5Config();
-    if (!config.enabled) return false;
-    const response = await upstreamRequest(
-      config.origin,
-      "/catalog",
-      await credential(ownerId),
-    );
-    const allowed = response.status === 200;
-    await response.body?.cancel();
-    return allowed;
+    return config.enabled && config.previewUsers.includes(ownerId);
   } catch {
     console.warn("[n5] Preview access unavailable; hiding course entry");
     return false;
@@ -170,6 +165,7 @@ export async function gateway(
       return fail("origin_not_allowed", 403);
     const ownerId = await n5OwnerId();
     if (!ownerId) return fail("unauthorized", 401);
+    if (!config.previewUsers.includes(ownerId)) return fail("not_found", 404);
     if (
       req.method === "POST" &&
       req.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase() !==
