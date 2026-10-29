@@ -32,3 +32,16 @@ Review findings addressed before completion:
 Remaining scope is explicit: no qualified educator review, full six-season question bank, live provider grading/voice, season/final/delayed tests, actual SRS consumers, production account lifecycle hook, or public rollout is claimed. All these remain under #174. The preview fixture always reports mastery=false. No production smoke test or deployment was performed.
 
 Detailed mutation JSON/HTML reports are generated under ignored `backend/reports/mutation/` and uploaded by CI. The per-step review scratchpad is `/tmp/reviewcheckpoint.json` and is not committed.
+
+## CI repair: repository-root Worker build
+
+The initial PR passed all four GitHub Actions jobs but failed Cloudflare's separate Workers build check. A clean checkout with only repository-root dependencies reproduced `Could not resolve "zod"` for the new backend validation import. Installing backend dependencies made the same command pass, explaining why the original backend job masked this install-path problem. Private Cloudflare logs were unavailable; the actual remote check must verify the repair after push.
+
+The root build entrypoint now declares Zod at the same version range as the standalone backend. CI first installs only root dependencies, asserts `backend/node_modules` is absent, and bundles `backend/src/index.ts` before backend installation. This avoids relying on a developer's populated backend dependency tree.
+
+Verification of the repair:
+
+- Before the manifest change, both the cold root esbuild bundle and root `wrangler versions upload --dry-run --config backend/wrangler.toml` failed on missing Zod.
+- After copying only the repaired root manifests into the same clean checkout and running root `npm ci`, both commands passed with `backend/node_modules` still absent.
+- Root TypeScript and all 316 extension unit tests passed. Existing backend unit, real Worker/D1, fuzz and mutation gates were rerun; the validation/grading source did not change.
+- No dashboard settings, live Worker deployment, feature flags or learning behavior changed. The remote result is visible in PR #177's checks.

@@ -117,6 +117,19 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      # Workers Builds can install the repository root before invoking the
+      # backend Wrangler config. Exercise that entrypoint before backend npm ci
+      # can hide a missing runtime dependency in the root manifest.
+      - name: Install repository-root dependencies
+        working-directory: ${{ github.workspace }}
+        run: npm ci
+
+      - name: Bundle Worker after root-only install
+        working-directory: ${{ github.workspace }}
+        run: |
+          test ! -d backend/node_modules
+          npx esbuild backend/src/index.ts --bundle --format=esm --platform=browser --outfile=/tmp/avc-api-root-check.mjs
+
       - run: npm ci
 
       - name: Typecheck
