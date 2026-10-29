@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "mutate": ["src/n5/domain.ts"],
+  "mutate": ["src/n5/domain.ts", "src/n5/text.ts"],
   "testRunner": "vitest",
   "vitest": { "configFile": "vitest.mutation.config.ts" },
   "coverageAnalysis": "perTest",

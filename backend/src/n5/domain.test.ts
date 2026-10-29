@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, fingerprint, finishSchema, grade, packHash, review, validScript, validateAnswers, invalidAnswerQuestionId } from "./domain";
+import { answersSchema, attemptSchema, completeAnswers, conversationStartSchema, emptySchema, enrolmentSchema, eventSchema, fingerprint, finishSchema, grade, packHash, review, turnSchema, validScript, validateAnswers, invalidAnswerQuestionId } from "./domain";
 import { LESSONS, MAX_QUESTIONS, lessonById, publicLesson } from "./course";
 import { CONTENT_VERSION, EPISODE_ID, LESSON_ID, TRACK_ID, correctAnswers } from "../../test/answers";
 
@@ -140,5 +140,51 @@ describe("public rendering and server grading", () => {
     expect(a).toMatch(/^[a-f0-9]{64}$/);
     expect(a).toBe("d6d61f963ecf125d1b48333b18082156319c1202d1f886057da0ca987c3dff25");
     expect(await fingerprint({ value: "b" })).not.toBe(a);
+  });
+});
+
+describe("learning request contracts", () => {
+  it("bounds conversation starts and speaking turns", () => {
+    const start = { lessonId: LESSON_ID, idempotencyKey: "talk" };
+    expect(conversationStartSchema.parse(start)).toEqual(start);
+    for (const bad of [{ ...start, lessonId: "other" }, { ...start, idempotencyKey: "" }, { ...start, script: "kana" }, { lessonId: LESSON_ID }]) expect(conversationStartSchema.safeParse(bad).success).toBe(false);
+    const text = { afterSeq: 0, idempotencyKey: "t1", text: "hai" };
+    const audio = { afterSeq: 100, idempotencyKey: "t2", audio: { data: "QUJDREVGR0hJSktMTU5PUA==", mime: "audio/webm" } };
+    expect(turnSchema.parse(text)).toEqual(text);
+    expect(turnSchema.parse(audio)).toEqual(audio);
+    expect(turnSchema.safeParse({ ...text, text: "x".repeat(300) }).success).toBe(true);
+    for (const bad of [
+      { ...text, afterSeq: -1 }, { ...text, afterSeq: 101 }, { ...text, afterSeq: 1.5 }, { ...text, text: "" }, { ...text, text: "x".repeat(301) },
+      { afterSeq: 0, idempotencyKey: "t" }, { ...text, audio: audio.audio }, { ...text, grade: 3 },
+      { ...audio, audio: { ...audio.audio, mime: "video/webm" } }, { ...audio, audio: { ...audio.audio, data: "short" } },
+      { ...audio, audio: { ...audio.audio, data: "not base64 at all!!!!" } }, { ...audio, audio: { ...audio.audio, data: "QUJD===" + "A".repeat(20) } },
+      { ...audio, audio: { ...audio.audio, data: "A".repeat(820_001) } }, { ...audio, audio: { ...audio.audio, extra: 1 } },
+    ]) expect(turnSchema.safeParse(bad).success, JSON.stringify(bad).slice(0, 80)).toBe(false);
+    expect(turnSchema.safeParse({ ...audio, audio: { ...audio.audio, data: "A".repeat(820_000) } }).success).toBe(true);
+    expect(turnSchema.safeParse({ ...audio, audio: { ...audio.audio, data: "A".repeat(16) } }).success).toBe(true);
+    expect(turnSchema.safeParse({ ...audio, audio: { ...audio.audio, data: "A".repeat(15) } }).success).toBe(false);
+    expect(turnSchema.safeParse({ ...audio, audio: { ...audio.audio, data: "A".repeat(20) + "==" } }).success).toBe(true);
+    expect(turnSchema.safeParse({ ...audio, audio: { ...audio.audio, data: "=" + "A".repeat(20) } }).success).toBe(false);
+    expect(emptySchema.safeParse({}).success).toBe(true);
+    expect(emptySchema.safeParse({ passed: true }).success).toBe(false);
+  });
+  it("passes at exactly 80% and not below", () => {
+    const final = LESSONS[23];
+    const answers = correctAnswers("romaji", 24);
+    const choices = final.questions.filter((q) => q.kind === "choice");
+    for (const q of choices.slice(0, 4)) {
+      const index = answers.findIndex((a) => a.questionId === q.id);
+      answers[index] = { questionId: q.id, value: q.choices.find((c) => c.id !== q.correctOption)!.id };
+    }
+    expect(grade(final, answers, "romaji")).toMatchObject({ correct: 16, total: 20, objectivePercent: 80, passed: true });
+    const q = choices[4];
+    answers[answers.findIndex((a) => a.questionId === q.id)] = { questionId: q.id, value: q.choices.find((c) => c.id !== q.correctOption)!.id };
+    expect(grade(final, answers, "romaji")).toMatchObject({ correct: 15, passed: false });
+    const items = review(final, answers, "romaji");
+    expect(items.filter((i) => i.correct === false)).toHaveLength(5);
+    expect(items.filter((i) => i.correct === true)).toHaveLength(15);
+  });
+  it("caches each lesson's pack hash", () => {
+    expect(packHash(lesson)).toBe(packHash(lesson));
   });
 });
