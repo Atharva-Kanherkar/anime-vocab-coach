@@ -65,10 +65,12 @@ export function AppShell({
   name,
   owner = false,
   billing,
+  n5Enabled = false,
 }: {
   name: string;
   owner?: boolean;
   billing: BillingPanelProps;
+  n5Enabled?: boolean;
 }) {
   const [section, setSection] = useState<SectionId>("today");
   // Pro prompts are for the free plan only: Pro, Max and gifted accounts
@@ -115,6 +117,7 @@ export function AppShell({
           {offerPro && <ProHeaderEntry onOpenBilling={openBilling} />}
 
           <nav aria-label="Sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto md:mx-0">
+            {n5Enabled && <Link className="whitespace-nowrap border-2 border-accent px-3 py-1.5 text-[13px] font-extrabold" href="/app/n5">N5 course preview</Link>}
             {NAV.map(({ id, label }) => {
               const active = section === id;
               return (
