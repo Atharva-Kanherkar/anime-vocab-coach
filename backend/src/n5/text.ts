@@ -49,8 +49,18 @@ export function foldKana(text: string): string {
   return text.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
 }
 
+/** Sentence-final particles after polite endings are separate romaji words: desu ka, masu yo. */
+const ENDING_PARTICLE = /^(.*(?:です|ます|ません|でした|ました))([かねよ])$/;
+
+/** The copula and its forms are separate romaji words: gakusei desu, shizuka ja. */
+const COPULA = /^(.+?)(です|でした|じゃ)$/;
+
 /** Romanise one word of kana. Throws on characters outside the course inventory. */
 export function romaniseWord(word: string): string {
+  const ending = foldKana(word).match(ENDING_PARTICLE);
+  if (ending) return `${romaniseWord(ending[1])} ${romaniseWord(ending[2])}`;
+  const copula = foldKana(word).match(COPULA);
+  if (copula && !PARTICLE[copula[1]]) return `${romaniseWord(copula[1])} ${romaniseWord(copula[2])}`;
   const kana = foldKana(word);
   if (PARTICLE[kana]) return PARTICLE[kana];
   if (WORD[kana]) return WORD[kana];
@@ -109,6 +119,22 @@ export function render(source: string): N5Text {
 }
 
 export function rendered(source: string, script: N5Script): string { return render(source)[script]; }
+
+const INLINE_RUN = /[\u3041-\u3096\u30a1-\u30faー～^][\u3041-\u3096\u30a1-\u30faー～ _^。、？！]*/g;
+/**
+ * English teaching text with embedded Japanese. Each kana run renders in the
+ * learner's script, so romaji learners never see kana and vice versa. ～ marks a
+ * placeholder: ～ます becomes -masu in romaji.
+ */
+export function renderInline(text: string): N5Text {
+  const pieces = (run: string, script: N5Script) => run.split("～").map((part) => (part.trim() ? render(part)[script] : "")).join(script === "romaji" ? "-" : "～");
+  const one = (script: N5Script) => text
+    // [k:...] appears only in kana mode and [r:...] only in romaji mode.
+    .replace(script === "kana" ? /\[r:[^\]]*\]/g : /\[k:[^\]]*\]/g, "")
+    .replace(script === "kana" ? /\[k:([^\]]*)\]/g : /\[r:([^\]]*)\]/g, "$1")
+    .replace(INLINE_RUN, (run) => pieces(run.trimEnd(), script) + (run.endsWith(" ") ? " " : ""));
+  return { romaji: one("romaji"), kana: one("kana") };
+}
 
 /** Kana spoken by text-to-speech: no display spacing. */
 export function speechText(source: string): string { return render(source).kana.replace(/ /g, ""); }

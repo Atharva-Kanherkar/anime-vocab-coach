@@ -19,6 +19,11 @@ describe("render", () => {
     ["パーティー", "paatii", "パーティー"],
     ["ふつか", "futsuka", "ふつか"],
     ["じゅぎょう", "jugyou", "じゅぎょう"],
+    ["がくせい_ですか。", "gakusei desu ka.", "がくせいですか。"],
+    ["いきませんか。", "ikimasen ka.", "いきませんか。"],
+    ["さむい_ですね。", "samui desu ne.", "さむいですね。"],
+    ["ゆき_です_よ。", "yuki desu yo.", "ゆきですよ。"],
+    ["しずか", "shizuka", "しずか"],
   ])("%s", (source, romaji, kana) => {
     expect(render(source)).toEqual({ romaji, kana });
     expect(validScript(romaji, "romaji")).toBe(true);

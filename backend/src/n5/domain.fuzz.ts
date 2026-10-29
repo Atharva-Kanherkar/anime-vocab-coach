@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { answersSchema, attemptSchema, enrolmentSchema, eventSchema, finishSchema, grade, validScript } from "./domain";
-import { correctAnswers } from "../../test/answers";
-import { TRACK_ID } from "./content";
+import { TRACK_ID, correctAnswers, correctText } from "../../test/answers";
+import { LESSONS } from "./course";
 
 const options = { seed: 1742026, numRuns: 1000 };
 describe("seeded N5 domain fuzzing", () => {
@@ -48,14 +48,24 @@ describe("seeded N5 domain fuzzing", () => {
     }), options);
   });
   it("random objective answers have independently calculated bounded scores and never imply mastery", () => {
-    const oracle = ["b", "a", "c", "b", "c", "a", "b", "c"];
-    fc.assert(fc.property(fc.array(fc.constantFrom("a", "b", "c"), { minLength: 8, maxLength: 8 }), fc.constantFrom("romaji" as const, "kana" as const), (choices, script) => {
-      const answers = correctAnswers(script);
-      choices.forEach((choice, index) => { answers[index].value = choice; });
-      const expected = choices.reduce((total, choice, index) => total + Number(choice === oracle[index]), 0);
-      const result = grade(answers, script);
+    fc.assert(fc.property(fc.integer({ min: 1, max: LESSONS.length }), fc.array(fc.constantFrom("a", "b", "c"), { minLength: 20, maxLength: 20 }), fc.constantFrom("romaji" as const, "kana" as const), (unit, picks, script) => {
+      const lesson = LESSONS[unit - 1];
+      const answers = correctAnswers(script, unit);
+      let expected = 0;
+      let total = 0;
+      lesson.questions.forEach((q, index) => {
+        if (q.kind !== "choice") return;
+        answers[index].value = picks[total];
+        // Oracle: the authored text, not the grader's key.
+        if (q.choices.find((c) => c.id === picks[total])!.text[script] === correctText(unit, q.id, script)) expected++;
+        total++;
+      });
+      const result = grade(lesson, answers, script);
       expect(result.correct).toBe(expected);
-      expect(result.objectivePercent).toBe(expected * 12.5);
+      expect(result.total).toBe(total);
+      expect(result.objectivePercent).toBeCloseTo(expected / total * 100);
+      expect(result.passed).toBe(expected / total >= 0.8);
+      expect(Object.values(result.skills).reduce((sum, s) => sum + s.total, 0)).toBe(total);
       expect(result.mastery).toBe(false);
       expect(result.production).toBe("needs_review");
       expect(result.speaking).toBe("not_assessed");

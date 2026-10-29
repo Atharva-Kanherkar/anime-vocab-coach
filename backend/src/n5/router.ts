@@ -1,8 +1,8 @@
 import { z } from "zod";
-import type { N5Catalog, N5Course } from "../../../shared/n5/contracts";
+import type { N5Catalog } from "../../../shared/n5/contracts";
 import { requireN5Auth } from "./auth";
-import { CONTENT_VERSION, COURSE_ID, LESSON_ID, TRACKS, UNITS } from "./content";
-import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, finishSchema, publicLesson, scriptSchema, invalidAnswerQuestionId } from "./domain";
+import { CONTENT_VERSION, COURSE_ID, TRACKS, courseOutline, lessonById, publicLesson } from "./course";
+import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, finishSchema, scriptSchema, invalidAnswerQuestionId } from "./domain";
 import { CourseError, CourseStore } from "./store";
 
 export type N5Environment = Partial<Pick<N5Bindings, "N5_ENABLED" | "N5_PREVIEW_USERS" | "N5_DB">>;
@@ -69,7 +69,8 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
     const store = new CourseStore(env.N5_DB.withSession("first-primary"), auth.userId);
     const url = new URL(req.url);
     const path = url.pathname.slice("/v1/n5".length);
-    if (path !== `/lessons/${LESSON_ID}` && url.search) throw new CourseError("invalid_request", 400, "Unexpected query parameters.");
+    const lessonRoute = path.match(/^\/lessons\/([a-z0-9-]{1,100})$/);
+    if (!lessonRoute && url.search) throw new CourseError("invalid_request", 400, "Unexpected query parameters.");
     if (path === "/extension/state") { method(req, "GET"); return response(req, await store.extensionState()); }
     if (path === "/catalog") {
       method(req, "GET");
@@ -77,19 +78,20 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
     }
     if (path === `/courses/${COURSE_ID}`) {
       method(req, "GET");
-      return response(req, { apiVersion: 1, courseId: COURSE_ID, contentVersion: CONTENT_VERSION, units: UNITS,
-        limitation: "Preview practice only. No JLPT pass prediction or complete literacy/speaking assessment.", availableLessons: [LESSON_ID] } satisfies N5Course);
+      return response(req, courseOutline());
     }
     if (path === "/enrolments") {
       method(req, "POST");
       return response(req, await store.enrol(await body(req, enrolmentSchema)));
     }
-    if (path === `/lessons/${LESSON_ID}`) {
+    if (lessonRoute) {
+      const lesson = lessonById(lessonRoute[1]);
+      if (!lesson) notFound();
       method(req, "GET");
       if ([...url.searchParams.keys()].some((key) => key !== "script") || url.searchParams.getAll("script").length > 1) throw new CourseError("invalid_request", 400, "Unexpected query parameters.");
       const selected = scriptSchema.safeParse(url.searchParams.get("script") ?? (await store.enrolment())?.script);
       if (!selected.success) throw new CourseError("invalid_script", 400, "Choose romaji or kana.");
-      return response(req, publicLesson(selected.data));
+      return response(req, publicLesson(lesson, selected.data));
     }
     if (path === "/events") { method(req, "POST"); return response(req, await store.observe(await body(req, eventSchema))); }
     if (path === "/attempts") { method(req, "POST"); return response(req, await store.create(await body(req, attemptSchema))); }
@@ -108,14 +110,16 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
       method(req, "POST");
       const attempt = await store.get(id);
       if (action === "voice") throw new CourseError("voice_unavailable", 503, "Speaking assessment is not available in this preview.");
+      // A retired lesson cannot validate answers; the store reports stale content.
+      const lesson = lessonById(attempt.lessonId);
       if (action === "answers") {
         const snapshot = await body(req, answersSchema);
-        const questionId = invalidAnswerQuestionId(snapshot.answers, attempt.script);
+        const questionId = lesson ? invalidAnswerQuestionId(lesson, snapshot.answers, attempt.script) : null;
         if (questionId !== null) throw new CourseError("invalid_answers", 400, "Answers must match the pinned questions and script.", undefined, { questionId });
         return response(req, await store.saveAnswers(id, snapshot));
       }
       const finish = await body(req, finishSchema);
-      if (attempt.status !== "complete" && !completeAnswers(attempt.answers, attempt.script)) throw new CourseError("incomplete_answers", 409, "Answer every question before finishing.");
+      if (attempt.status !== "complete" && lesson && !completeAnswers(lesson, attempt.answers, attempt.script)) throw new CourseError("incomplete_answers", 409, "Answer every question before finishing.");
       return response(req, await store.finish(id, finish.revision));
     }
     if (path === "/me/progress") { method(req, "GET"); return response(req, await store.progress()); }
