@@ -58,6 +58,42 @@ jobs:
             exit 1
           fi
 
+  n5-extension:
+    name: N5 extension — browser/Worker journey, fuzz and mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Seeded course-boundary fuzz tests
+        run: npm run test:n5:fuzz
+      - name: Course-boundary mutation gate (90 percent minimum)
+        run: npm run test:n5:mutation
+      - name: Actual extension and real local Worker/KV/D1
+        run: npm run test:e2e:n5
+      - name: Architecture guide on desktop and mobile
+        run: node e2e/n5-system.mjs
+      - name: N5 extension evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: n5-extension-evidence
+          path: |
+            /tmp/animevocab-n5-extension/
+            /tmp/animevocab-n5-system/
+            reports/n5-mutation/
+          if-no-files-found: ignore
+
   web:
     name: Web — lint, typecheck, unit tests, prod build
     runs-on: ubuntu-latest
