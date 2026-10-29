@@ -10,6 +10,7 @@ import { CourseFailure, courseRequest, Failure, Loading, useCourse } from "./com
 import { useAttempt } from "./use-attempt";
 import { PlayButton } from "./audio";
 import { KeyChoices } from "./lesson";
+import { PlayerShell } from "./player";
 
 export function CourseAttempt({ attemptId, ownerId, mode = "attempt" }: { attemptId: string; ownerId: string; mode?: "attempt" | "results" }) {
   const load = useCallback(
@@ -74,7 +75,7 @@ function Results({ attempt, lesson, ownerId }: { attempt: N5Attempt; lesson: N5L
   const ja = attempt.script === "kana" ? "ja" : undefined;
   const percent = Math.round(result.objectivePercent);
   return (
-    <>
+    <PlayerShell ownerId={ownerId} lessonId={attempt.lessonId} step="practice">
       <section className="n5-hero n5-results-hero">
         <div>
           <p className="n5-eyebrow">
@@ -138,7 +139,7 @@ function Results({ attempt, lesson, ownerId }: { attempt: N5Attempt; lesson: N5L
           <Link className="n5-secondary" href={`/app/n5/lessons/${attempt.lessonId}${result.passed ? "" : "#drill"}`}>
             {result.passed ? "Back to unit" : "Drill and try again"}
           </Link>
-          <Link href="/app/n5">Course map</Link>
+          <Link href="/app/n5">Course home</Link>
         </div>
       </section>
       {lesson && <TypedFeedback attempt={attempt} lesson={lesson} />}
@@ -193,7 +194,7 @@ function Results({ attempt, lesson, ownerId }: { attempt: N5Attempt; lesson: N5L
           </ol>
         </section>
       )}
-    </>
+    </PlayerShell>
   );
 }
 
@@ -400,7 +401,7 @@ function AttemptForm({ initial, lesson, ownerId }: { initial: N5Attempt; lesson:
   }
   if (finished) return <Loading />;
   return (
-    <>
+    <PlayerShell ownerId={ownerId} lessonId={lesson.id} step="practice">
       <section className="n5-hero n5-quiz-hero">
         <p className="n5-eyebrow">
           Unit {lesson.unit} practice · {initial.script}
@@ -530,6 +531,6 @@ function AttemptForm({ initial, lesson, ownerId }: { initial: N5Attempt; lesson:
         )}
         <p className="n5-muted">Removes only this unfinished practice and its draft. Completed results stay in your history.</p>
       </details>
-    </>
+    </PlayerShell>
   );
 }

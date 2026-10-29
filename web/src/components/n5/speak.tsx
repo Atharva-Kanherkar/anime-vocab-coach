@@ -6,6 +6,7 @@ import type { N5Conversation, N5Lesson } from "../../../../shared/n5/contracts";
 import { MAX_RECORDING_MS, recorderTransition, recordingType, remaining } from "@/lib/n5/recorder";
 import { CourseFailure, courseRequest, Failure, Loading, newKey, useCourse } from "./common";
 import { PlayButton, playAudio, stopAudio } from "./audio";
+import { PlayerShell } from "./player";
 
 type TurnBody = { afterSeq: number; idempotencyKey: string } & ({ text: string } | { audio: { data: string; mime: string } });
 
@@ -212,7 +213,7 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
 
   const result = conversation?.result;
   return (
-    <>
+    <PlayerShell ownerId={ownerId} lessonId={lesson.id} step="speak">
       <section className="n5-hero">
         <p className="n5-eyebrow">
           Unit {lesson.unit} · Speak with Haru · {lesson.script}
@@ -406,13 +407,13 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
                     Next unit →
                   </Link>
                 )}
-                <Link href="/app/n5">Course map</Link>
+                <Link href="/app/n5">Course home</Link>
               </div>
             </div>
           )}
           {limitReached && conversation.status === "active" && <p className="n5-callout">That&apos;s ten replies. Finish to see your feedback.</p>}
         </section>
       )}
-    </>
+    </PlayerShell>
   );
 }

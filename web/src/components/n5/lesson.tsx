@@ -7,6 +7,8 @@ import { safeLink } from "@/lib/n5/core";
 import { buildDrill, requeue, type DrillRound } from "@/lib/n5/drill";
 import { CourseFailure, courseRequest, Failure, Loading, newKey, useCourse } from "./common";
 import { PlayButton, playAudio } from "./audio";
+import { PlayerShell } from "./player";
+import { SECTIONS, STEP_INFO, completedSteps, markLocalStep, readLocalSteps, sectionIndex, stepsFor, type StepId } from "@/lib/n5/steps";
 
 export function CourseLesson({ lessonId, ownerId, script }: { lessonId: string; ownerId: string; script?: N5Script }) {
   const load = useCallback(
@@ -68,62 +70,85 @@ function LessonContent({
   status: N5LessonProgress | null;
   completed: N5Progress["attempts"];
 }) {
+  const router = useRouter();
   const [watched, setWatched] = useState(initialWatched);
-  const [drilled, setDrilled] = useState(false);
+  const [local, setLocal] = useState<StepId[]>(() => readLocalSteps(ownerId, lesson.id));
+  const steps = stepsFor(lesson.kind);
   const [step, setStep] = useState<Step>(() => {
     const hash = typeof location === "undefined" ? "" : location.hash.slice(1);
-    if (STEPS.some((s) => s.id === hash)) return hash as Step;
+    if (steps.includes(hash as Step)) return hash as Step;
     return initialWatched || status?.status === "passed" || active.length ? "practice" : "learn";
   });
   function go(next: Step) {
+    if (next === "speak") return router.push(`/app/n5/speak/${lesson.id}`);
     setStep(next);
     history.replaceState(null, "", `#${next}`);
     document.getElementById("n5-step")?.focus();
   }
-  const done: Record<Step, boolean> = {
-    learn: drilled || watched || status?.status === "passed" || false,
-    drill: drilled,
-    watch: lesson.episode ? watched : true,
-    practice: status?.status === "passed" || status?.status === "practised",
-    speak: status?.speaking === "demonstrated" || status?.speaking === "needs_practice" || status?.speaking === "practice_only",
-  };
+  function complete(s: "learn" | "drill") {
+    markLocalStep(ownerId, lesson.id, s);
+    setLocal((all) => (all.includes(s) ? all : [...all, s]));
+  }
+  const doneSet = completedSteps(lesson.kind, status ? { ...status, watched: watched || status.watched } : { lessonId: lesson.id, status: "not_started", bestPercent: null, watched, speaking: "not_started" }, local);
+  const position = steps.indexOf(step);
+  const previous = steps[position - 1];
+  const following = steps[position + 1];
+  const section = SECTIONS[sectionIndex(lesson.unit)];
   const ja = lesson.script === "kana" ? "ja" : undefined;
   return (
-    <>
-      <section className="n5-hero n5-lesson-hero">
+    <PlayerShell ownerId={ownerId} lessonId={lesson.id} step={step} localDone={local} onStep={go}>
+      <header className="n5-unit-head">
+        <nav className="n5-crumbs n5-crumbs-light" aria-label="Breadcrumb">
+          <Link href="/app/n5">Course home</Link> <span aria-hidden>›</span> Section {sectionIndex(lesson.unit) + 1}: {section.title} <span aria-hidden>›</span> Unit {lesson.unit}
+        </nav>
         <p className="n5-eyebrow">
           Unit {lesson.unit} · {lesson.episode ? `Your Lie in April, episode ${lesson.episode.number}: ${lesson.episode.title}` : lesson.kind === "final" ? "Season final" : "Study unit"} · {lesson.script}
         </p>
         <h1>{lesson.title}</h1>
         <p className="n5-lead">{lesson.canDo}</p>
-        {status?.bestPercent != null && (
-          <p className="n5-muted">
-            Best practice score: {Math.round(status.bestPercent)}% {status.status === "passed" ? "· passed ✓" : "· 80% passes"}
-          </p>
-        )}
-      </section>
+        <div className="n5-unit-stats">
+          <span>
+            <strong>{doneSet.size}</strong>/{steps.length} steps done
+          </span>
+          {status?.bestPercent != null && (
+            <span>
+              Best score <strong>{Math.round(status.bestPercent)}%</strong> {status.status === "passed" ? "· passed ✓" : "· 80% passes"}
+            </span>
+          )}
+          {status?.speaking === "demonstrated" && <span>Speaking ✓</span>}
+        </div>
+      </header>
       <nav className="n5-steps" aria-label="Lesson steps">
-        {STEPS.map((s, index) => (
+        {STEPS.filter((s) => steps.includes(s.id)).map((s, index) => (
           <button
             key={s.id}
             type="button"
             className="n5-step"
             aria-current={step === s.id ? "step" : undefined}
-            data-done={done[s.id] || undefined}
+            data-done={doneSet.has(s.id) || undefined}
             onClick={() => go(s.id)}
           >
-            <span aria-hidden>{done[s.id] ? "✓" : index + 1}</span>
+            <span aria-hidden>{doneSet.has(s.id) ? "✓" : index + 1}</span>
             {s.label}
           </button>
         ))}
       </nav>
       <div id="n5-step" tabIndex={-1} className="n5-step-body">
-        {step === "learn" && <Learn lesson={lesson} ja={ja} onDone={() => go("drill")} />}
+        {step === "learn" && (
+          <Learn
+            lesson={lesson}
+            ja={ja}
+            onDone={() => {
+              complete("learn");
+              go("drill");
+            }}
+          />
+        )}
         {step === "drill" && (
           <Drill
             lesson={lesson}
             onDone={() => {
-              setDrilled(true);
+              complete("drill");
               go(lesson.episode && !watched ? "watch" : "practice");
             }}
           />
@@ -132,12 +157,31 @@ function LessonContent({
         {step === "practice" && <Practice lesson={lesson} ownerId={ownerId} active={active} completed={completed} watched={watched} onWatch={() => go("watch")} />}
         {step === "speak" && <SpeakIntro lesson={lesson} status={status} />}
       </div>
-      <nav className="n5-lesson-nav" aria-label="Units">
-        {lesson.previousLessonId ? <Link href={`/app/n5/lessons/${lesson.previousLessonId}`}>← Previous unit</Link> : <span />}
-        <Link href="/app/n5">Course map</Link>
-        {lesson.nextLessonId ? <Link href={`/app/n5/lessons/${lesson.nextLessonId}`}>Next unit →</Link> : <span />}
+      <nav className="n5-step-nav" aria-label="Step navigation">
+        {previous ? (
+          <button type="button" onClick={() => go(previous)}>
+            ← {STEP_INFO[previous].label}
+          </button>
+        ) : lesson.previousLessonId ? (
+          <Link className="n5-secondary" href={`/app/n5/lessons/${lesson.previousLessonId}`}>
+            ← Previous unit
+          </Link>
+        ) : (
+          <span />
+        )}
+        {following ? (
+          <button type="button" className="n5-primary" onClick={() => go(following)}>
+            {STEP_INFO[following].label} →
+          </button>
+        ) : lesson.nextLessonId ? (
+          <Link className="n5-primary" href={`/app/n5/lessons/${lesson.nextLessonId}`}>
+            Next unit →
+          </Link>
+        ) : (
+          <span />
+        )}
       </nav>
-    </>
+    </PlayerShell>
   );
 }
 

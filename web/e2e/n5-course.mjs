@@ -238,7 +238,7 @@ try {
   await scriptPage.getByRole("radio", { name: /Romaji/ }).check();
   await scriptPage.getByRole("button", { name: "Continue: Unit 1" }).click();
   await lessonReady(scriptPage);
-  assert.match(await scriptPage.locator(".n5-hero .n5-eyebrow").innerText(), /romaji/i);
+  assert.match(await scriptPage.locator(".n5-unit-head .n5-eyebrow").innerText(), /romaji/i);
   assert.equal((await (await app.request("/me/progress", { token })).json()).enrolment.script, "romaji");
   await scriptPage.getByRole("navigation", { name: "Lesson steps" }).getByRole("button", { name: /Watch/ }).click();
   await scriptPage.getByRole("button", { name: "I watched episode 1" }).click();
@@ -272,7 +272,7 @@ try {
   assert.equal((await app.db.prepare("SELECT COUNT(*) AS n FROM n5_attempts").first()).n, 2);
   await scriptPage.getByRole("button", { name: "Reload lesson" }).click();
   await lessonReady(scriptPage);
-  assert.match(await scriptPage.locator(".n5-hero .n5-eyebrow").innerText(), /romaji/i);
+  assert.match(await scriptPage.locator(".n5-unit-head .n5-eyebrow").innerText(), /romaji/i);
   await scriptContext.close();
   check("cross-tab selection and lost enrolment/start responses preserve the displayed script");
   const responses = [];
@@ -307,7 +307,7 @@ try {
     });
     await page.goto(base + "/app/n5");
     await page
-      .getByRole("heading", { name: "Course map", level: 1 })
+      .getByRole("heading", { name: "Japanese for Beginners: JLPT N5 with Your Lie in April", level: 1 })
       .waitFor();
     assert.equal(
       await page.getByText("Planned", { exact: true }).count(),

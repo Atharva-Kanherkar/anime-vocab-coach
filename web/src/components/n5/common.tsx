@@ -158,7 +158,7 @@ export function CourseSession({
     <main className="n5-root" id="main">
       <header className="n5-top">
         <Link href="/app">AnimeVocab</Link>
-        <Link href="/app/n5">Course map</Link>
+        <Link href="/app/n5">Course home</Link>
         <span className="n5-tag">N5 · Private preview</span>
       </header>
       {expired ? (

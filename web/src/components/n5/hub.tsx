@@ -2,36 +2,22 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type {
-  N5Catalog,
-  N5Course,
-  N5Enrolment,
-  N5LessonProgress,
-  N5Progress,
-  N5Script,
-} from "../../../../shared/n5/contracts";
+import type { N5Enrolment, N5LessonProgress, N5Script } from "../../../../shared/n5/contracts";
+import { SECTIONS, STEP_INFO, completedSteps, readLocalSteps, sectionIndex, stepsFor, type StepId } from "@/lib/n5/steps";
 import { courseRequest, Failure, Loading, newKey, useCourse } from "./common";
+import { loadOverview, type Overview } from "./player";
 
-async function load(signal: AbortSignal) {
-  const catalog = await courseRequest<N5Catalog>("/catalog", undefined, undefined, signal);
-  const [course, progress] = await Promise.all([
-    courseRequest<N5Course>(`/courses/${catalog.courseId}`, undefined, undefined, signal),
-    courseRequest<N5Progress>("/me/progress", undefined, undefined, signal),
-  ]);
-  return { catalog, course, progress };
-}
-
-export function CourseHub() {
-  const state = useCourse(load);
+export function CourseHub({ ownerId = "" }: { ownerId?: string }) {
+  const state = useCourse(loadOverview);
   if (state.error)
     return (
-      <>
+      <div className="n5-wrap">
         <Failure error={state.error} />
         <button onClick={() => location.reload()}>Retry loading course</button>
-      </>
+      </div>
     );
   if (!state.data) return <Loading />;
-  return <HubContent {...state.data} />;
+  return <HubContent {...state.data} ownerId={ownerId} />;
 }
 
 const STATUS_LABEL: Record<N5LessonProgress["status"], string> = {
@@ -40,14 +26,26 @@ const STATUS_LABEL: Record<N5LessonProgress["status"], string> = {
   practised: "Practised",
   passed: "Passed",
 };
-const SECTIONS = [
-  { title: "First meetings", range: [1, 6] },
-  { title: "Daily life", range: [7, 12] },
-  { title: "Plans and requests", range: [13, 18] },
-  { title: "Real conversations", range: [19, 24] },
+const OUTCOMES = [
+  "Introduce yourself and ask who people are",
+  "Talk about family, belongings and where things are",
+  "Tell the time, describe routines and what you did",
+  "Shop, order and ask prices",
+  "Describe people and say what you like",
+  "Invite, make plans, ask favours and permission",
+  "Follow casual anime speech and answer politely",
+  "Give reasons, compare, and handle new situations",
+];
+const INCLUDES = [
+  ["🎧", "Native-style audio for every word and sentence"],
+  ["🗣️", "AI speaking partner in every unit"],
+  ["✍️", "AI feedback on your written answers"],
+  ["📺", "Recaps for all 22 episodes"],
+  ["🔤", "Romaji or kana, never mixed"],
 ] as const;
+const STEP_ICON: Record<StepId, string> = { learn: "📖", drill: "⚡", watch: "📺", practice: "✅", speak: "🎙️" };
 
-function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof load>>) {
+function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId: string }) {
   const router = useRouter();
   const lock = useRef(false);
   const abort = useRef<AbortController | null>(null);
@@ -61,10 +59,15 @@ function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof loa
   const byLesson = new Map(lessons.map((l) => [l.lessonId, l]));
   const passed = lessons.filter((l) => l.status === "passed").length;
   const total = course.units.length;
+  const percent = Math.round((passed / Math.max(1, total)) * 100);
   const nextId = progress.nextLessonId ?? course.units[0]?.lessonId;
   const next = course.units.find((u) => u.lessonId === nextId) ?? course.units[0];
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(() => new Set([sectionIndex(next?.number ?? 1)]));
   const active = progress.attempts.filter((a) => a.status === "active").reverse();
   const planned = catalog.tracks.filter((t) => t.status === "planned");
+  const speakingDone = lessons.filter((l) => l.speaking === "demonstrated").length;
+  const minutes = course.units.reduce((sum, u) => sum + stepsFor(u.kind).reduce((m, s) => m + STEP_INFO[s].minutes, 0), 0);
+  const words = course.units.length * 10;
 
   /** Reconcile the chosen script on every explicit action: initial progress can be stale. */
   async function open(lessonId: string) {
@@ -76,12 +79,7 @@ function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof loa
     const requestKey = key ?? newKey();
     setKey(requestKey);
     try {
-      await courseRequest<N5Enrolment>(
-        "/enrolments",
-        { trackId: pilot.id, script, idempotencyKey: requestKey },
-        undefined,
-        abort.current.signal,
-      );
+      await courseRequest<N5Enrolment>("/enrolments", { trackId: pilot.id, script, idempotencyKey: requestKey }, undefined, abort.current.signal);
       router.push(`/app/n5/lessons/${lessonId}?script=${script}`);
     } catch (e) {
       setError(e);
@@ -90,24 +88,39 @@ function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof loa
       setBusy(null);
     }
   }
+  const toggle = (index: number) =>
+    setExpandedSections((all) => {
+      const nextOpen = new Set(all);
+      if (nextOpen.has(index)) nextOpen.delete(index);
+      else nextOpen.add(index);
+      return nextOpen;
+    });
+  const allOpen = expandedSections.size === SECTIONS.length;
 
-  return (
-    <div className="n5-map-page">
-      <header className="n5-map-head">
-        <div>
-          <p className="n5-eyebrow">Your Lie in April · JLPT N5</p>
-          <h1>Course map</h1>
-        </div>
-        <div className="n5-map-meter" aria-label={`${passed} of ${total} units passed`}>
-          <span>
-            <strong>{passed}</strong>/{total} passed
+  const card = (
+    <aside className="n5-course-card" aria-label="Your course">
+      <div className="n5-cover" aria-hidden>
+        <span className="n5-cover-keys" />
+        <span className="n5-cover-badge">N5</span>
+        <span className="n5-cover-title">Your Lie in April</span>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <span key={i} className="n5-petal" style={{ ["--i" as string]: i }} />
+        ))}
+      </div>
+      <div className="n5-card-body">
+        <div className="n5-card-progress">
+          <div>
+            <strong>{percent}%</strong> complete
+          </div>
+          <span className="n5-muted">
+            {passed}/{total} units passed{speakingDone ? ` · ${speakingDone} spoken` : ""}
           </span>
           <span className="n5-bar" aria-hidden>
-            <span style={{ width: `${(passed / Math.max(1, total)) * 100}%` }} />
+            <span style={{ width: `${percent}%` }} />
           </span>
         </div>
-        <fieldset disabled={Boolean(busy)} className="n5-toggle">
-          <legend className="n5-visually-hidden">Japanese display</legend>
+        <fieldset disabled={Boolean(busy)} className="n5-toggle n5-toggle-wide">
+          <legend>Japanese display</legend>
           {(["romaji", "kana"] as const).map((s) => (
             <label key={s} data-checked={script === s}>
               <input
@@ -127,106 +140,198 @@ function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof loa
             </label>
           ))}
         </fieldset>
-      </header>
-
-      {next && (
-        <section className="n5-next" aria-label="Up next">
-          <span className="n5-next-unit" aria-hidden>
-            {next.kind === "final" ? "★" : next.number}
-          </span>
-          <div className="n5-next-body">
-            <p className="n5-eyebrow">{progress.enrolment ? "Up next" : "Start here"}</p>
-            <strong>{next.title}</strong>
-            <small>
-              {next.episode ? `Episode ${next.episode.number} · ${next.episode.title}` : next.kind === "final" ? "Season final" : "Study unit and checkpoint"}
-            </small>
+        {next && (
+          <div className="n5-card-next">
+            <span className="n5-eyebrow">{progress.enrolment ? "Up next" : "Start here"}</span>
+            <strong>
+              Unit {next.number}: {next.title}
+            </strong>
+            <small className="n5-muted">{next.episode ? `Episode ${next.episode.number} · ${next.episode.title}` : next.kind === "final" ? "Season final" : "Checkpoint unit"}</small>
           </div>
-          <button className="n5-primary" disabled={!script || !pilot || Boolean(busy)} onClick={() => open(next.lessonId)}>
-            {busy === next.lessonId ? "Opening…" : progress.enrolment ? `Continue: Unit ${next.number}` : "Start Unit 1"}
-          </button>
-        </section>
-      )}
-      {!script && <p className="n5-muted n5-hint">Pick romaji or kana above to begin. One script everywhere, never mixed.</p>}
-      {Boolean(error) && <Failure error={error} />}
-
-      {active.length > 0 && (
-        <p className="n5-resume-line">
-          <span className="n5-muted">Unfinished:</span>
-          {active.map((a) => (
-            <Link key={a.id} href={`/app/n5/attempts/${a.id}`}>
-              Resume unfinished {a.script} practice
-              {a.lessonId ? ` · Unit ${course.units.find((u) => u.lessonId === a.lessonId)?.number ?? "?"}` : ""}
-            </Link>
+        )}
+        {Boolean(error) && <Failure error={error} />}
+        <button className="n5-primary n5-big n5-block" disabled={!script || !pilot || !next || Boolean(busy)} onClick={() => next && open(next.lessonId)}>
+          {busy === next?.lessonId ? "Opening…" : progress.enrolment ? `Continue: Unit ${next?.number}` : "Start Unit 1"}
+        </button>
+        {!script && <p className="n5-muted n5-center">Choose romaji or kana to begin.</p>}
+        <p className="n5-card-includes-title">This course includes</p>
+        <ul className="n5-card-includes">
+          {INCLUDES.map(([icon, text]) => (
+            <li key={text}>
+              <span aria-hidden>{icon}</span>
+              {text}
+            </li>
           ))}
-        </p>
-      )}
+        </ul>
+      </div>
+    </aside>
+  );
 
-      <section className="n5-map" aria-labelledby="n5-map-title">
-        <h2 id="n5-map-title" className="n5-visually-hidden">
-          Units
-        </h2>
-        {SECTIONS.map((section) => (
-          <div key={section.title} className="n5-map-row">
-            <p className="n5-map-label">
-              {section.title}
-              <small>
-                {section.range[0]}–{section.range[1]}
-              </small>
-            </p>
-            <ol className="n5-tiles">
-              {course.units
-                .filter((u) => u.number >= section.range[0] && u.number <= section.range[1])
-                .map((u) => {
-                  const p = byLesson.get(u.lessonId);
-                  const status = p?.status ?? "not_started";
-                  const where = u.episode ? `Ep ${u.episode.number}` : u.kind === "final" ? "Final" : "Checkpoint";
-                  return (
-                    <li key={u.id}>
-                      <button
-                        type="button"
-                        className="n5-tile"
-                        data-status={status}
-                        data-next={u.lessonId === next?.lessonId || undefined}
-                        data-kind={u.kind}
-                        disabled={!script || Boolean(busy)}
-                        onClick={() => open(u.lessonId)}
-                        title={`Unit ${u.number}: ${u.title}${u.episode ? ` · Episode ${u.episode.number}: ${u.episode.title}` : ""}`}
-                        aria-label={`Unit ${u.number}: ${u.title}. ${STATUS_LABEL[status]}`}
-                      >
-                        <span className="n5-tile-top">
-                          <b>{u.kind === "final" ? "★" : String(u.number).padStart(2, "0")}</b>
-                          <i aria-hidden>
-                            {status === "passed" ? "✓" : p?.speaking === "demonstrated" ? "🎙" : p?.bestPercent != null ? `${Math.round(p.bestPercent)}%` : ""}
-                          </i>
-                        </span>
-                        <span className="n5-tile-title">{u.title}</span>
-                        <span className="n5-tile-where">{where}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-            </ol>
+  return (
+    <div className="n5-course-home">
+      <section className="n5-course-hero">
+        <div className="n5-wrap n5-hero-inner">
+          <nav className="n5-crumbs" aria-label="Breadcrumb">
+            <Link href="/app">AnimeVocab</Link> <span aria-hidden>›</span> Japanese <span aria-hidden>›</span> JLPT N5
+          </nav>
+          <h1>Japanese for Beginners: JLPT N5 with Your Lie in April</h1>
+          <p className="n5-hero-sub">Learn real beginner Japanese one episode at a time: study the words, watch the episode, practise, then speak with an AI partner.</p>
+          <div className="n5-hero-tags">
+            <span className="n5-pill">Beginner</span>
+            <span className="n5-pill">Romaji or kana</span>
+            <span className="n5-pill n5-pill-warn">Unreviewed preview</span>
           </div>
-        ))}
-        <p className="n5-map-legend n5-muted" aria-hidden>
-          <span data-key="passed">Passed</span>
-          <span data-key="practised">Started</span>
-          <span data-key="next">Up next</span>
-        </p>
+          <ul className="n5-hero-meta">
+            <li>{total} units</li>
+            <li>22 episodes</li>
+            <li>{words}+ words</li>
+            <li>~{Math.round(minutes / 60)} hours</li>
+            <li>AI speaking practice</li>
+          </ul>
+        </div>
       </section>
 
-      <footer className="n5-map-foot n5-muted">
-        <p>
-          Coming later:{" "}
-          {planned.map((t, i) => (
-            <span key={t.id}>
-              {i > 0 && " · "}
-              {t.title} <span className="n5-chip n5-chip-soft">Planned</span>
-            </span>
-          ))}
-        </p>
-        <p>{course.limitation}</p>
-      </footer>
+      <div className="n5-wrap n5-home-grid">
+        {card}
+        <div className="n5-home-main">
+
+          {active.length > 0 && (
+            <section className="n5-box n5-resume-box">
+              <h2>Pick up where you left off</h2>
+              {active.map((a) => (
+                <Link key={a.id} className="n5-resume" href={`/app/n5/attempts/${a.id}`}>
+                  Resume unfinished {a.script} practice
+                  {a.lessonId ? ` · Unit ${course.units.find((u) => u.lessonId === a.lessonId)?.number ?? "?"}` : ""}
+                  <span aria-hidden>→</span>
+                </Link>
+              ))}
+            </section>
+          )}
+
+          <section className="n5-box n5-learn-box">
+            <h2>What you&apos;ll learn</h2>
+            <ul className="n5-outcomes">
+              {OUTCOMES.map((o) => (
+                <li key={o}>{o}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="n5-syllabus" aria-labelledby="n5-content-title">
+            <div className="n5-syllabus-head">
+              <h2 id="n5-content-title">Course content</h2>
+              <span className="n5-muted">
+                {SECTIONS.length} sections · {total} units · 22 episodes
+              </span>
+              <button type="button" className="n5-link" onClick={() => setExpandedSections(allOpen ? new Set() : new Set(SECTIONS.map((_, i) => i)))}>
+                {allOpen ? "Collapse all sections" : "Expand all sections"}
+              </button>
+            </div>
+            <div className="n5-syllabus-body">
+              {SECTIONS.map((section, index) => {
+                const units = course.units.filter((u) => u.number >= section.range[0] && u.number <= section.range[1]);
+                const sectionPassed = units.filter((u) => byLesson.get(u.lessonId)?.status === "passed").length;
+                const expanded = expandedSections.has(index);
+                return (
+                  <section key={section.title} className="n5-syl-section">
+                    <button type="button" className="n5-syl-toggle" aria-expanded={expanded} onClick={() => toggle(index)}>
+                      <span className="n5-chevron" aria-hidden>
+                        ▾
+                      </span>
+                      <strong>
+                        Section {index + 1}: {section.title}
+                      </strong>
+                      <span className="n5-muted">
+                        {sectionPassed}/{units.length} passed · {units.length} units
+                      </span>
+                    </button>
+                    {expanded && (
+                      <ol className="n5-syl-units">
+                        {units.map((u) => {
+                          const p = byLesson.get(u.lessonId);
+                          const status = p?.status ?? "not_started";
+                          const done = completedSteps(u.kind, p, ownerId ? readLocalSteps(ownerId, u.lessonId) : []);
+                          const steps = stepsFor(u.kind);
+                          const isNext = u.lessonId === next?.lessonId;
+                          return (
+                            <li key={u.id} data-status={status} data-next={isNext || undefined}>
+                              <button
+                                type="button"
+                                className="n5-syl-unit"
+                                disabled={!script || Boolean(busy)}
+                                onClick={() => open(u.lessonId)}
+                                aria-label={`Unit ${u.number}: ${u.title}. ${STATUS_LABEL[status]}`}
+                              >
+                                <span className="n5-check" data-state={status === "passed" ? "done" : isNext ? "current" : done.size ? "partial" : "todo"} aria-hidden>
+                                  {status === "passed" ? "✓" : ""}
+                                </span>
+                                <span className="n5-syl-text">
+                                  <strong>
+                                    Unit {u.number}: {u.title}
+                                  </strong>
+                                  <small>{u.episode ? `Episode ${u.episode.number} · ${u.episode.title}` : u.kind === "final" ? "Season final · cumulative test" : "Checkpoint · review of units 1–11"}</small>
+                                </span>
+                                <span className="n5-syl-steps" aria-hidden>
+                                  {steps.map((s) => (
+                                    <span key={s} data-done={done.has(s) || undefined} title={STEP_INFO[s].label}>
+                                      {STEP_ICON[s]}
+                                    </span>
+                                  ))}
+                                </span>
+                                <span className="n5-syl-meta">
+                                  {p?.bestPercent != null ? <span className="n5-chip" data-verdict={status === "passed" ? "correct" : "close"}>{Math.round(p.bestPercent)}%</span> : null}
+                                  {p?.speaking === "demonstrated" && <span className="n5-chip" data-verdict="correct">Spoken</span>}
+                                  {isNext && <span className="n5-chip n5-chip-next">Up next</span>}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="n5-box">
+            <h2>How each unit works</h2>
+            <ol className="n5-how">
+              {(["learn", "drill", "watch", "practice", "speak"] as const).map((s, i) => (
+                <li key={s}>
+                  <span className="n5-how-icon" aria-hidden>
+                    {STEP_ICON[s]}
+                  </span>
+                  <strong>
+                    {i + 1}. {STEP_INFO[s].label}
+                  </strong>
+                  <small>{STEP_INFO[s].blurb}</small>
+                </li>
+              ))}
+            </ol>
+            <p className="n5-muted">Score 80% in Practice to pass a unit. Speaking counts once you&apos;ve spoken at least three replies aloud.</p>
+          </section>
+
+          <section className="n5-about">
+            <h2>Good to know</h2>
+            <ul>
+              <li>Watch on your own Crunchyroll subscription; availability depends on your region.</li>
+              <li>All example sentences and questions are original practice material, not lines from the show.</li>
+              <li>{course.limitation}</li>
+            </ul>
+            <p className="n5-muted">
+              More anime tracks are coming:{" "}
+              {planned.map((t, i) => (
+                <span key={t.id}>
+                  {i > 0 && " · "}
+                  {t.title} <span className="n5-chip n5-chip-soft">Planned</span>
+                </span>
+              ))}
+            </p>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }
