@@ -2,7 +2,7 @@
   "name": "avc-api",
   "version": "0.1.0",
   "private": true,
-  "description": "AnimeVocab Pro backend \u2014 Cloudflare Worker that validates Dodo Payments licenses, meters listening hours, and mints ephemeral OpenAI Realtime tokens.",
+  "description": "AnimeVocab Pro backend — Cloudflare Worker that validates Dodo Payments licenses, meters listening hours, and mints ephemeral OpenAI Realtime tokens.",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -13,6 +13,7 @@
     "test:mutation": "stryker run",
     "types:n5": "wrangler types src/n5/bindings.d.ts --config wrangler.n5.jsonc --env-interface N5Bindings --include-runtime=false --strict-vars=false",
     "types:n5:check": "npm run types:n5 -- --check",
+    "dependencies:n5:check": "node scripts/check-n5-dependencies.mjs && node --test scripts/check-n5-dependencies.test.mjs",
     "contracts:n5": "node scripts/generate-n5-contracts.mjs",
     "contracts:n5:check": "node scripts/generate-n5-contracts.mjs --check",
     "dev:n5": "node scripts/n5-local.mjs"

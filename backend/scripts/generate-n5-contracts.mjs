@@ -4,13 +4,13 @@ import { resolve } from "node:path";
 
 const compiled = await build({
   stdin: {
-    contents: `import {z} from 'zod'; import {enrolmentSchema,attemptSchema,eventSchema,answersSchema,finishSchema} from './src/n5/domain';
+    contents: `export {CONTENT_VERSION as contentVersion} from './src/n5/content'; import {z} from 'zod'; import {enrolmentSchema,attemptSchema,eventSchema,answersSchema,finishSchema} from './src/n5/domain';
       export default Object.fromEntries(Object.entries({enrolment:enrolmentSchema,attempt:attemptSchema,event:eventSchema,answers:answersSchema,finish:finishSchema}).map(([key,schema])=>[key,z.toJSONSchema(schema)]));`,
     resolveDir: process.cwd(),
   }, bundle: true, write: false, format: "esm", platform: "node",
 });
-const { default: requests } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString("base64")}`);
-const output = JSON.stringify({ apiVersion: 1, contentVersion: "preview-1", requests }, null, 2) + "\n";
+const { default: requests, contentVersion } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString("base64")}`);
+const output = JSON.stringify({ apiVersion: 1, contentVersion, requests }, null, 2) + "\n";
 const path = resolve("../shared/n5/requests.schema.json");
 if (process.argv.includes("--check")) {
   if (await readFile(path, "utf8") !== output) throw new Error("N5 request schemas are stale. Run npm run contracts:n5.");

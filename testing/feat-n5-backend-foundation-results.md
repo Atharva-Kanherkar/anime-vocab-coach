@@ -45,3 +45,25 @@ Verification of the repair:
 - After copying only the repaired root manifests into the same clean checkout and running root `npm ci`, both commands passed with `backend/node_modules` still absent.
 - Root TypeScript and all 316 extension unit tests passed. Existing backend unit, real Worker/D1, fuzz and mutation gates were rerun; the validation/grading source did not change.
 - No dashboard settings, live Worker deployment, feature flags or learning behavior changed. The remote result is visible in PR #177's checks.
+
+## PR review repairs
+
+Addressed all seven inline review comments after committing the expanded contract in `f8366aa`:
+
+- Current practice capacity counts only matching lesson/version/full pack hash. Stale attempts stay readable; an owner can abandon any active attempt with `DELETE /attempts/:id`, with cascading receipt cleanup. Completed results survive abandonment/finish races. The full pack hash intentionally remains conservative about prompt changes.
+- NFKC keyboard validation accepts IME spaces, smart apostrophes, Hepburn macrons/circumflexes and kana wave marks/ellipsis without transliterating or mixing scripts. Original answer text and idempotency fingerprints remain intact. Invalid answer errors include only the offending question ID.
+- Progress/reviews/export now return shared response types. Existing export field names are preserved, and COURSE_ID is bound into export SQL.
+- Enrolment/event receipt limits are atomic at 100/1,000 per user, with successful replays still available at capacity. Concurrent and cross-account cases pass.
+- Root/backend Zod manifest and locked-version parity is now checked before backend dependency installation, including negative mismatch tests. The existing root build entrypoint is retained without requiring dashboard changes.
+- Generated schema metadata imports CONTENT_VERSION. Restored the existing package description formatting.
+
+Verification on the reviewed changes:
+
+- Backend TypeScript: pass. Unit tests: 41 pass; dependency-parity tests: 4 pass, including deliberately mismatched in-memory lockfiles and manifest ranges.
+- Actual Worker/KV/D1 E2Es: 29 pass, including both full-script journeys, pack/version/lesson recovery, abandon/save/finish races, response projections, keyboard snapshots/replays, concurrent capacity limits, ownership, rollback and deletion.
+- Five seeded domain properties x 1,000 cases plus two HTTP properties x 100 cases: 5,200 pass.
+- Stryker: 137/138 killed (99.28%), zero uncovered/error/timeout mutants, unchanged 90% CI gate, no exclusions. The one survivor replaces smart apostrophes with an empty string instead of an allowed ASCII apostrophe in the validation-only view. This is equivalent for the boolean validator: neither punctuation counts as a letter, and removing or replacing it cannot change valid-script membership; persisted raw text is untouched. No artificial test or exclusion was added for that equivalent case.
+- Generated request schemas and binding checks: pass. Production Wrangler deploy dry-run: pass, with no upload.
+- Ten local curl probes using the synthetic identity: unauthenticated catalogue 401; catalogue/enrolment/lesson/attempt 200; voice 503; kana keyboard snapshot 200; mixed-script snapshot 400 with question ID; abandon 200; subsequent read 404.
+
+Review scratch state is isolated at `/tmp/animevocab-n5-review/reviewcheckpoint.json` because the global `/tmp/reviewcheckpoint.json` is currently owned by an unrelated concurrent branch. No scratch files are committed. Remote checks will be verified after the repair commits are pushed.
