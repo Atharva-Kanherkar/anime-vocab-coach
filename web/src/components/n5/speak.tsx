@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { Icon } from "./icons";
 import Link from "next/link";
 import type { N5Conversation, N5Lesson } from "../../../../shared/n5/contracts";
 import { MAX_RECORDING_MS, recorderTransition, recordingType, remaining } from "@/lib/n5/recorder";
 import { CourseFailure, courseRequest, Failure, Loading, newKey, useCourse } from "./common";
 import { PlayButton, playAudio, stopAudio } from "./audio";
+import { PlayerShell } from "./player";
 
 type TurnBody = { afterSeq: number; idempotencyKey: string } & ({ text: string } | { audio: { data: string; mime: string } });
 
@@ -212,7 +214,7 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
 
   const result = conversation?.result;
   return (
-    <>
+    <PlayerShell ownerId={ownerId} lessonId={lesson.id} step="speak">
       <section className="n5-hero">
         <p className="n5-eyebrow">
           Unit {lesson.unit} · Speak with Haru · {lesson.script}
@@ -274,7 +276,11 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
                       </span>
                     </small>
                   )}
-                  {turn.tip && <small className="n5-tip">💡 {turn.tip}</small>}
+                  {turn.tip && (
+                    <small className="n5-tip">
+                      <Icon name="bulb" size={13} /> {turn.tip}
+                    </small>
+                  )}
                 </div>
               </li>
             ))}
@@ -303,7 +309,7 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
                     onClick={() => (recorder.phase === "recording" ? stopRecording() : startRecording())}
                     aria-label={recorder.phase === "recording" ? "Stop recording and send" : "Start recording"}
                   >
-                    <span aria-hidden>{recorder.phase === "recording" ? "■" : "🎙"}</span>
+                    <Icon name={recorder.phase === "recording" ? "stop" : "mic"} size={28} />
                   </button>
                   <p role="status" className="n5-muted">
                     {recorder.phase === "recording"
@@ -366,7 +372,7 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
             <div className="n5-speaking-result">
               <p className="n5-eyebrow">Your speaking result</p>
               <h2>
-                {result.status === "demonstrated" ? "Speaking demonstrated ✓" : result.status === "needs_practice" ? "Nice start, keep practising" : "Typed practice complete"}
+                {result.status === "demonstrated" ? "Speaking demonstrated" : result.status === "needs_practice" ? "Nice start, keep practising" : "Typed practice complete"}
               </h2>
               <dl className="n5-skill-bars">
                 {[
@@ -406,13 +412,13 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
                     Next unit →
                   </Link>
                 )}
-                <Link href="/app/n5">Course map</Link>
+                <Link href="/app/n5">Course home</Link>
               </div>
             </div>
           )}
           {limitReached && conversation.status === "active" && <p className="n5-callout">That&apos;s ten replies. Finish to see your feedback.</p>}
         </section>
       )}
-    </>
+    </PlayerShell>
   );
 }

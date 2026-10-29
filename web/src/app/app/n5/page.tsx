@@ -1,3 +1,6 @@
 import { CourseHub } from "@/components/n5/hub";
-export const metadata = { title: "N5 course preview | AnimeVocab" };
-export default function CoursePage() { return <CourseHub />; }
+import { n5OwnerId } from "@/lib/n5/server";
+export const metadata = { title: "Japanese N5 with Your Lie in April | AnimeVocab" };
+export default async function CoursePage() {
+  return <CourseHub ownerId={(await n5OwnerId()) ?? ""} />;
+}
