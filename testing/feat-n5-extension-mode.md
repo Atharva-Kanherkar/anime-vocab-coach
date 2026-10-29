@@ -40,3 +40,14 @@
 ## Dependencies
 
 - Backend contract/sample pack (#177) first; frontend provides the stable runner route and completion signal; end-to-end validation is shared across all three issues (#174/#175/#176).
+
+## Pilot delivery checkpoint (after merged audit #179)
+
+- Deliver a usable episode-one extension pilot: explicit popup entry, authenticated course/script selection, original target vocabulary and examples in a compact video panel, explicit player binding, durable watch observations, safe hosted-practice handoff, and recovery after worker/network/account changes.
+- Backend supplies a bounded, authenticated extension snapshot including its verified owner and the pinned lesson context. Cache keys/outbox are partitioned by verified owner and credential fingerprint. A token/account change invalidates active bindings before replay. A disabled/denied pilot is not treated as offline success.
+- The course focus panel shows only reviewed-by-schema lesson renderings in the selected pure script. It suspends ordinary live overlays while active, restores them on exit, and does not change stored general settings or deck. Unknown anime/player identity requires explicit confirmation; SPA navigation/video replacement invalidates the binding. No automatic title guessing or proficiency award.
+- Persist watch events before transmission with stable IDs; retry the same payload, preserve failures, bound the queue without silently dropping work, and never replay another owner's queue.
+- Handoff succeeds only after the selected player's pause is acknowledged and any offscreen capture stop is acknowledged. Missing player/capture acknowledgements fail closed; no assessment tab opens. The hosted destination is fixed to the owned origin and IDs/script, never arbitrary message URLs.
+- Unit/runtime tests cover ownership, strict messages, URL safety, queue duplicate/replay/bounds and state transitions. Fresh-profile actual-extension Playwright covers both scripts, pause and capture-stop success/failure, navigation invalidation, offline retry, worker restart and account switch. Fuzz and mutation tests cover pure course boundaries.
+- Publish a separate static HTML architecture explainer on Vercel after verifying it locally with Playwright. Explain the learner journey, extension/background/web/API/D1/KV responsibilities, credential boundaries and implemented versus planned capabilities. No secrets or learner data are published. This explicit user request authorizes only the explainer deployment; production course flags remain off.
+- Pilot capability tracking is not a claim that 70% of the six-track curriculum or voice assessment is complete. Voice, full reviewed content, SRS event consumption and automatic provider mapping remain explicit follow-ups.
