@@ -29,3 +29,10 @@
 - Exercise the local gateway auth, cross-origin mutation, disabled feature and invalid-route probes in web/e2e/n5-course.mjs.
 - Record browser evidence and actionable findings in testing/fix-n5-merged-audit-results.md.
 - Real Clerk credentials and live streaming subscriptions are not assumed available; document any unverified signed-in/provider flow without claiming it passed.
+
+## Confirmed audit regressions to lock before fixes
+- An invited web-only course request must use a server-only N5 credential, without creating/sliding extension-token records or changing extension-link metrics. N5 credentials must be rejected by ordinary sync/paid Worker routes, enforce ownership/expiry, and remain valid for allowlisted N5 requests.
+- After an enrolment response is lost, switching back to the initially selected script must reconcile with the server instead of relying on stale initial progress.
+- Attempt-start receipts are scoped to the lesson script. A stale tab must not silently start in a different script after another tab changes enrolment.
+- Session recovery must perform a document reload rather than retaining the layout's expired-session latch.
+- Owner analytics must parse the real `synctoken:user:<id>:v1` key shape so exclusions and Clerk plan joins work.
