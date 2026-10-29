@@ -12,3 +12,7 @@ test/vid.mp4
 !.env.example
 .gstack/
 e2e/shots/
+
+# Local N5 test tooling output
+backend/.stryker-tmp/
+backend/reports/

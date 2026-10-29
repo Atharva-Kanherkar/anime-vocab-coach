@@ -1,0 +1,154 @@
+{
+  "apiVersion": 1,
+  "contentVersion": "preview-1",
+  "requests": {
+    "enrolment": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "trackId": {
+          "type": "string",
+          "const": "your-lie-in-april-2014"
+        },
+        "script": {
+          "type": "string",
+          "enum": [
+            "romaji",
+            "kana"
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        }
+      },
+      "required": [
+        "trackId",
+        "script",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "attempt": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "lessonId": {
+          "type": "string",
+          "const": "your-lie-in-april-s1-e1"
+        },
+        "contentVersion": {
+          "type": "string",
+          "const": "preview-1"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        }
+      },
+      "required": [
+        "lessonId",
+        "contentVersion",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "event": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "episodeId": {
+          "type": "string",
+          "const": "your-lie-in-april-2014-s1-e1"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "watch_complete",
+            "practice_complete"
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        }
+      },
+      "required": [
+        "episodeId",
+        "kind",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "answers": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "answers": {
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "questionId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "questionId",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "revision",
+        "idempotencyKey",
+        "answers"
+      ],
+      "additionalProperties": false
+    },
+    "finish": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      },
+      "required": [
+        "revision"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

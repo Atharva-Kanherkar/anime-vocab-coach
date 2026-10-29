@@ -1,5 +1,7 @@
 # AnimeVocab backend
 
+The private N5 course backend foundation is documented in [N5.md](N5.md). It is disabled by default and uses local Worker/D1 tests; it does not change existing listening allowances.
+
 A single Cloudflare Worker that powers hosted Listening Mode across the Free,
 Pro ($8/mo), and Max ($16/mo) tiers. It does three small jobs:
 

@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "avc-api-n5-local",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "vars": { "N5_ENABLED": "1", "N5_PREVIEW_USERS": "n5-local-user,n5-other-user" },
+  "kv_namespaces": [{ "binding": "AVC_KV", "id": "00000000000000000000000000000000" }],
+  "d1_databases": [{
+    "binding": "N5_DB", "database_name": "avc-n5-local",
+    "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations"
+  }]
+}
