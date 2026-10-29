@@ -55,7 +55,21 @@ DEEPINFRA_WHISPER_MODEL = "openai/whisper-large-v3"
 # TRANSCRIBE_PROVIDERS = "groq,deepinfra,openai"
 TRANSCRIBE_PROVIDERS = "openai"
 TRANSCRIPT_MODEL_VERSION = "1"
+# N5 course (private preview). Who may use it is the N5_PREVIEW_USERS secret
+# (comma-separated Clerk user ids), set with `npx wrangler secret put N5_PREVIEW_USERS`.
+# An empty or missing allowlist denies everyone. N5_AI_ENABLED is the kill switch
+# for course audio, writing feedback and the speaking tutor; lessons keep working.
+N5_ENABLED = "1"
+N5_AI_ENABLED = "1"
 PROMO_END_UTC = "2026-08-03T23:59:59.000Z"
+
+# N5 course storage. Apply migrations before deploying new course code:
+#   npx wrangler d1 migrations apply avc-n5 --remote
+[[d1_databases]]
+binding = "N5_DB"
+database_name = "avc-n5"
+database_id = "578cb3a0-025f-4d1c-b70e-a1394afa7d52"
+migrations_dir = "migrations"
 
 # Listening Mode transcription observability. Dataset is created on first write
 # and needs no credentials; the /owner dashboard READS it over the Analytics

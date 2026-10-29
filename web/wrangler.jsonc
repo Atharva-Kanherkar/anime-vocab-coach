@@ -52,6 +52,9 @@
     // `wrangler secret put CF_ANALYTICS_API_TOKEN`.
     "CF_ACCOUNT_ID": "68b4f7e6d89fd7ac4cbf3243fe190b5f",
     "AI_COACH_MODEL": "gpt-5.6-luna",
+    // N5 course (private preview). Members come from the N5_PREVIEW_USERS secret
+    // (Clerk user ids, also set on the API); nobody else sees the course.
+    "N5_WEB_PREVIEW_ENABLED": "1",
     // Two meters. *_AI_CALLS_PER_MONTH is what the pricing page advertises and
     // covers only AI the learner asks for (explain / hooks / chat / notebook
     // summaries). *_AUTO_AI_CALLS_PER_MONTH covers what the extension fires by
