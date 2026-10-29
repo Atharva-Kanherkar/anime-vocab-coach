@@ -51,3 +51,12 @@ This first PR begins #174 with an authenticated, private backend preview. It doe
 
 - Reproducible local preview commands and synthetic auth seeding live in backend N5 documentation. Execute the documented curl flow against localhost, including unauthenticated catalogue, catalogue with a local-only synthetic token, and disabled voice. No real user credentials or production data are used.
 - Run backend typecheck, existing/new unit tests, runtime E2Es, fuzz suite, mutation suite, Wrangler type generation check, and deploy dry-run. Record exact results in testing evidence before opening a PR. No production deployment smoke test is claimed.
+
+## CI Repair: Root Worker Build
+
+The repository-root Worker build is a supported entrypoint alongside the backend directory. A fresh checkout with only root `npm ci` must resolve every Worker runtime import without requiring `backend/node_modules`. The root manifest must provide the Worker runtime dependency used by the root build; backend standalone installs must continue to work.
+
+- Regression: with no backend dependency tree installed, bundle `backend/src/index.ts` using the root-installed esbuild. It must succeed after root `npm ci`; before the repair it fails resolving `zod`.
+- GitHub CI must exercise this cold root bundle before running backend `npm ci`, so a populated backend dependency tree cannot mask missing root dependencies.
+- Verify a real root `wrangler versions upload --dry-run --config backend/wrangler.toml` in a clean snapshot with no backend dependency tree, then rerun the existing backend gates. Keep the N5 feature disabled and preserve current API behavior.
+- Push the repair to PR #177 and verify the actual Cloudflare Workers build check. A local reproduction alone does not establish that the remote failure is fixed.
