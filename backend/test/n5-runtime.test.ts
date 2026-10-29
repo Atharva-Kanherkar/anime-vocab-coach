@@ -49,13 +49,17 @@ describe("real Worker and D1 end-to-end", () => {
     const progress = await (await app.request("/me/progress")).json();
     expect(progress.mastery).toBe(false);
     expect(progress.observations).toEqual([{ episodeId: EPISODE_ID, kind: "watch_complete" }]);
-    expect(progress.attempts).toHaveLength(1);
+    expect(progress.attempts).toEqual([{ id: fresh.id, status: "complete", script, result: finished.result }]);
+    expect(progress.enrolment).toEqual({ trackId: TRACK_ID, script });
     const reviews = await (await app.request("/me/reviews")).json();
     expect(reviews.consumerStatus).toBe("not_integrated");
     expect(reviews.events).toHaveLength(8);
     expect(new Set(reviews.events.map((e: { id: string }) => e.id)).size).toBe(8);
     const exported = await (await app.request("/me/export")).json();
     expect(exported.attempts).toEqual([finished]);
+    expect(exported.enrolments).toEqual([{ track_id: TRACK_ID, script, created_at: expect.any(Number) }]);
+    expect(exported.observations).toEqual([{ episode_id: EPISODE_ID, kind: "watch_complete", created_at: expect.any(Number) }]);
+    expect(exported.reviews).toEqual(reviews.events.map((e: { id: string; attemptId: string; objectiveId: string; judgment: string }) => ({ id: e.id, attempt_id: e.attemptId, objective_id: e.objectiveId, judgment: e.judgment })));
     expect(JSON.stringify(exported)).not.toMatch(/fingerprint|pack_hash|mutation_nonce|correctOption/);
     expect((await app.request("/me", { method: "DELETE" })).status).toBe(200);
     for (const table of ["n5_accounts", "n5_enrolments", "n5_events", "n5_attempts", "n5_answer_requests", "n5_review_events"]) expect((await app.db!.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first())?.n).toBe(0);
@@ -185,5 +189,89 @@ describe("runtime availability and persistence", () => {
       isolated = await runtime({ persist });
       expect(await (await isolated.request(`/attempts/${fresh.id}`)).json()).toEqual(fresh);
     } finally { await isolated.mf.dispose(); await rm(persist, { recursive: true, force: true }); }
+  });
+});
+
+describe("PR review regressions", () => {
+  it.each(["pack_hash", "content_version", "lesson_id"])("releases stale %s capacity while preserving history and current-pack bounds", async (column) => {
+    const old = await attempt();
+    for (let n = 1; n < 5; n++) expect((await app.request("/attempts", { body: { ...create, idempotencyKey: `old-${n}` } })).status).toBe(200);
+    await app.db!.prepare(`UPDATE n5_attempts SET ${column}='old'`).run();
+    const stale = await app.request(`/attempts/${old.id}/answers`, { body: { revision: 0, idempotencyKey: "stale", answers: correctAnswers() } });
+    expect(stale.status).toBe(409);
+    expect((await stale.json()).error.code).toBe("stale_content");
+    const responses = await Promise.all(Array.from({ length: 8 }, (_, n) => app.request("/attempts", { body: { ...create, idempotencyKey: `new-${n}` } })));
+    expect(responses.filter((r) => r.status === 200)).toHaveLength(5);
+    expect(responses.filter((r) => r.status === 429)).toHaveLength(3);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_attempts").first())?.n).toBe(10);
+    expect((await (await app.request("/attempts", { body: create })).json()).id).toBe(old.id);
+  });
+
+  it("abandons only owned active attempts including stale packs and cascades receipts", async () => {
+    const old = await attempt();
+    const unsupported = await app.request(`/attempts/${old.id}`, { method: "POST" });
+    expect(unsupported.status).toBe(405);
+    expect(unsupported.headers.get("Allow")).toBe("GET, DELETE");
+    await app.request(`/attempts/${old.id}/answers`, { body: { revision: 0, idempotencyKey: "answer", answers: correctAnswers() } });
+    expect((await app.request(`/attempts/${old.id}`, { method: "DELETE", token: "avc_st_n5other" })).status).toBe(404);
+    expect((await app.request(`/attempts/${old.id}`, { method: "DELETE", body: {} })).status).toBe(400);
+    await app.db!.prepare("UPDATE n5_attempts SET pack_hash='stale' WHERE id=?").bind(old.id).run();
+    expect(await (await app.request(`/attempts/${old.id}`, { method: "DELETE" })).json()).toEqual({ deleted: true });
+    expect((await app.request(`/attempts/${old.id}`)).status).toBe(404);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_answer_requests").first())?.n).toBe(0);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_enrolments").first())?.n).toBe(1);
+    const fresh = await attempt();
+    await app.request(`/attempts/${fresh.id}/answers`, { body: { revision: 0, idempotencyKey: "answer", answers: correctAnswers() } });
+    expect((await app.request(`/attempts/${fresh.id}/finish`, { body: { revision: 1 } })).status).toBe(200);
+    expect((await app.request(`/attempts/${fresh.id}`, { method: "DELETE" })).status).toBe(409);
+    expect((await (await app.request("/me/reviews")).json()).events).toHaveLength(8);
+  });
+
+  it.each(["answers", "finish"])("keeps abandon/%s races atomic", async (action) => {
+    const fresh = await attempt();
+    await app.request(`/attempts/${fresh.id}/answers`, { body: { revision: 0, idempotencyKey: "saved", answers: correctAnswers() } });
+    const [deleted, mutation] = await Promise.all([
+      app.request(`/attempts/${fresh.id}`, { method: "DELETE" }),
+      app.request(`/attempts/${fresh.id}/${action}`, { body: action === "finish" ? { revision: 1 } : { revision: 1, idempotencyKey: "race", answers: correctAnswers() } }),
+    ]);
+    expect([200, 409]).toContain(deleted.status);
+    expect([200, 404, 409]).toContain(mutation.status);
+    const stored = await app.request(`/attempts/${fresh.id}`);
+    if (deleted.status === 200) {
+      expect(stored.status).toBe(404);
+      for (const table of ["n5_answer_requests", "n5_review_events"]) expect((await app.db!.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first())?.n).toBe(0);
+    } else {
+      expect(await stored.json()).toMatchObject({ status: "complete" });
+      expect((await (await app.request("/me/reviews")).json()).events).toHaveLength(8);
+    }
+  });
+
+  it("bounds enrolments and observations atomically while preserving replays at capacity", async () => {
+    await app.request("/enrolments", { body: enrol });
+    const event = { episodeId: EPISODE_ID, kind: "watch_complete", idempotencyKey: "watch" };
+    const watched = await (await app.request("/events", { body: event })).json();
+    await app.db!.prepare(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<98)
+      INSERT INTO n5_enrolments(user_id,request_key,fingerprint,track_id,script,created_at)
+      SELECT 'n5-local-user','seed-'||x,'seed',?,'romaji',x FROM n`).bind(TRACK_ID).run();
+    await app.db!.prepare(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<998)
+      INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at)
+      SELECT 'event-'||x,'n5-local-user','seed-'||x,'seed',?,'watch_complete',x FROM n`).bind(EPISODE_ID).run();
+    for (const [path, body, table, limit, code] of [
+      ["/enrolments", enrol, "n5_enrolments", 100, "enrolment_limit"],
+      ["/events", event, "n5_events", 1000, "event_limit"],
+    ] as const) {
+      const responses = await Promise.all(Array.from({ length: 8 }, (_, n) => app.request(path, { body: { ...body, idempotencyKey: `limit-${n}` } })));
+      expect(responses.filter((r) => r.status === 200)).toHaveLength(1);
+      const rejected = responses.filter((r) => r.status === 429);
+      expect(rejected).toHaveLength(7);
+      expect((await rejected[0].json()).error.code).toBe(code);
+      expect((await app.db!.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id='n5-local-user'`).first())?.n).toBe(limit);
+      expect((await app.request(path, { body })).status).toBe(200);
+    }
+    expect(await (await app.request("/events", { body: event })).json()).toEqual(watched);
+    expect((await app.request("/enrolments", { body: { ...enrol, script: "kana" } })).status).toBe(409);
+    expect((await app.request("/events", { body: { ...event, kind: "practice_complete" } })).status).toBe(409);
+    expect((await app.request("/enrolments", { body: enrol, token: "avc_st_n5other" })).status).toBe(200);
+    expect((await app.request("/events", { body: event, token: "avc_st_n5other" })).status).toBe(200);
   });
 });

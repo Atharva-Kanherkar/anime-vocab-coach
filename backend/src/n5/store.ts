@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { N5Answer, N5Attempt, N5Result, N5ReviewEvent, N5Script } from "../../../shared/n5/contracts";
+import type { N5Answer, N5Attempt, N5Enrolment, N5Export, N5Progress, N5Result, N5ReviewEvent, N5Reviews, N5Script } from "../../../shared/n5/contracts";
 import { CONTENT_VERSION, COURSE_ID, LESSON_ID, QUESTIONS } from "./content";
 import { type answersSchema, type attemptSchema, type enrolmentSchema, type eventSchema, completeAnswers, fingerprint, grade } from "./domain";
 
@@ -32,10 +32,10 @@ export class CourseStore {
   async enrol(body: z.infer<typeof enrolmentSchema>): Promise<{ trackId: string; script: N5Script }> {
     const hash = await fingerprint(body);
     await this.db.batch([this.account(), this.statement(
-      "INSERT INTO n5_enrolments(user_id,request_key,fingerprint,track_id,script,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,request_key) DO NOTHING",
-      this.userId, body.idempotencyKey, hash, body.trackId, body.script, Date.now())]);
+      "INSERT INTO n5_enrolments(user_id,request_key,fingerprint,track_id,script,created_at) SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM n5_enrolments WHERE user_id=?) < 100 ON CONFLICT(user_id,request_key) DO NOTHING",
+      this.userId, body.idempotencyKey, hash, body.trackId, body.script, Date.now(), this.userId)]);
     const row = await this.statement("SELECT * FROM n5_enrolments WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<EnrolmentRow>();
-    if (!row) conflict();
+    if (!row) throw new CourseError("enrolment_limit", 429, "Enrolment preference history is full.");
     checkFingerprint(row.fingerprint, hash);
     return { trackId: row.track_id, script: row.script };
   }
@@ -46,10 +46,10 @@ export class CourseStore {
   async observe(body: z.infer<typeof eventSchema>): Promise<{ id: string }> {
     if (!await this.enrolment()) throw new CourseError("enrolment_required", 409, "Select a course track first.");
     const hash = await fingerprint(body);
-    await this.statement("INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id,request_key) DO NOTHING",
-      crypto.randomUUID(), this.userId, body.idempotencyKey, hash, body.episodeId, body.kind, Date.now()).run();
+    await this.statement("INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at) SELECT ?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM n5_events WHERE user_id=?) < 1000 ON CONFLICT(user_id,request_key) DO NOTHING",
+      crypto.randomUUID(), this.userId, body.idempotencyKey, hash, body.episodeId, body.kind, Date.now(), this.userId).run();
     const row = await this.statement("SELECT id,fingerprint FROM n5_events WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<{ id: string; fingerprint: string }>();
-    if (!row) conflict();
+    if (!row) throw new CourseError("event_limit", 429, "Observation history is full.");
     checkFingerprint(row.fingerprint, hash);
     return { id: row.id };
   }
@@ -69,15 +69,23 @@ export class CourseStore {
     if (existing) { checkFingerprint(existing.fingerprint, hash); return publicAttempt(existing); }
     const enrolment = await this.enrolment();
     if (!enrolment) throw new CourseError("enrolment_required", 409, "Select a course track first.");
-    // Atomic bound, including simultaneous create requests, to avoid unbounded active attempts.
+    const packHash = await fingerprint(QUESTIONS);
+    // Stale packs remain readable/deletable but cannot block current practice.
+    // The bound is atomic even for simultaneous create requests.
     await this.statement(`INSERT INTO n5_attempts(id,user_id,request_key,fingerprint,lesson_id,content_version,pack_hash,script,created_at)
-      SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM n5_attempts WHERE user_id=? AND status='active') < 5
+      SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM n5_attempts WHERE user_id=? AND status='active' AND lesson_id=? AND content_version=? AND pack_hash=?) < 5
       ON CONFLICT(user_id,request_key) DO NOTHING`, crypto.randomUUID(), this.userId, body.idempotencyKey, hash,
-      body.lessonId, body.contentVersion, await fingerprint(QUESTIONS), enrolment.script, Date.now(), this.userId).run();
+      body.lessonId, body.contentVersion, packHash, enrolment.script, Date.now(), this.userId, body.lessonId, body.contentVersion, packHash).run();
     const row = await this.statement("SELECT * FROM n5_attempts WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<AttemptRow>();
-    if (!row) throw new CourseError("attempt_limit", 429, "Finish an active attempt before starting another.");
+    if (!row) throw new CourseError("attempt_limit", 429, "Finish or delete an active attempt before starting another.");
     checkFingerprint(row.fingerprint, hash);
     return publicAttempt(row);
+  }
+  async abandon(id: string): Promise<{ deleted: true }> {
+    await this.row(id); // Owner check does not require the original pack.
+    const deleted = await this.statement("DELETE FROM n5_attempts WHERE id=? AND user_id=? AND status='active' RETURNING id", id, this.userId).first<{ id: string }>();
+    if (!deleted) conflict(); // A completed result must survive a finish/delete race.
+    return { deleted: true };
   }
   async get(id: string): Promise<N5Attempt> { return publicAttempt(await this.row(id)); }
   async saveAnswers(id: string, body: z.infer<typeof answersSchema>): Promise<{ attemptId: string; revision: number }> {
@@ -123,27 +131,27 @@ export class CourseStore {
     if (finished.status !== "complete") conflict();
     return publicAttempt(finished);
   }
-  async progress(): Promise<unknown> {
+  async progress(): Promise<N5Progress> {
     const [enrolments, events, attempts] = await this.db.batch<Record<string, unknown>>([
       this.statement("SELECT track_id AS trackId,script FROM n5_enrolments WHERE user_id=? ORDER BY id DESC LIMIT 1", this.userId),
       this.statement("SELECT DISTINCT episode_id AS episodeId,kind FROM n5_events WHERE user_id=? ORDER BY episode_id,kind", this.userId),
       this.statement("SELECT id,status,script,result_json FROM n5_attempts WHERE user_id=? ORDER BY created_at,id", this.userId),
-    ]);
+    ]) as [D1Result<N5Enrolment>, D1Result<N5Progress["observations"][number]>, D1Result<Pick<AttemptRow, "id" | "status" | "script" | "result_json">>];
     return { enrolment: enrolments.results[0] ?? null, observations: events.results,
       attempts: attempts.results.map((row) => ({ id: row.id, status: row.status, script: row.script,
         result: typeof row.result_json === "string" ? JSON.parse(row.result_json) as N5Result : null })), mastery: false };
   }
-  async reviews(): Promise<N5ReviewEvent[]> {
+  async reviews(): Promise<N5Reviews> {
     const rows = await this.statement("SELECT id,attempt_id AS attemptId,objective_id AS objectiveId,judgment FROM n5_review_events WHERE user_id=? ORDER BY id", this.userId).all<N5ReviewEvent>();
-    return rows.results;
+    return { events: rows.results, consumerStatus: "not_integrated" };
   }
-  async exportData(): Promise<unknown> {
+  async exportData(): Promise<N5Export> {
     const result = await this.db.batch<Record<string, unknown>>([
       this.statement("SELECT track_id,script,created_at FROM n5_enrolments WHERE user_id=? ORDER BY id", this.userId),
       this.statement("SELECT episode_id,kind,created_at FROM n5_events WHERE user_id=? ORDER BY created_at,id", this.userId),
-      this.statement("SELECT json_object('id',id,'courseId','n5-foundations','lessonId',lesson_id,'contentVersion',content_version,'script',script,'revision',revision,'status',status,'answers',json(answers_json),'result',json(result_json)) AS payload FROM n5_attempts WHERE user_id=? ORDER BY created_at,id", this.userId),
+      this.statement("SELECT json_object('id',id,'courseId',?,'lessonId',lesson_id,'contentVersion',content_version,'script',script,'revision',revision,'status',status,'answers',json(answers_json),'result',json(result_json)) AS payload FROM n5_attempts WHERE user_id=? ORDER BY created_at,id", COURSE_ID, this.userId),
       this.statement("SELECT id,attempt_id,objective_id,judgment FROM n5_review_events WHERE user_id=? ORDER BY id", this.userId),
-    ]);
+    ]) as [D1Result<N5Export["enrolments"][number]>, D1Result<N5Export["observations"][number]>, D1Result<{ payload: string }>, D1Result<N5Export["reviews"][number]>];
     return { apiVersion: 1, enrolments: result[0].results, observations: result[1].results,
       attempts: result[2].results.map((row) => JSON.parse(String(row.payload)) as N5Attempt), reviews: result[3].results };
   }

@@ -75,4 +75,15 @@ export interface N5Progress {
   attempts: Pick<N5Attempt, "id" | "status" | "script" | "result">[];
   mastery: false;
 }
-export interface N5Error { error: { code: string; message: string } }
+export interface N5Reviews {
+  events: N5ReviewEvent[];
+  consumerStatus: "not_integrated";
+}
+export interface N5Export {
+  apiVersion: 1;
+  enrolments: { track_id: string; script: N5Script; created_at: number }[];
+  observations: { episode_id: string; kind: "watch_complete" | "practice_complete"; created_at: number }[];
+  attempts: N5Attempt[];
+  reviews: { id: string; attempt_id: string; objective_id: string; judgment: N5ReviewEvent["judgment"] }[];
+}
+export interface N5Error { error: { code: string; message: string; details?: { questionId: string } } }

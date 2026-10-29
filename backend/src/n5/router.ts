@@ -96,7 +96,14 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
     if (match) {
       const [, id, action] = match;
       if (!UUID.test(id)) notFound();
-      if (!action) { method(req, "GET"); return response(req, await store.get(id)); }
+      if (!action && req.method === "DELETE") {
+        if (req.body) throw new CourseError("invalid_request", 400, "Deletion does not accept a request body.");
+        return response(req, await store.abandon(id));
+      }
+      if (!action) {
+        if (req.method !== "GET") throw new CourseError("method_not_allowed", 405, "Use GET or DELETE.", "GET, DELETE");
+        return response(req, await store.get(id));
+      }
       method(req, "POST");
       const attempt = await store.get(id);
       if (action === "voice") throw new CourseError("voice_unavailable", 503, "Speaking assessment is not available in this preview.");
@@ -110,7 +117,7 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
       return response(req, await store.finish(id, finish.revision));
     }
     if (path === "/me/progress") { method(req, "GET"); return response(req, await store.progress()); }
-    if (path === "/me/reviews") { method(req, "GET"); return response(req, { events: await store.reviews(), consumerStatus: "not_integrated" }); }
+    if (path === "/me/reviews") { method(req, "GET"); return response(req, await store.reviews()); }
     if (path === "/me/export") { method(req, "GET"); return response(req, await store.exportData()); }
     if (path === "/me") {
       method(req, "DELETE");
