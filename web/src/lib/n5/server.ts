@@ -5,16 +5,47 @@ import { resolveProfile } from "@/lib/auth";
 import { getExistingSyncToken, getOrCreateSyncToken } from "@/lib/sync-store";
 import { gatewayRoute } from "./core";
 
-export async function n5Config(): Promise<{ enabled: boolean; origin: string }> {
+export async function n5Config(): Promise<{
+  enabled: boolean;
+  origin: string;
+}> {
   let env: Record<string, unknown> = {};
-  try { env = (await getCloudflareContext({ async: true })).env as unknown as Record<string, unknown>; } catch { /* next dev */ }
-  const enabled = (env.N5_WEB_PREVIEW_ENABLED ?? process.env.N5_WEB_PREVIEW_ENABLED) === "1";
-  if (!enabled) return { enabled: false, origin: "https://avc-api.animevocab.workers.dev" };
+  try {
+    env = (await getCloudflareContext({ async: true }))
+      .env as unknown as Record<string, unknown>;
+  } catch {
+    /* next dev */
+  }
+  const enabled =
+    (env.N5_WEB_PREVIEW_ENABLED ?? process.env.N5_WEB_PREVIEW_ENABLED) === "1";
+  if (!enabled)
+    return { enabled: false, origin: "https://avc-api.animevocab.workers.dev" };
   const configured = env.N5_API_ORIGIN ?? process.env.N5_API_ORIGIN;
-  const origin = typeof configured === "string" ? configured : "https://avc-api.animevocab.workers.dev";
+  const origin =
+    typeof configured === "string"
+      ? configured
+      : "https://avc-api.animevocab.workers.dev";
   const u = new URL(origin);
-  const local = process.env.NODE_ENV !== "production" && ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname) && u.protocol === "http:";
-  if (!((u.protocol === "https:" && /^(?:[a-z0-9-]+-)?avc-api\.animevocab\.workers\.dev$/.test(u.hostname) && !u.port) || local) || u.username || u.password || u.pathname !== "/" || u.search || u.hash) throw new Error("Invalid N5 upstream configuration");
+  const local =
+    process.env.NODE_ENV !== "production" &&
+    ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname) &&
+    u.protocol === "http:";
+  if (
+    !(
+      (u.protocol === "https:" &&
+        /^(?:[a-z0-9-]+-)?avc-api\.animevocab\.workers\.dev$/.test(
+          u.hostname,
+        ) &&
+        !u.port) ||
+      local
+    ) ||
+    u.username ||
+    u.password ||
+    u.pathname !== "/" ||
+    u.search ||
+    u.hash
+  )
+    throw new Error("Invalid N5 upstream configuration");
   return { enabled, origin: u.origin };
 }
 /** The session id is verified locally; no Clerk Backend API read for N5 views. */
@@ -26,24 +57,43 @@ async function credential(ownerId: string): Promise<string> {
   if (existing) return existing;
   // Only first-time minting needs the full profile/entitlements. Never let it
   // replace the locally verified session owner.
-  const profile = await resolveProfile(new Request("https://animevocab.com/api/n5/catalog"));
-  if (!profile || profile.id !== ownerId) throw new Error("Course identity unavailable");
+  const profile = await resolveProfile(
+    new Request("https://animevocab.com/api/n5/catalog"),
+  );
+  if (!profile || profile.id !== ownerId)
+    throw new Error("Course identity unavailable");
   return getOrCreateSyncToken(ownerId, profile);
 }
-function upstreamRequest(origin: string, route: string, token: string, init: RequestInit = {}) {
+function upstreamRequest(
+  origin: string,
+  route: string,
+  token: string,
+  init: RequestInit = {},
+) {
   return fetch(origin + "/v1/n5" + route, {
     ...init,
-    headers: { Authorization: `Bearer ${token}`, ...(init.method === "POST" ? { "Content-Type": "application/json" } : {}) },
-    cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15_000),
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init.method === "POST" ? { "Content-Type": "application/json" } : {}),
+    },
+    cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(15_000),
   });
 }
 /** Fail closed for the pilot, without making the main dashboard depend on it. */
-export async function n5AvailableFor(ownerId: string | null | undefined): Promise<boolean> {
+export async function n5AvailableFor(
+  ownerId: string | null | undefined,
+): Promise<boolean> {
   if (!ownerId) return false;
   try {
     const config = await n5Config();
     if (!config.enabled) return false;
-    const response = await upstreamRequest(config.origin, "/catalog", await credential(ownerId));
+    const response = await upstreamRequest(
+      config.origin,
+      "/catalog",
+      await credential(ownerId),
+    );
     const allowed = response.status === 200;
     await response.body?.cancel();
     return allowed;
@@ -53,9 +103,23 @@ export async function n5AvailableFor(ownerId: string | null | undefined): Promis
   }
 }
 function fail(code: string, status: number): Response {
-  return Response.json({ error: { code, message: code === "unauthorized" ? "Sign in again to continue." : "Course request unavailable. Your saved progress is unchanged." } }, { status, headers: { "Cache-Control": "no-store", "Vary": "Cookie" } });
+  return Response.json(
+    {
+      error: {
+        code,
+        message:
+          code === "unauthorized"
+            ? "Sign in again to continue."
+            : "Course request unavailable. Your saved progress is unchanged.",
+      },
+    },
+    { status, headers: { "Cache-Control": "no-store", Vary: "Cookie" } },
+  );
 }
-async function boundedBody(req: Request | Response, limit = 16_384): Promise<string | undefined> {
+async function boundedBody(
+  req: Request | Response,
+  limit = 16_384,
+): Promise<string | undefined> {
   if (!req.body) return undefined;
   const reader = req.body.getReader();
   let size = 0;
@@ -65,17 +129,28 @@ async function boundedBody(req: Request | Response, limit = 16_384): Promise<str
       const chunk = await reader.read();
       if (chunk.done) break;
       size += chunk.value.byteLength;
-      if (size > limit) { await reader.cancel(); throw new Error("body_too_large"); }
+      if (size > limit) {
+        await reader.cancel();
+        throw new Error("body_too_large");
+      }
       chunks.push(chunk.value);
     }
-  } finally { reader.releaseLock(); }
+  } finally {
+    reader.releaseLock();
+  }
   if (size === 0) return undefined;
   const bytes = new Uint8Array(size);
   let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
   return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }
-export async function gateway(req: Request, parts: string[]): Promise<Response> {
+export async function gateway(
+  req: Request,
+  parts: string[],
+): Promise<Response> {
   try {
     const config = await n5Config();
     if (!config.enabled) return fail("not_found", 404);
@@ -83,32 +158,85 @@ export async function gateway(req: Request, parts: string[]): Promise<Response> 
     const url = new URL(req.url);
     const route = gatewayRoute(parts, req.method, url.searchParams);
     if (!route) return fail("not_found", 404);
-    if (req.headers.get("Sec-Fetch-Site") === "cross-site") return fail("origin_not_allowed", 403);
+    if (req.headers.get("Sec-Fetch-Site") === "cross-site")
+      return fail("origin_not_allowed", 403);
     // Next dev normalizes the URL hostname to localhost. The HTTP Host still
     // identifies the origin the browser used; never trust x-forwarded-host here.
     const host = req.headers.get("Host");
-    const expectedOrigin = host ? new URL(`${url.protocol}//${host}`).origin : url.origin;
-    if (req.method !== "GET" && req.headers.get("Origin") !== expectedOrigin) return fail("origin_not_allowed", 403);
+    const expectedOrigin = host
+      ? new URL(`${url.protocol}//${host}`).origin
+      : url.origin;
+    if (req.method !== "GET" && req.headers.get("Origin") !== expectedOrigin)
+      return fail("origin_not_allowed", 403);
     const ownerId = await n5OwnerId();
     if (!ownerId) return fail("unauthorized", 401);
-    if (req.method === "POST" && req.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase() !== "application/json") return fail("content_type", 415);
+    if (
+      req.method === "POST" &&
+      req.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase() !==
+        "application/json"
+    )
+      return fail("content_type", 415);
     let payload: string | undefined;
-    try { payload = await boundedBody(req); } catch (error) { return fail(error instanceof Error && error.message === "body_too_large" ? "body_too_large" : "invalid_request", error instanceof Error && error.message === "body_too_large" ? 413 : 400); }
-    if (req.method === "DELETE" && payload !== undefined) return fail("invalid_request", 400);
+    try {
+      payload = await boundedBody(req);
+    } catch (error) {
+      return fail(
+        error instanceof Error && error.message === "body_too_large"
+          ? "body_too_large"
+          : "invalid_request",
+        error instanceof Error && error.message === "body_too_large"
+          ? 413
+          : 400,
+      );
+    }
+    if (req.method === "DELETE" && payload !== undefined)
+      return fail("invalid_request", 400);
     const token = await credential(ownerId);
-    const upstream = await upstreamRequest(config.origin, route, token, { method: req.method, body: payload });
-    if (![200, 400, 401, 403, 404, 405, 409, 413, 415, 429, 503].includes(upstream.status)) return fail("course_unavailable", 503);
-    if (!upstream.headers.get("Content-Type")?.includes("application/json")) return fail("course_unavailable", 503);
+    const upstream = await upstreamRequest(config.origin, route, token, {
+      method: req.method,
+      body: payload,
+    });
+    if (
+      ![200, 400, 401, 403, 404, 405, 409, 413, 415, 429, 503].includes(
+        upstream.status,
+      )
+    )
+      return fail("course_unavailable", 503);
+    if (!upstream.headers.get("Content-Type")?.includes("application/json"))
+      return fail("course_unavailable", 503);
     const data = JSON.parse((await boundedBody(upstream, 524_288)) ?? "null");
-    if (!data || typeof data !== "object") return fail("course_unavailable", 503);
+    if (!data || typeof data !== "object")
+      return fail("course_unavailable", 503);
     if (upstream.status >= 400) {
       const code = data.error?.code;
-      if (typeof code !== "string" || !/^[a-z_]{1,80}$/.test(code)) return fail("course_unavailable", 503);
-      const error = { code, message: "Course request could not complete. Your answers are preserved.",
-        ...(typeof data.error?.details?.questionId === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(data.error.details.questionId) ? { details: { questionId: data.error.details.questionId } } : {}) };
-      return Response.json({ error }, { status: upstream.status, headers: { "Cache-Control": "no-store", "Vary": "Cookie" } });
+      if (typeof code !== "string" || !/^[a-z_]{1,80}$/.test(code))
+        return fail("course_unavailable", 503);
+      const error = {
+        code,
+        message:
+          "Course request could not complete. Your answers are preserved.",
+        ...(typeof data.error?.details?.questionId === "string" &&
+        /^[a-zA-Z0-9_-]{1,100}$/.test(data.error.details.questionId)
+          ? { details: { questionId: data.error.details.questionId } }
+          : {}),
+      };
+      return Response.json(
+        { error },
+        {
+          status: upstream.status,
+          headers: { "Cache-Control": "no-store", Vary: "Cookie" },
+        },
+      );
     }
     // Only bounded API JSON crosses back; no cookies, redirects or credentials.
-    return Response.json(data, { headers: { "Cache-Control": "no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" } });
-  } catch { return fail("course_unavailable", 503); }
+    return Response.json(data, {
+      headers: {
+        "Cache-Control": "no-store",
+        Vary: "Cookie",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch {
+    return fail("course_unavailable", 503);
+  }
 }
