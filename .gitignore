@@ -19,3 +19,6 @@ backend/reports/
 
 # Monorepo N5 mutation sandbox
 /.stryker-tmp/
+
+# Extension pilot mutation evidence
+/reports/

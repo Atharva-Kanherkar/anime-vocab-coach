@@ -50,7 +50,7 @@ export function parseN5CourseContext(input: unknown): N5CourseContext | null {
   for (const key of CONTEXT_KEYS) {
     const value = input[key];
     if (typeof value !== "string") return null;
-    if (value.length === 0 || value.length > MAX_CONTEXT_ID_LENGTH) return null;
+    if (value.length === 0 || value.length > MAX_CONTEXT_ID_LENGTH || !/^[a-z0-9][a-z0-9-]*$/.test(value)) return null;
     parsed[key] = value;
   }
   const script = input.script;
