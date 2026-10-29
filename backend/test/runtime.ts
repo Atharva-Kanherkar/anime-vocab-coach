@@ -2,7 +2,7 @@ import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { mockOpenAI } from "./mock-openai";
+import { mockOpenAI } from "./mock-openai.ts";
 const runtimeRoot = fileURLToPath(new URL("../", import.meta.url));
 
 export async function runtime(options: { enabled?: string | null; allowed?: string; database?: boolean; persist?: string; migrationCount?: number; ai?: boolean } = {}) {
@@ -50,4 +50,13 @@ export async function runtime(options: { enabled?: string | null; allowed?: stri
     });
   }
   return { mf, db, kv, request, openai };
+}
+
+/**
+ * The answer oracle for plain-Node browser suites. It imports course source,
+ * which Node can't resolve without a bundler, so it is bundled on demand.
+ */
+export async function oracle(): Promise<typeof import("./answers")> {
+  const out = await build({ absWorkingDir: runtimeRoot, entryPoints: ["test/answers.ts"], bundle: true, write: false, format: "esm", platform: "node", target: "es2022" });
+  return import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`);
 }

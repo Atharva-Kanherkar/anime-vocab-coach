@@ -3,7 +3,7 @@ import fc from "fast-check";
 import { draftKey, gatewayRoute, restoreDraft, safeLink } from "./core";
 import type { N5Attempt, N5Question } from "../../../../shared/n5/contracts";
 const attempt: N5Attempt = { id: "11111111-1111-4111-8111-111111111111", courseId: "course", lessonId: "lesson", contentVersion: "v1", script: "romaji", revision: 0, status: "active", answers: [], result: null };
-const questions: N5Question[] = [{ id: "write", kind: "production", objectiveId: "one", prompt: "Write" }];
+const questions: N5Question[] = [{ id: "write", kind: "production", skill: "writing", objectiveId: "one", prompt: "Write" }];
 const options = { seed: 1762026, numRuns: 1000 };
 it("arbitrary stored JSON never throws or crosses owner/content/script boundaries", () => {
   fc.assert(fc.property(fc.jsonValue(), (value) => {

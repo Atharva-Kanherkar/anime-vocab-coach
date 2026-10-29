@@ -10,8 +10,8 @@ import { appendFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium, request as apiRequest } from "playwright";
-import { runtime } from "../../backend/test/runtime.ts";
-import { correctAnswers } from "../../backend/test/answers.ts";
+import { oracle, runtime } from "../../backend/test/runtime.ts";
+const { correctAnswers } = await oracle();
 
 const web = fileURLToPath(new URL("../", import.meta.url));
 const artifacts = process.env.N5_ARTIFACTS || "/tmp/animevocab-n5-web";

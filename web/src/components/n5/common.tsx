@@ -158,8 +158,8 @@ export function CourseSession({
     <main className="n5-root" id="main">
       <header className="n5-top">
         <Link href="/app">AnimeVocab</Link>
-        <Link href="/app/n5">N5 course</Link>
-        <span className="n5-tag">Private preview</span>
+        <Link href="/app/n5">Course map</Link>
+        <span className="n5-tag">N5 · Private preview</span>
       </header>
       {expired ? (
         <SessionExpired />
@@ -184,9 +184,21 @@ const messages: Record<string, string> = {
   attempt_limit:
     "You have five unfinished attempts. Resume or discard one before starting another.",
   not_found: "This course or attempt is unavailable for your account.",
-  invalid_script: "Choose your course script before opening this lesson.",
+  invalid_script:
+    "Use only your course script (romaji or kana). If a lesson won't open, choose your script on the course map.",
   unauthorized:
     "Sign in again with the same account. Your answers remain in this tab.",
+  daily_limit:
+    "You've reached today's limit for this practice. It resets tomorrow (UTC); lessons and quizzes still work.",
+  ai_unavailable:
+    "The AI tutor is unavailable right now. Nothing was lost; try again in a moment.",
+  audio_unavailable: "Audio is unavailable right now. Try again in a moment.",
+  no_speech: "We couldn't hear any speech. Try again a little closer to the microphone.",
+  turn_limit: "That's the end of this conversation. Finish it to see your feedback.",
+  conversation_complete: "This conversation is finished. Start a new one to keep practising.",
+  no_turns: "Say something to Haru before finishing.",
+  attempt_active: "Finish the practice first, then feedback appears here.",
+  body_too_large: "That recording is too long. Keep replies under 30 seconds.",
 };
 
 export function Failure({ error }: { error: unknown }) {
