@@ -14,7 +14,7 @@ function render(next: PilotState, pending: number, offline: boolean, active: num
   state = next; players = active;
   el("lesson").hidden = !next.lesson;
   for (const radio of Array.from(document.querySelectorAll<HTMLInputElement>('input[name="script"]'))) radio.checked = radio.value === next.context?.script;
-  el("status").textContent = offline ? `Offline practice. ${pending} observation(s) pending sync; no proficiency credit.` : pending ? `${pending} observation(s) pending sync.` : "Course connected. Saved progress belongs to your account.";
+  el("status").textContent = offline ? `Offline lesson. ${pending} observation(s) pending sync; no proficiency credit.` : pending ? `${pending} observation(s) pending sync.` : "Course connected. Saved progress belongs to your account.";
   el("progress").textContent = `${next.completedAttempts} objective practice attempt(s) complete. ${next.watched ? "Episode marked watched." : "Episode not yet recorded as watched."} Speaking is not assessed.`;
   el("words").replaceChildren(); el("grammar").replaceChildren(); el("attempts").replaceChildren();
   if (next.lesson) {

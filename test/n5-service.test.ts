@@ -77,6 +77,15 @@ describe("N5 background orchestration", () => {
     expect((await run({ type: "avc-n5-attach", tabId: 7 })).ok).toBe(false);
     expect(env.local["n5Pilot:alice"]).toBeDefined();
   });
+  it.each([401,404])("invalidates offline authorization when enrolment is denied with %s after a successful snapshot", async status => {
+    await run({type:"avc-n5-attach",tabId:7});
+    env.network.mockImplementation(async (_url,init) => init.method === "POST" ? Response.json({}, {status}) : Response.json(snapshot));
+    expect((await run({type:"avc-n5-enrol",script:"kana"})).ok).toBe(false);
+    expect(env.session.n5PilotBindings).toEqual({});
+    expect(env.local["n5Pilot:alice"]).toBeDefined();
+    env.network.mockRejectedValue(new TypeError("offline"));
+    expect((await run({type:"avc-n5-attach",tabId:7})).ok).toBe(false);
+  });
   it("rejects an account switch while a server response is in flight", async () => {
     env.network.mockImplementationOnce(async () => { env.token = "avc_st_bob"; return Response.json(snapshot); });
     expect(await run({ type: "avc-n5-state", refresh: true })).toMatchObject({ ok: false, code: "account_changed" });

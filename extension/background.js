@@ -1361,6 +1361,10 @@
         await unchanged(token);
         return { ok: true, state: cache.state, pending: cache.queue.length, offline, warning, players: Object.values(await bindings()).filter((b) => b.tokenHash === tokenHash).map((b) => b.tabId) };
       } catch (error) {
+        if (error instanceof PilotError && ["not_linked", "unavailable", "account_changed"].includes(error.code)) {
+          await chrome.storage.local.remove(pointerKey);
+          await forget();
+        }
         return { ok: false, code: error instanceof PilotError ? error.code : "offline", error: error instanceof PilotError ? error.message : "Course connection is unavailable. Saved observations are kept; retry when online." };
       }
     });
@@ -1392,6 +1396,36 @@
       return this.pending.get(tabId) === token;
     }
   };
+
+  // src/lib/listening-coordination.ts
+  function listeningRegistry(read, write) {
+    let tail2 = Promise.resolve();
+    return (tabId, active, current = () => true) => {
+      const update = tail2.then(async () => {
+        const tabs = await read();
+        if (!current()) return false;
+        if (active) tabs[tabId] = true;
+        else delete tabs[tabId];
+        await write(tabs);
+        return current();
+      });
+      tail2 = update.catch(() => {
+      });
+      return update;
+    };
+  }
+  async function retryCaptureStart(send, current, wait = () => new Promise((resolve) => setTimeout(resolve, 200))) {
+    for (let i = 0; i < 15; i++) {
+      if (!current()) return { ok: false, error: "Listening start was cancelled." };
+      try {
+        const response = await send();
+        if (response) return response;
+      } catch {
+      }
+      await wait();
+    }
+    throw new Error("offscreen document never acknowledged (audio capture could not start)");
+  }
 
   // src/entries/background.ts
   var captureStarts = new CaptureStarts();
@@ -1499,9 +1533,9 @@
     const r = await chrome.storage.session.get(["listeningTabs"]);
     return r.listeningTabs || {};
   }
-  async function setListening(tabs) {
+  var updateListening = listeningRegistry(getListening, async (tabs) => {
     await chrome.storage.session.set({ listeningTabs: tabs });
-  }
+  });
   async function getCopilot() {
     const r = await chrome.storage.session.get(["copilotTabs"]);
     return r.copilotTabs || {};
@@ -1519,18 +1553,6 @@
       reasons: [chrome.offscreen.Reason.USER_MEDIA],
       justification: "Capture tab audio and transcribe Japanese speech so vocabulary cards can be shown for what the viewer hears."
     });
-  }
-  async function sendToOffscreen(msg, tries = 15) {
-    for (let i = 0; i < tries; i++) {
-      try {
-        const res = await chrome.runtime.sendMessage(msg);
-        if (res && res.ok) return res;
-        if (res && res.ok === false) return res;
-      } catch (err) {
-      }
-      await new Promise((r) => setTimeout(r, 200));
-    }
-    throw new Error("offscreen document never acknowledged (audio capture could not start)");
   }
   var CONTENT_SCRIPTS = ["key-shield.js", "vendor/kuromoji.js", "content.js"];
   async function tabNeedsAllFrames(tabId) {
@@ -1639,7 +1661,7 @@
     await ensureOffscreen();
     if (cancelled()) return cancelledAck;
     const language = settings.learningDirection === "ja-en" ? "en" : "ja";
-    const ack = await sendToOffscreen({
+    const ack = await retryCaptureStart(() => chrome.runtime.sendMessage({
       type: "avc-offscreen-start",
       streamId,
       tabId,
@@ -1647,15 +1669,13 @@
       model: settings.transcribeModel || DEFAULTS.transcribeModel,
       language,
       cacheKey: cacheKey2 || void 0
-    }).catch((err) => ({ ok: false, error: String(err.message || err) }));
+    }), () => !cancelled()).catch((err) => ({ ok: false, error: String(err.message || err) }));
     if (cancelled()) return cancelledAck;
     if (!ack || ack.ok === false) {
       return { ok: false, error: ack?.error || "Audio capture failed to start." };
     }
-    const tabs = await getListening();
-    if (cancelled()) return cancelledAck;
-    tabs[tabId] = true;
-    await setListening(tabs);
+    const marked = await updateListening(tabId, true, () => !cancelled());
+    if (!marked || cancelled()) return cancelledAck;
     chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: true }).catch(() => {
     });
     chrome.action.setBadgeText({ tabId, text: "REC" });
@@ -1670,9 +1690,7 @@
     });
     chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: false }).catch(() => {
     });
-    const tabs = await getListening();
-    delete tabs[tabId];
-    await setListening(tabs);
+    await updateListening(tabId, false);
     chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {
     });
     return { ok: true };
@@ -1850,11 +1868,11 @@
       return;
     }
     if (msg.type === "avc-listen-error") {
-      getListening().then(async (tabs) => {
+      getListening().then(async () => {
         const stopCodes = ["invalid-key", "capture-failed", "quota-exceeded", "not-signed-in", "connection-lost"];
         if (stopCodes.includes(msg.code || "")) {
-          delete tabs[msg.tabId];
-          await setListening(tabs);
+          captureStarts.cancel(msg.tabId);
+          await updateListening(msg.tabId, false);
           if (msg.tabId != null) {
             chrome.tabs.sendMessage(msg.tabId, { type: "avc-listening-state", active: false }).catch(() => {
             });
@@ -1899,12 +1917,12 @@
     });
   });
   chrome.tabs.onRemoved.addListener(async (tabId) => {
+    captureStarts.cancel(tabId);
     const tabs = await getListening();
     if (tabs[tabId]) {
       chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId }).catch(() => {
       });
-      delete tabs[tabId];
-      await setListening(tabs);
+      await updateListening(tabId, false);
     }
     await setCopilotTab(tabId, false);
   });

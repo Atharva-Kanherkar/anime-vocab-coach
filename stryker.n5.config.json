@@ -1,13 +1,39 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "mutate": ["src/lib/n5-pilot.ts", "src/lib/n5-course-context.ts"],
+  "mutate": [
+    "src/lib/n5-pilot.ts",
+    "src/lib/n5-course-context.ts",
+    "src/lib/listening-coordination.ts",
+    "src/lib/capture-starts.ts"
+  ],
   "testRunner": "vitest",
-  "vitest": { "configFile": "vitest.n5-mutation.config.ts" },
+  "vitest": {
+    "configFile": "vitest.n5-mutation.config.ts"
+  },
   "coverageAnalysis": "perTest",
-  "reporters": ["clear-text", "json", "html"],
-  "thresholds": { "high": 95, "low": 90, "break": 90 },
+  "reporters": [
+    "clear-text",
+    "json",
+    "html"
+  ],
+  "thresholds": {
+    "high": 95,
+    "low": 90,
+    "break": 90
+  },
   "concurrency": 3,
-  "ignorePatterns": ["backend/**", "web/**", "extension/**", "reels/**", "dist/**", "docs/**"],
-  "jsonReporter": { "fileName": "reports/n5-mutation/mutation.json" },
-  "htmlReporter": { "fileName": "reports/n5-mutation/mutation.html" }
+  "ignorePatterns": [
+    "backend/**",
+    "web/**",
+    "extension/**",
+    "reels/**",
+    "dist/**",
+    "docs/**"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/n5-mutation/mutation.json"
+  },
+  "htmlReporter": {
+    "fileName": "reports/n5-mutation/mutation.html"
+  }
 }

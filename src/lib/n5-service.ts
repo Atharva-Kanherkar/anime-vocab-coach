@@ -184,6 +184,12 @@ export function handleN5(raw: unknown, sender: chrome.runtime.MessageSender, sto
       await unchanged(token);
       return { ok: true, state: cache.state, pending: cache.queue.length, offline, warning, players: Object.values(await bindings()).filter(b => b.tokenHash === tokenHash).map(b => b.tabId) };
     } catch (error) {
+      // Every request path (including enrolment and its follow-up snapshot)
+      // revokes offline authorization on a definitive denial. Keep owner data
+      // and pending receipts intact for a future successful reauthentication.
+      if (error instanceof PilotError && ["not_linked", "unavailable", "account_changed"].includes(error.code)) {
+        await chrome.storage.local.remove(pointerKey); await forget();
+      }
       return { ok: false, code: error instanceof PilotError ? error.code : "offline", error: error instanceof PilotError ? error.message : "Course connection is unavailable. Saved observations are kept; retry when online." };
     }
   });
