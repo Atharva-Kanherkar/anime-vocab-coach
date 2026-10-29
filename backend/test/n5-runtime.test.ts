@@ -22,6 +22,34 @@ afterEach(async () => { await app.db!.prepare("DELETE FROM n5_accounts").run(); 
 afterAll(async () => { await app.mf.dispose(); });
 
 describe("real Worker and D1 end-to-end", () => {
+  it("accepts bounded N5-only credentials without creating or touching extension links", async () => {
+    const token = "avc_n5_" + "a".repeat(64);
+    const key = `n5token:${token}:v1`;
+    const record = JSON.stringify({ id: "n5-local-user", expiresAt: Date.now() + 300_000 });
+    await app.kv.put(key, record);
+    expect((await app.request("/catalog", { token })).status).toBe(200);
+    expect(await app.kv.get(key)).toBe(record);
+    expect(await app.kv.get("synctoken:user:n5-local-user:v1")).toBeNull();
+    for (const path of ["/v1/usage", "/v1/session"]) {
+      const response = await app.mf.dispatchFetch("http://localhost" + path, {
+        method: path.endsWith("session") ? "POST" : "GET",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        ...(path.endsWith("session") ? { body: "{}" } : {}),
+      });
+      expect(response.status).toBe(401);
+    }
+    const fresh = await attempt(token);
+    expect((await app.request(`/attempts/${fresh.id}`, { token: "avc_st_n5other" })).status).toBe(404);
+    for (const raw of ["{", "null", JSON.stringify({ id: "n5-local-user", expiresAt: Date.now() - 1 }), JSON.stringify({ id: 1, expiresAt: Date.now() + 300_000 })]) {
+      await app.kv.put(key, raw);
+      expect((await app.request("/catalog", { token })).status).toBe(401);
+    }
+    await app.kv.put(key, JSON.stringify({ id: "not-in-preview", expiresAt: Date.now() + 300_000 }));
+    expect((await app.request("/catalog", { token })).status).toBe(404);
+    await app.kv.delete(key);
+    expect((await app.request("/catalog", { token })).status).toBe(401);
+  });
+
   it.each(["romaji", "kana"])("completes and resumes the %s preview without awarding untested skills", async (script) => {
     const catalog = await app.request("/catalog");
     expect(catalog.status).toBe(200);

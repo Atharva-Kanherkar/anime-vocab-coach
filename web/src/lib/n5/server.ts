@@ -1,8 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { resolveProfile } from "@/lib/auth";
-import { getExistingSyncToken, getOrCreateSyncToken } from "@/lib/sync-store";
+import { courseCredential } from "./credential";
 import { gatewayRoute } from "./core";
 
 export async function n5Config(): Promise<{
@@ -64,18 +63,6 @@ export async function n5Config(): Promise<{
 /** The session id is verified locally; no Clerk Backend API read for N5 views. */
 export async function n5OwnerId(): Promise<string | null> {
   return DEV_NO_CLERK ? DEV_PROFILE.id : (await auth()).userId;
-}
-async function credential(ownerId: string): Promise<string> {
-  const existing = await getExistingSyncToken(ownerId);
-  if (existing) return existing;
-  // Only first-time minting needs the full profile/entitlements. Never let it
-  // replace the locally verified session owner.
-  const profile = await resolveProfile(
-    new Request("https://animevocab.com/api/n5/catalog"),
-  );
-  if (!profile || profile.id !== ownerId)
-    throw new Error("Course identity unavailable");
-  return getOrCreateSyncToken(ownerId, profile);
 }
 function upstreamRequest(
   origin: string,
@@ -197,7 +184,7 @@ export async function gateway(
     }
     if (req.method === "DELETE" && payload !== undefined)
       return fail("invalid_request", 400);
-    const token = await credential(ownerId);
+    const token = await courseCredential(ownerId);
     const upstream = await upstreamRequest(config.origin, route, token, {
       method: req.method,
       body: payload,
