@@ -989,6 +989,37 @@
     };
   }
 
+  // src/lib/n5-handoff.ts
+  var N5_HANDOFF_MESSAGE_TYPES = [
+    "avc-n5-start-assessment",
+    "avc-n5-abandon-attempt"
+  ];
+  var HANDOFF_KEYS = ["type", "tabId", "lessonId", "attemptId"];
+  var MAX_ID_LENGTH = 128;
+  function isPlainObject(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+  function isHandoffType(value) {
+    return typeof value === "string" && N5_HANDOFF_MESSAGE_TYPES.includes(value);
+  }
+  function isPositiveInt(value) {
+    return typeof value === "number" && Number.isInteger(value) && value > 0;
+  }
+  function isBoundedId(value) {
+    return typeof value === "string" && value.length > 0 && value.length <= MAX_ID_LENGTH;
+  }
+  function isN5HandoffMessage(value) {
+    if (!isPlainObject(value)) return false;
+    const type = value.type;
+    if (!isHandoffType(type)) return false;
+    const unknown = Object.keys(value).filter((key) => !HANDOFF_KEYS.includes(key));
+    if (unknown.length > 0) return false;
+    if ("tabId" in value && value.tabId !== void 0 && !isPositiveInt(value.tabId)) return false;
+    if ("lessonId" in value && value.lessonId !== void 0 && !isBoundedId(value.lessonId)) return false;
+    if ("attemptId" in value && value.attemptId !== void 0 && !isBoundedId(value.attemptId)) return false;
+    return true;
+  }
+
   // src/entries/background.ts
   function listenErrorText(code) {
     switch (code) {
@@ -1371,6 +1402,15 @@
       chrome.tabs.create({ url: msg.url }).catch(() => {
       });
       sendResponse({ ok: true });
+      return true;
+    }
+    if (msg.type === "avc-n5-start-assessment" || msg.type === "avc-n5-abandon-attempt") {
+      const handoff = msg;
+      if (!isN5HandoffMessage(handoff)) {
+        sendResponse({ ok: false, error: "invalid_n5_handoff" });
+        return true;
+      }
+      sendResponse({ ok: true, type: handoff.type });
       return true;
     }
     if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status" || msg.type === "avc-caption-status") {
