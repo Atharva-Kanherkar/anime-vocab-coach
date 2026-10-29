@@ -37,13 +37,16 @@ describe("strict request contracts", () => {
 });
 
 describe("pure script validation", () => {
-  it.each(["Arigatō gozaimasu", "Tōkyō", "āīūēōâîûêô", "ĀĪŪĒŌÂÎÛÊÔ", "I’m Haru", "I‘m Haru", "a\u0304", "Ａｒｉｇａｔｏｕ"])("accepts normal romaji keyboard input: %s", (text) => {
+  it.each(["Arigatō gozaimasu", "Tōkyō", "āīūēōâîûêô", "ĀĪŪĒŌÂÎÛÊÔ", "I’m Haru", "I‘m Haru", "a\u0304", "Ａｒｉｇａｔｏｕ", "Haru desu “hajimemashite”", "＂Haru＂"])("accepts normal romaji keyboard input: %s", (text) => {
     expect(validScript(text, "romaji")).toBe(true);
     expect(validScript(text, "kana")).toBe(false);
   });
-  it.each(["はじめまして　ハルです", "ハルです〜", "ハルです～", "ハルです…", "ハルです！？", "はるて\u3099す", "ﾊﾙﾃﾞｽ"])("accepts normal kana keyboard input: %s", (text) => {
+  it.each(["はじめまして　ハルです", "ハルです〜", "ハルです～", "ハルです…", "ハルです！？", "はるて\u3099す", "ﾊﾙﾃﾞｽ", "ハル（はる）です", "『はる』です", "はる：です", "ハル(はる)です"])("accepts normal kana keyboard input: %s", (text) => {
     expect(validScript(text, "kana")).toBe(true);
     expect(validScript(text, "romaji")).toBe(false);
+  });
+  it("does not silently remove unsupported quotation marks from kana input", () => {
+    for (const text of ["’はる", "‘はる", "“はる”", "”はる"]) expect(validScript(text, "kana")).toBe(false);
   });
   it("identifies only the first invalid question, without echoing its typed text", () => {
     expect(invalidAnswerQuestionId(correctAnswers(), "romaji")).toBeNull();
@@ -65,7 +68,7 @@ describe("pure script validation", () => {
   it("requires actual letters and rejects mixed text, kanji, controls and unreviewed Unicode", () => {
     expect(validScript("Haru desu!", "romaji")).toBe(true);
     expect(validScript("ハルです。", "kana")).toBe(true);
-    for (const text of ["", "123", " ", "Haruです", "ですHaru", "春", "😀", "\u200b", "Haru\n", "ハル\t", "āハル", "…", "〜", "’", "Haru\r", "はる\n", "Haru\u200d", "Haru\u2028"]) for (const script of ["romaji", "kana"] as const) expect(validScript(text, script)).toBe(false);
+    for (const text of ["", "123", " ", "Haruです", "ですHaru", "春", "😀", "\u200b", "Haru\n", "ハル\t", "āハル", "…", "〜", "’", "Haru\r", "はる\n", "Haru\u200d", "Haru\u2028", "“”", "（）『』：", "“Haruです”", "『Haru』"]) for (const script of ["romaji", "kana"] as const) expect(validScript(text, script)).toBe(false);
   });
 });
 

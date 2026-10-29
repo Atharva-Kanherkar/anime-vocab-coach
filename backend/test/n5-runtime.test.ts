@@ -58,9 +58,10 @@ describe("real Worker and D1 end-to-end", () => {
     expect(new Set(reviews.events.map((e: { id: string }) => e.id)).size).toBe(8);
     const exported = await (await app.request("/me/export")).json();
     expect(exported.attempts).toEqual([finished]);
-    expect(exported.enrolments).toEqual([{ track_id: TRACK_ID, script, created_at: expect.any(Number) }]);
-    expect(exported.observations).toEqual([{ episode_id: EPISODE_ID, kind: "watch_complete", created_at: expect.any(Number) }]);
-    expect(exported.reviews).toEqual(reviews.events.map((e: { id: string; attemptId: string; objectiveId: string; judgment: string }) => ({ id: e.id, attempt_id: e.attemptId, objective_id: e.objectiveId, judgment: e.judgment })));
+    expect(exported.enrolments).toEqual([{ trackId: TRACK_ID, script, createdAt: expect.any(Number) }]);
+    expect(exported.observations).toEqual([{ episodeId: EPISODE_ID, kind: "watch_complete", createdAt: expect.any(Number) }]);
+    expect(exported.reviews).toEqual(reviews.events);
+    expect(JSON.stringify(exported)).not.toMatch(/"(track_id|episode_id|created_at|attempt_id|objective_id)"\s*:/);
     expect(JSON.stringify(exported)).not.toMatch(/fingerprint|pack_hash|mutation_nonce|correctOption/);
     expect((await app.request("/me", { method: "DELETE" })).status).toBe(200);
     for (const table of ["n5_accounts", "n5_enrolments", "n5_events", "n5_event_requests", "n5_attempts", "n5_answer_requests", "n5_review_events"]) expect((await app.db!.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first())?.n).toBe(0);
@@ -197,6 +198,8 @@ describe("PR review regressions", () => {
   it.each([
     ["kana", "はじめまして　ハルです"], ["kana", "ハルです〜"], ["kana", "ハルです…"],
     ["romaji", "Arigatō gozaimasu"], ["romaji", "I’m Haru"],
+    ["romaji", "Haru desu “hajimemashite”"], ["kana", "ハル（はる）です"],
+    ["kana", "『はる』です"], ["kana", "はる：です"],
   ])("preserves %s keyboard input in snapshots, replays and export", async (script, text) => {
     await app.request("/enrolments", { body: { ...enrol, script } });
     const fresh = await (await app.request("/attempts", { body: create })).json();
@@ -292,8 +295,8 @@ describe("PR review regressions", () => {
     const event = { episodeId: EPISODE_ID, kind: "watch_complete", idempotencyKey: "watch" };
     const watched = await (await app.request("/events", { body: event })).json();
     await app.db!.prepare(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<999)
-      INSERT INTO n5_event_requests(id,user_id,request_key,fingerprint,episode_id,kind,created_at)
-      SELECT 'request-'||x,'n5-local-user','seed-'||x,'seed',?,'watch_complete',x FROM n`).bind(EPISODE_ID).run();
+      INSERT INTO n5_event_requests(id,user_id,request_key,fingerprint,episode_id,kind,created_at,response_id)
+      SELECT 'request-'||x,'n5-local-user','seed-'||x,'seed',?,'watch_complete',x,? FROM n`).bind(EPISODE_ID, watched.id).run();
     const responses = await Promise.all(Array.from({ length: 8 }, (_, n) => app.request("/events", { body: { ...event, idempotencyKey: `repeat-${n}` } })));
     expect(responses.map((r) => r.status)).toEqual(Array(8).fill(200));
     for (const r of responses) expect(await r.json()).toEqual(watched);
@@ -340,7 +343,8 @@ describe("observation receipt migration", () => {
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM d1_migrations").first())?.n).toBe(2);
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_event_requests").first())?.n).toBe(1000);
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_events").first())?.n).toBe(2);
-      expect(await (await isolated.request("/events", { body: retained })).json()).toEqual({ id: "old-1" });
+      expect(await (await isolated.request("/events", { body: retained })).json()).toEqual({ id: "recent" });
+      expect(await (await isolated.request("/events", { body: { ...retained, idempotencyKey: "canonical" } })).json()).toEqual({ id: "old-1" });
       expect((await isolated.request("/events", { body: { ...retained, kind: "practice_complete" } })).status).toBe(409);
       expect(await (await isolated.request(`/attempts/${original.id}`)).json()).toEqual(original);
       expect((await (await isolated.request("/me/progress")).json()).observations).toHaveLength(2);

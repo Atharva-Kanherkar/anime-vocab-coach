@@ -49,24 +49,23 @@ export class CourseStore {
     if (!await this.enrolment()) throw new CourseError("enrolment_required", 409, "Select a course track first.");
     const hash = await fingerprint(body);
     await this.db.batch([
-      this.statement(`INSERT INTO n5_event_requests(id,user_id,request_key,fingerprint,episode_id,kind,created_at)
-        VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id,request_key) DO NOTHING`,
-      crypto.randomUUID(), this.userId, body.idempotencyKey, hash, body.episodeId, body.kind, Date.now()),
+      this.statement(`INSERT INTO n5_event_requests(id,user_id,request_key,fingerprint,episode_id,kind,created_at,response_id)
+        VALUES(?,?,?,?,?,?,?,COALESCE((SELECT id FROM n5_events WHERE user_id=? AND episode_id=? AND kind=?),?))
+        ON CONFLICT(user_id,request_key) DO NOTHING`,
+      crypto.randomUUID(), this.userId, body.idempotencyKey, hash, body.episodeId, body.kind, Date.now(), this.userId, body.episodeId, body.kind, crypto.randomUUID()),
       // Only the matching receipt can record an observation. Conflicting key
       // reuse cannot add a losing writer's episode/kind as a side effect.
       this.statement(`INSERT INTO n5_events(id,user_id,episode_id,kind,created_at)
-        SELECT ?,user_id,episode_id,kind,created_at FROM n5_event_requests
+        SELECT response_id,user_id,episode_id,kind,created_at FROM n5_event_requests
         WHERE user_id=? AND request_key=? AND fingerprint=?
         ON CONFLICT(user_id,episode_id,kind) DO NOTHING`,
-      crypto.randomUUID(), this.userId, body.idempotencyKey, hash),
+      this.userId, body.idempotencyKey, hash),
       this.statement("DELETE FROM n5_event_requests WHERE user_id=? AND rowid IN (SELECT rowid FROM n5_event_requests WHERE user_id=? ORDER BY rowid DESC LIMIT -1 OFFSET 1000)", this.userId, this.userId),
     ]);
-    const receipt = await this.statement("SELECT fingerprint FROM n5_event_requests WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<{ fingerprint: string }>();
+    const receipt = await this.statement("SELECT fingerprint,response_id FROM n5_event_requests WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<{ fingerprint: string; response_id: string }>();
     if (!receipt) conflict();
     checkFingerprint(receipt.fingerprint, hash);
-    const row = await this.statement("SELECT id FROM n5_events WHERE user_id=? AND episode_id=? AND kind=?", this.userId, body.episodeId, body.kind).first<{ id: string }>();
-    if (!row) conflict();
-    return { id: row.id };
+    return { id: receipt.response_id };
   }
   private async row(id: string): Promise<AttemptRow> {
     const row = await this.statement("SELECT * FROM n5_attempts WHERE user_id=? AND id=?", this.userId, id).first<AttemptRow>();
@@ -162,10 +161,10 @@ export class CourseStore {
   }
   async exportData(): Promise<N5Export> {
     const result = await this.db.batch<Record<string, unknown>>([
-      this.statement("SELECT track_id,script,created_at FROM n5_enrolments WHERE user_id=? ORDER BY id", this.userId),
-      this.statement("SELECT episode_id,kind,created_at FROM n5_events WHERE user_id=? ORDER BY created_at,id", this.userId),
+      this.statement("SELECT track_id AS trackId,script,created_at AS createdAt FROM n5_enrolments WHERE user_id=? ORDER BY id", this.userId),
+      this.statement("SELECT episode_id AS episodeId,kind,created_at AS createdAt FROM n5_events WHERE user_id=? ORDER BY created_at,id", this.userId),
       this.statement("SELECT json_object('id',id,'courseId',?,'lessonId',lesson_id,'contentVersion',content_version,'script',script,'revision',revision,'status',status,'answers',json(answers_json),'result',json(result_json)) AS payload FROM n5_attempts WHERE user_id=? ORDER BY created_at,id", COURSE_ID, this.userId),
-      this.statement("SELECT id,attempt_id,objective_id,judgment FROM n5_review_events WHERE user_id=? ORDER BY id", this.userId),
+      this.statement("SELECT id,attempt_id AS attemptId,objective_id AS objectiveId,judgment FROM n5_review_events WHERE user_id=? ORDER BY id", this.userId),
     ]) as [D1Result<N5Export["enrolments"][number]>, D1Result<N5Export["observations"][number]>, D1Result<{ payload: string }>, D1Result<N5Export["reviews"][number]>];
     return { apiVersion: 1, enrolments: result[0].results, observations: result[1].results,
       attempts: result[2].results.map((row) => JSON.parse(String(row.payload)) as N5Attempt), reviews: result[3].results };

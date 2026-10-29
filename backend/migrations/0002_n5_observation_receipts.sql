@@ -1,5 +1,7 @@
 -- Keep bounded retry receipts separate from durable episode observations.
 ALTER TABLE n5_events RENAME TO n5_event_requests;
+ALTER TABLE n5_event_requests ADD COLUMN response_id TEXT NOT NULL DEFAULT '';
+UPDATE n5_event_requests SET response_id=id;
 CREATE TABLE n5_events (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES n5_accounts(user_id) ON DELETE CASCADE,

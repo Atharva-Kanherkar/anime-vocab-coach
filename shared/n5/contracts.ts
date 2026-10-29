@@ -81,9 +81,9 @@ export interface N5Reviews {
 }
 export interface N5Export {
   apiVersion: 1;
-  enrolments: { track_id: string; script: N5Script; created_at: number }[];
-  observations: { episode_id: string; kind: "watch_complete" | "practice_complete"; created_at: number }[];
+  enrolments: (N5Enrolment & { createdAt: number })[];
+  observations: (N5Progress["observations"][number] & { createdAt: number })[];
   attempts: N5Attempt[];
-  reviews: { id: string; attempt_id: string; objective_id: string; judgment: N5ReviewEvent["judgment"] }[];
+  reviews: N5ReviewEvent[];
 }
 export interface N5Error { error: { code: string; message: string; details?: { questionId: string } } }

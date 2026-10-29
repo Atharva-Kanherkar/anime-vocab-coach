@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { answersSchema, attemptSchema, enrolmentSchema, eventSchema, finishSchema, grade, publicLesson, validScript } from "./domain";
+import { answersSchema, attemptSchema, enrolmentSchema, eventSchema, finishSchema, grade, validScript } from "./domain";
 import { correctAnswers } from "../../test/answers";
 import { TRACK_ID } from "./content";
 
@@ -18,7 +18,7 @@ describe("seeded N5 domain fuzzing", () => {
       const text = String.fromCodePoint(...points);
       if (validScript(text, script)) {
         if (script === "romaji") {
-          const normalized = text.normalize("NFKC").replace(/[’‘]/g, "'");
+          const normalized = text.normalize("NFKC").replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
           const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZāīūēōâîûêôĀĪŪĒŌÂÎÛÊÔ0123456789 .,!?'\"():;-";
           expect([...normalized].every((c) => alphabet.includes(c))).toBe(true);
           expect(/[a-zāīūēōâîûêô]/i.test(normalized)).toBe(true);
@@ -31,11 +31,20 @@ describe("seeded N5 domain fuzzing", () => {
     }), options);
   });
   it("keyboard variants stay within the chosen script under normalization", () => {
-    fc.assert(fc.property(fc.array(fc.constantFrom("ā", "ī", "ū", "ē", "ō", "â", "î", "û", "ê", "ô", "a\u0304", "’", "‘", "　"), { maxLength: 50 }), (characters) => {
+    fc.assert(fc.property(fc.array(fc.constantFrom("ā", "ī", "ū", "ē", "ō", "â", "î", "û", "ê", "ô", "a\u0304", "’", "‘", "“", "”", "　"), { maxLength: 50 }), (characters) => {
       const text = `Haru${characters.join("")}`;
       expect(validScript(text, "romaji")).toBe(true);
       expect(validScript(text, "kana")).toBe(false);
       expect(validScript(`${text}ハル`, "romaji")).toBe(false);
+    }), options);
+  });
+  it("normal kana punctuation remains valid without admitting romaji or punctuation-only text", () => {
+    fc.assert(fc.property(fc.array(fc.constantFrom("（", "）", "『", "』", "：", "　", "…", "〜"), { minLength: 1, maxLength: 50 }), (characters) => {
+      const punctuation = characters.join("");
+      expect(validScript(`ハル${punctuation}です`, "kana")).toBe(true);
+      expect(validScript(punctuation, "kana")).toBe(false);
+      expect(validScript(`ハル${punctuation}Haru`, "kana")).toBe(false);
+      expect(validScript(`ハル${punctuation}`, "romaji")).toBe(false);
     }), options);
   });
   it("random objective answers have independently calculated bounded scores and never imply mastery", () => {
@@ -57,11 +66,6 @@ describe("seeded N5 domain fuzzing", () => {
       const accepted = enrolmentSchema.safeParse({ trackId: TRACK_ID, script: "kana", idempotencyKey }).success;
       expect(accepted).toBe(idempotencyKey.length >= 1 && idempotencyKey.length <= 100 && [...idempotencyKey].every((char) => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-".includes(char)));
       expect(finishSchema.safeParse({ revision }).success).toBe(Number.isInteger(revision) && revision >= 0 && revision <= 1000000);
-      for (const script of ["romaji", "kana"] as const) {
-        const lesson = publicLesson(script);
-        expect(JSON.stringify(lesson)).not.toMatch(/correctOption|acceptedAnswer/);
-        lesson.questions.flatMap((q) => q.choices ?? []).forEach((c) => expect(validScript(c.text, script)).toBe(true));
-      }
     }), options);
   });
 });

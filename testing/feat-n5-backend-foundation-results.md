@@ -67,3 +67,23 @@ Verification on the reviewed changes:
 - Ten local curl probes using the synthetic identity: unauthenticated catalogue 401; catalogue/enrolment/lesson/attempt 200; voice 503; kana keyboard snapshot 200; mixed-script snapshot 400 with question ID; abandon 200; subsequent read 404.
 
 Review scratch state is isolated at `/tmp/animevocab-n5-review/reviewcheckpoint.json` because the global `/tmp/reviewcheckpoint.json` is currently owned by an unrelated concurrent branch. No scratch files are committed. Remote checks will be verified after the repair commits are pushed.
+
+## Follow-up review: remove permanent lockouts and finish input/export consistency
+
+The contract extension in `f7da529` supersedes the previous lifetime enrolment/event caps and snake_case export names.
+
+- Enrolment history now keeps the latest 100 receipts and prunes older ones atomically. Script changes and fresh-key requests remain available at capacity. Retained-key replay cannot reset the current preference; evicted keys are new requests.
+- Durable observations are unique per user/episode/kind, separate from a rolling 1,000-request receipt window. Rewatching returns the canonical observation ID and receipt eviction cannot erase progress. Conflicting concurrent key reuse cannot create a losing observation.
+- Forward migration 0002 preserves original response IDs for retained legacy receipts, deduplicates observation state, and bounds retry history. A persisted upgrade with 1,006 legacy rows verifies progress, retained replay/conflict, canonical IDs for fresh keys, attempt preservation, restart and account deletion.
+- Romaji now accepts smart double quotes; kana accepts full-width parentheses, corner quotes and colon. Raw stored/exported text is preserved. Exports consistently use camelCase and share review-event types with `/me/reviews`.
+
+Verification:
+
+- Backend TypeScript, 48 backend unit tests and 4 dependency-parity tests: pass.
+- 36 actual Worker/KV/D1 HTTP tests: pass, including migration/restart, 105 script changes beyond the former cap, concurrent duplicate observations at 1,000 receipts, conflicting writers, ownership, deletion and all expanded keyboard cases.
+- Six domain properties x 1,000 cases and two HTTP properties x 100: 6,200 pass. An initial run timed out on redundant unchanged public-fixture checks inside the unrelated key/revision property; removed that repeated work, retained its dedicated exact public-projection unit tests, and reran the full fuzz command successfully. Case counts, seeds and timeouts were not relaxed.
+- Stryker: **140/140 killed (100%)**, zero survivors/uncovered/error/timeout mutants, unchanged 90% gate and no exclusions. Correction to the preceding evidence: the previously described equivalent quote-removal mutant was not equivalent in kana mode, which rejects these unsupported quote forms. Added kana counterexamples; they kill both apostrophe- and double-quote-removal mutants.
+- Request-schema/binding generation checks, Zod manifest/lock parity and production Wrangler dry-run: pass. The deploy bundle was not uploaded.
+- Local curl probes passed for catalogue authentication, enrolment/lesson/attempt/voice, same-episode fresh-key deduplication, both punctuation snapshot examples, script switching and camelCase export with original typed text.
+
+No production database migration or manual deployment was performed. Apply both versioned migrations before enabling the new Worker layout; flag-off remains the rollback path. Remote checks will be verified on the pushed commit.

@@ -21,9 +21,9 @@ export const finishSchema = z.strictObject({ revision });
 
 /** Validate a normalized view without changing stored text or transliterating scripts. */
 export function validScript(text: string, script: N5Script): boolean {
-  const normalized = text.normalize("NFKC").replace(/[’‘]/g, "'");
+  const normalized = text.normalize("NFKC").replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
   if (script === "romaji") return /^[A-Za-zāīūēōâîûêôĀĪŪĒŌÂÎÛÊÔ0-9 .,!?'"():;-]+$/.test(normalized) && /[A-Za-zāīūēōâîûêôĀĪŪĒŌÂÎÛÊÔ]/.test(normalized);
-  return /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」・〜~.]+$/.test(normalized) && /[\u3041-\u3096\u30a1-\u30fa]/.test(normalized);
+  return /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」『』():・〜~.]+$/.test(normalized) && /[\u3041-\u3096\u30a1-\u30fa]/.test(normalized);
 }
 
 export function invalidAnswerQuestionId(answers: N5Answer[], script: N5Script): string | null {
