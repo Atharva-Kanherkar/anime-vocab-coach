@@ -1,7 +1,7 @@
 import type { z } from "zod";
-import type { N5Answer, N5Attempt, N5Enrolment, N5Export, N5Progress, N5Result, N5ReviewEvent, N5Reviews, N5Script } from "../../../shared/n5/contracts";
-import { CONTENT_VERSION, COURSE_ID, LESSON_ID, QUESTIONS } from "./content";
-import { type answersSchema, type attemptSchema, type enrolmentSchema, type eventSchema, completeAnswers, fingerprint, grade } from "./domain";
+import type { N5Answer, N5Attempt, N5Enrolment, N5Export, N5ExtensionState, N5Progress, N5Result, N5ReviewEvent, N5Reviews, N5Script } from "../../../shared/n5/contracts";
+import { CONTENT_VERSION, COURSE_ID, EPISODE_ID, LESSON_ID, QUESTIONS } from "./content";
+import { type answersSchema, type attemptSchema, type enrolmentSchema, type eventSchema, completeAnswers, fingerprint, grade, publicLesson } from "./domain";
 
 export class CourseError extends Error {
   constructor(readonly code: string, readonly status: number, message: string, readonly allow?: string, readonly details?: { questionId: string }) { super(message); }
@@ -161,6 +161,19 @@ export class CourseStore {
     return { enrolment: enrolments.results[0] ?? null, observations: events.results,
       attempts: attempts.results.map((row) => ({ id: row.id, status: row.status, script: row.script,
         result: typeof row.result_json === "string" ? JSON.parse(row.result_json) as N5Result : null })), mastery: false };
+  }
+  async extensionState(): Promise<N5ExtensionState> {
+    const enrolment = await this.enrolment();
+    const lesson = enrolment ? publicLesson(enrolment.script) : null;
+    const active = await this.statement("SELECT id,script FROM n5_attempts WHERE user_id=? AND status='active' AND lesson_id=? AND content_version=? AND pack_hash=? ORDER BY created_at DESC,id LIMIT 5", this.userId, LESSON_ID, CONTENT_VERSION, await fingerprint(QUESTIONS)).all<{ id: string; script: N5Script }>();
+    const complete = await this.statement("SELECT COUNT(*) AS n FROM n5_attempts WHERE user_id=? AND status='complete'", this.userId).first<{ n: number }>();
+    const watched = await this.statement("SELECT id FROM n5_events WHERE user_id=? AND episode_id=? AND kind='watch_complete' LIMIT 1", this.userId, EPISODE_ID).first();
+    return {
+      apiVersion: 1, ownerId: this.userId,
+      context: enrolment ? { courseId: COURSE_ID, trackId: enrolment.trackId, unitId: "unit-1", episodeId: EPISODE_ID, lessonId: LESSON_ID, contentVersion: CONTENT_VERSION, script: enrolment.script } : null,
+      lesson: lesson ? { id: lesson.id, contentVersion: lesson.contentVersion, script: lesson.script, canDo: lesson.canDo, vocabulary: lesson.vocabulary, grammar: lesson.grammar } : null,
+      watched: Boolean(watched), activeAttempts: active.results, completedAttempts: complete?.n ?? 0, mastery: false,
+    };
   }
   async reviews(): Promise<N5Reviews> {
     const rows = await this.statement("SELECT id,attempt_id AS attemptId,objective_id AS objectiveId,judgment FROM n5_review_events WHERE user_id=? ORDER BY id", this.userId).all<N5ReviewEvent>();

@@ -70,6 +70,7 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
     const url = new URL(req.url);
     const path = url.pathname.slice("/v1/n5".length);
     if (path !== `/lessons/${LESSON_ID}` && url.search) throw new CourseError("invalid_request", 400, "Unexpected query parameters.");
+    if (path === "/extension/state") { method(req, "GET"); return response(req, await store.extensionState()); }
     if (path === "/catalog") {
       method(req, "GET");
       return response(req, { apiVersion: 1, courseId: COURSE_ID, contentVersion: CONTENT_VERSION, status: "private_preview", tracks: TRACKS } satisfies N5Catalog);

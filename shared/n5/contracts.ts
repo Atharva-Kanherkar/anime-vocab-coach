@@ -87,3 +87,18 @@ export interface N5Export {
   reviews: N5ReviewEvent[];
 }
 export interface N5Error { error: { code: string; message: string; details?: { questionId: string } } }
+
+/** Bounded, answer-free snapshot for the extension's private course pilot. */
+export interface N5ExtensionState {
+  apiVersion: 1;
+  ownerId: string;
+  context: {
+    courseId: string; trackId: string; unitId: string; episodeId: string;
+    lessonId: string; contentVersion: string; script: N5Script;
+  } | null;
+  lesson: Pick<N5Lesson, "id" | "contentVersion" | "script" | "canDo" | "vocabulary" | "grammar"> | null;
+  watched: boolean;
+  activeAttempts: { id: string; script: N5Script }[];
+  completedAttempts: number;
+  mastery: false;
+}
