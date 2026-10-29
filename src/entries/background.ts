@@ -26,6 +26,7 @@ import {
   sendExtensionEventBeacon,
 } from "../lib/extension-events";
 import { toastTab } from "../lib/notify";
+import { isN5HandoffMessage, type N5HandoffMessage } from "../lib/n5-handoff";
 import type { Settings } from "../types";
 
 // Friendly, page-visible copy for a listening-mode failure code. The offscreen
@@ -405,6 +406,8 @@ interface RuntimeMsg {
   trigger?: string;
   force?: boolean;
   open?: boolean;
+  lessonId?: string;
+  attemptId?: string;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
@@ -587,6 +590,21 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     // page, where an in-place navigation would throw away what they're watching.
     chrome.tabs.create({ url: msg.url }).catch(() => {});
     sendResponse({ ok: true });
+    return true;
+  }
+
+  // N5 course handoff (#175): only strictly validated whitelisted payloads may
+  // open or abandon a hosted assessment. Answers, credentials and grades stay
+  // owned by the hosted runner; this gate only vets the learner's intent.
+  if (msg.type === "avc-n5-start-assessment" || msg.type === "avc-n5-abandon-attempt") {
+    const handoff: N5HandoffMessage = msg as N5HandoffMessage;
+    if (!isN5HandoffMessage(handoff)) {
+      sendResponse({ ok: false, error: "invalid_n5_handoff" });
+      return true;
+    }
+    // Playback-side effects (pause, capture stop, hosted tab) land with the
+    // watch/handoff UI step; the gate itself is now wired and tested.
+    sendResponse({ ok: true, type: handoff.type });
     return true;
   }
 
