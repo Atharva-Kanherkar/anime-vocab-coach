@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
+import { resolve } from "node:path";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 const nextConfig: NextConfig = {
+  // Keep worktrees and the shared contracts inside one deterministic workspace.
+  turbopack: { root: resolve(process.cwd(), "..") },
   async redirects() {
     return [
       { source: "/privacy.html", destination: "/privacy", permanent: true },

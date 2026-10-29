@@ -135,6 +135,20 @@ export async function getOrCreateSyncToken(
   return token;
 }
 
+/** Server gateways reuse the existing credential instead of rewriting hot KV keys per request. */
+export async function getExistingSyncToken(userId: string): Promise<string | null> {
+  const store = await resolveStore();
+  const token = await store.get(userTokenKey(userId));
+  if (!token) return null;
+  const raw = await store.get(tokenKey(token));
+  if (!raw) return null;
+  const stored = JSON.parse(raw) as StoredTokenProfile;
+  if (stored.id !== userId) return null;
+  // The shared reader applies the existing once-a-day TTL slide.
+  await getSyncTokenProfile(token);
+  return token;
+}
+
 export async function getSyncTokenProfile(token: string): Promise<CloudUserProfile | null> {
   if (!token) return null;
   const store = await resolveStore();

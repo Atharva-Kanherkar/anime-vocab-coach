@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ profile: vi.fn(), token: vi.fn() }));
+const mocks = vi.hoisted(() => ({ profile: vi.fn(), token: vi.fn(), existing: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ resolveProfile: mocks.profile }));
-vi.mock("@/lib/sync-store", () => ({ getOrCreateSyncToken: mocks.token }));
+vi.mock("@/lib/sync-store", () => ({ getOrCreateSyncToken: mocks.token, getExistingSyncToken: mocks.existing }));
 vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: async () => ({ env: {} }) }));
 import { gateway, n5Config } from "./server";
 const upstream = vi.fn();
@@ -9,8 +9,9 @@ const request = (path = "catalog", method = "GET", body?: string, headers: Recor
 beforeEach(() => {
   vi.stubEnv("N5_WEB_PREVIEW_ENABLED", "1"); vi.stubEnv("N5_API_ORIGIN", "https://avc-api.animevocab.workers.dev");
   mocks.profile.mockReset().mockResolvedValue({ id: "alice", email: null, name: null });
+  mocks.existing.mockReset().mockResolvedValue(null);
   mocks.token.mockReset().mockResolvedValue("private-bearer-never-in-browser");
-  upstream.mockReset().mockResolvedValue(Response.json({ tracks: [] })); vi.stubGlobal("fetch", upstream);
+  upstream.mockReset().mockImplementation(async () => Response.json({ tracks: [] })); vi.stubGlobal("fetch", upstream);
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe("authenticated N5 gateway", () => {
@@ -26,12 +27,24 @@ describe("authenticated N5 gateway", () => {
     expect(await response.text()).not.toContain("private-bearer"); expect(response.headers.get("Cache-Control")).toBe("no-store"); expect(response.headers.get("Vary")).toBe("Cookie");
     mocks.profile.mockResolvedValueOnce({ id: "bob" }); await request(); expect(mocks.token).toHaveBeenLastCalledWith("bob", { id: "bob" });
   });
+  it("reuses a validated existing token without minting or rewriting it", async () => {
+    mocks.existing.mockResolvedValueOnce("cached-private-credential");
+    expect((await request()).status).toBe(200);
+    expect(mocks.existing).toHaveBeenCalledWith("alice");
+    expect(mocks.token).not.toHaveBeenCalled();
+    expect(upstream.mock.calls[0][1].headers.Authorization).toBe("Bearer cached-private-credential");
+  });
   it("requires cookie identity and exact same-origin mutation intent", async () => {
     expect((await request("catalog", "GET", undefined, { Authorization: "Bearer attacker" })).status).toBe(401);
     mocks.profile.mockResolvedValueOnce(null); expect((await request()).status).toBe(401);
     for (const headers of [{ Origin: "https://evil.test" }, { Origin: "null" }, { Origin: "" }, { "Sec-Fetch-Site": "cross-site" }] as Record<string, string>[]) expect((await request("events", "POST", "{}", headers)).status).toBe(403);
     expect((await request("catalog", "GET", undefined, { "Sec-Fetch-Site": "cross-site" })).status).toBe(403);
     expect(upstream).not.toHaveBeenCalled();
+  });
+  it("uses the browser Host when Next normalizes a local URL and ignores forwarded-host spoofing", async () => {
+    const make = (origin: string) => new Request("http://localhost:4000/api/n5/events", { method: "POST", headers: { Host: "127.0.0.1:4000", Origin: origin, "X-Forwarded-Host": "evil.test", "Content-Type": "application/json" }, body: "{}" });
+    expect((await gateway(make("http://127.0.0.1:4000"), ["events"])).status).toBe(200);
+    expect((await gateway(make("http://evil.test"), ["events"])).status).toBe(403);
   });
   it("rejects unsupported paths, methods, mixed-script query, content types and oversized bodies", async () => {
     for (const [path, method] of [["me", "DELETE"], ["catalog", "POST"], ["lessons/lesson?script=romaji-kana", "GET"], ["catalog?upstream=https://evil.test", "GET"]]) expect((await request(path, method)).status).toBe(404);
@@ -41,6 +54,7 @@ describe("authenticated N5 gateway", () => {
     expect((await request(`attempts/${id}`, "DELETE", "{}" )).status).toBe(400);
     expect(upstream).not.toHaveBeenCalled();
     expect((await request("events", "POST", "x".repeat(16384))).status).toBe(200);
+    expect((await request(`attempts/${id}`, "DELETE", "")).status).toBe(200);
   });
   it("fails safely on network/auth-store errors, upstream redirects, invalid JSON and oversized responses", async () => {
     for (const value of [new Response("<secret>", { status: 500 }), new Response("bad", { status: 200 }), Response.json({ error: { message: "private-bearer" } }, { status: 503 }), new Response("{", { headers: { "Content-Type": "application/json" } }), Response.json({ value: "x".repeat(524288) })]) {

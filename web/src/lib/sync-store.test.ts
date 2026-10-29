@@ -15,6 +15,7 @@ vi.mock("@opennextjs/cloudflare", () => ({
 
 import {
   getOrCreateSyncToken,
+  getExistingSyncToken,
   getSyncTokenProfile,
   refreshSyncTokenProfile,
   SYNC_TOKEN_TOUCH_INTERVAL_MS,
@@ -70,5 +71,30 @@ describe("sync token TTL", () => {
     const token = await getOrCreateSyncToken("user_1", { ...profile, plan: "free" });
     expect(await refreshSyncTokenProfile("user_1", profile)).toBe(true);
     expect((await getSyncTokenProfile(token))?.plan).toBe("pro");
+  });
+});
+
+
+describe("server-side credential reuse", () => {
+  it("returns an owned live token without repeated KV writes", async () => {
+    expect(await getExistingSyncToken("user_1")).toBeNull();
+    const token = await getOrCreateSyncToken("user_1", profile);
+    puts.length = 0;
+    expect(await Promise.all(Array.from({ length: 5 }, () => getExistingSyncToken("user_1")))).toEqual(Array(5).fill(token));
+    expect(puts).toEqual([]);
+  });
+  it("rejects dangling and cross-account reverse pointers without touching another account", async () => {
+    data.set("synctoken:user:user_1:v1", "avc_st_other");
+    expect(await getExistingSyncToken("user_1")).toBeNull();
+    data.set("synctoken:avc_st_other:v1", JSON.stringify({ ...profile, id: "other" }));
+    expect(await getExistingSyncToken("user_1")).toBeNull();
+    expect(puts).toEqual([]);
+  });
+  it("preserves the existing daily TTL refresh behavior", async () => {
+    vi.useFakeTimers();
+    const token = await getOrCreateSyncToken("user_1", profile);
+    puts.length = 0; vi.advanceTimersByTime(SYNC_TOKEN_TOUCH_INTERVAL_MS);
+    expect(await getExistingSyncToken("user_1")).toBe(token);
+    expect(puts).toHaveLength(2);
   });
 });

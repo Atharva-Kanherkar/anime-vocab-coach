@@ -8,7 +8,7 @@ export interface Draft {
 const key = /^[a-zA-Z0-9_-]{1,100}$/;
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 export function gatewayRoute(parts: string[], method: string, query: URLSearchParams): string | null {
-  if (!parts.length || parts.some((part) => !/^[a-z0-9-]{1,100}$/.test(part))) return null;
+  if (!parts.length || parts.some((part) => part !== part.trim() || !/^[a-z0-9-]{1,100}$/.test(part))) return null;
   const path = "/" + parts.join("/");
   const get = /^(\/catalog|\/courses\/[a-z0-9-]+|\/lessons\/[a-z0-9-]+|\/me\/progress)$/.test(path) || new RegExp(`^/attempts/${uuid}$`).test(path);
   const post = ["/enrolments", "/events", "/attempts"].includes(path) || new RegExp(`^/attempts/${uuid}/(answers|finish)$`).test(path);

@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { resolveProfile } from "@/lib/auth";
-import { getOrCreateSyncToken } from "@/lib/sync-store";
+import { getExistingSyncToken, getOrCreateSyncToken } from "@/lib/sync-store";
 import { gatewayRoute } from "./core";
 
 export async function n5Config(): Promise<{ enabled: boolean; origin: string }> {
@@ -32,6 +32,7 @@ async function boundedBody(req: Request | Response, limit = 16_384): Promise<str
       chunks.push(chunk.value);
     }
   } finally { reader.releaseLock(); }
+  if (size === 0) return undefined;
   const bytes = new Uint8Array(size);
   let offset = 0;
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
@@ -46,14 +47,18 @@ export async function gateway(req: Request, parts: string[]): Promise<Response> 
     const route = gatewayRoute(parts, req.method, url.searchParams);
     if (!route) return fail("not_found", 404);
     if (req.headers.get("Sec-Fetch-Site") === "cross-site") return fail("origin_not_allowed", 403);
-    if (req.method !== "GET" && req.headers.get("Origin") !== url.origin) return fail("origin_not_allowed", 403);
+    // Next dev normalizes the URL hostname to localhost. The HTTP Host still
+    // identifies the origin the browser used; never trust x-forwarded-host here.
+    const host = req.headers.get("Host");
+    const expectedOrigin = host ? new URL(`${url.protocol}//${host}`).origin : url.origin;
+    if (req.method !== "GET" && req.headers.get("Origin") !== expectedOrigin) return fail("origin_not_allowed", 403);
     const profile = await resolveProfile(req);
     if (!profile) return fail("unauthorized", 401);
     if (req.method === "POST" && req.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase() !== "application/json") return fail("content_type", 415);
     let payload: string | undefined;
     try { payload = await boundedBody(req); } catch (error) { return fail(error instanceof Error && error.message === "body_too_large" ? "body_too_large" : "invalid_request", error instanceof Error && error.message === "body_too_large" ? 413 : 400); }
     if (req.method === "DELETE" && payload !== undefined) return fail("invalid_request", 400);
-    const token = await getOrCreateSyncToken(profile.id, profile);
+    const token = await getExistingSyncToken(profile.id) ?? await getOrCreateSyncToken(profile.id, profile);
     const upstream = await fetch(config.origin + "/v1/n5" + route, {
       method: req.method, headers: { Authorization: `Bearer ${token}`, ...(req.method === "POST" ? { "Content-Type": "application/json" } : {}) },
       body: payload, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15_000),

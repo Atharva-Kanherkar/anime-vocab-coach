@@ -11,7 +11,8 @@ describe("private gateway route boundary", () => {
     for (const path of ["enrolments", "events", "attempts", `attempts/${attempt.id}/answers`, `attempts/${attempt.id}/finish`]) expect(gatewayRoute(path.split("/"), "POST", new URLSearchParams())).toBe("/" + path);
     expect(gatewayRoute(["attempts", attempt.id], "DELETE", new URLSearchParams())).toBe(`/attempts/${attempt.id}`);
     for (const script of ["romaji", "kana"]) expect(gatewayRoute(["lessons", "lesson"], "GET", new URLSearchParams({ script }))).toBe(`/lessons/lesson?script=${script}`);
-    for (const path of ["", "../catalog", "https://evil.test", "me/export", "me", `attempts/${attempt.id}/voice`, "attempts/not-uuid", "catalog/extra", "a".repeat(101)]) for (const method of ["GET", "POST", "DELETE"]) expect(gatewayRoute(path ? path.split("/") : [], method, new URLSearchParams())).toBeNull();
+    for (const path of ["", "../catalog", "https://evil.test", "me/export", "me", `attempts/${attempt.id}/voice`, "attempts/not-uuid", "catalog/extra", "foo/catalog", "a".repeat(101), "courses/" + "a".repeat(101), "courses/a\n", "lessons/a\n"]) for (const method of ["GET", "POST", "DELETE"]) expect(gatewayRoute(path ? path.split("/") : [], method, new URLSearchParams())).toBeNull();
+    for (const method of ["GET", "PUT", "DELETE"]) expect(gatewayRoute(["events"], method, new URLSearchParams())).toBeNull();
     expect(gatewayRoute(["catalog"], "PUT", new URLSearchParams())).toBeNull();
     expect(gatewayRoute(["attempts", attempt.id], "POST", new URLSearchParams())).toBeNull();
     for (const query of ["script=romaji-kana", "script=", "script=romaji&script=kana", "script=kana&userId=other", "other=kana"]) expect(gatewayRoute(["lessons", "lesson"], "GET", new URLSearchParams(query))).toBeNull();
@@ -33,6 +34,13 @@ describe("scoped private drafts", () => {
     expect(restoreDraft("x".repeat(40000), "alice", attempt, questions)).toBeNull();
     for (const extra of [{ version: 2 }, { ownerId: "bob" }, { attemptId: "other" }, { contentVersion: "v2" }, { script: "kana" }, { revision: -1 }, { revision: 0.5 }, { revision: 1000001 }, { answers: null }, { answers: [{ questionId: "missing", value: "x" }] }, { answers: [{ questionId: "two", value: "" }] }, { answers: [{ questionId: "two", value: "x".repeat(501) }] }, { answers: [{ questionId: "two", value: "a" }, { questionId: "two", value: "b" }] }]) expect(restore({ ...draft(), ...extra })).toBeNull();
     expect(restore(null)).toBeNull();
+    const two = [{ questionId: "one", value: "a" }, { questionId: "two", value: "x" }];
+    expect(restore({ ...draft(), answers: two })).not.toBeNull();
+    expect(restore({ ...draft(), answers: [two[0], { questionId: "two", value: "" }] })).toBeNull();
+    expect(restore({ ...draft(), answers: [{ questionId: "two", value: ["x"] }] })).toBeNull();
+    const base = JSON.stringify({ ...draft(), padding: "" });
+    expect(restoreDraft(JSON.stringify({ ...draft(), padding: "x".repeat(40000 - base.length) }), "alice", attempt, questions)).not.toBeNull();
+    expect(restoreDraft(JSON.stringify({ ...draft(), padding: "x".repeat(40001 - base.length) }), "alice", attempt, questions)).toBeNull();
     expect(restore(draft(), { ...attempt, status: "complete" })).toBeNull();
     expect(restore({ ...draft(), revision: 1000000, answers: [{ questionId: "two", value: "x".repeat(500) }] })).not.toBeNull();
     for (const pending of [false, {}, { revision: 1, idempotencyKey: "key", answers: draft().answers }, { revision: 0, idempotencyKey: "bad/key", answers: draft().answers }, { revision: 0, idempotencyKey: 123, answers: draft().answers }, { revision: 0, idempotencyKey: "key", answers: [] }]) expect(restore({ ...draft(), pending })).toBeNull();
@@ -48,5 +56,7 @@ it("allows only official HTTPS watch/source links", () => {
   expect(safeLink("https://www.yourlieinapril.com/story/01.html", "source")).toBe("https://www.yourlieinapril.com/story/01.html");
   for (const raw of ["", "javascript:alert(1)", "http://www.crunchyroll.com/series/x", "https://evil.test/series/x", "https://www.crunchyroll.com.evil.test/series/x", "https://u:p@www.crunchyroll.com/series/x", "https://www.crunchyroll.com:8443/series/x", "https://www.crunchyroll.com/watch/x"]) expect(safeLink(raw, "watch")).toBeNull();
   expect(safeLink("https://www.crunchyroll.com/series/x", "source")).toBeNull();
+  expect(safeLink("https://evil.test/story/x", "source")).toBeNull();
+  expect(safeLink("https://www.yourlieinapril.com/story/x", "watch")).toBeNull();
   expect(safeLink("https://www.yourlieinapril.com/other/x", "source")).toBeNull();
 });
