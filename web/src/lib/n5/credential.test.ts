@@ -46,3 +46,32 @@ it("keeps concurrent first requests valid even if their pointers race", async ()
   for (const key of [a, b]) expect(JSON.parse(kv.values.get(n5CredentialKey(key))!).id).toBe("alice");
   expect([a, b]).toContain(kv.values.get(n5CredentialPointer("alice")));
 });
+it("uses the persisted unique credential even when concurrent cache-pointer writes are rate limited", async () => {
+  let published = false;
+  kv.put.mockImplementation(async (key, value) => {
+    if (key === n5CredentialPointer("alice")) {
+      if (published) throw new Error("KV PUT failed: 429 Too Many Requests");
+      published = true;
+    }
+    kv.values.set(key, value);
+  });
+  const tokens = await Promise.all([courseCredential("alice"), courseCredential("alice")]);
+  for (const token of tokens) expect(JSON.parse(kv.values.get(n5CredentialKey(token))!).id).toBe("alice");
+});
+it("fails closed if the authoritative credential record cannot be written", async () => {
+  kv.put.mockRejectedValueOnce(new Error("KV unavailable"));
+  await expect(courseCredential("alice")).rejects.toThrow("KV unavailable");
+  expect(kv.put).toHaveBeenCalledTimes(1);
+  expect(kv.values.has(n5CredentialPointer("alice"))).toBe(false);
+});
+it.each([1, 10_000, 30_000])("rotates a live credential with only %s ms remaining, with exactly one hour of validity", async (remaining) => {
+  const now = 1_800_000_000_000;
+  const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+  try {
+    kv.values.set(n5CredentialPointer("alice"), token);
+    kv.values.set(n5CredentialKey(token), JSON.stringify({ id: "alice", expiresAt: now + remaining }));
+    const fresh = await courseCredential("alice");
+    expect(fresh).not.toBe(token);
+    expect(JSON.parse(kv.values.get(n5CredentialKey(fresh))!)).toEqual({ id: "alice", expiresAt: now + 3_600_000 });
+  } finally { clock.mockRestore(); }
+});

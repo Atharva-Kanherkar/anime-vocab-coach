@@ -14,6 +14,8 @@ export async function courseCredential(ownerId: string): Promise<string> {
   const token = "avc_n5_" + crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
   const options = { expirationTtl: N5_CREDENTIAL_TTL_SECONDS };
   await store.put(n5CredentialKey(token), JSON.stringify({ id: ownerId, expiresAt: Date.now() + N5_CREDENTIAL_TTL_SECONDS * 1000 }), options);
-  await store.put(pointer, token, options);
+  // Parallel requests may hit KV's same-key write limit. The unique record
+  // above is already usable; this pointer is only a cache for later requests.
+  try { await store.put(pointer, token, options); } catch { /* best-effort cache */ }
   return token;
 }

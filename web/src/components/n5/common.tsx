@@ -122,7 +122,8 @@ function SessionExpired() {
         Sign in
       </Link>
       <p>
-        <Link href={returnTo}>Reload after signing in</Link>
+        {/* A client navigation retains this layout's expired-session state. */}
+        <a href={returnTo}>Reload after signing in</a>
       </p>
     </section>
   );
@@ -172,6 +173,8 @@ const messages: Record<string, string> = {
     "A newer version was saved elsewhere. Your local answers are still here. Reload the server version to continue.",
   stale_content:
     "This practice uses retired lesson content. Keep a copy of your answers, then discard this unfinished attempt and start fresh.",
+  enrolment_changed:
+    "Your course script changed in another tab. Reload this lesson before starting practice.",
   invalid_answers:
     "Check the highlighted question. Use only your selected script and one of the offered choices.",
   attempt_limit:

@@ -19,7 +19,7 @@
     "postinstall": "patch-package",
     "test:e2e:n5": "node e2e/n5-course.mjs",
     "test:n5:fuzz": "vitest run --config vitest.n5-fuzz.config.ts",
-    "test:n5:mutation": "stryker run stryker.n5.config.json"
+    "test:n5:mutation": "cd .. && node web/node_modules/@stryker-mutator/core/bin/stryker.js run web/stryker.n5.config.json"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.12",
