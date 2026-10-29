@@ -3,20 +3,10 @@ import { UNITS } from "./curriculum";
 import { CLIPS, EPISODE_IDS, LESSONS, LESSON_IDS, courseOutline, publicLesson } from "./course";
 import { validScript } from "./domain";
 import { render } from "./text";
+import { courseRomajiWords } from "./tutor";
 
 const KANA = /[ぁ-ゖァ-ヺ]/;
 const KANJI = /[一-鿿㐀-䶿]/;
-
-/** Every romaji word the course itself produces, minus words that are also English. */
-const ENGLISH_HOMOGRAPHS = new Set(["piano", "pan", "a", "i", "to", "no", "de", "mo", "ka", "ne", "yo", "e", "o", "ni", "ga", "wa", "un", "ii", "san", "hai", "are", "kore", "sore", "made", "ban", "han", "ten", "pen", "mise", "basu", "hon", "kousei", "kaori", "tsubaki", "watari", "emi", "takeshi", "nagi", "seto", "haru"]);
-function courseRomajiWords(): Set<string> {
-  const words = new Set<string>();
-  for (const lesson of LESSONS) {
-    const texts = [...lesson.vocabulary.map((v) => v.text.romaji), ...lesson.dialogue.map((d) => d.text.romaji), ...lesson.grammar.flatMap((g) => g.examples.map((e) => e.text.romaji))];
-    for (const text of texts) for (const word of text.toLowerCase().split(/[^a-z']+/)) if (word.length >= 3 && !ENGLISH_HOMOGRAPHS.has(word)) words.add(word);
-  }
-  return words;
-}
 
 describe("Your Lie in April course map", () => {
   it("has 24 ordered units mapping every episode 1-22 exactly once", () => {

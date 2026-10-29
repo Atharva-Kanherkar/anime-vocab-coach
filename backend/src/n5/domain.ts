@@ -19,6 +19,16 @@ export const answersSchema = z.strictObject({
   answers: z.array(answerSchema).min(1).max(MAX_QUESTIONS),
 });
 export const finishSchema = z.strictObject({ revision });
+export const emptySchema = z.strictObject({});
+export const conversationStartSchema = z.strictObject({ lessonId: lessonIdSchema, idempotencyKey: key });
+export const AUDIO_TYPES = ["audio/webm", "audio/ogg", "audio/mp4", "audio/wav"] as const;
+/** One learner turn: either typed text in the conversation script or a short recording. */
+export const turnSchema = z.strictObject({
+  afterSeq: z.number().int().min(0).max(100),
+  idempotencyKey: key,
+  text: z.string().min(1).max(300).optional(),
+  audio: z.strictObject({ data: z.string().min(16).max(820_000).regex(/^[A-Za-z0-9+/]+={0,2}$/), mime: z.enum(AUDIO_TYPES) }).optional(),
+}).refine((turn) => (turn.text === undefined) !== (turn.audio === undefined), { message: "Send text or audio." });
 
 /** The provisional lesson gate. Calibrate with the pilot; it is not a JLPT threshold. */
 export const PASS_PERCENT = 80;

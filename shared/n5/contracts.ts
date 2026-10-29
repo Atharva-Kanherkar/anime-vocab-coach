@@ -131,6 +131,8 @@ export interface N5Export {
   observations: (N5Progress["observations"][number] & { createdAt: number })[];
   attempts: N5Attempt[];
   reviews: N5ReviewEvent[];
+  conversations: N5Conversation[];
+  feedback: N5Feedback[];
 }
 export interface N5Error { error: { code: string; message: string; details?: { questionId: string } } }
 
@@ -157,7 +159,8 @@ export interface N5ExtensionState {
 
 export interface N5FeedbackItem {
   questionId: string;
-  verdict: "correct" | "close" | "retry";
+  /** unchecked: automatic feedback was unavailable; compare with the references. */
+  verdict: "correct" | "close" | "retry" | "unchecked";
   /** A corrected sentence in the attempt script, or null. */
   correction: string | null;
   /** English explanation. */
@@ -167,7 +170,8 @@ export interface N5FeedbackItem {
 export interface N5Feedback {
   attemptId: string;
   script: N5Script;
-  source: "ai" | "fallback";
+  /** match: every answer matched a model answer. fallback is never stored, so a retry can upgrade it. */
+  source: "match" | "ai" | "fallback";
   items: N5FeedbackItem[];
 }
 

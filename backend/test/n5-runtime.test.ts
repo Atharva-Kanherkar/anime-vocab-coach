@@ -106,7 +106,7 @@ describe("real Worker and D1 end-to-end", () => {
     expect(finished.review.filter((item: { correct: boolean | null }) => item.correct === true)).toHaveLength(8);
     expect(await (await app.request(`/attempts/${fresh.id}`)).json()).toEqual(finished);
     expect(await (await app.request(`/attempts/${fresh.id}/finish`, { body: { revision: 1 } })).json()).toEqual(finished);
-    expect((await app.request(`/attempts/${fresh.id}/voice`, { body: {} })).status).toBe(503);
+    expect((await app.request(`/attempts/${fresh.id}/voice`, { body: {} })).status).toBe(404);
     const progress = await (await app.request("/me/progress")).json();
     expect(progress.mastery).toBe(false);
     expect(progress.observations).toEqual([{ episodeId: EPISODE_ID, kind: "watch_complete" }]);
@@ -404,7 +404,8 @@ describe("observation receipt migration", () => {
       await isolated.db!.prepare("INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at) VALUES('recent','n5-local-user',?,?,?,'watch_complete',1005)").bind(retained.idempotencyKey, await fingerprint(retained), EPISODE_ID).run();
       await isolated.mf.dispose();
       isolated = await runtime({ persist });
-      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM d1_migrations").first())?.n).toBe(2);
+      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM d1_migrations").first())?.n).toBe(3);
+      for (const table of ["n5_usage", "n5_feedback", "n5_conversations", "n5_turns"]) expect(await isolated.db!.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").bind(table).first()).not.toBeNull();
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_event_requests").first())?.n).toBe(1000);
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_events").first())?.n).toBe(2);
       expect(await (await isolated.request("/events", { body: retained })).json()).toEqual({ id: "recent" });
