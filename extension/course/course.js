@@ -28,12 +28,13 @@
     el("lesson").hidden = !next.lesson;
     for (const radio of Array.from(document.querySelectorAll('input[name="script"]'))) radio.checked = radio.value === next.context?.script;
     el("status").textContent = offline ? `Offline lesson. ${pending} observation(s) pending sync; no proficiency credit.` : pending ? `${pending} observation(s) pending sync.` : "Course connected. Saved progress belongs to your account.";
-    el("progress").textContent = `${next.completedAttempts} objective practice attempt(s) complete. ${next.watched ? "Episode marked watched." : "Episode not yet recorded as watched."} Speaking is not assessed.`;
+    el("progress").textContent = `${next.completedAttempts} objective practice attempt(s) complete. ${next.watched ? "Episode marked watched." : "Episode not yet recorded as watched."} Speak with Haru on the hosted lesson page.`;
     el("words").replaceChildren();
     el("grammar").replaceChildren();
     el("attempts").replaceChildren();
     if (next.lesson) {
       el("goal").textContent = next.lesson.canDo;
+      el("unit").textContent = [next.lesson.unit ? `Unit ${next.lesson.unit}${next.lesson.title ? `: ${next.lesson.title}` : ""}` : "", next.lesson.episode ? `Your Lie in April, episode ${next.lesson.episode.number}: ${next.lesson.episode.title}` : ""].filter(Boolean).join(" \xB7 ");
       for (const v of next.lesson.vocabulary) {
         const item = document.createElement("li"), word = document.createElement("strong"), meaning = document.createElement("span");
         word.textContent = v.reading;

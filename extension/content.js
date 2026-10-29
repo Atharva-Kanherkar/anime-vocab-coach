@@ -10,7 +10,7 @@
     const panel = document.createElement("section");
     panel.setAttribute("aria-label", "N5 lesson focus");
     const tag = document.createElement("small");
-    tag.textContent = `N5 private preview \xB7 ${lesson.script}`;
+    tag.textContent = [lesson.unit ? `Unit ${lesson.unit}` : "N5 course", lesson.episode ? `Episode ${lesson.episode.number}` : null, lesson.script].filter(Boolean).join(" \xB7 ");
     const title = document.createElement("h2");
     title.textContent = lesson.canDo;
     const note = document.createElement("p");
@@ -105,7 +105,8 @@
   var text = (v, max = 500) => typeof v === "string" && v.length > 0 && v.length <= max;
   function pureReading(value, script) {
     if (!text(value)) return false;
-    return script === "romaji" ? /^[A-Za-zāīūēōâîûêôĀĪŪĒŌ0-9 .,!?'():;-]+$/.test(value) && /[A-Za-zāīūēō]/i.test(value) : /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」『』():・〜~.]+$/.test(value) && /[\u3041-\u3096\u30a1-\u30fa]/.test(value);
+    const normalized = value.normalize("NFKC");
+    return script === "romaji" ? /^[A-Za-zāīūēōâîûêôĀĪŪĒŌ0-9 .,!?'():;-]+$/.test(normalized) && /[A-Za-zāīūēō]/i.test(normalized) : /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」『』():・〜~.]+$/.test(normalized) && /[\u3041-\u3096\u30a1-\u30fa]/.test(normalized);
   }
   function parseN5PilotState(value) {
     if (!obj(value) || value.apiVersion !== 1 || !text(value.ownerId, 128) || value.mastery !== false || typeof value.watched !== "boolean" || !Number.isSafeInteger(value.completedAttempts) || value.completedAttempts < 0) return null;
@@ -125,7 +126,20 @@
         if (!obj(g) || !text(g.id, 128) || !pureReading(g.example, context.script) || !text(g.explanation)) return null;
         grammar.push({ id: g.id, explanation: g.explanation, example: g.example });
       }
-      lesson = { id: context.lessonId, contentVersion: context.contentVersion, script: context.script, canDo: l.canDo, vocabulary, grammar };
+      const unit = Number.isSafeInteger(l.unit) && l.unit >= 1 && l.unit <= 99 ? l.unit : void 0;
+      const title = text(l.title, 120) ? l.title : void 0;
+      const episode = obj(l.episode) && Number.isSafeInteger(l.episode.number) && l.episode.number >= 1 && l.episode.number <= 999 && text(l.episode.title, 120) ? { number: l.episode.number, title: l.episode.title } : void 0;
+      lesson = {
+        id: context.lessonId,
+        contentVersion: context.contentVersion,
+        script: context.script,
+        canDo: l.canDo,
+        vocabulary,
+        grammar,
+        ...unit ? { unit } : {},
+        ...title ? { title } : {},
+        ...episode ? { episode } : {}
+      };
     } else if (value.lesson !== null) return null;
     if (!Array.isArray(value.activeAttempts) || value.activeAttempts.length > 5) return null;
     const activeAttempts = [];

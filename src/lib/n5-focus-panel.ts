@@ -7,7 +7,8 @@ export function mountN5Focus(lesson: Lesson, practise: () => Promise<void>, exit
   const style = document.createElement("style");
   style.textContent = `:host{all:initial;position:fixed;bottom:18px;left:18px;z-index:2147483646;font:14px/1.5 system-ui;color:#eee6da;width:min(320px,calc(100vw - 36px))}section{background:#151a21;border:1px solid #6d756e;border-radius:16px;padding:18px;box-shadow:0 12px 40px #0008}h2{font-size:16px;margin:4px 0}p{margin:8px 0}small{color:#bdc4c0}details{max-height:35vh;overflow:auto}summary,button{cursor:pointer}button{border:1px solid #a7b9b0;border-radius:7px;background:#cde4d8;color:#15221b;padding:9px 12px;margin:5px 4px 0 0;font:inherit}button:disabled{opacity:.6}button:focus-visible,summary:focus-visible{outline:3px solid #ffc26d}li{margin:9px 0}ul{padding-left:18px}.secondary{background:transparent;color:inherit}output{display:block;margin-top:8px}`;
   const panel = document.createElement("section"); panel.setAttribute("aria-label", "N5 lesson focus");
-  const tag = document.createElement("small"); tag.textContent = `N5 private preview · ${lesson.script}`;
+  const tag = document.createElement("small");
+  tag.textContent = [lesson.unit ? `Unit ${lesson.unit}` : "N5 course", lesson.episode ? `Episode ${lesson.episode.number}` : null, lesson.script].filter(Boolean).join(" · ");
   const title = document.createElement("h2"); title.textContent = lesson.canDo;
   const note = document.createElement("p"); note.textContent = "Original practice examples. Live overlays are paused during course focus.";
   const details = document.createElement("details");
