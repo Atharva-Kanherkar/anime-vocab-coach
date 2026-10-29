@@ -194,3 +194,16 @@ describe("attempt save/finish transitions", () => {
     expect(sameAnswers(answers, [])).toBe(false);
   });
 });
+
+it("unlocks a definitively rejected finish without changing answers, acknowledgement or pending save", () => {
+  const ready = initialAttempt({ ...initial, answers }, null, "v1");
+  const finishing = step(ready, { type: "finish" });
+  expect(step(finishing, { type: "finish-rejected" })).toEqual(ready);
+  const pending = step(step(start(), { type: "edit", answers }), {
+    type: "sending",
+    snapshot: { revision: 3, idempotencyKey: "stable", answers },
+  });
+  expect(step(pending, { type: "finish-rejected" }).pending).toBe(
+    pending.pending,
+  );
+});

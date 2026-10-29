@@ -20,9 +20,19 @@ export async function n5Config(): Promise<{
   const enabled =
     (env.N5_WEB_PREVIEW_ENABLED ?? process.env.N5_WEB_PREVIEW_ENABLED) === "1";
   const users = env.N5_PREVIEW_USERS ?? process.env.N5_PREVIEW_USERS;
-  const previewUsers = typeof users === "string" ? users.split(",").map((id) => id.trim()).filter(Boolean) : [];
+  const previewUsers =
+    typeof users === "string"
+      ? users
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : [];
   if (!enabled)
-    return { enabled: false, origin: "https://avc-api.animevocab.workers.dev", previewUsers };
+    return {
+      enabled: false,
+      origin: "https://avc-api.animevocab.workers.dev",
+      previewUsers,
+    };
   const configured = env.N5_API_ORIGIN ?? process.env.N5_API_ORIGIN;
   const origin =
     typeof configured === "string"

@@ -121,6 +121,13 @@ export function useAttempt(
     } catch (failure) {
       if (abort.current.signal.aborted) return;
       if (failure instanceof CourseFailure) {
+        if (
+          failure.status >= 400 &&
+          failure.status < 500 &&
+          ![401, 408, 429].includes(failure.status)
+        ) {
+          transition({ type: "finish-rejected" });
+        }
         if (failure.status === 400) transition({ type: "invalid" });
         if (failure.code === "conflict" || failure.code === "stale_content") {
           transition({ type: "block", code: failure.code });

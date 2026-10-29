@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useUser } from "@clerk/nextjs";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
@@ -108,6 +109,8 @@ function ClerkSession({
 }
 
 function SessionExpired() {
+  const pathname = usePathname();
+  const returnTo = pathname?.startsWith("/app/n5/") ? pathname : "/app/n5";
   return (
     <section className="n5-panel">
       <h1>Sign in again</h1>
@@ -115,9 +118,11 @@ function SessionExpired() {
         Your session needs refreshing. Unsaved answers remain in this tab for
         the same account.
       </p>
-      <Link href="/sign-in?redirect_url=%2Fapp%2Fn5">Sign in</Link>
+      <Link href={`/sign-in?redirect_url=${encodeURIComponent(returnTo)}`}>
+        Sign in
+      </Link>
       <p>
-        <Link href="/app/n5">Reload after signing in</Link>
+        <Link href={returnTo}>Reload after signing in</Link>
       </p>
     </section>
   );

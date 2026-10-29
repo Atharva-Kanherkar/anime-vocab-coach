@@ -27,7 +27,7 @@ export function CourseLesson({
         ),
         courseRequest<N5Progress>("/me/progress", undefined, undefined, signal),
       ]);
-      const attempts = await Promise.all(
+      const attempts = await Promise.allSettled(
         progress.attempts
           .filter((attempt) => attempt.status === "active")
           .map((attempt) =>
@@ -41,10 +41,12 @@ export function CourseLesson({
       );
       return {
         lesson,
-        active: attempts.filter(
-          (attempt) =>
-            attempt.lessonId === lesson.id &&
-            attempt.contentVersion === lesson.contentVersion,
+        active: attempts.flatMap((result) =>
+          result.status === "fulfilled" &&
+          result.value.lessonId === lesson.id &&
+          result.value.contentVersion === lesson.contentVersion
+            ? [result.value]
+            : [],
         ),
         watched: progress.observations.some(
           (e) =>

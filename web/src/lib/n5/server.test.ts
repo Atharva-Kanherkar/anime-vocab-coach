@@ -253,16 +253,24 @@ it("uses only the local exact-member allowlist for navigation and layout", async
   expect(mocks.existing).not.toHaveBeenCalled();
   expect(mocks.token).not.toHaveBeenCalled();
   expect(mocks.profile).not.toHaveBeenCalled();
-  vi.stubEnv("N5_PREVIEW_USERS", ""); expect(await n5AvailableFor("alice")).toBe(false);
-  vi.stubEnv("N5_WEB_PREVIEW_ENABLED", "0"); expect(await n5AvailableFor("alice")).toBe(false);
-  vi.stubEnv("N5_WEB_PREVIEW_ENABLED", "1"); vi.stubEnv("N5_API_ORIGIN", "bad");
+  vi.stubEnv("N5_PREVIEW_USERS", "");
+  expect(await n5AvailableFor("alice")).toBe(false);
+  vi.stubEnv("N5_WEB_PREVIEW_ENABLED", "0");
+  expect(await n5AvailableFor("alice")).toBe(false);
+  vi.stubEnv("N5_WEB_PREVIEW_ENABLED", "1");
+  vi.stubEnv("N5_API_ORIGIN", "bad");
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  expect(await n5AvailableFor("alice")).toBe(false); expect(warn).toHaveBeenCalled(); warn.mockRestore();
+  expect(await n5AvailableFor("alice")).toBe(false);
+  expect(warn).toHaveBeenCalled();
+  warn.mockRestore();
 });
 it("rejects non-members at the gateway before credential lookup or mint", async () => {
-  vi.stubEnv("N5_PREVIEW_USERS", "bob"); expect((await request()).status).toBe(404);
-  expect(mocks.existing).not.toHaveBeenCalled(); expect(mocks.token).not.toHaveBeenCalled();
-  expect(mocks.profile).not.toHaveBeenCalled(); expect(upstream).not.toHaveBeenCalled();
+  vi.stubEnv("N5_PREVIEW_USERS", "bob");
+  expect((await request()).status).toBe(404);
+  expect(mocks.existing).not.toHaveBeenCalled();
+  expect(mocks.token).not.toHaveBeenCalled();
+  expect(mocks.profile).not.toHaveBeenCalled();
+  expect(upstream).not.toHaveBeenCalled();
 });
 it("does not mint for a profile different from the verified session", async () => {
   mocks.profile.mockResolvedValueOnce({ id: "bob" });

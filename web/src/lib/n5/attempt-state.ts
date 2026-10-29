@@ -14,6 +14,7 @@ export type AttemptAction =
   | { type: "sending"; snapshot: Snapshot }
   | { type: "acknowledge"; revision: number }
   | { type: "invalid" }
+  | { type: "finish-rejected" }
   | { type: "block"; code: "conflict" | "stale_content" }
   | { type: "finish" };
 
@@ -81,6 +82,8 @@ export function attemptTransition(
         : state;
     case "invalid":
       return { ...state, pending: null, finishRevision: null };
+    case "finish-rejected":
+      return { ...state, finishRevision: null };
     case "block":
       return { ...state, blocked: action.code };
     case "finish":

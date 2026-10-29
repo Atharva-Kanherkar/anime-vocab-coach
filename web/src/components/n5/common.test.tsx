@@ -8,6 +8,9 @@ const clerk = vi.hoisted(() => ({
     user: null as { id: string } | null,
   },
 }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/app/n5/attempts/test-attempt",
+}));
 vi.mock("@clerk/nextjs", () => ({ useUser: () => clerk.current }));
 vi.mock("@/lib/dev-auth", () => ({ DEV_NO_CLERK: false }));
 import { CourseSession, courseRequest, CourseFailure, Failure } from "./common";
@@ -86,4 +89,20 @@ it("preserves HTTP status for HTML failures and never labels server errors as of
   }
   render(<Failure error={new TypeError("Failed to fetch")} />);
   expect(screen.getByRole("alert").textContent).toContain("back online");
+});
+
+it("returns sign-in and reload links to the current attempt", () => {
+  clerk.current = { isLoaded: true, isSignedIn: false, user: null };
+  render(course());
+  const href = screen
+    .getByRole("link", { name: /^Sign in$/ })
+    .getAttribute("href")!;
+  expect(
+    new URL(href, "https://animevocab.com").searchParams.get("redirect_url"),
+  ).toBe("/app/n5/attempts/test-attempt");
+  expect(
+    screen
+      .getByRole("link", { name: "Reload after signing in" })
+      .getAttribute("href"),
+  ).toBe("/app/n5/attempts/test-attempt");
 });

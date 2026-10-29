@@ -43,7 +43,7 @@ async function curlProbe(path, expected, extra = []) {
   assert.equal(Number(stdout), expected);
 }
 const check = (name) => console.log(`PASS ${name}`);
-async function start(enabled, upstreamOrigin) {
+async function start(enabled, upstreamOrigin, members = "dev-user") {
   child = spawn(
     process.execPath,
     [
@@ -61,6 +61,7 @@ async function start(enabled, upstreamOrigin) {
         NODE_ENV: "development",
         NEXT_PUBLIC_AVC_DEV_NO_CLERK: "1",
         N5_WEB_PREVIEW_ENABLED: enabled ? "1" : "0",
+        N5_PREVIEW_USERS: members,
         N5_API_ORIGIN: upstreamOrigin ?? (await app.mf.ready).origin,
         OPENAI_API_KEY: "",
       },
@@ -126,6 +127,16 @@ async function fill(page, script) {
 }
 try {
   await writeFile(`${artifacts}/next.log`, "");
+  await start(true, undefined, "");
+  assert.equal((await probe.get(base + "/app/n5")).status(), 404);
+  assert.equal((await probe.get(base + "/api/n5/catalog")).status(), 404);
+  const uninvitedDashboard = await probe.get(base + "/app");
+  assert.equal(uninvitedDashboard.status(), 200);
+  assert.ok(!(await uninvitedDashboard.text()).includes("N5 course preview"));
+  check(
+    "web allowlist hides private entry and direct gateway for a non-member",
+  );
+  await stop();
   await start(true);
   check("Next gateway and real Worker started");
   const minted = await (await probe.post(base + "/api/sync/token")).json();
@@ -171,10 +182,11 @@ try {
   await curlProbe("/api/n5/catalog?upstream=https://evil.test", 404);
   check("curl authentication, CSRF and open-proxy boundaries");
   await app.kv.delete(`synctoken:${token}:v1`);
-  assert.equal((await probe.get(base + "/app/n5")).status(), 404);
+  assert.equal((await probe.get(base + "/app/n5")).status(), 200);
+  assert.equal((await probe.get(base + "/api/n5/catalog")).status(), 401);
   const dashboard = await probe.get(base + "/app");
   assert.equal(dashboard.status(), 200);
-  assert.ok(!(await dashboard.text()).includes("N5 course preview"));
+  assert.ok((await dashboard.text()).includes("N5 course preview"));
   await app.kv.put(
     `synctoken:${token}:v1`,
     JSON.stringify({
@@ -185,9 +197,7 @@ try {
       touchedAt: Date.now(),
     }),
   );
-  check(
-    "backend-denied pilot hides layout and navigation without breaking dashboard",
-  );
+  check("backend still denies data independently of local web membership");
   const responses = [];
   for (const script of ["romaji", "kana"]) {
     await app.db.prepare("DELETE FROM n5_accounts").run();
@@ -258,6 +268,30 @@ try {
       .getByRole("heading", { name: "Make the words yours." })
       .waitFor();
     const id = new URL(page.url()).pathname.split("/").pop();
+    const missingId = "00000000-0000-4000-8000-000000000000";
+    await page.route("**/api/n5/me/progress", async (route) => {
+      const response = await route.fetch();
+      const data = await response.json();
+      data.attempts.push({
+        id: missingId,
+        script,
+        status: "active",
+        result: null,
+      });
+      await route.fulfill({ response, json: data });
+    });
+    await page.route(`**/api/n5/attempts/${missingId}`, (route) =>
+      route.fulfill({ status: 404, json: { error: { code: "not_found" } } }),
+    );
+    await page.goto(base + "/app/n5/lessons/your-lie-in-april-s1-e1");
+    await page
+      .getByRole("link", { name: `Resume unfinished ${script} practice` })
+      .waitFor();
+    await page.unroute("**/api/n5/me/progress");
+    await page.unroute(`**/api/n5/attempts/${missingId}`);
+    check(
+      "discarded attempt lookup does not break lesson or other resume links",
+    );
     const enrolments = (
       await app.db.prepare("SELECT COUNT(*) AS n FROM n5_enrolments").first()
     ).n;
@@ -449,10 +483,35 @@ try {
       check(
         "lost finish response retries finish only, with no extra answer revision",
       );
-    } else
+    } else {
+      await page.route("**/api/n5/attempts/*/finish", (route) =>
+        route.fulfill({
+          status: 409,
+          json: { error: { code: "incomplete_answers" } },
+        }),
+      );
       await page
         .getByRole("button", { name: "Finish objective practice" })
         .click();
+      await page
+        .getByRole("alert")
+        .filter({ hasText: "couldn't complete" })
+        .waitFor();
+      assert.equal(
+        await page
+          .locator("#question-write-name")
+          .evaluate((el) => el.readOnly),
+        false,
+      );
+      await page.locator("#question-write-name").fill("アキです");
+      await page.unroute("**/api/n5/attempts/*/finish");
+      check(
+        "definitive finish rejection unlocks editing without losing answers",
+      );
+      await page
+        .getByRole("button", { name: "Finish objective practice" })
+        .click();
+    }
     await page
       .getByRole("heading", { name: "A first conversation starts here." })
       .waitFor();
@@ -576,6 +635,13 @@ try {
     await page
       .getByRole("heading", { name: "Sign in again", exact: true })
       .waitFor();
+    const signIn = await page
+      .getByRole("link", { name: "Sign in", exact: true })
+      .getAttribute("href");
+    assert.equal(
+      new URL(signIn, base).searchParams.get("redirect_url"),
+      `/app/n5/attempts/${recovery.id}`,
+    );
     assert.ok(
       (await page.evaluate(() => JSON.stringify(sessionStorage))).includes(
         "write-name",
