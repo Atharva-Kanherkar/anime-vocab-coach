@@ -358,16 +358,22 @@ try {
     await practiceReady(page);
     const id = new URL(page.url()).pathname.split("/").pop();
     const missingId = "00000000-0000-4000-8000-000000000000";
+    // The course sidebar also loads progress, so a request from the page being
+    // left can be cancelled mid-intercept by the navigation below.
     await page.route("**/api/n5/me/progress", async (route) => {
-      const response = await route.fetch();
-      const data = await response.json();
-      data.attempts.push({
-        id: missingId,
-        script,
-        status: "active",
-        result: null,
-      });
-      await route.fulfill({ response, json: data });
+      try {
+        const response = await route.fetch();
+        const data = await response.json();
+        data.attempts.push({
+          id: missingId,
+          script,
+          status: "active",
+          result: null,
+        });
+        await route.fulfill({ response, json: data });
+      } catch {
+        /* request cancelled by navigation */
+      }
     });
     await page.route(`**/api/n5/attempts/${missingId}`, (route) =>
       route.fulfill({ status: 404, json: { error: { code: "not_found" } } }),
@@ -376,8 +382,7 @@ try {
     await page
       .getByRole("link", { name: `Resume unfinished ${script} practice` })
       .waitFor();
-    await page.unroute("**/api/n5/me/progress");
-    await page.unroute(`**/api/n5/attempts/${missingId}`);
+    await page.unrouteAll({ behavior: "ignoreErrors" });
     check(
       "discarded attempt lookup does not break lesson or other resume links",
     );
@@ -482,14 +487,14 @@ try {
       );
     } else {
       await page.route("**/api/n5/**", (route) =>
-        route.abort("internetdisconnected"),
+        route.abort("internetdisconnected").catch(() => {}),
       );
       await page.reload();
       await page
         .getByRole("alert")
         .filter({ hasText: "Connection unavailable" })
         .waitFor();
-      await page.unroute("**/api/n5/**");
+      await page.unrouteAll({ behavior: "ignoreErrors" });
       await page.reload();
       await practiceReady(page);
       await goQuestion(page, W1);
@@ -716,11 +721,13 @@ try {
     await fill(page, script);
     const drafts = await page.evaluate(() => Object.values(sessionStorage).join("\n"));
     await page.route("**/api/n5/**", (route) =>
-      route.fulfill({
-        status: 401,
-        contentType: "text/html",
-        body: "Session expired",
-      }),
+      route
+        .fulfill({
+          status: 401,
+          contentType: "text/html",
+          body: "Session expired",
+        })
+        .catch(() => {}),
     );
     await save(page);
     await page
@@ -738,7 +745,7 @@ try {
         '"questionId":"w1"',
       ),
     );
-    await page.unroute("**/api/n5/**");
+    await page.unrouteAll({ behavior: "ignoreErrors" });
     await page.getByRole("link", { name: "Reload after signing in" }).click();
     await practiceReady(page);
     await goQuestion(page, W1);
