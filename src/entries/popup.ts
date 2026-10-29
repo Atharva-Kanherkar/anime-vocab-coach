@@ -601,6 +601,9 @@ async function initModeControls(): Promise<void> {
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
+  byId("n5-course").addEventListener("click", () => {
+    void chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => chrome.tabs.create({ url: chrome.runtime.getURL("course/course.html") + (tab?.id ? `?tabId=${tab.id}` : "") }));
+  });
   void render();
   void renderAccount();
   void renderUsage();

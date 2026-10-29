@@ -67,6 +67,19 @@ describe("real Worker and D1 end-to-end", () => {
     expect(await kana.json()).toMatchObject({ script: "kana" });
   });
 
+  it.each(["romaji", "kana"])("returns a bounded answer-free %s extension snapshot for the verified owner", async (script) => {
+    expect(await (await app.request("/extension/state")).json()).toMatchObject({ ownerId: "n5-local-user", context: null, lesson: null, watched: false, mastery: false });
+    await app.request("/enrolments", { body: { ...enrol, script } });
+    const fresh = await (await app.request("/attempts", { body: create })).json();
+    const snapshot = await (await app.request("/extension/state")).json();
+    expect(snapshot).toMatchObject({ apiVersion: 1, ownerId: "n5-local-user", context: { courseId: COURSE_ID, lessonId: LESSON_ID, episodeId: EPISODE_ID, script }, lesson: { id: LESSON_ID, script }, activeAttempts: [{ id: fresh.id, script }], completedAttempts: 0, mastery: false });
+    expect(JSON.stringify(snapshot)).not.toMatch(/correctOption|answers|summary|result_json|fingerprint|pack_hash/);
+    expect(JSON.stringify(snapshot).length).toBeLessThan(65536);
+    expect(await (await app.request("/extension/state", { token: "avc_st_n5other" })).json()).toMatchObject({ ownerId: "n5-other-user", context: null, activeAttempts: [] });
+    expect((await app.request("/extension/state", { token: null })).status).toBe(401);
+    expect((await app.request("/extension/state", { token: "avc_st_denied" })).status).toBe(404);
+  });
+
   it.each(["romaji", "kana"])("completes and resumes the %s preview without awarding untested skills", async (script) => {
     const catalog = await app.request("/catalog");
     expect(catalog.status).toBe(200);

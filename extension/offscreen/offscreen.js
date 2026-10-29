@@ -37,7 +37,26 @@
     }
   };
 
+  // src/lib/capture-starts.ts
+  var CaptureStarts = class {
+    constructor() {
+      this.pending = /* @__PURE__ */ new Map();
+    }
+    begin(tabId) {
+      const token = /* @__PURE__ */ Symbol();
+      this.pending.set(tabId, token);
+      return token;
+    }
+    cancel(tabId) {
+      this.pending.delete(tabId);
+    }
+    current(tabId, token) {
+      return this.pending.get(tabId) === token;
+    }
+  };
+
   // src/entries/offscreen.ts
+  var captureStarts = new CaptureStarts();
   var RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
   var OUT_RATE = 24e3;
   var CHUNK_SEC = 6;
@@ -189,19 +208,24 @@
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === "avc-offscreen-start") {
       olog("start received for tab", msg.tabId, "model", msg.model, "cacheKey", msg.cacheKey || "(none)");
-      start(msg).then(() => sendResponse({ ok: true })).catch((err) => {
+      stop(msg.tabId);
+      const generation = captureStarts.begin(msg.tabId);
+      start(msg, generation).then(() => sendResponse({ ok: captureStarts.current(msg.tabId, generation) })).catch((err) => {
         const detail = String(err && err.message || err);
         const code = err instanceof CodedError ? err.code : "capture-failed";
         olog("START FAILED:", detail);
-        stop(msg.tabId);
-        report(msg.tabId, code, detail);
+        if (captureStarts.current(msg.tabId, generation)) {
+          stop(msg.tabId);
+          report(msg.tabId, code, detail);
+        }
         sendResponse({ ok: false, error: detail });
       });
       return true;
     }
     if (msg.type === "avc-offscreen-stop") {
+      const tracks = sessions[msg.tabId]?.stream.getTracks() || [];
       stop(msg.tabId);
-      sendResponse({ ok: true });
+      sendResponse({ ok: tracks.every((track) => track.readyState === "ended") });
     }
     if (msg.type === "avc-offscreen-update-key" && msg.tabId != null) {
       const session = sessions[msg.tabId];
@@ -322,8 +346,7 @@
       }
     }
   }
-  async function start({ streamId, tabId, auth, model, language, cacheKey }) {
-    if (sessions[tabId]) stop(tabId);
+  async function start({ streamId, tabId, auth, model, language, cacheKey }, generation) {
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -332,6 +355,10 @@
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       throw new Error("getUserMedia(tab) failed: " + detail);
+    }
+    if (!captureStarts.current(tabId, generation)) {
+      stream.getTracks().forEach((track) => track.stop());
+      throw new CodedError("capture-cancelled", "Listening start was cancelled.");
     }
     olog("tab audio stream acquired, tracks:", stream.getAudioTracks().length);
     const ctx = new AudioContext();
@@ -507,6 +534,7 @@
     };
   }
   function stop(tabId) {
+    captureStarts.cancel(tabId);
     const session = sessions[tabId];
     if (!session) return;
     session.active = false;

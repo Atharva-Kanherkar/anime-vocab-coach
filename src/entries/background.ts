@@ -26,6 +26,10 @@ import {
   sendExtensionEventBeacon,
 } from "../lib/extension-events";
 import { toastTab } from "../lib/notify";
+import { handleN5, invalidateN5, bounded, retryPendingN5 } from "../lib/n5-service";
+import { CaptureStarts } from "../lib/capture-starts";
+import { listeningRegistry, retryCaptureStart } from "../lib/listening-coordination";
+const captureStarts = new CaptureStarts();
 import type { Settings } from "../types";
 
 // Friendly, page-visible copy for a listening-mode failure code. The offscreen
@@ -143,6 +147,7 @@ function scheduleSync(delayMs = 8000): void {
 
 chrome.runtime.onStartup.addListener(() => {
   syncWithCloud().catch(() => {});
+  void retryPendingN5();
   // Signing in on the site after installing (or clearing the extension's
   // storage) leaves us unlinked with a perfectly good session cookie. Retry
   // once per browser start; the module's own cooldown keeps it cheap.
@@ -150,7 +155,7 @@ chrome.runtime.onStartup.addListener(() => {
 });
 chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === SYNC_ALARM) syncWithCloud().catch(() => {});
+  if (alarm.name === SYNC_ALARM) { syncWithCloud().catch(() => {}); void retryPendingN5(); }
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
@@ -161,6 +166,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // path. Watching the transition catches both, and only the transition — a
   // re-link that rewrites the same token is not a new activation.
   const token = changes.syncToken;
+  if (token && token.oldValue !== token.newValue) void invalidateN5();
   if (token && !token.oldValue && typeof token.newValue === "string" && token.newValue) {
     void trackFeature("extension_linked");
   }
@@ -173,9 +179,9 @@ async function getListening(): Promise<Record<number, boolean>> {
   return (r.listeningTabs as Record<number, boolean> | undefined) || {};
 }
 
-async function setListening(tabs: Record<number, boolean>): Promise<void> {
+const updateListening = listeningRegistry(getListening, async tabs => {
   await chrome.storage.session.set({ listeningTabs: tabs });
-}
+});
 
 // Copilot visibility lives beside it, and for the same reason: a page reload
 // wipes the panel out of the tab while Listening Mode keeps running in the
@@ -206,22 +212,6 @@ async function ensureOffscreen(): Promise<void> {
 interface Ack {
   ok: boolean;
   error?: string;
-}
-
-// Send a message to the offscreen document, retrying while it is still loading
-// (createDocument resolves before offscreen.js registers its listener).
-async function sendToOffscreen(msg: object, tries = 15): Promise<Ack> {
-  for (let i = 0; i < tries; i++) {
-    try {
-      const res: Ack | undefined = await chrome.runtime.sendMessage(msg);
-      if (res && res.ok) return res;
-      if (res && res.ok === false) return res; // handled but failed
-    } catch (err) {
-      // "Receiving end does not exist" — offscreen not ready yet; wait & retry
-    }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error("offscreen document never acknowledged (audio capture could not start)");
 }
 
 // The content scripts, in manifest load order. Injected on demand so
@@ -310,6 +300,9 @@ const NOT_LINKED_MSG =
   "Or add your OpenAI key in Settings for local-only Listening Mode.";
 
 async function startListening(tabId: number): Promise<Ack> {
+  const generation = captureStarts.begin(tabId);
+  const cancelled = (): boolean => !captureStarts.current(tabId, generation);
+  const cancelledAck: Ack = { ok: false, error: "Listening start was cancelled." };
   const r = await chrome.storage.local.get(["settings"]);
   const settings = (r.settings as Partial<Settings> | undefined) || {};
 
@@ -330,6 +323,7 @@ async function startListening(tabId: number): Promise<Ack> {
   }
 
   const cacheKey = auth.kind === "cloud" ? await getCacheKeyFromTab(tabId) : null;
+  if (cancelled()) return cancelledAck;
   if (auth.kind === "cloud" && !cacheKey) {
     console.warn("[AVC] no cache key yet — listening will wait for fingerprint or page ID");
   }
@@ -342,8 +336,9 @@ async function startListening(tabId: number): Promise<Ack> {
     return { ok: false, error: "Couldn't capture this tab's audio: " + detail + ". Try clicking the extension icon again directly on the video tab." };
   }
   await ensureOffscreen();
+  if (cancelled()) return cancelledAck;
   const language = settings.learningDirection === "ja-en" ? "en" : "ja";
-  const ack = await sendToOffscreen({
+  const ack = await retryCaptureStart(() => chrome.runtime.sendMessage({
     type: "avc-offscreen-start",
     streamId,
     tabId,
@@ -351,15 +346,15 @@ async function startListening(tabId: number): Promise<Ack> {
     model: settings.transcribeModel || DEFAULTS.transcribeModel,
     language,
     cacheKey: cacheKey || undefined
-  }).catch((err): Ack => ({ ok: false, error: String(err.message || err) }));
+  }), () => !cancelled()).catch((err): Ack => ({ ok: false, error: String(err.message || err) }));
+  if (cancelled()) return cancelledAck;
 
   if (!ack || ack.ok === false) {
     return { ok: false, error: ack?.error || "Audio capture failed to start." };
   }
 
-  const tabs = await getListening();
-  tabs[tabId] = true;
-  await setListening(tabs);
+  const marked = await updateListening(tabId, true, () => !cancelled());
+  if (!marked || cancelled()) return cancelledAck;
   chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: true }).catch(() => {});
   chrome.action.setBadgeText({ tabId, text: "REC" });
   chrome.action.setBadgeBackgroundColor({ tabId, color: "#f87171" });
@@ -371,11 +366,10 @@ async function startListening(tabId: number): Promise<Ack> {
 }
 
 async function stopListening(tabId: number): Promise<Ack> {
+  captureStarts.cancel(tabId);
   chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId }).catch(() => {});
   chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: false }).catch(() => {});
-  const tabs = await getListening();
-  delete tabs[tabId];
-  await setListening(tabs);
+  await updateListening(tabId, false);
   chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {});
   return { ok: true };
 }
@@ -405,9 +399,26 @@ interface RuntimeMsg {
   trigger?: string;
   force?: boolean;
   open?: boolean;
+  lessonId?: string;
+  attemptId?: string;
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
+  if (typeof msg?.type === "string" && msg.type.startsWith("avc-n5-") && !["avc-n5-mount", "avc-n5-unmount", "avc-n5-pause"].includes(msg.type)) {
+    void handleN5(msg, sender, async (tabId) => {
+      captureStarts.cancel(tabId);
+      const listening = await getListening();
+      const exists = await chrome.offscreen.hasDocument();
+      if (!exists) {
+        if (listening[tabId]) throw new Error("Capture stop could not be confirmed.");
+        return;
+      }
+      const ack = await bounded(chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId })) as { ok?: boolean };
+      if (!ack?.ok) throw new Error("Capture stop could not be confirmed.");
+      await stopListening(tabId);
+    }).then(sendResponse);
+    return true;
+  }
   if (msg.type === "avc-badge") {
     const text = (msg.count || 0) > 0 ? String(msg.count) : "";
     chrome.action.setBadgeText({ text });
@@ -648,11 +659,11 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   }
 
   if (msg.type === "avc-listen-error") {
-    getListening().then(async (tabs) => {
+    getListening().then(async () => {
       const stopCodes = ["invalid-key", "capture-failed", "quota-exceeded", "not-signed-in", "connection-lost"];
       if (stopCodes.includes(msg.code || "")) {
-        delete tabs[msg.tabId!];
-        await setListening(tabs);
+        captureStarts.cancel(msg.tabId!);
+        await updateListening(msg.tabId!, false);
         // The page has to hear it too: it kept polling the transcript cache
         // and relaying playback time for a session that no longer existed.
         if (msg.tabId != null) {
@@ -703,11 +714,14 @@ chrome.runtime.onConnect.addListener((port) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  captureStarts.cancel(tabId);
   const tabs = await getListening();
   if (tabs[tabId]) {
     chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId }).catch(() => {});
-    delete tabs[tabId];
-    await setListening(tabs);
+    await updateListening(tabId, false);
   }
   await setCopilotTab(tabId, false);
 });
+
+chrome.tabs.onRemoved.addListener((tabId) => { void invalidateN5(tabId); });
+chrome.tabs.onUpdated.addListener((tabId, change) => { if (change.url) void invalidateN5(tabId); });

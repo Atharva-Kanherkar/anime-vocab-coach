@@ -4,6 +4,8 @@
 // Cloud (signed in): shared transcript cache — lookup first, transcribe on miss.
 
 import { CueLedger } from "../lib/cue-ledger";
+import { CaptureStarts } from "../lib/capture-starts";
+const captureStarts = new CaptureStarts();
 
 const RT_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 const OUT_RATE = 24000;
@@ -298,8 +300,10 @@ function onPlaybackUpdate(session: Session, time: number, paused: boolean): void
 chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, sendResponse) => {
   if (msg.type === "avc-offscreen-start") {
     olog("start received for tab", msg.tabId, "model", msg.model, "cacheKey", msg.cacheKey || "(none)");
-    start(msg)
-      .then(() => sendResponse({ ok: true }))
+    stop(msg.tabId);
+    const generation = captureStarts.begin(msg.tabId);
+    start(msg, generation)
+      .then(() => sendResponse({ ok: captureStarts.current(msg.tabId, generation) }))
       .catch((err) => {
         const detail = String((err && err.message) || err);
         const code = err instanceof CodedError ? err.code : "capture-failed";
@@ -307,15 +311,18 @@ chrome.runtime.onMessage.addListener((msg: StartMsg & PlaybackMsg, _sender, send
         // Release the tab capture a half-started session is still holding.
         // Left open, Chrome refused every later capture of this tab ("active
         // stream"), so Listening could not be restarted without a reload.
-        stop(msg.tabId);
-        report(msg.tabId, code, detail);
+        if (captureStarts.current(msg.tabId, generation)) {
+          stop(msg.tabId);
+          report(msg.tabId, code, detail);
+        }
         sendResponse({ ok: false, error: detail });
       });
     return true;
   }
   if (msg.type === "avc-offscreen-stop") {
+    const tracks = sessions[msg.tabId!]?.stream.getTracks() || [];
     stop(msg.tabId!);
-    sendResponse({ ok: true });
+    sendResponse({ ok: tracks.every(track => track.readyState === "ended") });
   }
   if (msg.type === "avc-offscreen-update-key" && msg.tabId != null) {
     const session = sessions[msg.tabId];
@@ -458,8 +465,7 @@ async function flushChunk(session: Session): Promise<void> {
   }
 }
 
-async function start({ streamId, tabId, auth, model, language, cacheKey }: StartMsg): Promise<void> {
-  if (sessions[tabId]) stop(tabId);
+async function start({ streamId, tabId, auth, model, language, cacheKey }: StartMsg, generation: symbol): Promise<void> {
 
   let stream: MediaStream;
   try {
@@ -469,6 +475,10 @@ async function start({ streamId, tabId, auth, model, language, cacheKey }: Start
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     throw new Error("getUserMedia(tab) failed: " + detail);
+  }
+  if (!captureStarts.current(tabId, generation)) {
+    stream.getTracks().forEach(track => track.stop());
+    throw new CodedError("capture-cancelled", "Listening start was cancelled.");
   }
   olog("tab audio stream acquired, tracks:", stream.getAudioTracks().length);
 
@@ -666,6 +676,7 @@ async function connectWS(session: Session): Promise<void> {
 }
 
 function stop(tabId: number): void {
+  captureStarts.cancel(tabId);
   const session = sessions[tabId];
   if (!session) return;
   session.active = false;

@@ -102,3 +102,7 @@ Not accepting outside issues or PRs right now due to business and bandwidth cons
 - **Cloud app:** https://animevocab.com/app  
 - **Manga Studio:** https://animevocab.com/studio  
 - **Sponsor:** https://github.com/sponsors/Atharva-Kanherkar  
+
+### Private N5 course pilot
+
+The episode-one extension lesson and hosted-practice handoff are documented in [the pilot guide](docs/n5-extension-pilot.md). The [interactive system explainer](docs/n5-system/index.html) shows the architecture, current capabilities and remaining work. Course access remains disabled by default.
