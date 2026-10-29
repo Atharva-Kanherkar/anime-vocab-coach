@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { currentUser } from "@clerk/nextjs/server";
-import { n5Config } from "@/lib/n5/server";
+import { n5AvailableFor } from "@/lib/n5/server";
 import { AppShell } from "@/components/app/app-shell";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import { isOwnerEmail } from "@/lib/entitlements";
@@ -30,5 +30,5 @@ export default async function AppPage() {
       : (user?.primaryEmailAddress?.emailAddress ?? null),
   };
 
-  return <AppShell name={name} owner={owner} billing={billing} n5Enabled={(await n5Config()).enabled} />;
+  return <AppShell name={name} owner={owner} billing={billing} n5Enabled={await n5AvailableFor(DEV_NO_CLERK ? DEV_PROFILE.id : user?.id)} />;
 }

@@ -1,3 +1,5 @@
+import { auth } from "@clerk/nextjs/server";
+import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { resolveProfile } from "@/lib/auth";
 import { getExistingSyncToken, getOrCreateSyncToken } from "@/lib/sync-store";
@@ -12,8 +14,43 @@ export async function n5Config(): Promise<{ enabled: boolean; origin: string }> 
   const origin = typeof configured === "string" ? configured : "https://avc-api.animevocab.workers.dev";
   const u = new URL(origin);
   const local = process.env.NODE_ENV !== "production" && ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname) && u.protocol === "http:";
-  if (!(origin === "https://avc-api.animevocab.workers.dev" || local) || u.username || u.password || u.pathname !== "/" || u.search || u.hash) throw new Error("Invalid N5 upstream configuration");
+  if (!((u.protocol === "https:" && /^(?:[a-z0-9-]+-)?avc-api\.animevocab\.workers\.dev$/.test(u.hostname) && !u.port) || local) || u.username || u.password || u.pathname !== "/" || u.search || u.hash) throw new Error("Invalid N5 upstream configuration");
   return { enabled, origin: u.origin };
+}
+/** The session id is verified locally; no Clerk Backend API read for N5 views. */
+export async function n5OwnerId(): Promise<string | null> {
+  return DEV_NO_CLERK ? DEV_PROFILE.id : (await auth()).userId;
+}
+async function credential(ownerId: string): Promise<string> {
+  const existing = await getExistingSyncToken(ownerId);
+  if (existing) return existing;
+  // Only first-time minting needs the full profile/entitlements. Never let it
+  // replace the locally verified session owner.
+  const profile = await resolveProfile(new Request("https://animevocab.com/api/n5/catalog"));
+  if (!profile || profile.id !== ownerId) throw new Error("Course identity unavailable");
+  return getOrCreateSyncToken(ownerId, profile);
+}
+function upstreamRequest(origin: string, route: string, token: string, init: RequestInit = {}) {
+  return fetch(origin + "/v1/n5" + route, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, ...(init.method === "POST" ? { "Content-Type": "application/json" } : {}) },
+    cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15_000),
+  });
+}
+/** Fail closed for the pilot, without making the main dashboard depend on it. */
+export async function n5AvailableFor(ownerId: string | null | undefined): Promise<boolean> {
+  if (!ownerId) return false;
+  try {
+    const config = await n5Config();
+    if (!config.enabled) return false;
+    const response = await upstreamRequest(config.origin, "/catalog", await credential(ownerId));
+    const allowed = response.status === 200;
+    await response.body?.cancel();
+    return allowed;
+  } catch {
+    console.warn("[n5] Preview access unavailable; hiding course entry");
+    return false;
+  }
 }
 function fail(code: string, status: number): Response {
   return Response.json({ error: { code, message: code === "unauthorized" ? "Sign in again to continue." : "Course request unavailable. Your saved progress is unchanged." } }, { status, headers: { "Cache-Control": "no-store", "Vary": "Cookie" } });
@@ -52,17 +89,14 @@ export async function gateway(req: Request, parts: string[]): Promise<Response> 
     const host = req.headers.get("Host");
     const expectedOrigin = host ? new URL(`${url.protocol}//${host}`).origin : url.origin;
     if (req.method !== "GET" && req.headers.get("Origin") !== expectedOrigin) return fail("origin_not_allowed", 403);
-    const profile = await resolveProfile(req);
-    if (!profile) return fail("unauthorized", 401);
+    const ownerId = await n5OwnerId();
+    if (!ownerId) return fail("unauthorized", 401);
     if (req.method === "POST" && req.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase() !== "application/json") return fail("content_type", 415);
     let payload: string | undefined;
     try { payload = await boundedBody(req); } catch (error) { return fail(error instanceof Error && error.message === "body_too_large" ? "body_too_large" : "invalid_request", error instanceof Error && error.message === "body_too_large" ? 413 : 400); }
     if (req.method === "DELETE" && payload !== undefined) return fail("invalid_request", 400);
-    const token = await getExistingSyncToken(profile.id) ?? await getOrCreateSyncToken(profile.id, profile);
-    const upstream = await fetch(config.origin + "/v1/n5" + route, {
-      method: req.method, headers: { Authorization: `Bearer ${token}`, ...(req.method === "POST" ? { "Content-Type": "application/json" } : {}) },
-      body: payload, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15_000),
-    });
+    const token = await credential(ownerId);
+    const upstream = await upstreamRequest(config.origin, route, token, { method: req.method, body: payload });
     if (![200, 400, 401, 403, 404, 405, 409, 413, 415, 429, 503].includes(upstream.status)) return fail("course_unavailable", 503);
     if (!upstream.headers.get("Content-Type")?.includes("application/json")) return fail("course_unavailable", 503);
     const data = JSON.parse((await boundedBody(upstream, 524_288)) ?? "null");

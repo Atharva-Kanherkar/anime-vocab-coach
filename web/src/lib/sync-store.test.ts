@@ -2,8 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const data = new Map<string, string>();
 const puts: { key: string; ttl?: number }[] = [];
+const reads: string[] = [];
 const kv = {
-  get: async (k: string) => data.get(k) ?? null,
+  get: async (k: string) => { reads.push(k); return data.get(k) ?? null; },
   put: async (k: string, v: string, o?: { expirationTtl?: number }) => {
     data.set(k, v);
     puts.push({ key: k, ttl: o?.expirationTtl });
@@ -34,6 +35,7 @@ const THIRTY_DAYS = 60 * 60 * 24 * 30;
 afterEach(() => {
   data.clear();
   puts.length = 0;
+  reads.length = 0;
   vi.useRealTimers();
 });
 
@@ -97,4 +99,13 @@ describe("server-side credential reuse", () => {
     expect(await getExistingSyncToken("user_1")).toBe(token);
     expect(puts).toHaveLength(2);
   });
+});
+
+it("reuses credentials with exactly two reads and rejects malformed records", async () => {
+  const token = await getOrCreateSyncToken("user_1", profile); reads.length = 0;
+  expect(await getExistingSyncToken("user_1")).toBe(token);
+  expect(reads).toEqual(["synctoken:user:user_1:v1", `synctoken:${token}:v1`]);
+  for (const raw of ["{", "null", "[]", "{}", '\"bad\"']) {
+    data.set(`synctoken:${token}:v1`, raw); expect(await getExistingSyncToken("user_1")).toBeNull();
+  }
 });

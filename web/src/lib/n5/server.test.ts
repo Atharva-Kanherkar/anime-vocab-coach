@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ profile: vi.fn(), token: vi.fn(), existing: vi.fn() }));
+const mocks = vi.hoisted(() => ({ profile: vi.fn(), token: vi.fn(), existing: vi.fn(), auth: vi.fn() }));
+vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/auth", () => ({ resolveProfile: mocks.profile }));
 vi.mock("@/lib/sync-store", () => ({ getOrCreateSyncToken: mocks.token, getExistingSyncToken: mocks.existing }));
 vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: async () => ({ env: {} }) }));
-import { gateway, n5Config } from "./server";
+import { gateway, n5Config, n5AvailableFor } from "./server";
 const upstream = vi.fn();
 const request = (path = "catalog", method = "GET", body?: string, headers: Record<string, string> = {}) => gateway(new Request(`https://animevocab.com/api/n5/${path}`, { method, headers: { ...(method !== "GET" ? { Origin: "https://animevocab.com", "Content-Type": "application/json" } : {}), ...headers }, ...(body !== undefined ? { body } : {}) }), path.split("?", 1)[0].split("/"));
 beforeEach(() => {
   vi.stubEnv("N5_WEB_PREVIEW_ENABLED", "1"); vi.stubEnv("N5_API_ORIGIN", "https://avc-api.animevocab.workers.dev");
+  mocks.auth.mockReset().mockResolvedValue({ userId: "alice" });
   mocks.profile.mockReset().mockResolvedValue({ id: "alice", email: null, name: null });
   mocks.existing.mockReset().mockResolvedValue(null);
   mocks.token.mockReset().mockResolvedValue("private-bearer-never-in-browser");
@@ -25,18 +27,19 @@ describe("authenticated N5 gateway", () => {
     expect(mocks.token).toHaveBeenCalledWith("alice", { id: "alice", email: null, name: null });
     expect(upstream).toHaveBeenCalledWith("https://avc-api.animevocab.workers.dev/v1/n5/enrolments", expect.objectContaining({ method: "POST", redirect: "error", cache: "no-store", headers: { Authorization: "Bearer private-bearer-never-in-browser", "Content-Type": "application/json" } }));
     expect(await response.text()).not.toContain("private-bearer"); expect(response.headers.get("Cache-Control")).toBe("no-store"); expect(response.headers.get("Vary")).toBe("Cookie");
-    mocks.profile.mockResolvedValueOnce({ id: "bob" }); await request(); expect(mocks.token).toHaveBeenLastCalledWith("bob", { id: "bob" });
+    mocks.auth.mockResolvedValueOnce({ userId: "bob" }); mocks.profile.mockResolvedValueOnce({ id: "bob" }); await request(); expect(mocks.token).toHaveBeenLastCalledWith("bob", { id: "bob" });
   });
   it("reuses a validated existing token without minting or rewriting it", async () => {
     mocks.existing.mockResolvedValueOnce("cached-private-credential");
     expect((await request()).status).toBe(200);
     expect(mocks.existing).toHaveBeenCalledWith("alice");
     expect(mocks.token).not.toHaveBeenCalled();
+    expect(mocks.profile).not.toHaveBeenCalled();
     expect(upstream.mock.calls[0][1].headers.Authorization).toBe("Bearer cached-private-credential");
   });
   it("requires cookie identity and exact same-origin mutation intent", async () => {
     expect((await request("catalog", "GET", undefined, { Authorization: "Bearer attacker" })).status).toBe(401);
-    mocks.profile.mockResolvedValueOnce(null); expect((await request()).status).toBe(401);
+    mocks.auth.mockResolvedValueOnce({ userId: null }); expect((await request()).status).toBe(401);
     for (const headers of [{ Origin: "https://evil.test" }, { Origin: "null" }, { Origin: "" }, { "Sec-Fetch-Site": "cross-site" }] as Record<string, string>[]) expect((await request("events", "POST", "{}", headers)).status).toBe(403);
     expect((await request("catalog", "GET", undefined, { "Sec-Fetch-Site": "cross-site" })).status).toBe(403);
     expect(upstream).not.toHaveBeenCalled();
@@ -73,4 +76,29 @@ describe("authenticated N5 gateway", () => {
     for (const origin of ["https://evil.test", "http://169.254.169.254", "https://u:p@avc-api.animevocab.workers.dev", "https://avc-api.animevocab.workers.dev/path"]) { vi.stubEnv("N5_API_ORIGIN", origin); await expect(n5Config()).rejects.toThrow(); }
     vi.stubEnv("NODE_ENV", "production"); vi.stubEnv("N5_API_ORIGIN", "http://localhost:43111"); await expect(n5Config()).rejects.toThrow();
   });
+});
+
+it("normalizes trusted origins and supports explicit previews only for the same Worker", async () => {
+  vi.stubEnv("NODE_ENV", "production");
+  for (const origin of ["https://AVC-API.animevocab.workers.dev/", "https://feat-n5-web-preview-avc-api.animevocab.workers.dev/"]) {
+    vi.stubEnv("N5_API_ORIGIN", origin); expect((await n5Config()).origin).toBe(new URL(origin).origin);
+  }
+  for (const origin of ["https://evil-avc-api.workers.dev", "https://avc-api.animevocab.workers.dev.evil.test", "https://avc-api.animevocab.workers.dev:444"]) {
+    vi.stubEnv("N5_API_ORIGIN", origin); await expect(n5Config()).rejects.toThrow();
+  }
+});
+it("keeps private navigation and layout hidden on denial, disabled or broken config", async () => {
+  expect(await n5AvailableFor(null)).toBe(false); expect(upstream).not.toHaveBeenCalled();
+  for (const status of [401, 404, 503]) {
+    upstream.mockResolvedValueOnce(Response.json({}, { status })); expect(await n5AvailableFor("alice")).toBe(false);
+  }
+  expect(await n5AvailableFor("alice")).toBe(true);
+  vi.stubEnv("N5_WEB_PREVIEW_ENABLED", "0"); expect(await n5AvailableFor("alice")).toBe(false);
+  vi.stubEnv("N5_WEB_PREVIEW_ENABLED", "1"); vi.stubEnv("N5_API_ORIGIN", "bad");
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  expect(await n5AvailableFor("alice")).toBe(false); expect(warn).toHaveBeenCalled(); warn.mockRestore();
+});
+it("does not mint for a profile different from the verified session", async () => {
+  mocks.profile.mockResolvedValueOnce({ id: "bob" }); expect((await request()).status).toBe(503);
+  expect(mocks.token).not.toHaveBeenCalled(); expect(upstream).not.toHaveBeenCalled();
 });

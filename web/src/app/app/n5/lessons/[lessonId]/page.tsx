@@ -1,10 +1,9 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { n5OwnerId } from "@/lib/n5/server";
 import { redirect } from "next/navigation";
-import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import { CourseLesson } from "@/components/n5/lesson";
 export default async function Page({ params }: { params: Promise<{ lessonId: string }> }) {
   const { lessonId } = await params;
-  const ownerId = DEV_NO_CLERK ? DEV_PROFILE.id : (await currentUser())?.id;
+  const ownerId = await n5OwnerId();
   if (!ownerId) redirect("/sign-in");
   return <CourseLesson key={lessonId} lessonId={lessonId} ownerId={ownerId} />;
 }
