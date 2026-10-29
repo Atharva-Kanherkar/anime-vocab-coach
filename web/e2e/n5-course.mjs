@@ -307,7 +307,7 @@ try {
     });
     await page.goto(base + "/app/n5");
     await page
-      .getByRole("heading", { name: "Learn Japanese one episode at a time." })
+      .getByRole("heading", { name: "Course map", level: 1 })
       .waitFor();
     assert.equal(
       await page.getByText("Planned", { exact: true }).count(),

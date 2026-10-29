@@ -40,12 +40,6 @@ const STATUS_LABEL: Record<N5LessonProgress["status"], string> = {
   practised: "Practised",
   passed: "Passed",
 };
-const SPEAKING_LABEL: Record<N5LessonProgress["speaking"], string | null> = {
-  not_started: null,
-  practice_only: "Typed practice",
-  needs_practice: "Speaking: keep going",
-  demonstrated: "Speaking ✓",
-};
 const SECTIONS = [
   { title: "First meetings", range: [1, 6] },
   { title: "Daily life", range: [7, 12] },
@@ -66,9 +60,11 @@ function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof loa
   const lessons = progress.lessons ?? [];
   const byLesson = new Map(lessons.map((l) => [l.lessonId, l]));
   const passed = lessons.filter((l) => l.status === "passed").length;
+  const total = course.units.length;
   const nextId = progress.nextLessonId ?? course.units[0]?.lessonId;
   const next = course.units.find((u) => u.lessonId === nextId) ?? course.units[0];
   const active = progress.attempts.filter((a) => a.status === "active").reverse();
+  const planned = catalog.tracks.filter((t) => t.status === "planned");
 
   /** Reconcile the chosen script on every explicit action: initial progress can be stale. */
   async function open(lessonId: string) {
@@ -96,37 +92,22 @@ function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof loa
   }
 
   return (
-    <>
-      <section className="n5-hero n5-hero-hub">
+    <div className="n5-map-page">
+      <header className="n5-map-head">
         <div>
-          <p className="n5-eyebrow">Your Lie in April · JLPT N5 foundations</p>
-          <h1>Learn Japanese one episode at a time.</h1>
-          <p className="n5-lead">
-            24 guided units. Each one goes learn → drill → watch → practise → speak with an AI tutor, in the script you choose.
-          </p>
+          <p className="n5-eyebrow">Your Lie in April · JLPT N5</p>
+          <h1>Course map</h1>
         </div>
-        <div className="n5-ring" style={{ ["--n5-progress" as string]: `${(passed / Math.max(1, course.units.length)) * 360}deg` }} aria-label={`${passed} of ${course.units.length} units passed`}>
-          <strong>{passed}</strong>
-          <span>of {course.units.length} passed</span>
+        <div className="n5-map-meter" aria-label={`${passed} of ${total} units passed`}>
+          <span>
+            <strong>{passed}</strong>/{total} passed
+          </span>
+          <span className="n5-bar" aria-hidden>
+            <span style={{ width: `${(passed / Math.max(1, total)) * 100}%` }} />
+          </span>
         </div>
-      </section>
-
-      <section className="n5-panel n5-continue">
-        <div className="n5-continue-main">
-          <p className="n5-eyebrow">{progress.enrolment ? "Up next" : "Start here"}</p>
-          {next && (
-            <>
-              <h2>
-                Unit {next.number}: {next.title}
-              </h2>
-              <p className="n5-muted">
-                {next.episode ? `Episode ${next.episode.number} · ${next.episode.title}` : next.kind === "final" ? "Season final" : "Study unit and checkpoint"}
-              </p>
-            </>
-          )}
-        </div>
-        <fieldset disabled={Boolean(busy)} className="n5-segmented" aria-describedby="n5-script-help">
-          <legend>Japanese display</legend>
+        <fieldset disabled={Boolean(busy)} className="n5-toggle">
+          <legend className="n5-visually-hidden">Japanese display</legend>
           {(["romaji", "kana"] as const).map((s) => (
             <label key={s} data-checked={script === s}>
               <input
@@ -139,82 +120,87 @@ function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof loa
                   setKey(null);
                 }}
               />
-              <span>{s === "romaji" ? "Romaji" : "Kana"}</span>
+              {s === "romaji" ? "Romaji" : "Kana"}
               <small data-owned-japanese lang={s === "kana" ? "ja" : undefined}>
-                {s === "romaji" ? "konnichiwa" : "こんにちは"}
+                {s === "romaji" ? "aiueo" : "あいうえお"}
               </small>
             </label>
           ))}
         </fieldset>
-        <p id="n5-script-help" className="n5-muted">
-          One script everywhere, never mixed. You can switch between lessons; each practice keeps the script it started with.
-        </p>
-        {Boolean(error) && <Failure error={error} />}
-        <button
-          className="n5-primary n5-big"
-          disabled={!script || !pilot || !next || Boolean(busy)}
-          onClick={() => next && open(next.lessonId)}
-        >
-          {busy === next?.lessonId ? "Opening…" : progress.enrolment ? `Continue: Unit ${next?.number}` : "Start Unit 1"}
-        </button>
-        {!script && <p className="n5-muted">Choose romaji or kana to begin.</p>}
-      </section>
+      </header>
 
-      {active.length > 0 && (
-        <section className="n5-panel">
-          <h2>Pick up where you left off</h2>
-          {active.map((a) => (
-            <Link className="n5-resume" key={a.id} href={`/app/n5/attempts/${a.id}`}>
-              Resume unfinished {a.script} practice
-              {a.lessonId ? ` · Unit ${course.units.find((u) => u.lessonId === a.lessonId)?.number ?? "?"}` : ""}
-              <span aria-hidden>→</span>
-            </Link>
-          ))}
+      {next && (
+        <section className="n5-next" aria-label="Up next">
+          <span className="n5-next-unit" aria-hidden>
+            {next.kind === "final" ? "★" : next.number}
+          </span>
+          <div className="n5-next-body">
+            <p className="n5-eyebrow">{progress.enrolment ? "Up next" : "Start here"}</p>
+            <strong>{next.title}</strong>
+            <small>
+              {next.episode ? `Episode ${next.episode.number} · ${next.episode.title}` : next.kind === "final" ? "Season final" : "Study unit and checkpoint"}
+            </small>
+          </div>
+          <button className="n5-primary" disabled={!script || !pilot || Boolean(busy)} onClick={() => open(next.lessonId)}>
+            {busy === next.lessonId ? "Opening…" : progress.enrolment ? `Continue: Unit ${next.number}` : "Start Unit 1"}
+          </button>
         </section>
       )}
+      {!script && <p className="n5-muted n5-hint">Pick romaji or kana above to begin. One script everywhere, never mixed.</p>}
+      {Boolean(error) && <Failure error={error} />}
 
-      <section aria-labelledby="n5-path-title">
-        <h2 id="n5-path-title" className="n5-section-title">
-          Your path
+      {active.length > 0 && (
+        <p className="n5-resume-line">
+          <span className="n5-muted">Unfinished:</span>
+          {active.map((a) => (
+            <Link key={a.id} href={`/app/n5/attempts/${a.id}`}>
+              Resume unfinished {a.script} practice
+              {a.lessonId ? ` · Unit ${course.units.find((u) => u.lessonId === a.lessonId)?.number ?? "?"}` : ""}
+            </Link>
+          ))}
+        </p>
+      )}
+
+      <section className="n5-map" aria-labelledby="n5-map-title">
+        <h2 id="n5-map-title" className="n5-visually-hidden">
+          Units
         </h2>
         {SECTIONS.map((section) => (
-          <div key={section.title} className="n5-path-section">
-            <h3>
+          <div key={section.title} className="n5-map-row">
+            <p className="n5-map-label">
               {section.title}
               <small>
-                Units {section.range[0]}–{section.range[1]}
+                {section.range[0]}–{section.range[1]}
               </small>
-            </h3>
-            <ol className="n5-path">
+            </p>
+            <ol className="n5-tiles">
               {course.units
                 .filter((u) => u.number >= section.range[0] && u.number <= section.range[1])
                 .map((u) => {
                   const p = byLesson.get(u.lessonId);
                   const status = p?.status ?? "not_started";
-                  const speaking = p ? SPEAKING_LABEL[p.speaking] : null;
+                  const where = u.episode ? `Ep ${u.episode.number}` : u.kind === "final" ? "Final" : "Checkpoint";
                   return (
-                    <li key={u.id} data-status={status} data-next={u.lessonId === next?.lessonId || undefined}>
+                    <li key={u.id}>
                       <button
                         type="button"
-                        className="n5-path-node"
+                        className="n5-tile"
+                        data-status={status}
+                        data-next={u.lessonId === next?.lessonId || undefined}
+                        data-kind={u.kind}
                         disabled={!script || Boolean(busy)}
                         onClick={() => open(u.lessonId)}
+                        title={`Unit ${u.number}: ${u.title}${u.episode ? ` · Episode ${u.episode.number}: ${u.episode.title}` : ""}`}
                         aria-label={`Unit ${u.number}: ${u.title}. ${STATUS_LABEL[status]}`}
                       >
-                        <span className="n5-node-dot" aria-hidden>
-                          {status === "passed" ? "✓" : u.kind === "final" ? "★" : u.kind === "study" ? "◆" : u.number}
+                        <span className="n5-tile-top">
+                          <b>{u.kind === "final" ? "★" : String(u.number).padStart(2, "0")}</b>
+                          <i aria-hidden>
+                            {status === "passed" ? "✓" : p?.speaking === "demonstrated" ? "🎙" : p?.bestPercent != null ? `${Math.round(p.bestPercent)}%` : ""}
+                          </i>
                         </span>
-                        <span className="n5-node-body">
-                          <strong>{u.title}</strong>
-                          <small>
-                            {u.episode ? `Ep ${u.episode.number} · ${u.episode.title}` : u.kind === "final" ? "Season final" : "Checkpoint"}
-                          </small>
-                        </span>
-                        <span className="n5-node-meta">
-                          {p?.bestPercent != null && <span className="n5-chip">{Math.round(p.bestPercent)}%</span>}
-                          {speaking && <span className="n5-chip n5-chip-soft">{speaking}</span>}
-                          {status !== "passed" && status !== "not_started" && <span className="n5-chip n5-chip-soft">{STATUS_LABEL[status]}</span>}
-                        </span>
+                        <span className="n5-tile-title">{u.title}</span>
+                        <span className="n5-tile-where">{where}</span>
                       </button>
                     </li>
                   );
@@ -222,24 +208,25 @@ function HubContent({ catalog, course, progress }: Awaited<ReturnType<typeof loa
             </ol>
           </div>
         ))}
+        <p className="n5-map-legend n5-muted" aria-hidden>
+          <span data-key="passed">Passed</span>
+          <span data-key="practised">Started</span>
+          <span data-key="next">Up next</span>
+        </p>
       </section>
 
-      <section className="n5-panel">
-        <p className="n5-eyebrow">More stories</p>
-        <h2>Other anime tracks are coming.</h2>
-        <div className="n5-tracks">
-          {catalog.tracks.map((t) => (
-            <article key={t.id} data-active={t.status !== "planned" || undefined}>
-              <h3>{t.title}</h3>
-              <p className="n5-muted">
-                {t.adaptation} · Season {t.season}
-              </p>
-              <span className="n5-chip n5-chip-soft">{t.status === "planned" ? "Planned" : "Available now"}</span>
-            </article>
+      <footer className="n5-map-foot n5-muted">
+        <p>
+          Coming later:{" "}
+          {planned.map((t, i) => (
+            <span key={t.id}>
+              {i > 0 && " · "}
+              {t.title} <span className="n5-chip n5-chip-soft">Planned</span>
+            </span>
           ))}
-        </div>
-        <p className="n5-muted">{course.limitation}</p>
-      </section>
-    </>
+        </p>
+        <p>{course.limitation}</p>
+      </footer>
+    </div>
   );
 }
