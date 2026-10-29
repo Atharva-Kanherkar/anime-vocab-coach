@@ -16,7 +16,10 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test:e2e:n5": "node e2e/n5-course.mjs",
+    "test:n5:fuzz": "vitest run --config vitest.n5-fuzz.config.ts",
+    "test:n5:mutation": "stryker run stryker.n5.config.json"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.12",
@@ -29,12 +32,15 @@
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.20.1",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/vitest-runner": "^10.1.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "fast-check": "^4.10.2",
     "patch-package": "^8.0.1",
     "playwright": "^1.61.1",
     "tailwindcss": "^4.3.2",
