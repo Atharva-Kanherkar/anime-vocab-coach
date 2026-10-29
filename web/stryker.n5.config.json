@@ -4,7 +4,8 @@
     "web/src/lib/n5/core.ts",
     "web/src/lib/n5/attempt-state.ts",
     "web/src/lib/n5/credential.ts",
-    "shared/n5/credential.ts"
+    "shared/n5/credential.ts",
+    "web/src/lib/n5/credential-record.ts"
   ],
   "testRunner": "vitest",
   "vitest": {

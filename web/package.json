@@ -5,10 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "dev:preview": "NEXT_PUBLIC_AVC_DEV_NO_CLERK=1 next dev",
-    "build": "next build",
+    "build": "node scripts/sync-n5-credential.mjs --check && next build",
     "start": "next start",
     "lint": "eslint",
-    "test:unit": "vitest run",
+    "test:unit": "node scripts/sync-n5-credential.mjs --check && vitest run",
     "test:e2e": "node e2e/core-loop.mjs",
     "test:e2e:observability": "node e2e/observability.mjs",
     "test:e2e:pro": "node e2e/pro-entry.mjs",

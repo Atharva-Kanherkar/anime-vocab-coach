@@ -1,9 +1,11 @@
 import { expect, it } from "vitest";
-import { readN5Credential, n5CredentialKey, n5CredentialPointer, N5_TOKEN } from "../../../../shared/n5/credential";
-it("validates exact owner, absolute expiry and projects only the credential identity", () => {
+import * as shared from "../../../../shared/n5/credential";
+import * as local from "./credential-record";
+it.each([shared, local])("validates exact owner, absolute expiry and projects only the credential identity", ({ readN5Credential, n5CredentialKey, n5CredentialPointer, N5_TOKEN }) => {
   const now = 1_800_000_000_000;
   const raw = JSON.stringify({ id: "alice", expiresAt: now + 1, plan: "max", userId: "bob" });
   expect(readN5Credential(raw, now, "alice")).toEqual({ id: "alice", expiresAt: now + 1 });
+  expect(readN5Credential(raw, now)).toEqual({ id: "alice", expiresAt: now + 1 });
   expect(readN5Credential(raw, now, "bob")).toBeNull();
   expect(readN5Credential(raw, now + 1)).toBeNull();
   for (const invalid of [null, "{", "null", "[]", '"x"', JSON.stringify({ id: "", expiresAt: now + 1 }), JSON.stringify({ id: 12, expiresAt: now + 1 }), JSON.stringify({ id: "alice", expiresAt: String(now + 1) }), JSON.stringify({ id: "alice", expiresAt: now + 0.5 }), JSON.stringify({ id: "alice", expiresAt: Number.MAX_SAFE_INTEGER + 1 })]) {

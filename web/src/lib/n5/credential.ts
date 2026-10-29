@@ -1,5 +1,5 @@
 import { resolveStore } from "@/lib/sync-store";
-import { N5_CREDENTIAL_TTL_SECONDS, N5_TOKEN, n5CredentialKey, n5CredentialPointer, readN5Credential } from "../../../../shared/n5/credential";
+import { N5_CREDENTIAL_TTL_SECONDS, N5_TOKEN, n5CredentialKey, n5CredentialPointer, readN5Credential } from "./credential-record";
 
 /** Only a verified, allowlisted web session may call this server-side helper. */
 export async function courseCredential(ownerId: string): Promise<string> {
