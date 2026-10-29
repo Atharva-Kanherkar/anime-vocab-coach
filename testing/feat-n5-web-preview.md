@@ -7,7 +7,7 @@
 - Gateway allows only the needed N5 methods/paths and pure script query; requires exact same-origin mutation Origin, rejects cross-site fetches, bounds JSON bodies at 16 KiB, prevents redirects, times out upstream calls and returns private no-store responses. Auth/storage/network failures use safe errors without leaking upstream bodies or credentials.
 - Choose romaji or kana separately from general app settings. Prepare with goals/vocabulary/grammar; recap appears after explicit watch confirmation. Legal provider link states regional availability/subscription limits. Watching never awards assessment credit.
 - Create one server-pinned attempt with a stable operation key, then render MCQ and typed tasks from the public lesson. No private keys/client authoritative grading. Submit complete snapshots with revision/idempotency metadata; only finish after the current snapshot is acknowledged. Preserve the same request identity on a lost-response retry. Prevent double clicks and conflicting concurrent writers from silently overwriting state.
-- Resume attempts from the server after navigation/refresh. Versioned, owner/attempt/content/script-scoped session drafts preserve unsaved answers across refresh/network loss; validate/bound drafts before use, clear on sign-out/account mismatch/completion/discard, and prevent cross-user attachment. No microphone/provider calls. Missing speaking/listening/kanji evidence stays unassessed; production needs review and mastery stays false.
+- Resume attempts from the server after navigation/refresh. Versioned, owner/attempt/content/script-scoped session drafts preserve unsaved answers across refresh/network loss; validate/bound drafts before use, clear on confirmed sign-out/account mismatch/completion/discard; retain through transient auth loss, and prevent cross-user attachment. No microphone/provider calls. Missing speaking/listening/kanji evidence stays unassessed; production needs review and mastery stays false.
 - Recovery covers loading/empty/error, auth loss, storage unavailability, stale content, revision conflict, invalid answers with field focus, and active-attempt abandonment. Keep typed work visible through retryable failures. Completed results are immutable and based only on server evidence.
 - Reuse the app theme/navigation and provide desktop/mobile layouts, visible focus, labelled fieldsets/inputs, keyboard operation and polite status/alert messages. All owned Japanese instructional strings use the selected script; English UI/explanations remain allowed.
 
@@ -28,7 +28,7 @@
 ## E2E Tests
 
 - Fresh-profile Playwright drives both pure-script flows through real Next and Worker: choose script, prepare, provider link/manual watch, recap, quiz/typed tasks, save/finish, honest result and refreshed resume. Assert no answer keys or bearer tokens in browser responses/storage/HTML, and check mobile layout/keyboard/focus.
-- Exercise offline draft refresh, lost save response with exact retry, revision conflict without overwriting, stale content/discard, API auth loss, and unavailable voice state without getUserMedia.
+- Exercise offline draft refresh, lost save response with exact retry, revision conflict without overwriting, stale content/discard, API auth loss with draft retention, and unavailable voice state without getUserMedia.
 
 ## Fuzz Tests
 
@@ -41,3 +41,11 @@
 ## Manual / cURL Tests
 
 - Document synthetic-only local startup and exact curl checks for flag/auth/CSRF/path bounds. Inspect screenshots for desktop/mobile in each script after browser tests. No real credentials, signed-in browser clone, model spend, production deployment or flag activation is needed.
+
+## PR review 5693117444: locked corrections
+
+- Clerk loading shows neutral loading, confirmed sign-out/mismatched accounts hide content and clear drafts, and a transient HTTP 401 hides content but retains owner-scoped unsaved drafts for same-account reauthentication. Component tests mock real `useUser` loading/expired/mismatch transitions without the dev bypass.
+- Dashboard navigation and course layout require a successful backend catalog access probe for the verified session owner. Disabled/malformed config, denied users and backend failures hide the pilot without breaking `/app`. Normalize trusted API origins; allow only the production API, explicit branch previews of that same Worker and loopback development. No arbitrary origins. Use locally verified `auth().userId` for N5 identity; read a full Clerk profile only when a missing server credential must be minted. Existing token lookup uses two KV reads and handles malformed records safely.
+- Extract and unit-test the attempt save/retry/conflict transitions. Acknowledged unchanged answers skip saving; lost finish responses retry finish without writing another answer revision. Keep blocked typed answers read-only and selectable. Require explicit confirmation before deleting an unfinished attempt. Results URLs redirect active attempts to their editing URL.
+- Lesson handoff offers resume for existing active attempts and only starts a new attempt deliberately. Hub visits with an unchanged script skip enrolment writes. HTTP/non-JSON server failures preserve status/auth semantics and use server-error copy; only fetch network failures use offline copy.
+- Format N5 components for review, remove the feature's global Turbopack root override, and exercise default Turbopack plus the production build. Extend browser coverage for finish-response loss, unchanged save, lesson resume, confirmed discard and 401 draft recovery. Expand the scoped mutation gate to the pure attempt state machine, retain >=90% without exclusions, and fuzz its invariants. Update evidence and PR scope; no live Clerk-key verification is claimed.
