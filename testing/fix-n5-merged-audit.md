@@ -36,3 +36,7 @@
 - Attempt-start receipts are scoped to the lesson script. A stale tab must not silently start in a different script after another tab changes enrolment.
 - Session recovery must perform a document reload rather than retaining the layout's expired-session latch.
 - Owner analytics must parse the real `synctoken:user:<id>:v1` key shape so exclusions and Clerk plan joins work.
+
+## Cross-tab audit follow-up
+- Explicitly opening a lesson always reconciles the selected enrolment and pins the lesson URL to that script. This intentionally replaces the earlier optimization that skipped unchanged enrolment writes based on stale client progress; retained receipts remain bounded by the backend.
+- Concurrent course credential creation must survive a rate-limited write to the shared cache pointer once its unique credential record has been persisted. Failed credential-record writes must still fail closed.
