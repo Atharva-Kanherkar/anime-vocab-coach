@@ -16,3 +16,6 @@ e2e/shots/
 # Local N5 test tooling output
 backend/.stryker-tmp/
 backend/reports/
+
+# Monorepo N5 mutation sandbox
+/.stryker-tmp/

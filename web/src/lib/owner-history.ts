@@ -394,7 +394,7 @@ export function foldClerk(users: ClerkUserRow[], now = Date.now()): {
 /** Backups read for "never active", at most. Past this the count is a lower bound. */
 export const MAX_BACKUP_READS = 500;
 const BACKUP_RE = /^sync:user:(user_[A-Za-z0-9]+):snapshot:v1$/;
-const LINK_RE = /^synctoken:user:(.+)$/;
+const LINK_RE = /^synctoken:user:(.+):v1$/;
 
 /** Saved words in one backup, or null when it cannot be read. */
 async function backupWords(kv: KvLike, userId: string): Promise<number | null> {

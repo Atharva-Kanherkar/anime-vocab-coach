@@ -53,3 +53,19 @@ it("a direct request by a non-member cannot mint a sync token either", async () 
   expect(network).not.toHaveBeenCalled();
   expect(boundary.profile).not.toHaveBeenCalled();
 });
+it("invited course-only users never mint or slide an extension login", async () => {
+  boundary.auth.mockResolvedValue({ userId: "invited-user" });
+  boundary.get.mockResolvedValue(null);
+  boundary.profile.mockResolvedValue({ id: "invited-user" });
+  const network = vi.fn().mockResolvedValue(Response.json({ tracks: [] }));
+  vi.stubGlobal("fetch", network);
+  expect((await gateway(new Request("https://animevocab.com/api/n5/catalog"), ["catalog"])).status).toBe(200);
+  expect(boundary.put).toHaveBeenCalledTimes(2);
+  for (const [key, , options] of boundary.put.mock.calls) {
+    expect(key).toMatch(/^n5token:/);
+    expect(options.expirationTtl).toBe(3600);
+  }
+  expect(boundary.get.mock.calls.every(([key]) => key.startsWith("n5token:"))).toBe(true);
+  expect(boundary.profile).not.toHaveBeenCalled();
+  expect(network.mock.calls[0][1].headers.Authorization).toMatch(/^Bearer avc_n5_[a-f0-9]{64}$/);
+});

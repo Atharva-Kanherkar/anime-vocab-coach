@@ -7,10 +7,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/auth", () => ({ resolveProfile: mocks.profile }));
-vi.mock("@/lib/sync-store", () => ({
-  getOrCreateSyncToken: mocks.token,
-  getExistingSyncToken: mocks.existing,
-}));
+vi.mock("./credential", () => ({ courseCredential: mocks.token }));
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: async () => ({ env: {} }),
 }));
@@ -67,11 +64,7 @@ describe("authenticated N5 gateway", () => {
   });
   it("uses only verified identity and server-owned token, without forwarding sensitive headers", async () => {
     const response = await request("enrolments", "POST", '{"userId":"bob"}');
-    expect(mocks.token).toHaveBeenCalledWith("alice", {
-      id: "alice",
-      email: null,
-      name: null,
-    });
+    expect(mocks.token).toHaveBeenCalledWith("alice");
     expect(upstream).toHaveBeenCalledWith(
       "https://avc-api.animevocab.workers.dev/v1/n5/enrolments",
       expect.objectContaining({
@@ -90,17 +83,15 @@ describe("authenticated N5 gateway", () => {
     mocks.auth.mockResolvedValueOnce({ userId: "bob" });
     mocks.profile.mockResolvedValueOnce({ id: "bob" });
     await request();
-    expect(mocks.token).toHaveBeenLastCalledWith("bob", { id: "bob" });
+    expect(mocks.token).toHaveBeenLastCalledWith("bob");
   });
-  it("reuses a validated existing token without minting or rewriting it", async () => {
-    mocks.existing.mockResolvedValueOnce("cached-private-credential");
+  it("uses course credentials without extension tokens or full profile reads", async () => {
+    mocks.token.mockResolvedValueOnce("avc_n5_privatecredential");
     expect((await request()).status).toBe(200);
-    expect(mocks.existing).toHaveBeenCalledWith("alice");
-    expect(mocks.token).not.toHaveBeenCalled();
+    expect(mocks.token).toHaveBeenCalledWith("alice");
+    expect(mocks.existing).not.toHaveBeenCalled();
     expect(mocks.profile).not.toHaveBeenCalled();
-    expect(upstream.mock.calls[0][1].headers.Authorization).toBe(
-      "Bearer cached-private-credential",
-    );
+    expect(upstream.mock.calls[0][1].headers.Authorization).toBe("Bearer avc_n5_privatecredential");
   });
   it("requires cookie identity and exact same-origin mutation intent", async () => {
     expect(
@@ -272,9 +263,9 @@ it("rejects non-members at the gateway before credential lookup or mint", async 
   expect(mocks.profile).not.toHaveBeenCalled();
   expect(upstream).not.toHaveBeenCalled();
 });
-it("does not mint for a profile different from the verified session", async () => {
+it("uses the verified session owner regardless of unrelated profile metadata", async () => {
   mocks.profile.mockResolvedValueOnce({ id: "bob" });
-  expect((await request()).status).toBe(503);
-  expect(mocks.token).not.toHaveBeenCalled();
-  expect(upstream).not.toHaveBeenCalled();
+  expect((await request()).status).toBe(200);
+  expect(mocks.profile).not.toHaveBeenCalled();
+  expect(mocks.token).toHaveBeenCalledWith("alice");
 });

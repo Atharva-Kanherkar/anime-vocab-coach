@@ -36,3 +36,15 @@ it("provider links remain HTTPS and storage scope keys do not collide across own
     expect(draftKey(owner + ":", id)).not.toBe(draftKey(owner, ":" + id));
   }), options);
 });
+it("arbitrary course credential records cannot cross owner or expiry boundaries", async () => {
+  const { readN5Credential } = await import("../../../../shared/n5/credential");
+  const now = 1_800_000_000_000;
+  fc.assert(fc.property(fc.jsonValue(), (value) => {
+    const record = readN5Credential(JSON.stringify(value), now, "alice");
+    if (record) {
+      expect(record.id).toBe("alice");
+      expect(Number.isSafeInteger(record.expiresAt)).toBe(true);
+      expect(record.expiresAt).toBeGreaterThan(now);
+    }
+  }), options);
+});
