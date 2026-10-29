@@ -32,10 +32,12 @@ export class CourseStore {
   async enrol(body: z.infer<typeof enrolmentSchema>): Promise<{ trackId: string; script: N5Script }> {
     const hash = await fingerprint(body);
     await this.db.batch([this.account(), this.statement(
-      "INSERT INTO n5_enrolments(user_id,request_key,fingerprint,track_id,script,created_at) SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM n5_enrolments WHERE user_id=?) < 100 ON CONFLICT(user_id,request_key) DO NOTHING",
-      this.userId, body.idempotencyKey, hash, body.trackId, body.script, Date.now(), this.userId)]);
+      "INSERT INTO n5_enrolments(user_id,request_key,fingerprint,track_id,script,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,request_key) DO NOTHING",
+      this.userId, body.idempotencyKey, hash, body.trackId, body.script, Date.now()),
+      this.statement("DELETE FROM n5_enrolments WHERE user_id=? AND id IN (SELECT id FROM n5_enrolments WHERE user_id=? ORDER BY id DESC LIMIT -1 OFFSET 100)", this.userId, this.userId),
+    ]);
     const row = await this.statement("SELECT * FROM n5_enrolments WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<EnrolmentRow>();
-    if (!row) throw new CourseError("enrolment_limit", 429, "Enrolment preference history is full.");
+    if (!row) conflict();
     checkFingerprint(row.fingerprint, hash);
     return { trackId: row.track_id, script: row.script };
   }
@@ -46,11 +48,24 @@ export class CourseStore {
   async observe(body: z.infer<typeof eventSchema>): Promise<{ id: string }> {
     if (!await this.enrolment()) throw new CourseError("enrolment_required", 409, "Select a course track first.");
     const hash = await fingerprint(body);
-    await this.statement("INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at) SELECT ?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM n5_events WHERE user_id=?) < 1000 ON CONFLICT(user_id,request_key) DO NOTHING",
-      crypto.randomUUID(), this.userId, body.idempotencyKey, hash, body.episodeId, body.kind, Date.now(), this.userId).run();
-    const row = await this.statement("SELECT id,fingerprint FROM n5_events WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<{ id: string; fingerprint: string }>();
-    if (!row) throw new CourseError("event_limit", 429, "Observation history is full.");
-    checkFingerprint(row.fingerprint, hash);
+    await this.db.batch([
+      this.statement(`INSERT INTO n5_event_requests(id,user_id,request_key,fingerprint,episode_id,kind,created_at)
+        VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id,request_key) DO NOTHING`,
+      crypto.randomUUID(), this.userId, body.idempotencyKey, hash, body.episodeId, body.kind, Date.now()),
+      // Only the matching receipt can record an observation. Conflicting key
+      // reuse cannot add a losing writer's episode/kind as a side effect.
+      this.statement(`INSERT INTO n5_events(id,user_id,episode_id,kind,created_at)
+        SELECT ?,user_id,episode_id,kind,created_at FROM n5_event_requests
+        WHERE user_id=? AND request_key=? AND fingerprint=?
+        ON CONFLICT(user_id,episode_id,kind) DO NOTHING`,
+      crypto.randomUUID(), this.userId, body.idempotencyKey, hash),
+      this.statement("DELETE FROM n5_event_requests WHERE user_id=? AND rowid IN (SELECT rowid FROM n5_event_requests WHERE user_id=? ORDER BY rowid DESC LIMIT -1 OFFSET 1000)", this.userId, this.userId),
+    ]);
+    const receipt = await this.statement("SELECT fingerprint FROM n5_event_requests WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<{ fingerprint: string }>();
+    if (!receipt) conflict();
+    checkFingerprint(receipt.fingerprint, hash);
+    const row = await this.statement("SELECT id FROM n5_events WHERE user_id=? AND episode_id=? AND kind=?", this.userId, body.episodeId, body.kind).first<{ id: string }>();
+    if (!row) conflict();
     return { id: row.id };
   }
   private async row(id: string): Promise<AttemptRow> {

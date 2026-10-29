@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runtime } from "./runtime";
+import { fingerprint } from "../src/n5/domain";
 import { correctAnswers } from "./answers";
 import { CONTENT_VERSION, COURSE_ID, EPISODE_ID, LESSON_ID, TRACK_ID } from "../src/n5/content";
 
@@ -62,7 +63,7 @@ describe("real Worker and D1 end-to-end", () => {
     expect(exported.reviews).toEqual(reviews.events.map((e: { id: string; attemptId: string; objectiveId: string; judgment: string }) => ({ id: e.id, attempt_id: e.attemptId, objective_id: e.objectiveId, judgment: e.judgment })));
     expect(JSON.stringify(exported)).not.toMatch(/fingerprint|pack_hash|mutation_nonce|correctOption/);
     expect((await app.request("/me", { method: "DELETE" })).status).toBe(200);
-    for (const table of ["n5_accounts", "n5_enrolments", "n5_events", "n5_attempts", "n5_answer_requests", "n5_review_events"]) expect((await app.db!.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first())?.n).toBe(0);
+    for (const table of ["n5_accounts", "n5_enrolments", "n5_events", "n5_event_requests", "n5_attempts", "n5_answer_requests", "n5_review_events"]) expect((await app.db!.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first())?.n).toBe(0);
     expect((await app.request(`/attempts/${fresh.id}`)).status).toBe(404);
     expect((await app.request("/enrolments", { body: { ...enrol, script } })).status).toBe(200);
     expect(await app.kv.get("synctoken:avc_st_n5local:v1")).not.toBeNull();
@@ -265,32 +266,90 @@ describe("PR review regressions", () => {
     }
   });
 
-  it("bounds enrolments and observations atomically while preserving replays at capacity", async () => {
-    await app.request("/enrolments", { body: enrol });
-    const event = { episodeId: EPISODE_ID, kind: "watch_complete", idempotencyKey: "watch" };
-    const watched = await (await app.request("/events", { body: event })).json();
+  it("rolls enrolment history without blocking script changes or changing pinned attempts", async () => {
+    const original = await attempt();
     await app.db!.prepare(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<98)
       INSERT INTO n5_enrolments(user_id,request_key,fingerprint,track_id,script,created_at)
       SELECT 'n5-local-user','seed-'||x,'seed',?,'romaji',x FROM n`).bind(TRACK_ID).run();
-    await app.db!.prepare(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<998)
-      INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at)
-      SELECT 'event-'||x,'n5-local-user','seed-'||x,'seed',?,'watch_complete',x FROM n`).bind(EPISODE_ID).run();
-    for (const [path, body, table, limit, code] of [
-      ["/enrolments", enrol, "n5_enrolments", 100, "enrolment_limit"],
-      ["/events", event, "n5_events", 1000, "event_limit"],
-    ] as const) {
-      const responses = await Promise.all(Array.from({ length: 8 }, (_, n) => app.request(path, { body: { ...body, idempotencyKey: `limit-${n}` } })));
-      expect(responses.filter((r) => r.status === 200)).toHaveLength(1);
-      const rejected = responses.filter((r) => r.status === 429);
-      expect(rejected).toHaveLength(7);
-      expect((await rejected[0].json()).error.code).toBe(code);
-      expect((await app.db!.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id='n5-local-user'`).first())?.n).toBe(limit);
-      expect((await app.request(path, { body })).status).toBe(200);
-    }
-    expect(await (await app.request("/events", { body: event })).json()).toEqual(watched);
-    expect((await app.request("/enrolments", { body: { ...enrol, script: "kana" } })).status).toBe(409);
-    expect((await app.request("/events", { body: { ...event, kind: "practice_complete" } })).status).toBe(409);
+    const responses = await Promise.all(Array.from({ length: 8 }, (_, n) => app.request("/enrolments", { body: { ...enrol, idempotencyKey: `repeat-${n}` } })));
+    expect(responses.map((r) => r.status)).toEqual(Array(8).fill(200));
+    for (let n = 0; n < 105; n++) expect((await app.request("/enrolments", { body: { ...enrol, script: n % 2 ? "kana" : "romaji", idempotencyKey: `change-${n}` } })).status).toBe(200);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_enrolments").first())?.n).toBe(100);
+    expect((await app.request("/enrolments", { body: { ...enrol, idempotencyKey: "change-104" } })).status).toBe(200);
+    expect((await app.request("/enrolments", { body: { ...enrol, script: "kana", idempotencyKey: "change-104" } })).status).toBe(409);
+    await app.request("/enrolments", { body: { ...enrol, script: "kana", idempotencyKey: "current" } });
+    // A retained old receipt returns its original value without resetting the preference.
+    expect(await (await app.request("/enrolments", { body: { ...enrol, idempotencyKey: "change-104" } })).json()).toEqual({ trackId: TRACK_ID, script: "romaji" });
+    expect((await (await app.request("/me/progress")).json()).enrolment.script).toBe("kana");
+    expect((await (await app.request(`/attempts/${original.id}`)).json()).script).toBe("romaji");
+    // Keys outside the documented rolling window become new requests.
+    expect((await app.request("/enrolments", { body: { ...enrol, script: "kana" } })).status).toBe(200);
     expect((await app.request("/enrolments", { body: enrol, token: "avc_st_n5other" })).status).toBe(200);
-    expect((await app.request("/events", { body: event, token: "avc_st_n5other" })).status).toBe(200);
+  });
+
+  it("deduplicates episode observations and evicts receipts without losing progress", async () => {
+    await app.request("/enrolments", { body: enrol });
+    const event = { episodeId: EPISODE_ID, kind: "watch_complete", idempotencyKey: "watch" };
+    const watched = await (await app.request("/events", { body: event })).json();
+    await app.db!.prepare(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<999)
+      INSERT INTO n5_event_requests(id,user_id,request_key,fingerprint,episode_id,kind,created_at)
+      SELECT 'request-'||x,'n5-local-user','seed-'||x,'seed',?,'watch_complete',x FROM n`).bind(EPISODE_ID).run();
+    const responses = await Promise.all(Array.from({ length: 8 }, (_, n) => app.request("/events", { body: { ...event, idempotencyKey: `repeat-${n}` } })));
+    expect(responses.map((r) => r.status)).toEqual(Array(8).fill(200));
+    for (const r of responses) expect(await r.json()).toEqual(watched);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_events").first())?.n).toBe(1);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_event_requests").first())?.n).toBe(1000);
+    expect((await app.request("/events", { body: { ...event, kind: "practice_complete", idempotencyKey: "repeat-0" } })).status).toBe(409);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_events").first())?.n).toBe(1);
+    expect((await app.request("/events", { body: { ...event, kind: "practice_complete", idempotencyKey: "new-kind" } })).status).toBe(200);
+    expect(await (await app.request("/events", { body: event })).json()).toEqual(watched);
+    expect((await (await app.request("/me/progress")).json()).observations).toEqual([
+      { episodeId: EPISODE_ID, kind: "practice_complete" }, { episodeId: EPISODE_ID, kind: "watch_complete" },
+    ]);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_event_requests").first())?.n).toBe(1000);
+    await app.request("/enrolments", { body: enrol, token: "avc_st_n5other" });
+    const other = await (await app.request("/events", { body: event, token: "avc_st_n5other" })).json();
+    expect(other.id).not.toBe(watched.id);
+  });
+
+  it("conflicting concurrent event keys cannot record the losing observation", async () => {
+    await app.request("/enrolments", { body: enrol });
+    const responses = await Promise.all(["watch_complete", "practice_complete"].map((kind) => app.request("/events", { body: { episodeId: EPISODE_ID, kind, idempotencyKey: "competing" } })));
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_event_requests").first())?.n).toBe(1);
+    expect((await (await app.request("/me/progress")).json()).observations).toHaveLength(1);
+  });
+});
+
+
+describe("observation receipt migration", () => {
+  it("upgrades legacy duplicates without losing observations, receipts, preferences or attempts", async () => {
+    const persist = await mkdtemp(join(tmpdir(), "n5-upgrade-"));
+    let isolated = await runtime({ persist, migrationCount: 1 });
+    const retained = { episodeId: EPISODE_ID, kind: "watch_complete", idempotencyKey: "retained" };
+    try {
+      await isolated.request("/enrolments", { body: enrol });
+      const original = await (await isolated.request("/attempts", { body: create })).json();
+      await isolated.db!.prepare(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<1004)
+        INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at)
+        SELECT 'old-'||x,'n5-local-user','old-'||x,'seed',?,'watch_complete',x FROM n`).bind(EPISODE_ID).run();
+      await isolated.db!.prepare("INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at) VALUES('other-episode','n5-local-user','other','seed','legacy-episode','watch_complete',0)").run();
+      await isolated.db!.prepare("INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at) VALUES('recent','n5-local-user',?,?,?,'watch_complete',1005)").bind(retained.idempotencyKey, await fingerprint(retained), EPISODE_ID).run();
+      await isolated.mf.dispose();
+      isolated = await runtime({ persist });
+      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM d1_migrations").first())?.n).toBe(2);
+      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_event_requests").first())?.n).toBe(1000);
+      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_events").first())?.n).toBe(2);
+      expect(await (await isolated.request("/events", { body: retained })).json()).toEqual({ id: "old-1" });
+      expect((await isolated.request("/events", { body: { ...retained, kind: "practice_complete" } })).status).toBe(409);
+      expect(await (await isolated.request(`/attempts/${original.id}`)).json()).toEqual(original);
+      expect((await (await isolated.request("/me/progress")).json()).observations).toHaveLength(2);
+      await isolated.mf.dispose();
+      isolated = await runtime({ persist });
+      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_events").first())?.n).toBe(2);
+      expect((await isolated.request("/events", { body: { ...retained, kind: "practice_complete", idempotencyKey: "new" } })).status).toBe(200);
+      await isolated.request("/me", { method: "DELETE" });
+      for (const table of ["n5_events", "n5_event_requests", "n5_enrolments", "n5_attempts"]) expect((await isolated.db!.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first())?.n).toBe(0);
+    } finally { await isolated.mf.dispose(); await rm(persist, { recursive: true, force: true }); }
   });
 });

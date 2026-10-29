@@ -1,8 +1,8 @@
 import { build } from "esbuild";
 import { Miniflare } from "miniflare";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
-export async function runtime(options: { enabled?: string | null; allowed?: string; database?: boolean; persist?: string } = {}) {
+export async function runtime(options: { enabled?: string | null; allowed?: string; database?: boolean; persist?: string; migrationCount?: number } = {}) {
   const built = await build({ entryPoints: ["src/index.ts"], bundle: true, write: false, format: "esm", platform: "browser", target: "es2022" });
   const mf = new Miniflare({
     modules: true, script: built.outputFiles[0].text, compatibilityDate: "2026-06-01",
@@ -17,10 +17,18 @@ export async function runtime(options: { enabled?: string | null; allowed?: stri
   }
   const db = options.database === false ? null : await mf.getD1Database("N5_DB");
   if (db) {
-    const exists = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='n5_accounts'").first();
-    if (!exists) {
-      const migration = await readFile("migrations/0001_n5_preview.sql", "utf8");
-      await db.batch(migration.split(";").map((sql) => sql.trim()).filter(Boolean).map((sql) => db.prepare(sql)));
+    await db.prepare("CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+    // Recognize persisted databases created by the original one-migration harness.
+    const legacy = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='n5_accounts'").first();
+    if (legacy) await db.prepare("INSERT INTO d1_migrations(name) VALUES('0001_n5_preview.sql') ON CONFLICT DO NOTHING").run();
+    const migrations = (await readdir("migrations")).filter((name) => name.endsWith(".sql")).sort().slice(0, options.migrationCount);
+    for (const name of migrations) {
+      if (await db.prepare("SELECT id FROM d1_migrations WHERE name=?").bind(name).first()) continue;
+      const migration = await readFile(`migrations/${name}`, "utf8");
+      await db.batch([
+        ...migration.split(";").map((sql) => sql.trim()).filter(Boolean).map((sql) => db.prepare(sql)),
+        db.prepare("INSERT INTO d1_migrations(name) VALUES(?)").bind(name),
+      ]);
     }
   }
   async function request(path: string, options: { method?: string; body?: unknown; token?: string | null; headers?: Record<string, string>; raw?: string } = {}) {
