@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, type ReactNode } from "react";
+import { Icon } from "./icons";
 import Link from "next/link";
 import type { N5Catalog, N5Course, N5Progress } from "../../../../shared/n5/contracts";
 import { SECTIONS, STEP_INFO, completedSteps, readLocalSteps, sectionIndex, stepsFor, type StepId } from "@/lib/n5/steps";
@@ -25,7 +26,7 @@ export function stepHref(lessonId: string, step: StepId): string {
 function StatusIcon({ state }: { state: "done" | "partial" | "todo" | "current" }) {
   return (
     <span className="n5-check" data-state={state} aria-hidden>
-      {state === "done" ? "✓" : ""}
+      {state === "done" && <Icon name="check" size={11} />}
     </span>
   );
 }
@@ -74,8 +75,8 @@ function CourseSidebar({ overview, ownerId, lessonId, step, localDone, onStep }:
                   {sectionPassed} / {units.length} passed
                 </small>
               </span>
-              <span aria-hidden className="n5-chevron">
-                ▾
+              <span className="n5-chevron" aria-hidden>
+                <Icon name="chevron" size={14} />
               </span>
             </button>
             {expanded && (

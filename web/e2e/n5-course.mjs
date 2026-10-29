@@ -309,9 +309,9 @@ try {
     await page
       .getByRole("heading", { name: "Japanese for Beginners: JLPT N5 with Your Lie in April", level: 1 })
       .waitFor();
-    assert.equal(
-      await page.getByText("Planned", { exact: true }).count(),
-      5,
+    assert.match(
+      await page.locator(".n5-about").innerText(),
+      /More anime tracks are planned: SPY x FAMILY, BOCCHI THE ROCK!, Laid-Back Camp, Haikyu!!, Fruits Basket\./,
     );
     await page
       .getByRole("radio", { name: script === "kana" ? /Kana/ : /Romaji/ })

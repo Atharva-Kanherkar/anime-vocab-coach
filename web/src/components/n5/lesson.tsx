@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Icon } from "./icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { N5Attempt, N5Lesson, N5LessonProgress, N5Progress, N5Script } from "../../../../shared/n5/contracts";
@@ -112,10 +113,10 @@ function LessonContent({
           </span>
           {status?.bestPercent != null && (
             <span>
-              Best score <strong>{Math.round(status.bestPercent)}%</strong> {status.status === "passed" ? "· passed ✓" : "· 80% passes"}
+              Best score <strong>{Math.round(status.bestPercent)}%</strong> {status.status === "passed" ? "· passed" : "· 80% passes"}
             </span>
           )}
-          {status?.speaking === "demonstrated" && <span>Speaking ✓</span>}
+          {status?.speaking === "demonstrated" && <span>Speaking demonstrated</span>}
         </div>
       </header>
       <nav className="n5-steps" aria-label="Lesson steps">
@@ -128,7 +129,9 @@ function LessonContent({
             data-done={doneSet.has(s.id) || undefined}
             onClick={() => go(s.id)}
           >
-            <span aria-hidden>{doneSet.has(s.id) ? "✓" : index + 1}</span>
+            <span className="n5-step-mark" data-done={doneSet.has(s.id) || undefined} aria-hidden>
+              {doneSet.has(s.id) ? <Icon name="check" size={11} /> : index + 1}
+            </span>
             {s.label}
           </button>
         ))}
@@ -281,7 +284,7 @@ function Learn({ lesson, ja, onDone }: { lesson: N5Lesson; ja?: string; onDone: 
           <h2>Model conversation</h2>
           <span className="n5-actions">
             <button type="button" onClick={playAll}>
-              ▶ Play all
+              <Icon name="play" size={12} /> Play all
             </button>
             <button type="button" aria-pressed={english} onClick={() => setEnglish((v) => !v)}>
               {english ? "Hide English" : "Show English"}
@@ -644,7 +647,7 @@ function SpeakIntro({ lesson, status }: { lesson: N5Lesson; status: N5LessonProg
       </p>
       {status && status.speaking !== "not_started" && (
         <p className="n5-muted">
-          Last result: {status.speaking === "demonstrated" ? "speaking demonstrated ✓" : status.speaking === "needs_practice" ? "keep practising" : "typed practice only"}
+          Last result: {status.speaking === "demonstrated" ? "speaking demonstrated" : status.speaking === "needs_practice" ? "keep practising" : "typed practice only"}
         </p>
       )}
       <Link className="n5-primary n5-big" href={`/app/n5/speak/${lesson.id}`}>

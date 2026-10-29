@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { Icon } from "./icons";
 import Link from "next/link";
 import type { N5Conversation, N5Lesson } from "../../../../shared/n5/contracts";
 import { MAX_RECORDING_MS, recorderTransition, recordingType, remaining } from "@/lib/n5/recorder";
@@ -275,7 +276,11 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
                       </span>
                     </small>
                   )}
-                  {turn.tip && <small className="n5-tip">💡 {turn.tip}</small>}
+                  {turn.tip && (
+                    <small className="n5-tip">
+                      <Icon name="bulb" size={13} /> {turn.tip}
+                    </small>
+                  )}
                 </div>
               </li>
             ))}
@@ -304,7 +309,7 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
                     onClick={() => (recorder.phase === "recording" ? stopRecording() : startRecording())}
                     aria-label={recorder.phase === "recording" ? "Stop recording and send" : "Start recording"}
                   >
-                    <span aria-hidden>{recorder.phase === "recording" ? "■" : "🎙"}</span>
+                    <Icon name={recorder.phase === "recording" ? "stop" : "mic"} size={28} />
                   </button>
                   <p role="status" className="n5-muted">
                     {recorder.phase === "recording"
@@ -367,7 +372,7 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
             <div className="n5-speaking-result">
               <p className="n5-eyebrow">Your speaking result</p>
               <h2>
-                {result.status === "demonstrated" ? "Speaking demonstrated ✓" : result.status === "needs_practice" ? "Nice start, keep practising" : "Typed practice complete"}
+                {result.status === "demonstrated" ? "Speaking demonstrated" : result.status === "needs_practice" ? "Nice start, keep practising" : "Typed practice complete"}
               </h2>
               <dl className="n5-skill-bars">
                 {[

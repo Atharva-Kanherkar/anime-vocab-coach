@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "./icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { N5Enrolment, N5LessonProgress, N5Script } from "../../../../shared/n5/contracts";
@@ -37,13 +38,13 @@ const OUTCOMES = [
   "Give reasons, compare, and handle new situations",
 ];
 const INCLUDES = [
-  ["🎧", "Native-style audio for every word and sentence"],
-  ["🗣️", "AI speaking partner in every unit"],
-  ["✍️", "AI feedback on your written answers"],
-  ["📺", "Recaps for all 22 episodes"],
-  ["🔤", "Romaji or kana, never mixed"],
-] as const;
-const STEP_ICON: Record<StepId, string> = { learn: "📖", drill: "⚡", watch: "📺", practice: "✅", speak: "🎙️" };
+  ["headphones", "Audio for every word and sentence"],
+  ["chat", "AI speaking partner in every unit"],
+  ["pencil", "AI feedback on your written answers"],
+  ["film", "Recaps for all 22 episodes"],
+  ["type", "Romaji or kana, never mixed"],
+] as const satisfies readonly (readonly [IconName, string])[];
+export const STEP_ICON: Record<StepId, IconName> = { learn: "book", drill: "bolt", watch: "film", practice: "clipboard", speak: "mic" };
 
 function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId: string }) {
   const router = useRouter();
@@ -100,12 +101,9 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
   const card = (
     <aside className="n5-course-card" aria-label="Your course">
       <div className="n5-cover" aria-hidden>
-        <span className="n5-cover-keys" />
-        <span className="n5-cover-badge">N5</span>
+        <span className="n5-cover-label">JLPT N5 · Season 1</span>
         <span className="n5-cover-title">Your Lie in April</span>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <span key={i} className="n5-petal" style={{ ["--i" as string]: i }} />
-        ))}
+        <span className="n5-cover-keys" />
       </div>
       <div className="n5-card-body">
         <div className="n5-card-progress">
@@ -119,27 +117,32 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
             <span style={{ width: `${percent}%` }} />
           </span>
         </div>
-        <fieldset disabled={Boolean(busy)} className="n5-toggle n5-toggle-wide">
-          <legend>Japanese display</legend>
-          {(["romaji", "kana"] as const).map((s) => (
-            <label key={s} data-checked={script === s}>
-              <input
-                type="radio"
-                name="course-script"
-                value={s}
-                checked={script === s}
-                onChange={() => {
-                  setScript(s);
-                  setKey(null);
-                }}
-              />
-              {s === "romaji" ? "Romaji" : "Kana"}
-              <small data-owned-japanese lang={s === "kana" ? "ja" : undefined}>
-                {s === "romaji" ? "aiueo" : "あいうえお"}
-              </small>
-            </label>
-          ))}
-        </fieldset>
+        <div className="n5-field">
+          <span className="n5-field-label" aria-hidden>
+            Japanese display
+          </span>
+          <fieldset disabled={Boolean(busy)} className="n5-toggle n5-toggle-wide">
+            <legend className="n5-visually-hidden">Japanese display</legend>
+            {(["romaji", "kana"] as const).map((s) => (
+              <label key={s} data-checked={script === s}>
+                <input
+                  type="radio"
+                  name="course-script"
+                  value={s}
+                  checked={script === s}
+                  onChange={() => {
+                    setScript(s);
+                    setKey(null);
+                  }}
+                />
+                {s === "romaji" ? "Romaji" : "Kana"}
+                <small data-owned-japanese lang={s === "kana" ? "ja" : undefined}>
+                  {s === "romaji" ? "aiueo" : "あいうえお"}
+                </small>
+              </label>
+            ))}
+          </fieldset>
+        </div>
         {next && (
           <div className="n5-card-next">
             <span className="n5-eyebrow">{progress.enrolment ? "Up next" : "Start here"}</span>
@@ -158,7 +161,7 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
         <ul className="n5-card-includes">
           {INCLUDES.map(([icon, text]) => (
             <li key={text}>
-              <span aria-hidden>{icon}</span>
+              <Icon name={icon} />
               {text}
             </li>
           ))}
@@ -236,8 +239,8 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
                   <section key={section.title} className="n5-syl-section">
                     <button type="button" className="n5-syl-toggle" aria-expanded={expanded} onClick={() => toggle(index)}>
                       <span className="n5-chevron" aria-hidden>
-                        ▾
-                      </span>
+                <Icon name="chevron" size={14} />
+              </span>
                       <strong>
                         Section {index + 1}: {section.title}
                       </strong>
@@ -263,7 +266,7 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
                                 aria-label={`Unit ${u.number}: ${u.title}. ${STATUS_LABEL[status]}`}
                               >
                                 <span className="n5-check" data-state={status === "passed" ? "done" : isNext ? "current" : done.size ? "partial" : "todo"} aria-hidden>
-                                  {status === "passed" ? "✓" : ""}
+                                  {status === "passed" && <Icon name="check" size={12} />}
                                 </span>
                                 <span className="n5-syl-text">
                                   <strong>
@@ -271,17 +274,13 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
                                   </strong>
                                   <small>{u.episode ? `Episode ${u.episode.number} · ${u.episode.title}` : u.kind === "final" ? "Season final · cumulative test" : "Checkpoint · review of units 1–11"}</small>
                                 </span>
-                                <span className="n5-syl-steps" aria-hidden>
+                                <span className="n5-syl-steps" aria-hidden title={`${done.size} of ${steps.length} steps done`}>
                                   {steps.map((s) => (
-                                    <span key={s} data-done={done.has(s) || undefined} title={STEP_INFO[s].label}>
-                                      {STEP_ICON[s]}
-                                    </span>
+                                    <span key={s} data-done={done.has(s) || undefined} />
                                   ))}
                                 </span>
                                 <span className="n5-syl-meta">
-                                  {p?.bestPercent != null ? <span className="n5-chip" data-verdict={status === "passed" ? "correct" : "close"}>{Math.round(p.bestPercent)}%</span> : null}
-                                  {p?.speaking === "demonstrated" && <span className="n5-chip" data-verdict="correct">Spoken</span>}
-                                  {isNext && <span className="n5-chip n5-chip-next">Up next</span>}
+                                  {isNext ? <span className="n5-next-label">Up next</span> : p?.bestPercent != null ? <span>{Math.round(p.bestPercent)}%</span> : null}
                                 </span>
                               </button>
                             </li>
@@ -300,8 +299,8 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
             <ol className="n5-how">
               {(["learn", "drill", "watch", "practice", "speak"] as const).map((s, i) => (
                 <li key={s}>
-                  <span className="n5-how-icon" aria-hidden>
-                    {STEP_ICON[s]}
+                  <span className="n5-how-icon">
+                    <Icon name={STEP_ICON[s]} size={18} />
                   </span>
                   <strong>
                     {i + 1}. {STEP_INFO[s].label}
@@ -321,13 +320,14 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
               <li>{course.limitation}</li>
             </ul>
             <p className="n5-muted">
-              More anime tracks are coming:{" "}
+              More anime tracks are planned:{" "}
               {planned.map((t, i) => (
                 <span key={t.id}>
-                  {i > 0 && " · "}
-                  {t.title} <span className="n5-chip n5-chip-soft">Planned</span>
+                  {i > 0 && ", "}
+                  {t.title}
                 </span>
               ))}
+              .
             </p>
           </section>
         </div>

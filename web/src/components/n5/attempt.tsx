@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Icon } from "./icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { N5Attempt, N5Feedback, N5Lesson, N5Question, N5Skill } from "../../../../shared/n5/contracts";
@@ -157,7 +158,7 @@ function Results({ attempt, lesson, ownerId }: { attempt: N5Attempt; lesson: N5L
                 return (
                   <li key={item.questionId} data-correct={item.correct || undefined}>
                     <p className="n5-review-head">
-                      <span aria-hidden>{item.correct ? "✓" : "✗"}</span>
+                      <Icon name={item.correct ? "check" : "cross"} size={14} />
                       <span className="n5-visually-hidden">{item.correct ? "Correct." : "Incorrect."}</span> {question.prompt}
                     </p>
                     {question.text && (
@@ -432,8 +433,8 @@ function AttemptForm({ initial, lesson, ownerId }: { initial: N5Attempt; lesson:
               {i + 1}
             </button>
           ))}
-          <button type="button" aria-current={reviewing ? "step" : undefined} onClick={() => move(total)}>
-            ✓
+          <button type="button" aria-current={reviewing ? "step" : undefined} onClick={() => move(total)} aria-label="Review answers">
+            <Icon name="check" size={14} />
           </button>
         </nav>
         {!reviewing ? (

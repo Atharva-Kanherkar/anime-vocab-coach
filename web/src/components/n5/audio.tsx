@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "./icons";
 import { CourseFailure } from "./common";
 
 /** Object URLs for fetched clips. Clips are immutable, so a page session caches them. */
@@ -102,7 +103,7 @@ export function PlayButton({
         aria-label={`Play ${label}`}
         data-state={state}
       >
-        <span aria-hidden>{state === "loading" ? "…" : state === "playing" ? "❚❚" : "▶"}</span>
+        <Icon name={state === "loading" ? "loading" : state === "playing" ? "pause" : "play"} size={14} />
       </button>
       {slow && (
         <button
