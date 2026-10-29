@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { runtime } from "./runtime";
 import { fingerprint } from "../src/n5/domain";
 import { correctAnswers } from "./answers";
-import { CONTENT_VERSION, COURSE_ID, EPISODE_ID, LESSON_ID, TRACK_ID } from "../src/n5/content";
+import { CONTENT_VERSION, COURSE_ID, EPISODE_ID, LESSON_ID, TRACK_ID } from "./answers";
 
 type Runtime = Awaited<ReturnType<typeof runtime>>;
 let app: Runtime;
@@ -87,7 +87,7 @@ describe("real Worker and D1 end-to-end", () => {
     expect((await catalog.json()).tracks).toHaveLength(6);
     const overview = await (await app.request(`/courses/${COURSE_ID}`)).json();
     expect(overview.units).toHaveLength(24);
-    expect(overview.availableLessons).toEqual([LESSON_ID]);
+    expect(overview.availableLessons).toHaveLength(24); expect(overview.availableLessons[0]).toBe(LESSON_ID);
     expect((await app.request("/enrolments", { body: { ...enrol, script } })).status).toBe(200);
     const lesson = await (await app.request(`/lessons/${LESSON_ID}`)).json();
     expect(lesson.script).toBe(script);
@@ -101,21 +101,27 @@ describe("real Worker and D1 end-to-end", () => {
     const snapshot = { revision: 0, idempotencyKey: "answer", answers: correctAnswers(script as "romaji" | "kana") };
     expect(await (await app.request(`/attempts/${fresh.id}/answers`, { body: snapshot })).json()).toEqual({ attemptId: fresh.id, revision: 1 });
     const finished = await (await app.request(`/attempts/${fresh.id}/finish`, { body: { revision: 1 } })).json();
-    expect(finished).toMatchObject({ status: "complete", revision: 2, script, result: { correct: 8, objectivePercent: 100, mastery: false, production: "needs_review", speaking: "not_assessed", listening: "not_assessed", kanjiLiteracy: "not_assessed" } });
+    expect(finished).toMatchObject({ status: "complete", revision: 2, script, result: { correct: 8, objectivePercent: 100, passed: true, mastery: false, production: "needs_review", speaking: "not_assessed", kanjiLiteracy: "not_assessed" } });
+    expect(finished.review).toHaveLength(10);
+    expect(finished.review.filter((item: { correct: boolean | null }) => item.correct === true)).toHaveLength(8);
     expect(await (await app.request(`/attempts/${fresh.id}`)).json()).toEqual(finished);
     expect(await (await app.request(`/attempts/${fresh.id}/finish`, { body: { revision: 1 } })).json()).toEqual(finished);
-    expect((await app.request(`/attempts/${fresh.id}/voice`, { body: {} })).status).toBe(503);
+    expect((await app.request(`/attempts/${fresh.id}/voice`, { body: {} })).status).toBe(404);
     const progress = await (await app.request("/me/progress")).json();
     expect(progress.mastery).toBe(false);
     expect(progress.observations).toEqual([{ episodeId: EPISODE_ID, kind: "watch_complete" }]);
-    expect(progress.attempts).toEqual([{ id: fresh.id, status: "complete", script, result: finished.result }]);
+    expect(progress.attempts).toEqual([{ id: fresh.id, lessonId: LESSON_ID, status: "complete", script, result: finished.result }]);
+    expect(progress.lessons).toHaveLength(24);
+    expect(progress.lessons[0]).toEqual({ lessonId: LESSON_ID, status: "passed", bestPercent: 100, watched: true, speaking: "not_started" });
+    expect(progress.nextLessonId).toBe(progress.lessons[1].lessonId);
     expect(progress.enrolment).toEqual({ trackId: TRACK_ID, script });
     const reviews = await (await app.request("/me/reviews")).json();
     expect(reviews.consumerStatus).toBe("not_integrated");
     expect(reviews.events).toHaveLength(8);
     expect(new Set(reviews.events.map((e: { id: string }) => e.id)).size).toBe(8);
     const exported = await (await app.request("/me/export")).json();
-    expect(exported.attempts).toEqual([finished]);
+    const { review: _review, ...stored } = finished;
+    expect(exported.attempts).toEqual([stored]);
     expect(exported.enrolments).toEqual([{ trackId: TRACK_ID, script, createdAt: expect.any(Number) }]);
     expect(exported.observations).toEqual([{ episodeId: EPISODE_ID, kind: "watch_complete", createdAt: expect.any(Number) }]);
     expect(exported.reviews).toEqual(reviews.events);
@@ -148,7 +154,7 @@ describe("real Worker and D1 end-to-end", () => {
     const saves = await Promise.all(Array.from({ length: 8 }, () => app.request(`/attempts/${id}/answers`, { body: snapshot })));
     expect(saves.map((r) => r.status)).toEqual(Array(8).fill(200));
     expect((await (await app.request(`/attempts/${id}`)).json()).revision).toBe(1);
-    const divergent = { ...snapshot, answers: [{ questionId: "greeting", value: "a" }] };
+    const divergent = { ...snapshot, answers: [{ questionId: "q1", value: "a" }] };
     expect((await app.request(`/attempts/${id}/answers`, { body: divergent })).status).toBe(409);
     expect((await app.request(`/attempts/${id}/answers`, { body: { ...snapshot, idempotencyKey: "stale" } })).status).toBe(409);
     const updated = { ...snapshot, revision: 1, idempotencyKey: "later" };
@@ -177,7 +183,7 @@ describe("real Worker and D1 end-to-end", () => {
   it("rolls back finalisation if any review insert fails and enforces database constraints", async () => {
     const fresh = await attempt();
     await app.request(`/attempts/${fresh.id}/answers`, { body: { revision: 0, idempotencyKey: "saved", answers: correctAnswers() } });
-    await app.db!.prepare("INSERT INTO n5_review_events(id,user_id,attempt_id,objective_id,judgment) VALUES(?,?,?,?,?)").bind(`${fresh.id}:greeting`, "n5-local-user", fresh.id, "greet", "review-pass").run();
+    await app.db!.prepare("INSERT INTO n5_review_events(id,user_id,attempt_id,objective_id,judgment) VALUES(?,?,?,?,?)").bind(`${fresh.id}:q1`, "n5-local-user", fresh.id, "greet", "review-pass").run();
     expect((await app.request(`/attempts/${fresh.id}/finish`, { body: { revision: 1 } })).status).toBe(503);
     expect(await (await app.request(`/attempts/${fresh.id}`)).json()).toMatchObject({ status: "active", revision: 1, result: null });
     expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_review_events").first())?.n).toBe(1);
@@ -193,8 +199,8 @@ describe("real Worker and D1 end-to-end", () => {
     const bodies = [
       { answers: correctAnswers("kana") },
       { answers: [{ questionId: "missing", value: "a" }] },
-      { answers: [{ questionId: "greeting", value: "z" }] },
-      { answers: Array(2).fill({ questionId: "greeting", value: "a" }) },
+      { answers: [{ questionId: "q1", value: "z" }] },
+      { answers: Array(2).fill({ questionId: "q1", value: "a" }) },
       { answers: correctAnswers(), passed: true },
     ];
     for (const body of bodies) expect((await app.request(`/attempts/${fresh.id}/answers`, { body: { revision: 0, idempotencyKey: "invalid", ...body } })).status).toBe(400);
@@ -261,16 +267,16 @@ describe("PR review regressions", () => {
   ])("preserves %s keyboard input in snapshots, replays and export", async (script, text) => {
     await app.request("/enrolments", { body: { ...enrol, script } });
     const fresh = await (await app.request("/attempts", { body: create })).json();
-    const snapshot = { revision: 0, idempotencyKey: "keyboard", answers: [{ questionId: "write-name", value: text }] };
+    const snapshot = { revision: 0, idempotencyKey: "keyboard", answers: [{ questionId: "w1", value: text }] };
     const saved = await (await app.request(`/attempts/${fresh.id}/answers`, { body: snapshot })).json();
     expect(saved).toEqual({ attemptId: fresh.id, revision: 1 });
     expect(await (await app.request(`/attempts/${fresh.id}/answers`, { body: snapshot })).json()).toEqual(saved);
     expect((await (await app.request(`/attempts/${fresh.id}`)).json()).answers).toEqual(snapshot.answers);
     expect((await (await app.request("/me/export")).json()).attempts[0].answers).toEqual(snapshot.answers);
-    const invalid = await app.request(`/attempts/${fresh.id}/answers`, { body: { ...snapshot, revision: 1, idempotencyKey: "mixed", answers: [{ questionId: "write-name", value: "Haruです" }] } });
+    const invalid = await app.request(`/attempts/${fresh.id}/answers`, { body: { ...snapshot, revision: 1, idempotencyKey: "mixed", answers: [{ questionId: "w1", value: "Haruです" }] } });
     expect(invalid.status).toBe(400);
     const error = await invalid.json();
-    expect(error.error).toEqual({ code: "invalid_answers", message: "Answers must match the pinned questions and script.", details: { questionId: "write-name" } });
+    expect(error.error).toEqual({ code: "invalid_answers", message: "Answers must match the pinned questions and script.", details: { questionId: "w1" } });
     expect(JSON.stringify(error)).not.toContain("Haruです");
     expect((await (await app.request(`/attempts/${fresh.id}`)).json()).revision).toBe(1);
   });
@@ -398,7 +404,8 @@ describe("observation receipt migration", () => {
       await isolated.db!.prepare("INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at) VALUES('recent','n5-local-user',?,?,?,'watch_complete',1005)").bind(retained.idempotencyKey, await fingerprint(retained), EPISODE_ID).run();
       await isolated.mf.dispose();
       isolated = await runtime({ persist });
-      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM d1_migrations").first())?.n).toBe(2);
+      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM d1_migrations").first())?.n).toBe(3);
+      for (const table of ["n5_usage", "n5_feedback", "n5_conversations", "n5_turns"]) expect(await isolated.db!.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").bind(table).first()).not.toBeNull();
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_event_requests").first())?.n).toBe(1000);
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_events").first())?.n).toBe(2);
       expect(await (await isolated.request("/events", { body: retained })).json()).toEqual({ id: "recent" });

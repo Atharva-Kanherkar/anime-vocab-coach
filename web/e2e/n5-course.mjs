@@ -10,8 +10,8 @@ import { appendFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium, request as apiRequest } from "playwright";
-import { runtime } from "../../backend/test/runtime.ts";
-import { correctAnswers } from "../../backend/test/answers.ts";
+import { oracle, runtime } from "../../backend/test/runtime.ts";
+const { correctAnswers } = await oracle();
 
 const web = fileURLToPath(new URL("../", import.meta.url));
 const artifacts = process.env.N5_ARTIFACTS || "/tmp/animevocab-n5-web";
@@ -129,30 +129,33 @@ async function stop() {
   await done;
   clearTimeout(timeout);
 }
+const LESSON = "your-lie-in-april-u01";
+const lessonPath = `/app/n5/lessons/${LESSON}`;
+const lessonReady = (page) => page.getByRole("navigation", { name: "Lesson steps" }).waitFor();
+const practiceReady = (page) => page.getByText(/Unit 1 practice/).waitFor();
+const resultsReady = async (page) => {
+  await page.waitForURL("**/results/*");
+  await page.getByRole("heading", { name: /Unit passed\.|Good practice/ }).waitFor();
+};
+const goQuestion = (page, n) => page.getByRole("button", { name: new RegExp(`^Question ${n}(,|$)`) }).click();
+// The review screen saves any unsaved answers, like the old explicit save.
+const save = (page) => page.locator(".n5-qnav button").last().click();
+const W1 = 9;
 async function fill(page, script) {
   const answers = correctAnswers(script);
-  const lesson = await page.evaluate(async () =>
-    (await fetch("/api/n5/lessons/your-lie-in-april-s1-e1")).json(),
-  );
-  for (const q of lesson.questions) {
+  const lesson = await page.evaluate(async (id) => (await fetch(`/api/n5/lessons/${id}`)).json(), LESSON);
+  const seen = [];
+  for (const [index, q] of lesson.questions.entries()) {
+    await goQuestion(page, index + 1);
     const answer = answers.find((a) => a.questionId === q.id);
     if (q.kind === "choice")
-      await page
-        .locator(`input[name="${q.id}"]`)
-        .nth(q.choices.findIndex((c) => c.id === answer.value))
-        .check();
+      await page.locator(`input[name="${q.id}"]`).nth(q.choices.findIndex((c) => c.id === answer.value)).check();
     else await page.locator(`#question-${q.id}`).fill(answer.value);
+    seen.push(...(await page.locator("[data-owned-japanese]").allTextContents()));
   }
-  const text = (
-    await page.locator("[data-owned-japanese]").allTextContents()
-  ).join("");
+  const text = seen.join("");
   assert.ok(text.length > 0);
-  assert.ok(
-    script === "romaji"
-      ? !/[ぁ-ヿ一-龯]/u.test(text)
-      : !/[A-Za-z一-龯]/u.test(text),
-    `mixed ${script}: ${text}`,
-  );
+  assert.ok(script === "romaji" ? !/[ぁ-ヿ一-龯]/u.test(text) : !/[A-Za-z一-龯]/u.test(text), `mixed ${script}: ${text}`);
 }
 try {
   await writeFile(`${artifacts}/next.log`, "");
@@ -215,13 +218,12 @@ try {
   const scriptContext = await browser.newContext();
   const scriptPage = await scriptContext.newPage();
   scriptPage.setDefaultNavigationTimeout(120000);
-  const lessonPath = "/app/n5/lessons/your-lie-in-april-s1-e1";
   await scriptPage.goto(base + "/app/n5");
-  await scriptPage.getByRole("button", { name: "Open episode 1" }).waitFor();
+  await scriptPage.getByRole("button", { name: "Continue: Unit 1" }).waitFor();
   // Another authenticated tab changes the enrolment behind the open hub.
   await app.request("/enrolments", { token, body: { trackId: "your-lie-in-april-2014", script: "kana", idempotencyKey: "other-tab-enrolment" } });
-  await scriptPage.getByRole("button", { name: "Open episode 1" }).click();
-  await scriptPage.getByRole("heading", { name: "Meet someone new." }).waitFor();
+  await scriptPage.getByRole("button", { name: "Continue: Unit 1" }).click();
+  await lessonReady(scriptPage);
   assert.equal(new URL(scriptPage.url()).searchParams.get("script"), "romaji");
   assert.equal((await (await app.request("/me/progress", { token })).json()).enrolment.script, "romaji");
   await scriptPage.goto(base + "/app/n5");
@@ -230,16 +232,18 @@ try {
     assert.equal((await route.fetch()).status(), 200);
     await route.abort("failed");
   });
-  await scriptPage.getByRole("button", { name: "Open episode 1" }).click();
+  await scriptPage.getByRole("button", { name: "Continue: Unit 1" }).click();
   await scriptPage.locator(".n5-error").waitFor();
   await scriptPage.unroute("**/api/n5/enrolments");
   await scriptPage.getByRole("radio", { name: /Romaji/ }).check();
-  await scriptPage.getByRole("button", { name: "Open episode 1" }).click();
-  await scriptPage.getByRole("heading", { name: "Meet someone new." }).waitFor();
+  await scriptPage.getByRole("button", { name: "Continue: Unit 1" }).click();
+  await lessonReady(scriptPage);
   assert.match(await scriptPage.locator(".n5-hero .n5-eyebrow").innerText(), /romaji/i);
   assert.equal((await (await app.request("/me/progress", { token })).json()).enrolment.script, "romaji");
+  await scriptPage.getByRole("navigation", { name: "Lesson steps" }).getByRole("button", { name: /Watch/ }).click();
   await scriptPage.getByRole("button", { name: "I watched episode 1" }).click();
   await scriptPage.getByText("Episode recap", { exact: true }).waitFor();
+  await scriptPage.getByRole("button", { name: /Practise this unit/ }).click();
   let lostStart;
   await scriptPage.route("**/api/n5/attempts", async (route) => {
     const response = await route.fetch();
@@ -247,16 +251,16 @@ try {
     lostStart = await response.json();
     await route.abort("failed");
   });
-  await scriptPage.getByRole("button", { name: "Begin episode practice" }).click();
+  await scriptPage.getByRole("button", { name: "Begin practice" }).click();
   await scriptPage.locator(".n5-error").waitFor();
   await scriptPage.unroute("**/api/n5/attempts");
   assert.equal(lostStart.script, "romaji");
   await scriptPage.goto(base + "/app/n5");
   await scriptPage.getByRole("radio", { name: /Kana/ }).check();
-  await scriptPage.getByRole("button", { name: "Open episode 1" }).click();
-  await scriptPage.getByRole("heading", { name: "Meet someone new." }).waitFor();
+  await scriptPage.getByRole("button", { name: "Continue: Unit 1" }).click();
+  await lessonReady(scriptPage);
   await scriptPage.getByRole("button", { name: "Start another practice" }).click();
-  await scriptPage.getByRole("heading", { name: "Make the words yours." }).waitFor();
+  await scriptPage.getByText(/Unit 1 practice · kana/).waitFor();
   const kanaId = new URL(scriptPage.url()).pathname.split("/").pop();
   assert.notEqual(kanaId, lostStart.id);
   assert.equal((await (await app.request(`/attempts/${kanaId}`, { token })).json()).script, "kana");
@@ -267,7 +271,7 @@ try {
   await scriptPage.getByRole("alert").filter({ hasText: "script changed" }).waitFor();
   assert.equal((await app.db.prepare("SELECT COUNT(*) AS n FROM n5_attempts").first()).n, 2);
   await scriptPage.getByRole("button", { name: "Reload lesson" }).click();
-  await scriptPage.getByRole("heading", { name: "Meet someone new." }).waitFor();
+  await lessonReady(scriptPage);
   assert.match(await scriptPage.locator(".n5-hero .n5-eyebrow").innerText(), /romaji/i);
   await scriptContext.close();
   check("cross-tab selection and lost enrolment/start responses preserve the displayed script");
@@ -303,10 +307,10 @@ try {
     });
     await page.goto(base + "/app/n5");
     await page
-      .getByRole("heading", { name: "Your Japanese starts here." })
+      .getByRole("heading", { name: "Learn Japanese one episode at a time." })
       .waitFor();
     assert.equal(
-      await page.getByText("Planned · not available", { exact: true }).count(),
+      await page.getByText("Planned", { exact: true }).count(),
       5,
     );
     await page
@@ -318,28 +322,40 @@ try {
         .getByRole("radio", { name: script === "kana" ? /Kana/ : /Romaji/ })
         .isChecked(),
     );
-    await page.getByRole("button", { name: "Start the private pilot" }).click();
-    await page.getByRole("heading", { name: "Meet someone new." }).waitFor();
+    await page.getByRole("button", { name: "Start Unit 1" }).click();
+    await lessonReady(page);
     assert.equal(
       await page.getByText("Episode recap", { exact: true }).count(),
       0,
     );
+    // Learn: real audio through the gateway, flashcard flip.
+    const firstWord = (await page.locator(".n5-flashcard-face strong").innerText()).trim();
+    const audio = page.waitForResponse((r) => r.url().includes("/api/n5/audio/"));
+    await page.getByRole("button", { name: `Play ${firstWord}`, exact: true }).click();
+    const audioResponse = await audio;
+    assert.equal(audioResponse.status(), 200);
+    assert.equal(audioResponse.headers()["content-type"], "audio/mpeg");
+    await page.getByRole("button", { name: "Show the meaning" }).click();
+    await page.locator(".n5-flashcard[data-flipped]").waitFor();
+    await page.screenshot({ path: `${artifacts}/lesson-${script}.png`, fullPage: true });
+    // Drill: instant feedback without server grading.
+    await page.getByRole("button", { name: /I've studied these/ }).click();
+    await page.keyboard.press("1");
+    await page.locator(".n5-feedback").waitFor();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    check(`${script} learn audio and instant drill feedback`);
+    await page.getByRole("navigation", { name: "Lesson steps" }).getByRole("button", { name: /Watch/ }).click();
     assert.match(
       await page
-        .getByRole("link", { name: "Open Crunchyroll series" })
+        .getByRole("link", { name: /Open on Crunchyroll/ })
         .getAttribute("href"),
       /^https:\/\/www.crunchyroll.com\/series\//,
     );
-    await page.screenshot({
-      path: `${artifacts}/lesson-${script}.png`,
-      fullPage: true,
-    });
     await page.getByRole("button", { name: "I watched episode 1" }).click();
     await page.getByText("Episode recap", { exact: true }).waitFor();
-    await page.getByRole("button", { name: "Begin episode practice" }).click();
-    await page
-      .getByRole("heading", { name: "Make the words yours." })
-      .waitFor();
+    await page.getByRole("button", { name: /Practise this unit/ }).click();
+    await page.getByRole("button", { name: "Begin practice" }).click();
+    await practiceReady(page);
     const id = new URL(page.url()).pathname.split("/").pop();
     const missingId = "00000000-0000-4000-8000-000000000000";
     await page.route("**/api/n5/me/progress", async (route) => {
@@ -356,7 +372,7 @@ try {
     await page.route(`**/api/n5/attempts/${missingId}`, (route) =>
       route.fulfill({ status: 404, json: { error: { code: "not_found" } } }),
     );
-    await page.goto(base + "/app/n5/lessons/your-lie-in-april-s1-e1");
+    await page.goto(base + lessonPath);
     await page
       .getByRole("link", { name: `Resume unfinished ${script} practice` })
       .waitFor();
@@ -369,8 +385,8 @@ try {
       await app.db.prepare("SELECT COUNT(*) AS n FROM n5_enrolments").first()
     ).n;
     await page.goto(base + "/app/n5");
-    await page.getByRole("button", { name: "Open episode 1" }).click();
-    await page.getByRole("heading", { name: "Meet someone new." }).waitFor();
+    await page.getByRole("button", { name: "Continue: Unit 1" }).click();
+    await lessonReady(page);
     await page
       .getByRole("link", { name: `Resume unfinished ${script} practice` })
       .click();
@@ -388,24 +404,24 @@ try {
     await page.waitForURL(`**/attempts/${id}`);
     await fill(page, script);
     if (script === "kana") {
-      await page.locator("#question-write-name").fill("Haruです");
-      await page.getByRole("button", { name: "Save progress" }).click();
+      await goQuestion(page, W1);
+      await page.locator("#question-w1").fill("Haruです");
+      await save(page);
       await page
         .getByRole("alert")
         .filter({ hasText: "highlighted question" })
         .waitFor();
       await page.waitForFunction(
-        () => document.activeElement?.id === "question-write-name",
+        () => document.activeElement?.id === "question-w1",
       );
       await fill(page, script);
     }
     await page.reload();
-    await page
-      .getByRole("heading", { name: "Make the words yours." })
-      .waitFor();
+    await practiceReady(page);
+    await goQuestion(page, W1);
     assert.equal(
-      await page.locator("#question-write-name").inputValue(),
-      correctAnswers(script).find((a) => a.questionId === "write-name").value,
+      await page.locator("#question-w1").inputValue(),
+      correctAnswers(script).find((a) => a.questionId === "w1").value,
     );
     if (script === "romaji") {
       // A second authenticated writer advances the real server revision.
@@ -416,13 +432,13 @@ try {
             body: {
               revision: 0,
               idempotencyKey: "other-writer",
-              answers: [{ questionId: "greeting", value: "a" }],
+              answers: [{ questionId: "q1", value: "a" }],
             },
           })
         ).status,
         200,
       );
-      await page.getByRole("button", { name: "Save progress" }).click();
+      await save(page);
       await page
         .getByRole("alert")
         .filter({ hasText: "newer version" })
@@ -432,15 +448,14 @@ try {
           .revision,
         1,
       );
-      assert.ok(await page.locator("#question-write-name").inputValue());
+      await goQuestion(page, W1);
+      assert.ok(await page.locator("#question-w1").inputValue());
       await page
         .getByRole("button", {
           name: "Use server answers instead of this draft",
         })
         .click();
-      await page
-        .getByRole("heading", { name: "Make the words yours." })
-        .waitFor();
+      await practiceReady(page);
       await fill(page, script);
       const payloads = [];
       await page.route("**/api/n5/attempts/*/answers", async (route) => {
@@ -450,7 +465,7 @@ try {
           await route.abort("failed");
         } else await route.continue();
       });
-      await page.getByRole("button", { name: "Save progress" }).click();
+      await save(page);
       await page
         .getByRole("button", { name: "Retry saving answers" })
         .waitFor();
@@ -476,13 +491,13 @@ try {
         .waitFor();
       await page.unroute("**/api/n5/**");
       await page.reload();
-      await page
-        .getByRole("heading", { name: "Make the words yours." })
-        .waitFor();
+      await practiceReady(page);
+      await goQuestion(page, W1);
       assert.equal(
-        await page.locator("#question-write-name").inputValue(),
-        correctAnswers(script).find((a) => a.questionId === "write-name").value,
+        await page.locator("#question-w1").inputValue(),
+        correctAnswers(script).find((a) => a.questionId === "w1").value,
       );
+      await save(page);
       check("unsaved kana draft survives offline API failure and refresh");
     }
     await page.screenshot({
@@ -527,23 +542,24 @@ try {
           await route.abort("failed");
         } else await route.continue();
       });
+      await save(page);
       await page
-        .getByRole("button", { name: "Finish objective practice" })
+        .getByRole("button", { name: "Finish and see results" })
         .click();
       await page
         .getByRole("button", { name: "Retry finishing practice" })
         .waitFor();
+      await goQuestion(page, W1);
       assert.ok(
         await page
-          .locator("#question-write-name")
+          .locator("#question-w1")
           .evaluate((el) => el.readOnly && !el.disabled),
       );
+      await save(page);
       await page
         .getByRole("button", { name: "Retry finishing practice" })
         .click();
-      await page
-        .getByRole("heading", { name: "A first conversation starts here." })
-        .waitFor();
+      await resultsReady(page);
       assert.equal(answerWrites, 0);
       assert.equal(finishes.length, 2);
       assert.equal(finishes[0], finishes[1]);
@@ -564,34 +580,39 @@ try {
           json: { error: { code: "incomplete_answers" } },
         }),
       );
+      await save(page);
       await page
-        .getByRole("button", { name: "Finish objective practice" })
+        .getByRole("button", { name: "Finish and see results" })
         .click();
       await page
         .getByRole("alert")
         .filter({ hasText: "couldn't complete" })
         .waitFor();
+      await goQuestion(page, W1);
       assert.equal(
         await page
-          .locator("#question-write-name")
+          .locator("#question-w1")
           .evaluate((el) => el.readOnly),
         false,
       );
-      await page.locator("#question-write-name").fill("アキです");
+      await page.locator("#question-w1").fill("アキです");
       await page.unroute("**/api/n5/attempts/*/finish");
       check(
         "definitive finish rejection unlocks editing without losing answers",
       );
+      await save(page);
       await page
-        .getByRole("button", { name: "Finish objective practice" })
+        .getByRole("button", { name: "Finish and see results" })
         .click();
     }
-    await page
-      .getByRole("heading", { name: "A first conversation starts here." })
-      .waitFor();
-    await page.waitForURL("**/results/*");
+    await resultsReady(page);
     assert.match(await page.locator(".n5-score").innerText(), /8\s*\/\s*8/);
-    assert.match(await page.locator("body").innerText(), /Not assessed/);
+    assert.match(await page.locator("body").innerText(), /Not covered in this course/);
+    // Writing feedback: reference matches need no model; kana's changed answer gets mock AI feedback.
+    await page.getByText("This matches a model answer.", { exact: false }).first().waitFor();
+    if (script === "kana") await page.locator('.n5-chip[data-verdict="close"]').waitFor();
+    assert.equal(await page.locator(".n5-review li[data-correct]").count(), 8);
+    check(`${script} results show answer review and writing feedback`);
     const result = await (
       await app.request(`/attempts/${id}`, { token })
     ).json();
@@ -606,9 +627,7 @@ try {
       8,
     );
     await page.reload();
-    await page
-      .getByRole("heading", { name: "A first conversation starts here." })
-      .waitFor();
+    await resultsReady(page);
     assert.equal(await page.evaluate(() => window.__micCalls), 0);
     assert.ok(
       !(await page.evaluate(() => JSON.stringify(sessionStorage))).includes(
@@ -624,8 +643,8 @@ try {
         await app.request("/attempts", {
           token,
           body: {
-            lessonId: "your-lie-in-april-s1-e1",
-            contentVersion: "preview-1",
+            lessonId: LESSON,
+            contentVersion: "course-1",
             idempotencyKey: "stale-browser",
           },
         })
@@ -635,28 +654,28 @@ try {
         .bind(stale.id)
         .run();
       await page.goto(base + `/app/n5/attempts/${stale.id}`);
-      await page
-        .getByRole("heading", { name: "Make the words yours." })
-        .waitFor();
+      await practiceReady(page);
       await fill(page, script);
-      await page.getByRole("button", { name: "Save progress" }).click();
+      await save(page);
       await page
         .getByRole("alert")
         .filter({ hasText: "retired lesson" })
         .waitFor();
+      await goQuestion(page, W1);
       assert.ok(
         await page
-          .locator("#question-write-name")
+          .locator("#question-w1")
           .evaluate((el) => el.readOnly && !el.disabled),
       );
-      await page.locator("#question-write-name").focus();
+      await page.locator("#question-w1").focus();
       assert.equal(
-        await page.locator("#question-write-name").evaluate((el) => {
+        await page.locator("#question-w1").evaluate((el) => {
           el.select();
           return el.selectionEnd - el.selectionStart;
         }),
-        (await page.locator("#question-write-name").inputValue()).length,
+        (await page.locator("#question-w1").inputValue()).length,
       );
+      await page.getByText("Discard this attempt", { exact: true }).click();
       await page
         .getByRole("button", { name: "Discard this unfinished attempt" })
         .click();
@@ -669,7 +688,7 @@ try {
         .getByRole("button", { name: "Discard this unfinished attempt" })
         .click();
       await page.getByRole("button", { name: "Confirm discard" }).click();
-      await page.getByRole("heading", { name: "Meet someone new." }).waitFor();
+      await lessonReady(page);
       assert.equal(
         (await app.request(`/attempts/${stale.id}`, { token })).status,
         404,
@@ -686,18 +705,16 @@ try {
       await app.request("/attempts", {
         token,
         body: {
-          lessonId: "your-lie-in-april-s1-e1",
-          contentVersion: "preview-1",
+          lessonId: LESSON,
+          contentVersion: "course-1",
           idempotencyKey: `auth-recovery-${script}`,
         },
       })
     ).json();
     await page.goto(base + `/app/n5/attempts/${recovery.id}`);
-    await page
-      .getByRole("heading", { name: "Make the words yours." })
-      .waitFor();
+    await practiceReady(page);
     await fill(page, script);
-    const drafts = await page.evaluate(() => JSON.stringify(sessionStorage));
+    const drafts = await page.evaluate(() => Object.values(sessionStorage).join("\n"));
     await page.route("**/api/n5/**", (route) =>
       route.fulfill({
         status: 401,
@@ -705,7 +722,7 @@ try {
         body: "Session expired",
       }),
     );
-    await page.getByRole("button", { name: "Save progress" }).click();
+    await save(page);
     await page
       .getByRole("heading", { name: "Sign in again", exact: true })
       .waitFor();
@@ -717,20 +734,37 @@ try {
       `/app/n5/attempts/${recovery.id}`,
     );
     assert.ok(
-      (await page.evaluate(() => JSON.stringify(sessionStorage))).includes(
-        "write-name",
+      (await page.evaluate(() => Object.values(sessionStorage).join("\n"))).includes(
+        '"questionId":"w1"',
       ),
     );
     await page.unroute("**/api/n5/**");
     await page.getByRole("link", { name: "Reload after signing in" }).click();
-    await page
-      .getByRole("heading", { name: "Make the words yours." })
-      .waitFor();
+    await practiceReady(page);
+    await goQuestion(page, W1);
     assert.equal(
-      await page.locator("#question-write-name").inputValue(),
-      correctAnswers(script).find((a) => a.questionId === "write-name").value,
+      await page.locator("#question-w1").inputValue(),
+      correctAnswers(script).find((a) => a.questionId === "w1").value,
     );
-    assert.ok(drafts.includes("write-name"));
+    assert.ok(drafts.includes('"questionId":"w1"'));
+    // Speaking: the mic opens only on user action; a denied mic falls back to typed practice.
+    await page.goto(base + `/app/n5/speak/${LESSON}`);
+    await page.getByRole("button", { name: "Start conversation" }).click();
+    await page.locator(".n5-chat li").first().waitFor();
+    assert.equal(await page.evaluate(() => window.__micCalls), 0);
+    await page.getByRole("button", { name: "Start recording" }).click();
+    await page.locator("#n5-reply").waitFor();
+    assert.equal(await page.evaluate(() => window.__micCalls), 1);
+    await page.locator("#n5-reply").fill(script === "romaji" ? "hai, gakusei desu" : "はい、がくせいです");
+    await page.getByRole("button", { name: "Send" }).click();
+    await page.locator(".n5-chat li").nth(2).waitFor();
+    const chat = (await page.locator(".n5-chat [data-owned-japanese]").allTextContents()).join("");
+    assert.ok(script === "romaji" ? !/[ぁ-ヿ一-龯]/u.test(chat) : !/[A-Za-z一-龯]/u.test(chat), `mixed chat: ${chat}`);
+    await page.getByRole("button", { name: "Finish and get feedback" }).click();
+    await page.getByText("Typed practice complete").waitFor();
+    assert.equal((await (await app.request("/me/progress", { token })).json()).lessons[0].speaking, "practice_only");
+    await page.screenshot({ path: `${artifacts}/speak-${script}.png`, fullPage: true });
+    check(`${script} speaking practice with mic denial, typed fallback and rubric`);
     assert.deepEqual(errors, []);
     await context.close();
     check(

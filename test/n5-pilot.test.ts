@@ -24,3 +24,18 @@ describe("N5 pilot boundaries", () => {
     expect(full).toHaveLength(100);
   });
 });
+
+import { describe as describeContext, expect as expectContext, it as itContext } from "vitest";
+import { parseN5PilotState as parseState } from "../src/lib/n5-pilot";
+describeContext("lesson display context", () => {
+  itContext("keeps valid unit and episode labels and drops malformed ones", () => {
+    const withContext = { ...snapshot, lesson: { ...snapshot.lesson, unit: 3, title: "Family and belongings", episode: { number: 3, title: "Inside Spring" } } };
+    expectContext(parseState(withContext)?.lesson).toMatchObject({ unit: 3, title: "Family and belongings", episode: { number: 3, title: "Inside Spring" } });
+    const bad = { ...snapshot, lesson: { ...snapshot.lesson, unit: 0, title: 5, episode: { number: "3", title: "" } } };
+    const parsed = parseState(bad)?.lesson;
+    expectContext(parsed).toBeTruthy();
+    expectContext(parsed).not.toHaveProperty("unit");
+    expectContext(parsed).not.toHaveProperty("title");
+    expectContext(parsed).not.toHaveProperty("episode");
+  });
+});

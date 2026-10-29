@@ -11,7 +11,7 @@ describe("N5 trust boundary edge cases", () => {
   });
   it("enforces pure scripts and bounded nonempty teaching strings", () => {
     for (const text of ["watashi wa", "Ōsaka", "yūki", "x".repeat(500)]) expect(pureReading(text, "romaji")).toBe(true);
-    for (const text of ["わたし は", "コーヒー。", "あ".repeat(500)]) expect(pureReading(text, "kana")).toBe(true);
+    for (const text of ["わたし は", "コーヒー。", "あ".repeat(500), "あした がっこうに いく？", "ほんとう！", "わたし　は"]) expect(pureReading(text, "kana")).toBe(true);
     for (const text of [null, 1, "", "x".repeat(501), "123", "友だち", "romajiかな", "<>script"]) expect(pureReading(text, "romaji")).toBe(false);
     for (const text of [null, "", "あ".repeat(501), "  。", "友達", "kana", "あx"]) expect(pureReading(text, "kana")).toBe(false);
   });

@@ -15,8 +15,10 @@ export function isStreamingUrl(raw: string): boolean {
 }
 export function pureReading(value: unknown, script: N5Script): value is string {
   if (!text(value)) return false;
-  return script === "romaji" ? /^[A-Za-zāīūēōâîûêôĀĪŪĒŌ0-9 .,!?'():;-]+$/.test(value) && /[A-Za-zāīūēō]/i.test(value)
-    : /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」『』():・〜~.]+$/.test(value) && /[\u3041-\u3096\u30a1-\u30fa]/.test(value);
+  // Same normalized view as the API: full-width ？！ and IME spaces are ordinary kana punctuation.
+  const normalized = value.normalize("NFKC");
+  return script === "romaji" ? /^[A-Za-zāīūēōâîûêôĀĪŪĒŌ0-9 .,!?'():;-]+$/.test(normalized) && /[A-Za-zāīūēō]/i.test(normalized)
+    : /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」『』():・〜~.]+$/.test(normalized) && /[\u3041-\u3096\u30a1-\u30fa]/.test(normalized);
 }
 export function parseN5PilotState(value: unknown): PilotState | null {
   if (!obj(value) || value.apiVersion !== 1 || !text(value.ownerId, 128) || value.mastery !== false || typeof value.watched !== "boolean" || !Number.isSafeInteger(value.completedAttempts) || (value.completedAttempts as number) < 0) return null;
@@ -36,7 +38,13 @@ export function parseN5PilotState(value: unknown): PilotState | null {
       if (!obj(g) || !text(g.id, 128) || !pureReading(g.example, context.script) || !text(g.explanation)) return null;
       grammar.push({ id: g.id, explanation: g.explanation, example: g.example });
     }
-    lesson = { id: context.lessonId, contentVersion: context.contentVersion, script: context.script, canDo: l.canDo, vocabulary, grammar };
+    // Optional display context from newer APIs; malformed values are dropped, never trusted.
+    const unit = Number.isSafeInteger(l.unit) && (l.unit as number) >= 1 && (l.unit as number) <= 99 ? l.unit as number : undefined;
+    const title = text(l.title, 120) ? l.title : undefined;
+    const episode = obj(l.episode) && Number.isSafeInteger(l.episode.number) && (l.episode.number as number) >= 1 && (l.episode.number as number) <= 999 && text(l.episode.title, 120)
+      ? { number: l.episode.number as number, title: l.episode.title } : undefined;
+    lesson = { id: context.lessonId, contentVersion: context.contentVersion, script: context.script, canDo: l.canDo, vocabulary, grammar,
+      ...(unit ? { unit } : {}), ...(title ? { title } : {}), ...(episode ? { episode } : {}) };
   } else if (value.lesson !== null) return null;
   if (!Array.isArray(value.activeAttempts) || value.activeAttempts.length > 5) return null;
   const activeAttempts: PilotState["activeAttempts"] = [];

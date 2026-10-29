@@ -54,7 +54,8 @@ try {
   await page.getByText("Course connected.", { exact: false }).waitFor();
   await page.getByRole("radio", { name: "Romaji", exact: true }).check();
   await page.getByRole("button", { name: "Use this script" }).click();
-  await page.getByRole("heading", { name: "Greet a new classmate and introduce yourself politely." }).waitFor();
+  await page.getByRole("heading", { name: "Greet someone new and introduce yourself politely." }).waitFor();
+  await page.getByText("Unit 1: Greet and introduce yourself", { exact: false }).waitFor();
   await page.locator("#confirmed").check();
   await page.getByRole("button", { name: "Show lesson beside this video" }).click();
   await page.locator("#error").filter({ hasText: "Confirm Japanese" }).waitFor();
@@ -98,7 +99,7 @@ try {
   await panel.locator("output").filter({ hasText: "Practice opened" }).waitFor();
   assert.equal(await video.locator("video").evaluate(v => v.paused), true);
   await page.waitForTimeout(300);
-  assert.ok(hosted.some(p => p === "/app/n5/lessons/your-lie-in-april-s1-e1?script=romaji"));
+  assert.ok(hosted.some(p => p === "/app/n5/lessons/your-lie-in-april-u01?script=romaji"));
   const cache = await sw.evaluate(() => chrome.storage.local.get("n5Pilot:n5-local-user"));
   assert.equal(cache["n5Pilot:n5-local-user"].queue.length, 1);
   const eventKey = cache["n5Pilot:n5-local-user"].queue[0].idempotencyKey;

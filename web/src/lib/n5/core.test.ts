@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { answerList, draftKey, gatewayRoute, restoreDraft, safeLink, type Draft } from "./core";
+import { answerList, audioRoute, bodyLimit, draftKey, gatewayRoute, restoreDraft, safeLink, type Draft } from "./core";
 import type { N5Attempt, N5Question } from "../../../../shared/n5/contracts";
 export const attempt: N5Attempt = { id: "11111111-1111-4111-8111-111111111111", courseId: "course", lessonId: "lesson", contentVersion: "v1", script: "romaji", revision: 0, status: "active", answers: [], result: null };
-export const questions: N5Question[] = [{ id: "one", kind: "choice", objectiveId: "a", prompt: "Pick", choices: [{ id: "a", text: "Haru" }] }, { id: "two", kind: "production", objectiveId: "b", prompt: "Write" }];
+export const questions: N5Question[] = [{ id: "one", kind: "choice", skill: "vocabulary", objectiveId: "a", prompt: "Pick", choices: [{ id: "a", text: "Haru" }] }, { id: "two", kind: "production", skill: "writing", objectiveId: "b", prompt: "Write" }];
 const draft = (): Draft => ({ version: 1, ownerId: "alice", attemptId: attempt.id, contentVersion: "v1", script: "romaji", revision: 0, answers: [{ questionId: "two", value: "I’m Haru" }], pending: null });
 const restore = (d: unknown, a = attempt) => restoreDraft(JSON.stringify(d), "alice", a, questions);
 describe("private gateway route boundary", () => {
@@ -17,6 +17,35 @@ describe("private gateway route boundary", () => {
     expect(gatewayRoute(["attempts", attempt.id], "POST", new URLSearchParams())).toBeNull();
     for (const query of ["script=romaji-kana", "script=", "script=romaji&script=kana", "script=kana&userId=other", "other=kana"]) expect(gatewayRoute(["lessons", "lesson"], "GET", new URLSearchParams(query))).toBeNull();
     expect(gatewayRoute(["catalog"], "GET", new URLSearchParams("script=kana"))).toBeNull();
+  });
+});
+describe("learning routes", () => {
+  const id = attempt.id;
+  it("admits audio, feedback and conversation routes with the right methods only", () => {
+    const get = (path: string) => gatewayRoute(path.split("/"), "GET", new URLSearchParams());
+    const post = (path: string) => gatewayRoute(path.split("/"), "POST", new URLSearchParams());
+    expect(get("audio/0123456789abcdef")).toBe("/audio/0123456789abcdef");
+    expect(get(`conversations/${id}`)).toBe(`/conversations/${id}`);
+    expect(get(`conversations/${id}/turns/12/audio`)).toBe(`/conversations/${id}/turns/12/audio`);
+    expect(post(`attempts/${id}/feedback`)).toBe(`/attempts/${id}/feedback`);
+    expect(post("conversations")).toBe("/conversations");
+    expect(post(`conversations/${id}/turns`)).toBe(`/conversations/${id}/turns`);
+    expect(post(`conversations/${id}/finish`)).toBe(`/conversations/${id}/finish`);
+    expect(gatewayRoute(["conversations", id], "DELETE", new URLSearchParams())).toBe(`/conversations/${id}`);
+    for (const bad of ["audio/0123", "audio/0123456789ABCDEF", "audio/0123456789abcdef0", `conversations/${id}/turns/1234/audio`, `conversations/${id}/turns/x/audio`, "conversations/not-a-uuid", `conversations/${id}/grade`]) {
+      expect(get(bad)).toBeNull();
+      expect(post(bad)).toBeNull();
+    }
+    expect(post("audio/0123456789abcdef")).toBeNull();
+    expect(get(`attempts/${id}/feedback`)).toBeNull();
+    expect(gatewayRoute(["audio", "0123456789abcdef"], "GET", new URLSearchParams("script=kana"))).toBeNull();
+  });
+  it("marks only audio routes binary and only turns large", () => {
+    expect(audioRoute("/audio/0123456789abcdef")).toBe(true);
+    expect(audioRoute(`/conversations/${id}/turns/2/audio`)).toBe(true);
+    expect(audioRoute(`/conversations/${id}`)).toBe(false);
+    expect(bodyLimit(`/conversations/${id}/turns`)).toBe(900_000);
+    for (const path of ["/conversations", `/attempts/${id}/answers`, `/conversations/${id}/finish`]) expect(bodyLimit(path)).toBe(16_384);
   });
 });
 describe("scoped private drafts", () => {

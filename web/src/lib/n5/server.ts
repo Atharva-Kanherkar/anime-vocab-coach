@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { DEV_NO_CLERK, DEV_PROFILE } from "@/lib/dev-auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { courseCredential } from "./credential";
-import { gatewayRoute } from "./core";
+import { audioRoute, bodyLimit, gatewayRoute } from "./core";
 
 export async function n5Config(): Promise<{
   enabled: boolean;
@@ -108,6 +108,37 @@ function fail(code: string, status: number): Response {
     { status, headers: { "Cache-Control": "no-store", Vary: "Cookie" } },
   );
 }
+async function boundedBytes(
+  req: Request | Response,
+  limit: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+  const bytes = new Uint8Array(0);
+  if (!req.body) return bytes;
+  const reader = req.body.getReader();
+  let size = 0;
+  const chunks: Uint8Array[] = [];
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      size += chunk.value.byteLength;
+      if (size > limit) {
+        await reader.cancel();
+        throw new Error("body_too_large");
+      }
+      chunks.push(chunk.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const out = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
 async function boundedBody(
   req: Request | Response,
   limit = 16_384,
@@ -171,7 +202,7 @@ export async function gateway(
       return fail("content_type", 415);
     let payload: string | undefined;
     try {
-      payload = await boundedBody(req);
+      payload = await boundedBody(req, bodyLimit(route));
     } catch (error) {
       return fail(
         error instanceof Error && error.message === "body_too_large"
@@ -190,11 +221,25 @@ export async function gateway(
       body: payload,
     });
     if (
-      ![200, 400, 401, 403, 404, 405, 409, 413, 415, 429, 503].includes(
+      ![200, 400, 401, 403, 404, 405, 409, 413, 415, 422, 429, 503].includes(
         upstream.status,
       )
     )
       return fail("course_unavailable", 503);
+    if (audioRoute(route) && upstream.status === 200) {
+      if (upstream.headers.get("Content-Type") !== "audio/mpeg" || !upstream.body)
+        return fail("course_unavailable", 503);
+      const audio = await boundedBytes(upstream, 2_000_000);
+      // Content-addressed clips and stored tutor turns never change.
+      return new Response(audio, {
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Cache-Control": "private, max-age=604800, immutable",
+          Vary: "Cookie",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
     if (!upstream.headers.get("Content-Type")?.includes("application/json"))
       return fail("course_unavailable", 503);
     const data = JSON.parse((await boundedBody(upstream, 524_288)) ?? "null");

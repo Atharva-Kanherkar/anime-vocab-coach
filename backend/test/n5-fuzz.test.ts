@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import fc from "fast-check";
 import { runtime } from "./runtime";
-import { CONTENT_VERSION, LESSON_ID, TRACK_ID } from "../src/n5/content";
+import { CONTENT_VERSION, LESSON_ID, TRACK_ID } from "./answers";
 let app: Awaited<ReturnType<typeof runtime>>;
 beforeAll(async () => { app = await runtime(); });
 afterAll(async () => { await app.mf.dispose(); });
@@ -19,7 +19,7 @@ it("100 adversarial answer payloads cannot advance revision or create grades", a
   const fresh = await (await app.request("/attempts", { body: { lessonId: LESSON_ID, contentVersion: CONTENT_VERSION, idempotencyKey: "create" } })).json();
   await fc.assert(fc.asyncProperty(fc.jsonValue(), async (payload) => {
     const response = await app.request(`/attempts/${fresh.id}/answers`, {
-      body: { revision: 0, idempotencyKey: "attack", answers: [{ questionId: "write-name", value: payload }], mastery: true },
+      body: { revision: 0, idempotencyKey: "attack", answers: [{ questionId: "w1", value: payload }], mastery: true },
     });
     expect(response.status).toBe(400);
   }), { seed: 1742027, numRuns: 100 });

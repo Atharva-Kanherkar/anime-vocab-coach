@@ -1,6 +1,6 @@
 {
   "apiVersion": 1,
-  "contentVersion": "preview-1",
+  "contentVersion": "course-1",
   "requests": {
     "enrolment": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -37,11 +37,36 @@
       "properties": {
         "lessonId": {
           "type": "string",
-          "const": "your-lie-in-april-s1-e1"
+          "enum": [
+            "your-lie-in-april-u01",
+            "your-lie-in-april-u02",
+            "your-lie-in-april-u03",
+            "your-lie-in-april-u04",
+            "your-lie-in-april-u05",
+            "your-lie-in-april-u06",
+            "your-lie-in-april-u07",
+            "your-lie-in-april-u08",
+            "your-lie-in-april-u09",
+            "your-lie-in-april-u10",
+            "your-lie-in-april-u11",
+            "your-lie-in-april-u12",
+            "your-lie-in-april-u13",
+            "your-lie-in-april-u14",
+            "your-lie-in-april-u15",
+            "your-lie-in-april-u16",
+            "your-lie-in-april-u17",
+            "your-lie-in-april-u18",
+            "your-lie-in-april-u19",
+            "your-lie-in-april-u20",
+            "your-lie-in-april-u21",
+            "your-lie-in-april-u22",
+            "your-lie-in-april-u23",
+            "your-lie-in-april-u24"
+          ]
         },
         "contentVersion": {
           "type": "string",
-          "const": "preview-1"
+          "const": "course-1"
         },
         "script": {
           "type": "string",
@@ -70,7 +95,30 @@
       "properties": {
         "episodeId": {
           "type": "string",
-          "const": "your-lie-in-april-2014-s1-e1"
+          "enum": [
+            "your-lie-in-april-2014-s1-e01",
+            "your-lie-in-april-2014-s1-e02",
+            "your-lie-in-april-2014-s1-e03",
+            "your-lie-in-april-2014-s1-e04",
+            "your-lie-in-april-2014-s1-e05",
+            "your-lie-in-april-2014-s1-e06",
+            "your-lie-in-april-2014-s1-e07",
+            "your-lie-in-april-2014-s1-e08",
+            "your-lie-in-april-2014-s1-e09",
+            "your-lie-in-april-2014-s1-e10",
+            "your-lie-in-april-2014-s1-e11",
+            "your-lie-in-april-2014-s1-e12",
+            "your-lie-in-april-2014-s1-e13",
+            "your-lie-in-april-2014-s1-e14",
+            "your-lie-in-april-2014-s1-e15",
+            "your-lie-in-april-2014-s1-e16",
+            "your-lie-in-april-2014-s1-e17",
+            "your-lie-in-april-2014-s1-e18",
+            "your-lie-in-april-2014-s1-e19",
+            "your-lie-in-april-2014-s1-e20",
+            "your-lie-in-april-2014-s1-e21",
+            "your-lie-in-april-2014-s1-e22"
+          ]
         },
         "kind": {
           "type": "string",
@@ -110,7 +158,7 @@
         },
         "answers": {
           "minItems": 1,
-          "maxItems": 10,
+          "maxItems": 23,
           "type": "array",
           "items": {
             "type": "object",

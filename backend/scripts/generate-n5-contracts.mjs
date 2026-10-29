@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const compiled = await build({
   stdin: {
-    contents: `export {CONTENT_VERSION as contentVersion} from './src/n5/content'; import {z} from 'zod'; import {enrolmentSchema,attemptSchema,eventSchema,answersSchema,finishSchema} from './src/n5/domain';
+    contents: `export {CONTENT_VERSION as contentVersion} from './src/n5/course'; import {z} from 'zod'; import {enrolmentSchema,attemptSchema,eventSchema,answersSchema,finishSchema} from './src/n5/domain';
       export default Object.fromEntries(Object.entries({enrolment:enrolmentSchema,attempt:attemptSchema,event:eventSchema,answers:answersSchema,finish:finishSchema}).map(([key,schema])=>[key,z.toJSONSchema(schema)]));`,
     resolveDir: process.cwd(),
   }, bundle: true, write: false, format: "esm", platform: "node",
