@@ -204,3 +204,38 @@ jobs:
       - name: Dev server log (on failure)
         if: failure()
         run: cat /tmp/nextdev.log
+
+  n5-web-e2e:
+    name: N5 web — browser/Worker journey, fuzz and mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            backend/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix ../backend
+      - run: npx playwright install --with-deps chromium
+      - name: N5 scoped draft and route fuzzing
+        run: npm run test:n5:fuzz
+      - name: N5 draft and request mutation gate
+        run: npm run test:n5:mutation
+      - name: Fresh-profile browser through real Worker and D1
+        run: npm run test:e2e:n5
+      - name: N5 browser and mutation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: n5-web-evidence
+          path: |
+            /tmp/animevocab-n5-web/
+            web/reports/mutation/
+          if-no-files-found: ignore

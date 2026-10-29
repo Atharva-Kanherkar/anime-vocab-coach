@@ -44,3 +44,7 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# N5 mutation scratch and reports
+/reports/
+/.stryker-tmp/

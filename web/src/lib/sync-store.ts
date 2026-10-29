@@ -135,12 +135,24 @@ export async function getOrCreateSyncToken(
   return token;
 }
 
-export async function getSyncTokenProfile(token: string): Promise<CloudUserProfile | null> {
+/** Server gateways reuse the existing credential instead of rewriting hot KV keys per request. */
+export async function getExistingSyncToken(userId: string): Promise<string | null> {
+  const store = await resolveStore();
+  const token = await store.get(userTokenKey(userId));
+  if (!token) return null;
+  const profile = await getSyncTokenProfile(token, userId);
+  return profile ? token : null;
+}
+
+export async function getSyncTokenProfile(token: string, expectedOwner?: string): Promise<CloudUserProfile | null> {
   if (!token) return null;
   const store = await resolveStore();
   const raw = await store.get(tokenKey(token));
   if (!raw) return null;
-  const { touchedAt, ...profile } = JSON.parse(raw) as StoredTokenProfile;
+  let record: StoredTokenProfile;
+  try { record = JSON.parse(raw); } catch { return null; }
+  if (!record || typeof record.id !== "string" || (expectedOwner && record.id !== expectedOwner)) return null;
+  const { touchedAt, ...profile } = record;
   if (tokenNeedsTouch({ touchedAt }, Date.now())) {
     // Best effort: a failed slide must not turn a valid token into a 401.
     try {
