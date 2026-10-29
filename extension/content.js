@@ -1,5 +1,225 @@
 "use strict";
 (() => {
+  // src/lib/n5-focus-panel.ts
+  function mountN5Focus(lesson, practise, exit) {
+    const host2 = document.createElement("div");
+    host2.id = "avc-n5-focus";
+    const root2 = host2.attachShadow({ mode: "open" });
+    const style = document.createElement("style");
+    style.textContent = `:host{all:initial;position:fixed;bottom:18px;left:18px;z-index:2147483646;font:14px/1.5 system-ui;color:#eee6da;width:min(320px,calc(100vw - 36px))}section{background:#151a21;border:1px solid #6d756e;border-radius:16px;padding:18px;box-shadow:0 12px 40px #0008}h2{font-size:16px;margin:4px 0}p{margin:8px 0}small{color:#bdc4c0}details{max-height:35vh;overflow:auto}summary,button{cursor:pointer}button{border:1px solid #a7b9b0;border-radius:7px;background:#cde4d8;color:#15221b;padding:9px 12px;margin:5px 4px 0 0;font:inherit}button:disabled{opacity:.6}button:focus-visible,summary:focus-visible{outline:3px solid #ffc26d}li{margin:9px 0}ul{padding-left:18px}.secondary{background:transparent;color:inherit}output{display:block;margin-top:8px}`;
+    const panel = document.createElement("section");
+    panel.setAttribute("aria-label", "N5 lesson focus");
+    const tag = document.createElement("small");
+    tag.textContent = `N5 private preview \xB7 ${lesson.script}`;
+    const title = document.createElement("h2");
+    title.textContent = lesson.canDo;
+    const note = document.createElement("p");
+    note.textContent = "Original practice examples. Live overlays are paused during course focus.";
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Lesson words and examples";
+    const list = document.createElement("ul");
+    for (const v of lesson.vocabulary) {
+      const li = document.createElement("li"), word = document.createElement("strong"), meaning = document.createElement("span");
+      word.textContent = v.reading;
+      word.dataset.n5Japanese = "";
+      if (lesson.script === "kana") word.lang = "ja";
+      meaning.textContent = " \xB7 " + v.meaning;
+      li.append(word, meaning);
+      list.append(li);
+    }
+    for (const g of lesson.grammar) {
+      const li = document.createElement("li"), example = document.createElement("strong"), explanation = document.createElement("p");
+      example.textContent = g.example;
+      example.dataset.n5Japanese = "";
+      if (lesson.script === "kana") example.lang = "ja";
+      explanation.textContent = g.explanation;
+      li.append(example, explanation);
+      list.append(li);
+    }
+    details.append(summary, list);
+    const finish = document.createElement("button");
+    finish.textContent = "Finish episode and practise";
+    const leave = document.createElement("button");
+    leave.className = "secondary";
+    leave.textContent = "Exit course focus";
+    const status = document.createElement("output");
+    status.setAttribute("aria-live", "polite");
+    finish.onclick = async () => {
+      finish.disabled = true;
+      status.textContent = "Pausing playback and stopping audio capture\u2026";
+      try {
+        await practise();
+        status.textContent = "Practice opened. Resume playback yourself when ready.";
+      } catch (e) {
+        status.textContent = e instanceof Error ? e.message : "Please retry.";
+      } finally {
+        finish.disabled = false;
+      }
+    };
+    leave.onclick = exit;
+    panel.append(tag, title, note, details, finish, leave, status);
+    root2.append(style, panel);
+    document.documentElement.append(host2);
+    return () => host2.remove();
+  }
+
+  // src/lib/n5-course-context.ts
+  var N5_SCRIPT_VALUES = ["romaji", "kana"];
+  var CONTEXT_KEYS = [
+    "courseId",
+    "trackId",
+    "unitId",
+    "episodeId",
+    "lessonId",
+    "contentVersion",
+    "script"
+  ];
+  var MAX_CONTEXT_ID_LENGTH = 128;
+  function isN5Script(value) {
+    return typeof value === "string" && N5_SCRIPT_VALUES.includes(value);
+  }
+  function isPlainObject(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+  function parseN5CourseContext(input) {
+    if (!isPlainObject(input)) return null;
+    const parsed = {};
+    for (const key of CONTEXT_KEYS) {
+      const value = input[key];
+      if (typeof value !== "string") return null;
+      if (value.length === 0 || value.length > MAX_CONTEXT_ID_LENGTH || !/^[a-z0-9][a-z0-9-]*$/.test(value)) return null;
+      parsed[key] = value;
+    }
+    const script = input.script;
+    if (!isN5Script(script)) return null;
+    parsed.script = script;
+    const unknown = Object.keys(input).filter((key) => !CONTEXT_KEYS.includes(key));
+    if (unknown.length > 0) return null;
+    return parsed;
+  }
+
+  // src/lib/n5-pilot.ts
+  var uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  var obj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  var text = (v, max = 500) => typeof v === "string" && v.length > 0 && v.length <= max;
+  function pureReading(value, script) {
+    if (!text(value)) return false;
+    return script === "romaji" ? /^[A-Za-zāīūēōâîûêôĀĪŪĒŌ0-9 .,!?'():;-]+$/.test(value) && /[A-Za-zāīūēō]/i.test(value) : /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」『』():・〜~.]+$/.test(value) && /[\u3041-\u3096\u30a1-\u30fa]/.test(value);
+  }
+  function parseN5PilotState(value) {
+    if (!obj(value) || value.apiVersion !== 1 || !text(value.ownerId, 128) || value.mastery !== false || typeof value.watched !== "boolean" || !Number.isSafeInteger(value.completedAttempts) || value.completedAttempts < 0) return null;
+    const context = value.context === null ? null : parseN5CourseContext(value.context);
+    if (value.context !== null && !context) return null;
+    let lesson = null;
+    if (context) {
+      const l = value.lesson;
+      if (!obj(l) || l.id !== context.lessonId || l.script !== context.script || l.contentVersion !== context.contentVersion || !text(l.canDo) || !Array.isArray(l.vocabulary) || l.vocabulary.length > 20 || !Array.isArray(l.grammar) || l.grammar.length > 10) return null;
+      const vocabulary = [];
+      const grammar = [];
+      for (const v of l.vocabulary) {
+        if (!obj(v) || !text(v.id, 128) || !pureReading(v.reading, context.script) || !text(v.meaning, 250)) return null;
+        vocabulary.push({ id: v.id, reading: v.reading, meaning: v.meaning });
+      }
+      for (const g of l.grammar) {
+        if (!obj(g) || !text(g.id, 128) || !pureReading(g.example, context.script) || !text(g.explanation)) return null;
+        grammar.push({ id: g.id, explanation: g.explanation, example: g.example });
+      }
+      lesson = { id: context.lessonId, contentVersion: context.contentVersion, script: context.script, canDo: l.canDo, vocabulary, grammar };
+    } else if (value.lesson !== null) return null;
+    if (!Array.isArray(value.activeAttempts) || value.activeAttempts.length > 5) return null;
+    const activeAttempts = [];
+    for (const a of value.activeAttempts) {
+      if (!obj(a) || !text(a.id) || !uuid.test(a.id) || a.script !== "romaji" && a.script !== "kana") return null;
+      activeAttempts.push({ id: a.id, script: a.script });
+    }
+    return { apiVersion: 1, ownerId: value.ownerId, context, lesson, watched: value.watched, activeAttempts, completedAttempts: value.completedAttempts, mastery: false };
+  }
+
+  // src/lib/n5-content.ts
+  function installN5Content(video, sessionId, setFocus) {
+    let selectedVideo = null;
+    let selectedSession = "";
+    let removePanel = null;
+    let ended = false;
+    function clear() {
+      removePanel?.();
+      removePanel = null;
+      selectedVideo = null;
+      selectedSession = "";
+      setFocus(false);
+    }
+    function valid() {
+      return selectedVideo !== null && selectedVideo === video() && selectedSession === sessionId();
+    }
+    function mount(lesson, pinned) {
+      clear();
+      selectedVideo = video();
+      selectedSession = pinned;
+      if (!selectedVideo || pinned !== sessionId()) {
+        clear();
+        return false;
+      }
+      setFocus(true);
+      removePanel = mountN5Focus(lesson, async () => {
+        if (!valid()) throw new Error("The episode changed. Confirm the new video in N5 Course.");
+        const response = await chrome.runtime.sendMessage({ type: "avc-n5-start-assessment" });
+        if (!response?.ok) throw new Error(response?.error || "Practice could not open. Please retry.");
+      }, () => {
+        clear();
+        void chrome.runtime.sendMessage({ type: "avc-n5-detach" }).catch(() => {
+        });
+      });
+      return true;
+    }
+    function lessonFromMessage(msg) {
+      return parseN5PilotState({ apiVersion: 1, ownerId: "projection", context: msg.context, lesson: msg.lesson, watched: false, activeAttempts: [], completedAttempts: 0, mastery: false });
+    }
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      if (sender.id !== chrome.runtime.id) return;
+      if (msg.type === "avc-n5-unmount") {
+        clear();
+        sendResponse({ ok: true });
+        return;
+      }
+      if (msg.type === "avc-n5-mount") {
+        const state = lessonFromMessage(msg);
+        sendResponse({ ok: !!state?.lesson && mount(state.lesson, sessionId()), sessionId: selectedSession });
+        return;
+      }
+      if (msg.type === "avc-n5-pause") {
+        const current2 = video();
+        if (!valid() || msg.sessionId !== selectedSession || !current2) {
+          clear();
+          sendResponse({ ok: false });
+          return;
+        }
+        current2.pause();
+        sendResponse({ ok: current2.paused });
+        return;
+      }
+    });
+    void chrome.runtime.sendMessage({ type: "avc-n5-session" }).then((state) => {
+      if (!ended && !removePanel && state?.ok && typeof state.sessionId === "string") {
+        const parsed = lessonFromMessage(state);
+        if (parsed?.lesson) mount(parsed.lesson, state.sessionId);
+      }
+    }).catch(() => {
+    });
+    const timer = setInterval(() => {
+      if (removePanel && !valid()) {
+        clear();
+        void chrome.runtime.sendMessage({ type: "avc-n5-invalidated" }).catch(() => {
+        });
+      }
+    }, 400);
+    window.addEventListener("pagehide", () => {
+      ended = true;
+      clearInterval(timer);
+      clear();
+    }, { once: true });
+  }
+
   // src/lib/log.ts
   var log = (...args) => console.log("[AVC]", ...args);
   var warn = (...args) => console.warn("[AVC]", ...args);
@@ -893,8 +1113,8 @@
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new Blob([bytes], { type: mime });
   }
-  async function speakText(text) {
-    const trimmed = (text || "").trim();
+  async function speakText(text2) {
+    const trimmed = (text2 || "").trim();
     if (!trimmed) return { ok: false, error: "empty" };
     try {
       const res = await chrome.runtime.sendMessage({ type: "avc-tts", text: trimmed });
@@ -1110,18 +1330,18 @@
       highlight: idx === highlightIndex
     })).filter((p) => p.text);
   }
-  function speak(text) {
-    void speakAsync(text);
+  function speak(text2) {
+    void speakAsync(text2);
   }
   async function speakAsync(raw) {
-    const text = (raw || "").trim();
-    if (!text) return;
-    const cloud = await speakText(text);
+    const text2 = (raw || "").trim();
+    if (!text2) return;
+    const cloud = await speakText(text2);
     if (cloud.ok) return;
     try {
       const synth = window.top?.speechSynthesis ?? speechSynthesis;
       const voices = await loadVoices(synth);
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(text2);
       u.lang = "ja-JP";
       u.rate = 0.85;
       const ja = voices.find((v) => v.lang === "ja-JP") || voices.find((v) => v.lang?.startsWith("ja")) || null;
@@ -1178,14 +1398,14 @@
     });
     return initPromise;
   }
-  async function tokenize(text) {
+  async function tokenize(text2) {
     try {
       await init();
     } catch {
       return [];
     }
     if (!tokenizerInstance) return [];
-    return tokenizerInstance.tokenize(text).map((t) => ({
+    return tokenizerInstance.tokenize(text2).map((t) => ({
       surface: t.surface_form,
       base: t.basic_form === "*" ? t.surface_form : t.basic_form,
       reading: kataToHira(t.reading || ""),
@@ -1392,11 +1612,11 @@
     if (w.endsWith("s") && !w.endsWith("ss") && w.length > 3) return w.slice(0, -1);
     return w;
   }
-  function tokenizeEnglish(text) {
+  function tokenizeEnglish(text2) {
     const tokens = [];
     const re = /[A-Za-z]+(?:'[A-Za-z]+)?/g;
     let m;
-    while ((m = re.exec(text)) !== null) {
+    while ((m = re.exec(text2)) !== null) {
       const surface = m[0];
       const lower = surface.toLowerCase();
       if (STOPWORDS.has(lower)) continue;
@@ -1502,12 +1722,12 @@
     }
     flushList();
   }
-  function appendInline(parent, text) {
+  function appendInline(parent, text2) {
     const re = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
     let last = 0;
     let m;
-    while (m = re.exec(text)) {
-      if (m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
+    while (m = re.exec(text2)) {
+      if (m.index > last) parent.appendChild(document.createTextNode(text2.slice(last, m.index)));
       const tok = m[0];
       if (tok.startsWith("`")) {
         const code = document.createElement("code");
@@ -1525,7 +1745,7 @@
       }
       last = m.index + tok.length;
     }
-    if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+    if (last < text2.length) parent.appendChild(document.createTextNode(text2.slice(last)));
   }
 
   // src/lib/pausable-timer.ts
@@ -2635,32 +2855,32 @@
       out.textContent = "No hooks returned.";
     }
   }
-  function appendChatBubble(log2, role, text, streaming = false) {
+  function appendChatBubble(log2, role, text2, streaming = false) {
     const bubble = document.createElement("div");
     bubble.className = `avc-agent-chat-msg avc-${role}${streaming ? " avc-streaming" : ""}`;
     if (role === "user") {
-      bubble.textContent = text;
+      bubble.textContent = text2;
     } else {
       const body = document.createElement("div");
-      renderMarkdown(body, text);
+      renderMarkdown(body, text2);
       bubble.appendChild(body);
     }
     log2.appendChild(bubble);
     log2.scrollTop = log2.scrollHeight;
     return bubble;
   }
-  function updateStreamBubble(bubble, text) {
+  function updateStreamBubble(bubble, text2) {
     let body = bubble.querySelector(":scope > div");
     if (!body) {
       body = document.createElement("div");
       bubble.appendChild(body);
     }
-    renderMarkdown(body, text);
+    renderMarkdown(body, text2);
     bubble.classList.add("avc-streaming");
     if (shell) shell.chatLog.scrollTop = shell.chatLog.scrollHeight;
   }
-  function finishStreamBubble(bubble, text) {
-    updateStreamBubble(bubble, text);
+  function finishStreamBubble(bubble, text2) {
+    updateStreamBubble(bubble, text2);
     bubble.classList.remove("avc-streaming");
   }
   function payloadFromCtx(ctx) {
@@ -2759,11 +2979,11 @@
       gloss: "",
       title: null
     };
-    const text = shell.chatInput.value.trim();
-    if (!text) return;
+    const text2 = shell.chatInput.value.trim();
+    if (!text2) return;
     shell.chatInput.value = "";
-    appendChatBubble(shell.chatLog, "user", text);
-    chatHistory.push({ role: "user", content: text });
+    appendChatBubble(shell.chatLog, "user", text2);
+    chatHistory.push({ role: "user", content: text2 });
     shell.chatSend.disabled = true;
     shell.chatInput.disabled = true;
     chatStreaming = true;
@@ -2807,7 +3027,7 @@
           else reject(new Error(chrome.runtime.lastError?.message || "disconnected"));
         });
         port.postMessage({
-          message: text,
+          message: text2,
           history: chatHistory.slice(0, -1),
           payload
         });
@@ -3216,8 +3436,8 @@
       rail
     };
   }
-  function showToast(text, kind = "info", action) {
-    if (!text) return;
+  function showToast(text2, kind = "info", action) {
+    if (!text2) return;
     const root2 = mountHost();
     let layer = root2.getElementById("avc-toast-layer");
     if (!layer) {
@@ -3229,7 +3449,7 @@
     const accent = kind === "error" ? "#f87171" : "#e3ba63";
     const toast = document.createElement("div");
     toast.style.cssText = `pointer-events:auto; max-width:min(380px, 92vw); padding:11px 14px; border-radius:10px;background:rgba(18,16,22,0.95); color:rgba(240,238,232,0.96); font-size:13px; line-height:1.45;border:1px solid ${accent}44; border-left:3px solid ${accent};box-shadow:0 10px 30px rgba(0,0,0,0.45); cursor:pointer;backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);opacity:0; transform:translateY(-6px); transition:opacity 180ms ease, transform 180ms ease;`;
-    toast.textContent = text;
+    toast.textContent = text2;
     if (action) {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -4111,17 +4331,17 @@
     if (rec.state === "learning") return "learning";
     return "";
   }
-  function showLensLine(text, en, tokens, vocab, options) {
+  function showLensLine(text2, en, tokens, vocab, options) {
     opts = options;
     vocabSnapshot = vocab;
     cancelPendingClear();
-    if (text === currentLine) return;
-    currentLine = text;
+    if (text2 === currentLine) return;
+    currentLine = text2;
     ensureMounted();
     if (!lensEl) return;
     hideTip();
     lensEl.innerHTML = "";
-    const source = { title: options.getTitle(), line: text, en: en || null };
+    const source = { title: options.getTitle(), line: text2, en: en || null };
     const jpSpans = [];
     const card = document.createElement("div");
     card.className = "card";
@@ -4247,15 +4467,15 @@
       this.entries = [];
     }
     /** Note what is on screen at video time `t` (seconds). */
-    record(t, text) {
+    record(t, text2) {
       if (!Number.isFinite(t)) return;
       const last = this.entries[this.entries.length - 1];
       if (last && t < last.t) {
         this.entries = this.entries.filter((e) => e.t <= t);
       }
       const tail = this.entries[this.entries.length - 1];
-      if (tail && tail.text === text) return;
-      this.entries.push({ t, text });
+      if (tail && tail.text === text2) return;
+      this.entries.push({ t, text: text2 });
       if (this.entries.length > MAX_ENTRIES) this.entries.splice(0, this.entries.length - MAX_ENTRIES);
     }
     /**
@@ -4290,22 +4510,22 @@
       }, ms);
     };
   }
-  function normalize(text) {
-    return text.replace(/\s+/g, " ").trim();
+  function normalize(text2) {
+    return text2.replace(/\s+/g, " ").trim();
   }
   var CUE_SEPARATOR_TAG = /<\s*\/?\s*(?:br|p|div)\b[^>]*>/gi;
   var CUE_INLINE_TAG = /<[^>]+>/g;
-  function stripCueTags(text) {
-    return text.replace(CUE_SEPARATOR_TAG, " ").replace(CUE_INLINE_TAG, "");
+  function stripCueTags(text2) {
+    return text2.replace(CUE_SEPARATOR_TAG, " ").replace(CUE_INLINE_TAG, "");
   }
-  function hasJapanese(text) {
-    return /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/.test(text);
+  function hasJapanese(text2) {
+    return /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/.test(text2);
   }
-  function hasEnglish(text) {
-    return /[A-Za-z]{2,}/.test(text);
+  function hasEnglish(text2) {
+    return /[A-Za-z]{2,}/.test(text2);
   }
-  function matchesTargetScript(text, direction) {
-    return normalizeDirection(direction) === "ja-en" ? hasEnglish(text) : hasJapanese(text);
+  function matchesTargetScript(text2, direction) {
+    return normalizeDirection(direction) === "ja-en" ? hasEnglish(text2) : hasJapanese(text2);
   }
   var activeDirection = "en-ja";
   function setAdapterDirection(direction) {
@@ -4432,16 +4652,16 @@
       if (!ev.segs || ev.aAppend) continue;
       const base = (ev.tStartMs || 0) / 1e3;
       for (const seg of ev.segs) {
-        const text = seg.utf8 || "";
-        if (!text.trim()) continue;
-        words.push({ start: base + (seg.tOffsetMs || 0) / 1e3, text: text.replace(/\n/g, " ") });
+        const text2 = seg.utf8 || "";
+        if (!text2.trim()) continue;
+        words.push({ start: base + (seg.tOffsetMs || 0) / 1e3, text: text2.replace(/\n/g, " ") });
       }
     }
     words.sort((a, b) => a.start - b.start);
     return words;
   }
-  function spokenSec(text, lang) {
-    const chars = text.trim().length;
+  function spokenSec(text2, lang) {
+    const chars = text2.trim().length;
     return Math.min(1.5, Math.max(0.2, chars * (lang === "ja" ? 0.13 : 0.06)));
   }
   function buildSentenceCues(words, lang) {
@@ -4468,13 +4688,13 @@
     close();
     const cues = [];
     groups.forEach((group, i) => {
-      const text = normalize(group.map((w) => w.text.trim()).join(lang === "ja" ? "" : " "));
-      if (!text) return;
+      const text2 = normalize(group.map((w) => w.text.trim()).join(lang === "ja" ? "" : " "));
+      if (!text2) return;
       const last = group[group.length - 1];
       const start = group[0].start;
       const nextStart = groups[i + 1]?.[0].start ?? Infinity;
       const end = Math.min(nextStart, last.start + spokenSec(last.text, lang) + TAIL_SEC);
-      cues.push({ start, end: Math.max(end, start + 0.1), text });
+      cues.push({ start, end: Math.max(end, start + 0.1), text: text2 });
     });
     return cues;
   }
@@ -4488,10 +4708,10 @@
       this.emitted = "";
     }
     /** Feed what is on screen now. */
-    update(text, now) {
-      if (text === this.pending) return;
+    update(text2, now) {
+      if (text2 === this.pending) return;
       if (!this.pending) this.rollingSince = now;
-      this.pending = text;
+      this.pending = text2;
       this.changedAt = now;
     }
     /** The caption to emit now, if it has settled (or rolled too long) and says
@@ -4509,15 +4729,15 @@
       return line;
     }
     /** A caption that replaced the last one outright: it is out, nothing waits. */
-    markEmitted(text) {
+    markEmitted(text2) {
       this.pending = "";
-      this.emitted = text;
+      this.emitted = text2;
     }
     /** Whether `text` continues the caption given out last (a rolling update)
      * rather than replacing it. */
-    continues(text) {
+    continues(text2) {
       const prev = this.pending || this.emitted;
-      return !!prev && unseenTail(prev, text) !== text.trim();
+      return !!prev && unseenTail(prev, text2) !== text2.trim();
     }
     reset() {
       this.pending = "";
@@ -4610,10 +4830,10 @@
     const cues = [];
     for (const ev of data2.events || []) {
       if (!ev.segs) continue;
-      const text = normalize(ev.segs.map((s) => s.utf8 || "").join(""));
-      if (!text) continue;
+      const text2 = normalize(ev.segs.map((s) => s.utf8 || "").join(""));
+      if (!text2) continue;
       const start = ev.tStartMs / 1e3;
-      cues.push({ start, end: start + (ev.dDurMs || 3e3) / 1e3, text });
+      cues.push({ start, end: start + (ev.dDurMs || 3e3) / 1e3, text: text2 });
     }
     cues.sort((a, b) => a.start - b.start);
     return cues;
@@ -4621,9 +4841,9 @@
   async function fetchTrack(track, pot, lang) {
     const res = await fetch(trackUrl(track.baseUrl, pot, location.origin));
     if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
-    const text = await res.text();
-    if (!text) return [];
-    const data2 = JSON.parse(text);
+    const text2 = await res.text();
+    if (!text2) return [];
+    const data2 = JSON.parse(text2);
     return track.kind === "asr" ? buildSentenceCues(parseJson3Words(data2), lang) : parseJson3(data2);
   }
   async function potFor(videoId, captionsOn) {
@@ -4776,17 +4996,17 @@
             return;
           }
           if (Date.now() < settleUntil) return;
-          const text = getVisibleText();
-          if (text === lastText) return;
-          if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+          const text2 = getVisibleText();
+          if (text2 === lastText) return;
+          if (!text2 || !matchesTargetScript(text2, getAdapterDirection())) {
             roller.reset();
             if (lastText) onClear?.();
             lastText = "";
             return;
           }
-          lastText = text;
-          if (roller.continues(text)) {
-            roller.update(text, Date.now());
+          lastText = text2;
+          if (roller.continues(text2)) {
+            roller.update(text2, Date.now());
             if (!rollTimer) {
               rollTimer = setInterval(() => {
                 flushRolling();
@@ -4797,8 +5017,8 @@
             }
             return;
           }
-          roller.markEmitted(text);
-          onLine(text, { en: "" });
+          roller.markEmitted(text2);
+          onLine(text2, { en: "" });
         } catch (err) {
           warn("youtube adapter error:", err);
         }
@@ -4826,15 +5046,15 @@
       let lastText = "";
       const check = () => {
         try {
-          const text = getVisibleText2();
-          if (text === lastText) return;
-          if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+          const text2 = getVisibleText2();
+          if (text2 === lastText) return;
+          if (!text2 || !matchesTargetScript(text2, getAdapterDirection())) {
             if (lastText) onClear?.();
             lastText = "";
             return;
           }
-          lastText = text;
-          onLine(text, { en: "" });
+          lastText = text2;
+          onLine(text2, { en: "" });
         } catch (err) {
           warn("netflix adapter error:", err);
         }
@@ -4865,8 +5085,8 @@
       for (const track of video.textTracks) {
         if (track.mode !== "showing" || !track.activeCues) continue;
         for (const cue of track.activeCues) {
-          const text = cue.text;
-          if (text) parts.push(stripCueTags(text));
+          const text2 = cue.text;
+          if (text2) parts.push(stripCueTags(text2));
         }
       }
       return normalize(parts.join(" "));
@@ -4878,19 +5098,19 @@
         const want = contextLang(getAdapterDirection());
         for (const track of video.textTracks) {
           if (!(track.language || "").startsWith(want) || !track.activeCues) continue;
-          const text = normalize(
+          const text2 = normalize(
             Array.from(track.activeCues).map((c) => stripCueTags(c.text)).join(" ")
           );
-          if (text) return text;
+          if (text2) return text2;
         }
         for (const track of video.textTracks) {
           if (track.mode !== "showing" || !track.activeCues) continue;
-          const text = normalize(
+          const text2 = normalize(
             Array.from(track.activeCues).map((c) => stripCueTags(c.text)).join(" ")
           );
-          if (!text) continue;
-          if (want === "en" && hasEnglish(text)) return text;
-          if (want === "ja" && matchesTargetScript(text, "en-ja")) return text;
+          if (!text2) continue;
+          if (want === "en" && hasEnglish(text2)) return text2;
+          if (want === "ja" && matchesTargetScript(text2, "en-ja")) return text2;
         }
         return "";
       };
@@ -4911,14 +5131,14 @@
                     }
                     return;
                   }
-                  const text = normalize(
+                  const text2 = normalize(
                     Array.from(cues).map((c) => stripCueTags(c.text)).join(" ")
                   );
                   const lastText = lastByTrack.get(track) || "";
-                  if (!text || text === lastText) return;
-                  if (!matchesTargetScript(text, getAdapterDirection())) return;
-                  lastByTrack.set(track, text);
-                  onLine(text, { en: contextFromVideo(v) });
+                  if (!text2 || text2 === lastText) return;
+                  if (!matchesTargetScript(text2, getAdapterDirection())) return;
+                  lastByTrack.set(track, text2);
+                  onLine(text2, { en: contextFromVideo(v) });
                 } catch (err) {
                   warn("generic adapter cue error:", err);
                 }
@@ -5030,8 +5250,8 @@
   var SENTENCE = { ja: /(?<=[。！？!?…])/, en: /(?<=[.!?…])\s+/ };
   var SOFT_BREAK = { ja: /[、,，」』）)\s]/, en: /\s/ };
   var LENS_MAX_CHARS = { ja: 28, en: 90 };
-  function splitForLens(text, lang, maxChars = LENS_MAX_CHARS[lang]) {
-    const clean = text.replace(/\s+/g, " ").trim();
+  function splitForLens(text2, lang, maxChars = LENS_MAX_CHARS[lang]) {
+    const clean = text2.replace(/\s+/g, " ").trim();
     if (!clean) return [];
     const out = [];
     for (const sentence of clean.split(SENTENCE[lang])) {
@@ -5076,6 +5296,8 @@
     let initialized = false;
     let pipelineDisabled = false;
     let settings = null;
+    let courseFocusActive = false;
+    let courseWasCopilotOpen = false;
     let wordStates = {};
     let lastLine = "";
     let lastSessionId = "";
@@ -5299,10 +5521,10 @@
       const siteKey = adapter ? adapter.name : "generic";
       return !(s.sites && s.sites[siteKey] === false);
     }
-    async function tokenizeJa(text) {
-      if (tokenMemo && tokenMemo.text === text) return tokenMemo.tokens;
-      const tokens = await tokenize(text);
-      tokenMemo = { text, tokens };
+    async function tokenizeJa(text2) {
+      if (tokenMemo && tokenMemo.text === text2) return tokenMemo.tokens;
+      const tokens = await tokenize(text2);
+      tokenMemo = { text: text2, tokens };
       return tokens;
     }
     function countProgress2(vocab) {
@@ -5376,6 +5598,7 @@
       return candidate;
     }
     async function renderLens(line, context, groupSeq) {
+      if (courseFocusActive) return;
       const seq = ++lensSeq;
       const sessionId = currentSessionId();
       const stale = () => seq !== lensSeq || currentSessionId() !== sessionId;
@@ -5411,8 +5634,8 @@
     function cancelPacedLens() {
       lensChain += 1;
     }
-    function showPacedLens(text, context) {
-      const pieces = splitForLens(text, studyLang());
+    function showPacedLens(text2, context) {
+      const pieces = splitForLens(text2, studyLang());
       if (!pieces.length) return -1;
       cancelPacedLens();
       const chain = lensChain;
@@ -5428,9 +5651,9 @@
       step(0);
       return groupSeq;
     }
-    function onLine(text, context, opts2 = {}) {
-      if (pipelineDisabled) return;
-      const line = text.replace(/\s+/g, " ").trim();
+    function onLine(text2, context, opts2 = {}) {
+      if (pipelineDisabled || courseFocusActive) return;
+      const line = text2.replace(/\s+/g, " ").trim();
       if (!line) return;
       let seq = opts2.lensSeq ?? -1;
       if (opts2.lens !== false) {
@@ -5457,11 +5680,12 @@
         lineInFlight = false;
       }
     }
-    async function processLine(text, context, lineLensSeq = -1) {
+    async function processLine(text2, context, lineLensSeq = -1) {
       const lineSessionId = currentSessionId();
       const staleSession = () => {
+        if (courseFocusActive) return true;
         if (currentSessionId() === lineSessionId) return false;
-        log("dropped line from the previous video:", text.slice(0, 40));
+        log("dropped line from the previous video:", text2.slice(0, 40));
         return true;
       };
       settings = await getSettings();
@@ -5473,7 +5697,7 @@
       if (settings.pauseMode === "off" && !lensEnabled) return;
       await ensureInit();
       if (!initialized) return;
-      const normalized = text.replace(/\s+/g, " ").trim();
+      const normalized = text2.replace(/\s+/g, " ").trim();
       if (normalized === lastLine) return;
       lastLine = normalized;
       let tokens;
@@ -5571,7 +5795,7 @@
         }
       }
       log("showing card for:", target.token.base);
-      await handleCard(target, normalized, tokens, context, lensJudged).catch((err) => {
+      await handleCard(target, normalized, tokens, context, () => lensJudged() || staleSession()).catch((err) => {
         warn("handleCard failed:", err);
         dismissAgent();
       });
@@ -5591,6 +5815,10 @@
         return true;
       }
       if (msg.type === "avc-agent-show") {
+        if (courseFocusActive) {
+          sendResponse({ ok: false, error: "Exit N5 course focus to open the live Copilot." });
+          return true;
+        }
         openAgent();
         sendResponse({ ok: true, visible: true });
         return true;
@@ -5620,14 +5848,14 @@
         }
         return;
       }
-      if (msg.type !== "avc-transcript") return;
+      if (msg.type !== "avc-transcript" || courseFocusActive) return;
       handleTranscript(
         msg.text || "",
         typeof msg.start === "number" ? msg.start : void 0,
         typeof msg.end === "number" ? msg.end : void 0
       );
     });
-    function handleTranscript(text, start, end) {
+    function handleTranscript(text2, start, end) {
       const a = pickAdapter();
       if (!a) {
         warn("transcript arrived but no adapter matched this frame");
@@ -5638,7 +5866,7 @@
         log("transcript ignored (no video in this frame)");
         return;
       }
-      const rawTranscript = text.trim();
+      const rawTranscript = text2.trim();
       if (pipelineDisabled || !rawTranscript) return;
       const ahead = typeof start === "number" ? start - video.currentTime : 0;
       if (ahead > EARLY_LINE_TOLERANCE_SEC) {
@@ -5647,7 +5875,7 @@
         const generation = cachePollGeneration;
         setTimeout(() => {
           if (currentSessionId() !== sessionId || cachePollGeneration !== generation) return;
-          handleTranscript(text, start, end);
+          handleTranscript(text2, start, end);
         }, ahead * 1e3 / (video.playbackRate || 1));
         return;
       }
@@ -5670,14 +5898,14 @@
         return;
       }
       const direction = normalizeDirection(current2.learningDirection);
-      const text = captionNoticeText(report, {
+      const text2 = captionNoticeText(report, {
         listening: listeningActive,
         cardsOn: current2.pauseMode !== "off",
         lensOn: direction === "en-ja" && current2.subLens !== false
       });
-      if (!text) return;
+      if (!text2) return;
       captionNoticeShown = true;
-      showToast(text, "info");
+      showToast(text2, "info");
     }
     onCaptions(() => {
       void maybeExplainMissingCaptions();
@@ -5691,7 +5919,7 @@
           cancelPacedLens();
           hideLens();
         }
-        applyPanelSettings(next);
+        if (!courseFocusActive) applyPanelSettings(next);
       }).catch(() => {
       });
     });
@@ -5728,6 +5956,22 @@
     onAgentVisibility((open) => {
       chrome.runtime.sendMessage({ type: "avc-copilot-state", open }).catch(() => {
       });
+    });
+    installN5Content(() => pickAdapter()?.getVideo() ?? null, currentSessionId, (active) => {
+      if (active === courseFocusActive) return;
+      courseFocusActive = active;
+      if (active) {
+        courseWasCopilotOpen = isAgentActive();
+        cancelPacedLens();
+        hideLens();
+        dismissAgent();
+        hideAgent();
+        pendingLines.length = 0;
+        lensSeq++;
+      } else if (courseWasCopilotOpen) {
+        courseWasCopilotOpen = false;
+        openAgent();
+      }
     });
     pickAdapter();
     const pickTimer = setInterval(() => {

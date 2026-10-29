@@ -89,6 +89,11 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (data.type === "avc-n5-course-changed" && ALLOWED_ORIGINS.has(event.origin)) {
+    chrome.runtime.sendMessage({ type: "avc-n5-refresh" }).catch(() => {});
+    return;
+  }
+
   if (data.type === "avc-sync-now") {
     chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
     return;

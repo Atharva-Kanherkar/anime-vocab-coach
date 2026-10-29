@@ -1,5 +1,6 @@
 // Content-script bundle: the whole learning pipeline. Loads after
 // vendor/kuromoji.js (separate script in the manifest, load order matters).
+import { installN5Content } from "../lib/n5-content";
 import { log, warn } from "../lib/log";
 import * as storage from "../lib/storage";
 import * as dict from "../lib/dictionary";
@@ -75,6 +76,8 @@ declare global {
   let initialized = false;
   let pipelineDisabled = false;
   let settings: Settings | null = null;
+  let courseFocusActive = false;
+  let courseWasCopilotOpen = false;
   let wordStates: VocabMap = {};
   let lastLine = "";
   let lastSessionId = "";
@@ -507,6 +510,7 @@ declare global {
    * wins, and the cards keep their one-at-a-time pacing.
    */
   async function renderLens(line: string, context?: LineContext, groupSeq?: number): Promise<void> {
+    if (courseFocusActive) return;
     const seq = ++lensSeq;
     const sessionId = currentSessionId();
     const stale = (): boolean => seq !== lensSeq || currentSessionId() !== sessionId;
@@ -596,7 +600,7 @@ declare global {
     context?: LineContext,
     opts: { lens?: boolean; lensSeq?: number } = {}
   ): void {
-    if (pipelineDisabled) return;
+    if (pipelineDisabled || courseFocusActive) return;
     const line = text.replace(/\s+/g, " ").trim();
     if (!line) return;
     let seq = opts.lensSeq ?? -1;
@@ -632,6 +636,7 @@ declare global {
     // since this line was spoken, not since the last await.
     const lineSessionId = currentSessionId();
     const staleSession = (): boolean => {
+      if (courseFocusActive) return true;
       if (currentSessionId() === lineSessionId) return false;
       log("dropped line from the previous video:", text.slice(0, 40));
       return true;
@@ -772,7 +777,7 @@ declare global {
     // up to the moment it mounts. Previously this was fire-and-forget, leaving a
     // window where the next line was already picking a word before the card had
     // rendered and `overlay.isOpen()` could see it.
-    await handleCard(target, normalized, tokens, context, lensJudged).catch((err) => {
+    await handleCard(target, normalized, tokens, context, () => lensJudged() || staleSession()).catch((err) => {
       warn("handleCard failed:", err);
       overlay.dismissAgent();
     });
@@ -796,6 +801,7 @@ declare global {
       return true;
     }
     if (msg.type === "avc-agent-show") {
+      if (courseFocusActive) { sendResponse({ ok: false, error: "Exit N5 course focus to open the live Copilot." }); return true; }
       overlay.openAgent();
       sendResponse({ ok: true, visible: true });
       return true;
@@ -825,7 +831,7 @@ declare global {
       }
       return;
     }
-    if (msg.type !== "avc-transcript") return;
+    if (msg.type !== "avc-transcript" || courseFocusActive) return;
     handleTranscript(msg.text || "", typeof msg.start === "number" ? msg.start : undefined,
       typeof msg.end === "number" ? msg.end : undefined);
   });
@@ -917,7 +923,7 @@ declare global {
         cancelPacedLens();
         hideLens();
       }
-      overlay.applyPanelSettings(next);
+      if (!courseFocusActive) overlay.applyPanelSettings(next);
     }).catch(() => {});
   });
 
@@ -975,6 +981,13 @@ declare global {
   // panel was opened or closed, so the next reload restores what was there.
   overlay.onAgentVisibility((open) => {
     chrome.runtime.sendMessage({ type: "avc-copilot-state", open }).catch(() => {});
+  });
+
+  installN5Content(() => pickAdapter()?.getVideo() ?? null, currentSessionId, (active) => {
+    if (active === courseFocusActive) return;
+    courseFocusActive = active;
+    if (active) { courseWasCopilotOpen = overlay.isAgentActive(); cancelPacedLens(); hideLens(); overlay.dismissAgent(); overlay.hideAgent(); pendingLines.length = 0; lensSeq++; }
+    else if (courseWasCopilotOpen) { courseWasCopilotOpen = false; overlay.openAgent(); }
   });
 
   pickAdapter();

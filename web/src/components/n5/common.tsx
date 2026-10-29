@@ -137,6 +137,10 @@ export function CourseSession({
   children: ReactNode;
 }) {
   const [expired, setExpired] = useState(false);
+  const pathname = usePathname();
+  useEffect(() => {
+    window.postMessage({ source: "avc-web", type: "avc-n5-course-changed" }, window.location.origin);
+  }, [pathname]);
   useEffect(() => {
     try {
       const previous = sessionStorage.getItem("avc:n5:owner");

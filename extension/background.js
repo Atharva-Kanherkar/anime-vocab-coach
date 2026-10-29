@@ -358,12 +358,12 @@
       const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
       const stored = Number(r.webReviewSeq);
       let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
-      const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
-      if (!fresh.length) return { applied: 0, seq };
+      const fresh2 = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
+      if (!fresh2.length) return { applied: 0, seq };
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
       let applied = 0;
-      for (const op of fresh) {
+      for (const op of fresh2) {
         seq = op.seq;
         const rec = vocab[op.base];
         if (!rec || rec.state !== "learning" || !rec.srs) continue;
@@ -505,15 +505,15 @@
   }
 
   // src/lib/notify.ts
-  function toastTab(tabId, text, kind = "info") {
-    chrome.tabs.sendMessage(tabId, { type: "avc-toast", text, kind }).catch(() => {
+  function toastTab(tabId, text2, kind = "info") {
+    chrome.tabs.sendMessage(tabId, { type: "avc-toast", text: text2, kind }).catch(() => {
     });
   }
-  async function toastActiveTab(text, kind = "info") {
+  async function toastActiveTab(text2, kind = "info") {
     try {
       const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const tabId = tabs[0]?.id;
-      if (tabId != null) toastTab(tabId, text, kind);
+      if (tabId != null) toastTab(tabId, text2, kind);
     } catch {
     }
   }
@@ -890,8 +890,8 @@
   async function fetchAnimeContext(title) {
     const clean = (title || "").trim();
     if (!clean) return null;
-    const cached = sessionCache3.get(clean.toLowerCase());
-    if (cached) return cached;
+    const cached2 = sessionCache3.get(clean.toLowerCase());
+    if (cached2) return cached2;
     const token = await getSyncToken();
     if (!token) return null;
     try {
@@ -910,11 +910,11 @@
   }
 
   // src/lib/tts-client.ts
-  async function fetchCloudTts(text, token) {
+  async function fetchCloudTts(text2, token) {
     const res = await fetch(WEB_URL + "/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text: text2 })
     });
     if (res.status === 429) {
       const data = await res.json().catch(() => ({}));
@@ -923,11 +923,11 @@
     if (!res.ok) return { blob: null, error: `http_${res.status}` };
     return { blob: await res.blob() };
   }
-  async function fetchByoTts(text, key) {
+  async function fetchByoTts(text2, key) {
     const res = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
-      body: JSON.stringify({ model: "tts-1", voice: "nova", input: text, response_format: "mp3" })
+      body: JSON.stringify({ model: "tts-1", voice: "nova", input: text2, response_format: "mp3" })
     });
     if (!res.ok) return null;
     return res.blob();
@@ -938,8 +938,8 @@
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin);
   }
-  async function fetchTtsAudio(text) {
-    const trimmed = (text || "").trim();
+  async function fetchTtsAudio(text2) {
+    const trimmed = (text2 || "").trim();
     if (!trimmed) return null;
     const settings = await getSettings();
     if (settings.openaiKey?.trim()) {
@@ -989,38 +989,412 @@
     };
   }
 
-  // src/lib/n5-handoff.ts
-  var N5_HANDOFF_MESSAGE_TYPES = [
-    "avc-n5-start-assessment",
-    "avc-n5-abandon-attempt"
+  // src/lib/n5-course-context.ts
+  var N5_SCRIPT_VALUES = ["romaji", "kana"];
+  var CONTEXT_KEYS = [
+    "courseId",
+    "trackId",
+    "unitId",
+    "episodeId",
+    "lessonId",
+    "contentVersion",
+    "script"
   ];
-  var HANDOFF_KEYS = ["type", "tabId", "lessonId", "attemptId"];
-  var MAX_ID_LENGTH = 128;
+  var MAX_CONTEXT_ID_LENGTH = 128;
+  function isN5Script(value) {
+    return typeof value === "string" && N5_SCRIPT_VALUES.includes(value);
+  }
   function isPlainObject(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
   }
-  function isHandoffType(value) {
-    return typeof value === "string" && N5_HANDOFF_MESSAGE_TYPES.includes(value);
-  }
-  function isPositiveInt(value) {
-    return typeof value === "number" && Number.isInteger(value) && value > 0;
-  }
-  function isBoundedId(value) {
-    return typeof value === "string" && value.length > 0 && value.length <= MAX_ID_LENGTH;
-  }
-  function isN5HandoffMessage(value) {
-    if (!isPlainObject(value)) return false;
-    const type = value.type;
-    if (!isHandoffType(type)) return false;
-    const unknown = Object.keys(value).filter((key) => !HANDOFF_KEYS.includes(key));
-    if (unknown.length > 0) return false;
-    if ("tabId" in value && value.tabId !== void 0 && !isPositiveInt(value.tabId)) return false;
-    if ("lessonId" in value && value.lessonId !== void 0 && !isBoundedId(value.lessonId)) return false;
-    if ("attemptId" in value && value.attemptId !== void 0 && !isBoundedId(value.attemptId)) return false;
-    return true;
+  function parseN5CourseContext(input) {
+    if (!isPlainObject(input)) return null;
+    const parsed = {};
+    for (const key of CONTEXT_KEYS) {
+      const value = input[key];
+      if (typeof value !== "string") return null;
+      if (value.length === 0 || value.length > MAX_CONTEXT_ID_LENGTH || !/^[a-z0-9][a-z0-9-]*$/.test(value)) return null;
+      parsed[key] = value;
+    }
+    const script = input.script;
+    if (!isN5Script(script)) return null;
+    parsed.script = script;
+    const unknown = Object.keys(input).filter((key) => !CONTEXT_KEYS.includes(key));
+    if (unknown.length > 0) return null;
+    return parsed;
   }
 
+  // src/lib/n5-pilot.ts
+  var N5_QUEUE_LIMIT = 100;
+  var id = /^[a-z0-9][a-z0-9-]{0,127}$/;
+  var uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  var obj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  var text = (v, max = 500) => typeof v === "string" && v.length > 0 && v.length <= max;
+  function isStreamingUrl(raw) {
+    try {
+      const u = new URL(raw);
+      return u.protocol === "https:" && !u.port && !u.username && !u.password && ["youtube.com", "netflix.com", "crunchyroll.com"].some((h) => u.hostname === h || u.hostname.endsWith("." + h));
+    } catch {
+      return false;
+    }
+  }
+  function pureReading(value, script) {
+    if (!text(value)) return false;
+    return script === "romaji" ? /^[A-Za-zāīūēōâîûêôĀĪŪĒŌ0-9 .,!?'():;-]+$/.test(value) && /[A-Za-zāīūēō]/i.test(value) : /^[\u3041-\u3096\u30a1-\u30faー 。、!?「」『』():・〜~.]+$/.test(value) && /[\u3041-\u3096\u30a1-\u30fa]/.test(value);
+  }
+  function parseN5PilotState(value) {
+    if (!obj(value) || value.apiVersion !== 1 || !text(value.ownerId, 128) || value.mastery !== false || typeof value.watched !== "boolean" || !Number.isSafeInteger(value.completedAttempts) || value.completedAttempts < 0) return null;
+    const context = value.context === null ? null : parseN5CourseContext(value.context);
+    if (value.context !== null && !context) return null;
+    let lesson = null;
+    if (context) {
+      const l = value.lesson;
+      if (!obj(l) || l.id !== context.lessonId || l.script !== context.script || l.contentVersion !== context.contentVersion || !text(l.canDo) || !Array.isArray(l.vocabulary) || l.vocabulary.length > 20 || !Array.isArray(l.grammar) || l.grammar.length > 10) return null;
+      const vocabulary = [];
+      const grammar = [];
+      for (const v of l.vocabulary) {
+        if (!obj(v) || !text(v.id, 128) || !pureReading(v.reading, context.script) || !text(v.meaning, 250)) return null;
+        vocabulary.push({ id: v.id, reading: v.reading, meaning: v.meaning });
+      }
+      for (const g of l.grammar) {
+        if (!obj(g) || !text(g.id, 128) || !pureReading(g.example, context.script) || !text(g.explanation)) return null;
+        grammar.push({ id: g.id, explanation: g.explanation, example: g.example });
+      }
+      lesson = { id: context.lessonId, contentVersion: context.contentVersion, script: context.script, canDo: l.canDo, vocabulary, grammar };
+    } else if (value.lesson !== null) return null;
+    if (!Array.isArray(value.activeAttempts) || value.activeAttempts.length > 5) return null;
+    const activeAttempts = [];
+    for (const a of value.activeAttempts) {
+      if (!obj(a) || !text(a.id) || !uuid.test(a.id) || a.script !== "romaji" && a.script !== "kana") return null;
+      activeAttempts.push({ id: a.id, script: a.script });
+    }
+    return { apiVersion: 1, ownerId: value.ownerId, context, lesson, watched: value.watched, activeAttempts, completedAttempts: value.completedAttempts, mastery: false };
+  }
+  function hostedPracticeUrl(context, attemptId) {
+    if (!parseN5CourseContext(context) || !id.test(context.lessonId) || attemptId !== void 0 && !uuid.test(attemptId)) throw new Error("Invalid course route");
+    return attemptId ? `https://animevocab.com/app/n5/attempts/${attemptId}` : `https://animevocab.com/app/n5/lessons/${context.lessonId}?script=${context.script}`;
+  }
+  function queueObservation(queue3, event) {
+    if (!id.test(event.episodeId) || !id.test(event.contentVersion) || !/^[a-zA-Z0-9_-]{1,100}$/.test(event.idempotencyKey) || !Number.isSafeInteger(event.observedAt) || event.observedAt < 1) throw new Error("Invalid observation");
+    const same = queue3.find((e) => e.idempotencyKey === event.idempotencyKey);
+    if (same) {
+      if (JSON.stringify(same) !== JSON.stringify(event)) throw new Error("Conflicting observation");
+      return queue3;
+    }
+    if (queue3.some((e) => e.episodeId === event.episodeId && e.contentVersion === event.contentVersion)) return queue3;
+    if (queue3.length >= N5_QUEUE_LIMIT) throw new Error("Pending observations are full. Retry sync before recording more.");
+    return [...queue3, event];
+  }
+  function parseN5Command(raw) {
+    if (!obj(raw)) return null;
+    const fields = {
+      "avc-n5-state": ["refresh"],
+      "avc-n5-enrol": ["script"],
+      "avc-n5-attach": ["tabId", "confirmJapanese"],
+      "avc-n5-watch": ["tabId"],
+      "avc-n5-start-assessment": ["tabId"],
+      "avc-n5-detach": ["tabId"],
+      "avc-n5-session": [],
+      "avc-n5-invalidated": [],
+      "avc-n5-refresh": []
+    };
+    if (typeof raw.type !== "string" || !Object.prototype.hasOwnProperty.call(fields, raw.type) || Object.keys(raw).some((k) => k !== "type" && !fields[raw.type].includes(k))) return null;
+    if (raw.tabId !== void 0 && (!Number.isSafeInteger(raw.tabId) || raw.tabId <= 0)) return null;
+    if (raw.script !== void 0 && raw.script !== "kana" && raw.script !== "romaji") return null;
+    if (raw.refresh !== void 0 && typeof raw.refresh !== "boolean") return null;
+    if (raw.confirmJapanese !== void 0 && typeof raw.confirmJapanese !== "boolean") return null;
+    if (raw.type === "avc-n5-enrol" && raw.script === void 0) return null;
+    if (["avc-n5-attach"].includes(raw.type) && raw.tabId === void 0) return null;
+    return raw;
+  }
+
+  // src/lib/n5-service.ts
+  var PilotError = class extends Error {
+    constructor(code, message) {
+      super(message);
+      this.code = code;
+    }
+  };
+  var pointerKey = "n5PilotOwner";
+  var cacheKey = (owner) => `n5Pilot:${owner}`;
+  var bindingsKey = "n5PilotBindings";
+  var tail = Promise.resolve();
+  function serial(fn) {
+    const next = tail.then(fn, fn);
+    tail = next.catch(() => {
+    });
+    return next;
+  }
+  async function bounded(promise, ms = 1e4) {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new PilotError("timeout", "The player did not respond. Retry from the video tab.")), ms);
+      })]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  async function identity() {
+    const token = await getSyncToken();
+    if (!token) throw new PilotError("not_linked", "Connect your AnimeVocab account first.");
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+    return { token, tokenHash: Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("") };
+  }
+  async function unchanged(token) {
+    if (await getSyncToken() !== token) throw new PilotError("account_changed", "Your account changed. Reload the course.");
+  }
+  async function request(token, path, body) {
+    const response = await fetch(BACKEND_URL + "/v1/n5" + path, { method: body === void 0 ? "GET" : "POST", headers: { Authorization: "Bearer " + token, ...body === void 0 ? {} : { "Content-Type": "application/json" } }, ...body === void 0 ? {} : { body: JSON.stringify(body) }, signal: AbortSignal.timeout(1e4), cache: "no-store", redirect: "error" });
+    await unchanged(token);
+    if (!response.ok) {
+      const code = response.status === 401 ? "not_linked" : response.status === 404 ? "unavailable" : response.status === 409 ? "stale_content" : "retry_needed";
+      throw new PilotError(code, code === "unavailable" ? "N5 preview is unavailable for this account. Ordinary watching still works." : code === "not_linked" ? "Reconnect your AnimeVocab account." : "Course sync could not finish. Pending observations are kept; retry later.");
+    }
+    const reader = response.body?.getReader();
+    if (!reader) throw new PilotError("invalid_response", "Course response was empty.");
+    let raw = "", size = 0;
+    const decoder = new TextDecoder();
+    try {
+      for (; ; ) {
+        const next = await reader.read();
+        if (next.done) break;
+        size += next.value.byteLength;
+        if (size > 65536) {
+          await reader.cancel();
+          throw new PilotError("invalid_response", "Course response is too large.");
+        }
+        raw += decoder.decode(next.value, { stream: true });
+      }
+      return JSON.parse(raw + decoder.decode());
+    } finally {
+      reader.releaseLock();
+    }
+  }
+  async function cached(tokenHash) {
+    const pointer = (await chrome.storage.local.get(pointerKey))[pointerKey];
+    if (!pointer || pointer.tokenHash !== tokenHash || typeof pointer.ownerId !== "string") return null;
+    const stored = (await chrome.storage.local.get(cacheKey(pointer.ownerId)))[cacheKey(pointer.ownerId)];
+    if (!stored || stored.tokenHash !== tokenHash) return null;
+    const state = parseN5PilotState(stored.state);
+    if (!state || state.ownerId !== pointer.ownerId || !Array.isArray(stored.queue) || stored.queue.length > 100) return null;
+    try {
+      let queue3 = [];
+      for (const event of stored.queue) queue3 = queueObservation(queue3, event);
+      return { tokenHash, state, queue: queue3 };
+    } catch {
+      return null;
+    }
+  }
+  async function save(cache, token) {
+    await unchanged(token);
+    await chrome.storage.local.set({ [cacheKey(cache.state.ownerId)]: cache, [pointerKey]: { ownerId: cache.state.ownerId, tokenHash: cache.tokenHash } });
+    await unchanged(token);
+  }
+  async function fresh(token, tokenHash) {
+    const state = parseN5PilotState(await request(token, "/extension/state"));
+    if (!state) throw new PilotError("invalid_response", "Course content did not match the expected script or version.");
+    const old = (await chrome.storage.local.get(cacheKey(state.ownerId)))[cacheKey(state.ownerId)];
+    let queue3 = [];
+    try {
+      if (old && Array.isArray(old.queue)) for (const event of old.queue) queue3 = queueObservation(queue3, event);
+    } catch {
+      throw new PilotError("invalid_queue", "Pending observations need recovery. Nothing has been deleted.");
+    }
+    const cache = { tokenHash, state, queue: queue3 };
+    await save(cache, token);
+    return cache;
+  }
+  async function flush(cache, token) {
+    for (const event of [...cache.queue].slice(0, 10)) {
+      if (event.contentVersion !== cache.state.context?.contentVersion) throw new PilotError("stale_content", "A pending observation uses retired content. It is kept for recovery.");
+      await request(token, "/events", { episodeId: event.episodeId, kind: "watch_complete", idempotencyKey: event.idempotencyKey });
+      await unchanged(token);
+      cache.queue = cache.queue.filter((e) => e.idempotencyKey !== event.idempotencyKey);
+      cache.state.watched = true;
+      await save(cache, token);
+    }
+  }
+  async function bindings() {
+    const raw = (await chrome.storage.session.get(bindingsKey))[bindingsKey];
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  }
+  async function forget(tabId) {
+    const all = await bindings();
+    const selected = tabId === void 0 ? Object.values(all) : all[tabId] ? [all[tabId]] : [];
+    for (const b of selected) {
+      delete all[b.tabId];
+      await chrome.tabs.sendMessage(b.tabId, { type: "avc-n5-unmount" }, { frameId: b.frameId }).catch(() => {
+      });
+    }
+    await chrome.storage.session.set({ [bindingsKey]: all });
+  }
+  function invalidateN5(tabId) {
+    return serial(() => forget(tabId));
+  }
+  function ownedSender(sender) {
+    if (sender.id !== chrome.runtime.id || !sender.url) return false;
+    try {
+      const u = new URL(sender.url);
+      return u.protocol === "chrome-extension:" && u.host === chrome.runtime.id && ["/course/course.html", "/popup/popup.html"].includes(u.pathname);
+    } catch {
+      return false;
+    }
+  }
+  function appSender(sender) {
+    if (sender.id !== chrome.runtime.id || !sender.url) return false;
+    try {
+      return ["https://animevocab.com", "https://www.animevocab.com"].includes(new URL(sender.url).origin);
+    } catch {
+      return false;
+    }
+  }
+  async function boundPlayer(command, sender, tokenHash) {
+    const tabId = ownedSender(sender) ? command.tabId : sender.tab?.id;
+    const b = tabId === void 0 ? void 0 : (await bindings())[tabId];
+    if (!b || b.tokenHash !== tokenHash || !ownedSender(sender) && (sender.frameId !== b.frameId || !sender.url || !isStreamingUrl(sender.url))) throw new PilotError("player_changed", "Confirm the current video in N5 Course before continuing.");
+    const tab = await chrome.tabs.get(b.tabId);
+    if (tab.url !== b.url) {
+      await forget(b.tabId);
+      throw new PilotError("player_changed", "The episode changed. Confirm the new video first.");
+    }
+    return b;
+  }
+  function handleN5(raw, sender, stopCapture) {
+    return serial(async () => {
+      try {
+        if (sender.id !== chrome.runtime.id) throw new PilotError("forbidden", "Invalid course sender.");
+        const command = parseN5Command(raw);
+        if (!command) throw new PilotError("invalid_message", "Invalid course action.");
+        const own = ownedSender(sender);
+        const playerAction = ["avc-n5-watch", "avc-n5-start-assessment", "avc-n5-detach", "avc-n5-session", "avc-n5-invalidated"];
+        if (!own && command.tabId !== void 0) throw new PilotError("forbidden", "Player actions use the sending tab only.");
+        if (!own && !(command.type === "avc-n5-refresh" && appSender(sender)) && !(playerAction.includes(command.type) && sender.tab?.id !== void 0 && sender.url && isStreamingUrl(sender.url))) throw new PilotError("forbidden", "This course action is unavailable here.");
+        if (command.type === "avc-n5-invalidated") {
+          const b = (await bindings())[sender.tab.id];
+          if (b?.frameId === sender.frameId) await forget(b.tabId);
+          return { ok: true };
+        }
+        const { token, tokenHash } = await identity();
+        if (command.type === "avc-n5-session") {
+          const b = await boundPlayer(command, sender, tokenHash);
+          return { ok: true, lesson: b.lesson, context: b.context, sessionId: b.sessionId };
+        }
+        if (command.type === "avc-n5-detach") {
+          const b = await boundPlayer(command, sender, tokenHash);
+          await forget(b.tabId);
+          return { ok: true };
+        }
+        let cache = await cached(tokenHash);
+        let offline = false, warning;
+        if (!cache || command.refresh || command.type === "avc-n5-refresh" || ["avc-n5-enrol", "avc-n5-attach", "avc-n5-watch", "avc-n5-start-assessment"].includes(command.type)) {
+          try {
+            cache = await fresh(token, tokenHash);
+          } catch (error) {
+            if (error instanceof PilotError) {
+              if (["unavailable", "not_linked"].includes(error.code)) {
+                await chrome.storage.local.remove(pointerKey);
+                await forget();
+              }
+              throw error;
+            }
+            if (!cache || command.type === "avc-n5-enrol") throw error;
+            offline = true;
+          }
+        }
+        if (!cache) throw new PilotError("offline", "Connect once to load your course, then retry.");
+        if (command.type === "avc-n5-enrol") {
+          await request(token, "/enrolments", { trackId: "your-lie-in-april-2014", script: command.script, idempotencyKey: crypto.randomUUID() });
+          cache = await fresh(token, tokenHash);
+          await forget();
+        }
+        if (command.type === "avc-n5-attach") {
+          if (!cache.state.context || !cache.state.lesson) throw new PilotError("choose_script", "Choose your course script first.");
+          if ((await getSettings()).learningDirection === "ja-en" && !command.confirmJapanese) throw new PilotError("confirm_japanese", "Confirm Japanese for course focus. Your English deck and settings will be preserved.");
+          const tab = await chrome.tabs.get(command.tabId);
+          if (!tab.url || !isStreamingUrl(tab.url)) throw new PilotError("unsupported_player", "Open a YouTube, Netflix or Crunchyroll video, then confirm it here.");
+          const frames = await chrome.scripting.executeScript({ target: { tabId: command.tabId, allFrames: true }, func: () => {
+            const v = document.querySelector("video");
+            return v ? v.clientWidth * v.clientHeight : 0;
+          } });
+          const player = frames.filter((f) => (f.result || 0) > 0).sort((a, b) => (b.result || 0) - (a.result || 0))[0];
+          if (!player) throw new PilotError("missing_player", "Wait for the player to load, then retry.");
+          await unchanged(token);
+          const ack = await bounded(chrome.tabs.sendMessage(command.tabId, { type: "avc-n5-mount", context: cache.state.context, lesson: cache.state.lesson }, { frameId: player.frameId }));
+          if (!ack?.ok || typeof ack.sessionId !== "string") throw new PilotError("missing_player", "Reload the player tab to load N5 Course.");
+          await unchanged(token);
+          const all = await bindings();
+          all[command.tabId] = { ownerId: cache.state.ownerId, tokenHash, tabId: command.tabId, frameId: player.frameId, url: tab.url, sessionId: ack.sessionId, context: cache.state.context, lesson: cache.state.lesson };
+          await chrome.storage.session.set({ [bindingsKey]: all });
+        }
+        if (command.type === "avc-n5-watch" || command.type === "avc-n5-start-assessment") {
+          const b = await boundPlayer(command, sender, tokenHash);
+          if (b.ownerId !== cache.state.ownerId || b.context.contentVersion !== cache.state.context?.contentVersion || b.context.script !== cache.state.context?.script) throw new PilotError("stale_content", "Your course changed. Reload and confirm the lesson again.");
+          const ack = await bounded(chrome.tabs.sendMessage(b.tabId, { type: "avc-n5-pause", sessionId: b.sessionId }, { frameId: b.frameId }));
+          if (!ack?.ok) throw new PilotError("player_changed", "The current video could not be paused. Confirm it again.");
+          try {
+            await stopCapture(b.tabId);
+          } catch {
+            throw new PilotError("capture_stop", "Audio capture could not be stopped. Stop Listening Mode and retry.");
+          }
+          await unchanged(token);
+          cache.queue = queueObservation(cache.queue, { episodeId: b.context.episodeId, contentVersion: b.context.contentVersion, idempotencyKey: crypto.randomUUID(), observedAt: Date.now() });
+          await save(cache, token);
+          if (command.type === "avc-n5-start-assessment") await chrome.tabs.create({ url: hostedPracticeUrl(b.context) });
+        }
+        for (const b of Object.values(await bindings())) {
+          if (b.tokenHash === tokenHash && (b.context.script !== cache.state.context?.script || b.context.contentVersion !== cache.state.context?.contentVersion)) await forget(b.tabId);
+        }
+        if (!offline) {
+          try {
+            await flush(cache, token);
+          } catch (error) {
+            if (error instanceof PilotError && ["not_linked", "account_changed", "unavailable"].includes(error.code)) {
+              await chrome.storage.local.remove(pointerKey);
+              await forget();
+              throw error;
+            }
+            warning = error instanceof Error ? error.message : "Pending observations are kept.";
+            offline = true;
+          }
+        }
+        await unchanged(token);
+        return { ok: true, state: cache.state, pending: cache.queue.length, offline, warning, players: Object.values(await bindings()).filter((b) => b.tokenHash === tokenHash).map((b) => b.tabId) };
+      } catch (error) {
+        return { ok: false, code: error instanceof PilotError ? error.code : "offline", error: error instanceof PilotError ? error.message : "Course connection is unavailable. Saved observations are kept; retry when online." };
+      }
+    });
+  }
+  async function retryPendingN5() {
+    try {
+      const who = await identity();
+      const cache = await cached(who.tokenHash);
+      if (cache?.queue.length) await handleN5({ type: "avc-n5-state", refresh: true }, { id: chrome.runtime.id, url: chrome.runtime.getURL("course/course.html") }, async () => {
+      });
+    } catch {
+    }
+  }
+
+  // src/lib/capture-starts.ts
+  var CaptureStarts = class {
+    constructor() {
+      this.pending = /* @__PURE__ */ new Map();
+    }
+    begin(tabId) {
+      const token = /* @__PURE__ */ Symbol();
+      this.pending.set(tabId, token);
+      return token;
+    }
+    cancel(tabId) {
+      this.pending.delete(tabId);
+    }
+    current(tabId, token) {
+      return this.pending.get(tabId) === token;
+    }
+  };
+
   // src/entries/background.ts
+  var captureStarts = new CaptureStarts();
   function listenErrorText(code) {
     switch (code) {
       case "quota-exceeded":
@@ -1101,17 +1475,22 @@
   chrome.runtime.onStartup.addListener(() => {
     syncWithCloud().catch(() => {
     });
+    void retryPendingN5();
     void linkAccount("startup");
   });
   chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
   chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === SYNC_ALARM) syncWithCloud().catch(() => {
-    });
+    if (alarm.name === SYNC_ALARM) {
+      syncWithCloud().catch(() => {
+      });
+      void retryPendingN5();
+    }
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.vocab || changes.stats) scheduleSync();
     const token = changes.syncToken;
+    if (token && token.oldValue !== token.newValue) void invalidateN5();
     if (token && !token.oldValue && typeof token.newValue === "string" && token.newValue) {
       void trackFeature("extension_linked");
     }
@@ -1162,10 +1541,10 @@
       return false;
     }
   }
-  async function deliverTranscript(tabId, text, start, end) {
+  async function deliverTranscript(tabId, text2, start, end) {
     const payload = {
       type: "avc-transcript",
-      text,
+      text: text2,
       ...typeof start === "number" ? { start } : {},
       ...typeof end === "number" ? { end } : {}
     };
@@ -1226,6 +1605,9 @@
   }
   var NOT_LINKED_MSG = "Sign in at animevocab.com/app, keep that tab open briefly, then try again. Or add your OpenAI key in Settings for local-only Listening Mode.";
   async function startListening(tabId) {
+    const generation = captureStarts.begin(tabId);
+    const cancelled = () => !captureStarts.current(tabId, generation);
+    const cancelledAck = { ok: false, error: "Listening start was cancelled." };
     const r = await chrome.storage.local.get(["settings"]);
     const settings = r.settings || {};
     let auth;
@@ -1242,8 +1624,9 @@
     if (!injected) {
       return { ok: false, error: "Couldn't load the extension into this tab. Try reloading the page, then Start again." };
     }
-    const cacheKey = auth.kind === "cloud" ? await getCacheKeyFromTab(tabId) : null;
-    if (auth.kind === "cloud" && !cacheKey) {
+    const cacheKey2 = auth.kind === "cloud" ? await getCacheKeyFromTab(tabId) : null;
+    if (cancelled()) return cancelledAck;
+    if (auth.kind === "cloud" && !cacheKey2) {
       console.warn("[AVC] no cache key yet \u2014 listening will wait for fingerprint or page ID");
     }
     let streamId;
@@ -1254,6 +1637,7 @@
       return { ok: false, error: "Couldn't capture this tab's audio: " + detail + ". Try clicking the extension icon again directly on the video tab." };
     }
     await ensureOffscreen();
+    if (cancelled()) return cancelledAck;
     const language = settings.learningDirection === "ja-en" ? "en" : "ja";
     const ack = await sendToOffscreen({
       type: "avc-offscreen-start",
@@ -1262,12 +1646,14 @@
       auth,
       model: settings.transcribeModel || DEFAULTS.transcribeModel,
       language,
-      cacheKey: cacheKey || void 0
+      cacheKey: cacheKey2 || void 0
     }).catch((err) => ({ ok: false, error: String(err.message || err) }));
+    if (cancelled()) return cancelledAck;
     if (!ack || ack.ok === false) {
       return { ok: false, error: ack?.error || "Audio capture failed to start." };
     }
     const tabs = await getListening();
+    if (cancelled()) return cancelledAck;
     tabs[tabId] = true;
     await setListening(tabs);
     chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: true }).catch(() => {
@@ -1279,6 +1665,7 @@
     return { ok: true };
   }
   async function stopListening(tabId) {
+    captureStarts.cancel(tabId);
     chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId }).catch(() => {
     });
     chrome.tabs.sendMessage(tabId, { type: "avc-listening-state", active: false }).catch(() => {
@@ -1291,9 +1678,24 @@
     return { ok: true };
   }
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (typeof msg?.type === "string" && msg.type.startsWith("avc-n5-") && !["avc-n5-mount", "avc-n5-unmount", "avc-n5-pause"].includes(msg.type)) {
+      void handleN5(msg, sender, async (tabId) => {
+        captureStarts.cancel(tabId);
+        const listening = await getListening();
+        const exists = await chrome.offscreen.hasDocument();
+        if (!exists) {
+          if (listening[tabId]) throw new Error("Capture stop could not be confirmed.");
+          return;
+        }
+        const ack = await bounded(chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId }));
+        if (!ack?.ok) throw new Error("Capture stop could not be confirmed.");
+        await stopListening(tabId);
+      }).then(sendResponse);
+      return true;
+    }
     if (msg.type === "avc-badge") {
-      const text = (msg.count || 0) > 0 ? String(msg.count) : "";
-      chrome.action.setBadgeText({ text });
+      const text2 = (msg.count || 0) > 0 ? String(msg.count) : "";
+      chrome.action.setBadgeText({ text: text2 });
       chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
       return;
     }
@@ -1404,15 +1806,6 @@
       sendResponse({ ok: true });
       return true;
     }
-    if (msg.type === "avc-n5-start-assessment" || msg.type === "avc-n5-abandon-attempt") {
-      const handoff = msg;
-      if (!isN5HandoffMessage(handoff)) {
-        sendResponse({ ok: false, error: "invalid_n5_handoff" });
-        return true;
-      }
-      sendResponse({ ok: true, type: handoff.type });
-      return true;
-    }
     if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status" || msg.type === "avc-caption-status") {
       const tabId = msg.tabId;
       const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;
@@ -1514,5 +1907,11 @@
       await setListening(tabs);
     }
     await setCopilotTab(tabId, false);
+  });
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    void invalidateN5(tabId);
+  });
+  chrome.tabs.onUpdated.addListener((tabId, change) => {
+    if (change.url) void invalidateN5(tabId);
   });
 })();
