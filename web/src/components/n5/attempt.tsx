@@ -375,13 +375,20 @@ function AttemptForm({ initial, lesson, ownerId }: { initial: N5Attempt; lesson:
   }, [finished, router]);
   // Jump to a question the server rejected (adjusting state during render, not in an effect).
   const [seenError, setSeenError] = useState(error);
+  const [focusTarget, setFocusTarget] = useState<string | null>(null);
   if (error !== seenError) {
     setSeenError(error);
     if (error instanceof CourseFailure && error.questionId) {
       const target = lesson.questions.findIndex((q) => q.id === error.questionId);
-      if (target >= 0) setIndex(target);
+      if (target >= 0) {
+        setIndex(target);
+        setFocusTarget(error.questionId);
+      }
     }
   }
+  useEffect(() => {
+    if (focusTarget) document.getElementById(`question-${focusTarget}`)?.focus();
+  }, [focusTarget]);
   function edit(id: string, value: string) {
     practice.edit(answerList({ ...values, [id]: value }, lesson.questions));
   }
