@@ -6,21 +6,24 @@ import type {
   N5Attempt,
   N5Lesson,
   N5Progress,
+  N5Script,
 } from "../../../../shared/n5/contracts";
 import { safeLink } from "@/lib/n5/core";
-import { courseRequest, Failure, Loading, newKey, useCourse } from "./common";
+import { CourseFailure, courseRequest, Failure, Loading, newKey, useCourse } from "./common";
 export function CourseLesson({
   lessonId,
   ownerId,
+  script,
 }: {
   lessonId: string;
   ownerId: string;
+  script?: N5Script;
 }) {
   const load = useCallback(
     async (signal: AbortSignal) => {
       const [lesson, progress] = await Promise.all([
         courseRequest<N5Lesson>(
-          `/lessons/${lessonId}`,
+          `/lessons/${lessonId}${script ? `?script=${script}` : ""}`,
           undefined,
           undefined,
           signal,
@@ -54,7 +57,7 @@ export function CourseLesson({
         ),
       };
     },
-    [lessonId],
+    [lessonId, script],
   );
   const state = useCourse(load);
   if (state.error)
@@ -87,7 +90,7 @@ function LessonContent({
   const [error, setError] = useState<unknown>(null);
   const memoryKeys = useRef<Record<string, string>>({});
   function operationKey(kind: string) {
-    const storageKey = `avc:n5:op:${ownerId}:${lesson.id}:${lesson.contentVersion}:${kind}`;
+    const storageKey = `avc:n5:op:${ownerId}:${lesson.id}:${lesson.contentVersion}:${lesson.script}:${kind}`;
     try {
       const stored = sessionStorage.getItem(storageKey);
       if (stored && /^[a-zA-Z0-9_-]{1,100}$/.test(stored))
@@ -130,6 +133,7 @@ function LessonContent({
           {
             lessonId: lesson.id,
             contentVersion: lesson.contentVersion,
+            script: lesson.script,
             idempotencyKey: op.key,
           },
           undefined,
@@ -256,6 +260,11 @@ function LessonContent({
           </div>
         )}
         {Boolean(error) && <Failure error={error} />}
+        {error instanceof CourseFailure && error.code === "enrolment_changed" && (
+          <button className="n5-secondary" onClick={() => location.assign(`/app/n5/lessons/${lesson.id}`)}>
+            Reload lesson
+          </button>
+        )}
         {watched && (
           <button
             className="n5-primary"

@@ -50,6 +50,23 @@ describe("real Worker and D1 end-to-end", () => {
     expect((await app.request("/catalog", { token })).status).toBe(401);
   });
 
+  it("pins start requests to the displayed script and keeps old receipts separate", async () => {
+    await app.request("/enrolments", { body: enrol });
+    const first = await app.request("/attempts", { body: { ...create, script: "romaji" } });
+    expect(first.status).toBe(200);
+    const romaji = await first.json();
+    await app.request("/enrolments", { body: { ...enrol, script: "kana", idempotencyKey: "change-script" } });
+    const stale = await app.request("/attempts", { body: { ...create, script: "romaji", idempotencyKey: "stale-tab" } });
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({ error: { code: "enrolment_changed" } });
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_attempts").first())?.n).toBe(1);
+    // Replaying the exact lost response still recovers the original attempt.
+    expect(await (await app.request("/attempts", { body: { ...create, script: "romaji" } })).json()).toEqual(romaji);
+    const kana = await app.request("/attempts", { body: { ...create, script: "kana", idempotencyKey: "kana-start" } });
+    expect(kana.status).toBe(200);
+    expect(await kana.json()).toMatchObject({ script: "kana" });
+  });
+
   it.each(["romaji", "kana"])("completes and resumes the %s preview without awarding untested skills", async (script) => {
     const catalog = await app.request("/catalog");
     expect(catalog.status).toBe(200);

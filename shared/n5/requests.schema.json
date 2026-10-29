@@ -43,6 +43,13 @@
           "type": "string",
           "const": "preview-1"
         },
+        "script": {
+          "type": "string",
+          "enum": [
+            "romaji",
+            "kana"
+          ]
+        },
         "idempotencyKey": {
           "type": "string",
           "minLength": 1,

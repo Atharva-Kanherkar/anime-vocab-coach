@@ -6,7 +6,7 @@ const key = z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/);
 const revision = z.number().int().min(0).max(1_000_000);
 export const scriptSchema = z.enum(["romaji", "kana"]);
 export const enrolmentSchema = z.strictObject({ trackId: z.literal(TRACK_ID), script: scriptSchema, idempotencyKey: key });
-export const attemptSchema = z.strictObject({ lessonId: z.literal(LESSON_ID), contentVersion: z.literal(CONTENT_VERSION), idempotencyKey: key });
+export const attemptSchema = z.strictObject({ lessonId: z.literal(LESSON_ID), contentVersion: z.literal(CONTENT_VERSION), script: scriptSchema.optional(), idempotencyKey: key });
 export const eventSchema = z.strictObject({ episodeId: z.literal(EPISODE_ID), kind: z.enum(["watch_complete", "practice_complete"]), idempotencyKey: key });
 export const answerSchema = z.strictObject({
   questionId: key,
