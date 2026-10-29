@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type {
   N5Catalog,
   N5Course,
+  N5Enrolment,
   N5Progress,
   N5Script,
 } from "../../../../shared/n5/contracts";
@@ -67,17 +68,15 @@ function HubContent({
     const requestKey = key ?? newKey();
     setKey(requestKey);
     try {
-      if (
-        progress.enrolment?.script !== script ||
-        progress.enrolment?.trackId !== pilot.id
-      )
-        await courseRequest(
-          "/enrolments",
-          { trackId: pilot.id, script, idempotencyKey: requestKey },
-          undefined,
-          abort.current.signal,
-        );
-      router.push(`/app/n5/lessons/${course.availableLessons[0]}`);
+      // Reconcile on this explicit action: initial progress can be stale after
+      // a dropped response or an enrolment change in another tab.
+      await courseRequest<N5Enrolment>(
+        "/enrolments",
+        { trackId: pilot.id, script, idempotencyKey: requestKey },
+        undefined,
+        abort.current.signal,
+      );
+      router.push(`/app/n5/lessons/${course.availableLessons[0]}?script=${script}`);
     } catch (e) {
       setError(e);
     } finally {

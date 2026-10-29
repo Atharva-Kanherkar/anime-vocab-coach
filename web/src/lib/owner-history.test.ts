@@ -133,15 +133,15 @@ describe("loadOwnerHistory with exclusions (#163)", () => {
       user("user_nocard"),
     ];
     // The owner: linked, a big backup, most of the listening.
-    kv.store.set("synctoken:user:user_owner", "tok");
+    kv.store.set("synctoken:user:user_owner:v1", "tok");
     kv.store.set("sync:user:user_owner:snapshot:v1", backup(400));
     kv.store.set("use:user_owner:2026-09", "123");
     // Learners.
-    kv.store.set("synctoken:user:user_paid", "tok");
+    kv.store.set("synctoken:user:user_paid:v1", "tok");
     kv.store.set("sync:user:user_paid:snapshot:v1", backup(20));
     kv.store.set("use:user_paid:2026-09", "30");
     kv.store.set("sync:user:user_gift:snapshot:v1", backup(5));
-    kv.store.set("synctoken:user:user_nocard", "tok");
+    kv.store.set("synctoken:user:user_nocard:v1", "tok");
     kv.store.set("sync:user:user_nocard:snapshot:v1", backup(0));
     kv.store.set("sync:user:user_expired:snapshot:v1", backup(2));
     // Not a backup key, must be ignored.

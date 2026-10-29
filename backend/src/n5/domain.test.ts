@@ -17,6 +17,8 @@ describe("strict request contracts", () => {
   it("pins content and bounds revisions, answers, events and finish bodies", () => {
     const create = { lessonId: LESSON_ID, contentVersion: CONTENT_VERSION, idempotencyKey: "one" };
     expect(attemptSchema.parse(create)).toEqual(create);
+    for (const script of ["romaji", "kana"]) expect(attemptSchema.parse({ ...create, script })).toEqual({ ...create, script });
+    for (const script of [null, "", "kanji", "romaji-kana"]) expect(attemptSchema.safeParse({ ...create, script }).success).toBe(false);
     expect(attemptSchema.safeParse({ ...create, contentVersion: "old" }).success).toBe(false);
     expect(attemptSchema.safeParse({ ...create, lessonId: "other" }).success).toBe(false);
     const snapshot = { revision: 0, idempotencyKey: "one", answers: [{ questionId: "greeting", value: "a" }] };

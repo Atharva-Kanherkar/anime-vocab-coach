@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createServer } from "node:net";
+import { createServer as httpServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { appendFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -16,6 +18,28 @@ const artifacts = process.env.N5_ARTIFACTS || "/tmp/animevocab-n5-web";
 await mkdir(artifacts, { recursive: true });
 const app = await runtime({ allowed: "dev-user" });
 process.chdir(web);
+// Mirror production: both Workers bind the same KV. This loopback bridge only
+// transports binding calls; real records, expiry, minting and auth are exercised.
+const kvAuth = randomUUID();
+const kvBridge = httpServer(async (req, res) => {
+  try {
+    if (req.method !== "POST" || req.headers.authorization !== `Bearer ${kvAuth}`) {
+      res.writeHead(403).end(); return;
+    }
+    let raw = "";
+    for await (const chunk of req) {
+      raw += chunk;
+      if (raw.length > 1_048_576) throw new Error("Test body too large");
+    }
+    const { op, key, value, options } = JSON.parse(raw);
+    const result = op === "get" ? { value: await app.kv.get(key) }
+      : op === "put" ? (await app.kv.put(key, value, options), {}) : null;
+    if (result === null) throw new Error("Unknown test operation");
+    res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(result));
+  } catch { res.writeHead(500).end(); }
+});
+await new Promise((resolve) => kvBridge.listen(0, "127.0.0.1", resolve));
+const kvUrl = `http://127.0.0.1:${kvBridge.address().port}`;
 const port = await new Promise((resolve) => {
   const s = createServer().listen(0, "127.0.0.1", () => {
     const p = s.address().port;
@@ -26,7 +50,7 @@ const base = `http://127.0.0.1:${port}`;
 let child;
 let logs = "";
 const browser = await chromium.launch();
-const probe = await apiRequest.newContext();
+const probe = await apiRequest.newContext({ timeout: 120000 });
 const exec = promisify(execFile);
 async function curlProbe(path, expected, extra = []) {
   const { stdout } = await exec("curl", [
@@ -47,8 +71,11 @@ async function start(enabled, upstreamOrigin, members = "dev-user") {
   child = spawn(
     process.execPath,
     [
+      "--import",
+      fileURLToPath(new URL("./n5-kv-binding.mjs", import.meta.url)),
       "node_modules/next/dist/bin/next",
       "dev",
+      ...(process.env.N5_E2E_WEBPACK === "1" ? ["--webpack"] : []),
       "--hostname",
       "127.0.0.1",
       "--port",
@@ -59,6 +86,8 @@ async function start(enabled, upstreamOrigin, members = "dev-user") {
       env: {
         ...process.env,
         NODE_ENV: "development",
+        N5_TEST_KV_URL: kvUrl,
+        N5_TEST_KV_AUTH: kvAuth,
         NEXT_PUBLIC_AVC_DEV_NO_CLERK: "1",
         N5_WEB_PREVIEW_ENABLED: enabled ? "1" : "0",
         N5_PREVIEW_USERS: members,
@@ -139,21 +168,9 @@ try {
   await stop();
   await start(true);
   check("Next gateway and real Worker started");
-  const minted = await (await probe.post(base + "/api/sync/token")).json();
-  assert.ok(
-    typeof minted.token === "string" && minted.token.startsWith("avc_st_"),
-  );
-  const token = minted.token;
-  await app.kv.put(
-    `synctoken:${token}:v1`,
-    JSON.stringify({
-      id: "dev-user",
-      name: "Dev Learner",
-      email: null,
-      plan: "free",
-      touchedAt: Date.now(),
-    }),
-  );
+  // Direct secondary-writer fixture; the web course never requests this token.
+  const token = "avc_st_n5browser";
+  await app.kv.put(`synctoken:${token}:v1`, JSON.stringify({ id: "dev-user", email: null, name: null, plan: "free", touchedAt: Date.now() }));
   const diagnostic = await probe.post(base + "/api/n5/enrolments", {
     headers: { Origin: base },
     data: {
@@ -181,23 +198,79 @@ try {
   ]);
   await curlProbe("/api/n5/catalog?upstream=https://evil.test", 404);
   check("curl authentication, CSRF and open-proxy boundaries");
-  await app.kv.delete(`synctoken:${token}:v1`);
+  const courseToken = await app.kv.get("n5token:user:dev-user:v1");
+  assert.match(courseToken, /^avc_n5_[a-f0-9]{64}$/);
+  assert.deepEqual((await app.kv.list({ prefix: "synctoken:user:" })).keys, []);
   assert.equal((await probe.get(base + "/app/n5")).status(), 200);
-  assert.equal((await probe.get(base + "/api/n5/catalog")).status(), 401);
   const dashboard = await probe.get(base + "/app");
   assert.equal(dashboard.status(), 200);
   assert.ok((await dashboard.text()).includes("N5 course preview"));
-  await app.kv.put(
-    `synctoken:${token}:v1`,
-    JSON.stringify({
-      id: "dev-user",
-      name: "Dev Learner",
-      email: null,
-      plan: "free",
-      touchedAt: Date.now(),
-    }),
-  );
-  check("backend still denies data independently of local web membership");
+  const denied = await runtime({ allowed: "other-user" });
+  try {
+    await denied.kv.put(`n5token:${courseToken}:v1`, await app.kv.get(`n5token:${courseToken}:v1`));
+    assert.equal((await denied.request("/catalog", { token: courseToken })).status, 404);
+  } finally { await denied.mf.dispose(); }
+  check("course-only credentials never link the extension; backend membership remains independent");
+  // Script recovery exercises real commits with deliberately lost HTTP responses.
+  const scriptContext = await browser.newContext();
+  const scriptPage = await scriptContext.newPage();
+  scriptPage.setDefaultNavigationTimeout(120000);
+  const lessonPath = "/app/n5/lessons/your-lie-in-april-s1-e1";
+  await scriptPage.goto(base + "/app/n5");
+  await scriptPage.getByRole("button", { name: "Open episode 1" }).waitFor();
+  // Another authenticated tab changes the enrolment behind the open hub.
+  await app.request("/enrolments", { token, body: { trackId: "your-lie-in-april-2014", script: "kana", idempotencyKey: "other-tab-enrolment" } });
+  await scriptPage.getByRole("button", { name: "Open episode 1" }).click();
+  await scriptPage.getByRole("heading", { name: "Meet someone new." }).waitFor();
+  assert.equal(new URL(scriptPage.url()).searchParams.get("script"), "romaji");
+  assert.equal((await (await app.request("/me/progress", { token })).json()).enrolment.script, "romaji");
+  await scriptPage.goto(base + "/app/n5");
+  await scriptPage.getByRole("radio", { name: /Kana/ }).check();
+  await scriptPage.route("**/api/n5/enrolments", async (route) => {
+    assert.equal((await route.fetch()).status(), 200);
+    await route.abort("failed");
+  });
+  await scriptPage.getByRole("button", { name: "Open episode 1" }).click();
+  await scriptPage.locator(".n5-error").waitFor();
+  await scriptPage.unroute("**/api/n5/enrolments");
+  await scriptPage.getByRole("radio", { name: /Romaji/ }).check();
+  await scriptPage.getByRole("button", { name: "Open episode 1" }).click();
+  await scriptPage.getByRole("heading", { name: "Meet someone new." }).waitFor();
+  assert.match(await scriptPage.locator(".n5-hero .n5-eyebrow").innerText(), /romaji/i);
+  assert.equal((await (await app.request("/me/progress", { token })).json()).enrolment.script, "romaji");
+  await scriptPage.getByRole("button", { name: "I watched episode 1" }).click();
+  await scriptPage.getByText("Episode recap", { exact: true }).waitFor();
+  let lostStart;
+  await scriptPage.route("**/api/n5/attempts", async (route) => {
+    const response = await route.fetch();
+    assert.equal(response.status(), 200);
+    lostStart = await response.json();
+    await route.abort("failed");
+  });
+  await scriptPage.getByRole("button", { name: "Begin episode practice" }).click();
+  await scriptPage.locator(".n5-error").waitFor();
+  await scriptPage.unroute("**/api/n5/attempts");
+  assert.equal(lostStart.script, "romaji");
+  await scriptPage.goto(base + "/app/n5");
+  await scriptPage.getByRole("radio", { name: /Kana/ }).check();
+  await scriptPage.getByRole("button", { name: "Open episode 1" }).click();
+  await scriptPage.getByRole("heading", { name: "Meet someone new." }).waitFor();
+  await scriptPage.getByRole("button", { name: "Start another practice" }).click();
+  await scriptPage.getByRole("heading", { name: "Make the words yours." }).waitFor();
+  const kanaId = new URL(scriptPage.url()).pathname.split("/").pop();
+  assert.notEqual(kanaId, lostStart.id);
+  assert.equal((await (await app.request(`/attempts/${kanaId}`, { token })).json()).script, "kana");
+  await scriptPage.goto(base + lessonPath + "?script=kana");
+  await scriptPage.getByRole("button", { name: "Start another practice" }).waitFor();
+  await app.request("/enrolments", { token, body: { trackId: "your-lie-in-april-2014", script: "romaji", idempotencyKey: "other-tab-before-start" } });
+  await scriptPage.getByRole("button", { name: "Start another practice" }).click();
+  await scriptPage.getByRole("alert").filter({ hasText: "script changed" }).waitFor();
+  assert.equal((await app.db.prepare("SELECT COUNT(*) AS n FROM n5_attempts").first()).n, 2);
+  await scriptPage.getByRole("button", { name: "Reload lesson" }).click();
+  await scriptPage.getByRole("heading", { name: "Meet someone new." }).waitFor();
+  assert.match(await scriptPage.locator(".n5-hero .n5-eyebrow").innerText(), /romaji/i);
+  await scriptContext.close();
+  check("cross-tab selection and lost enrolment/start responses preserve the displayed script");
   const responses = [];
   for (const script of ["romaji", "kana"]) {
     await app.db.prepare("DELETE FROM n5_accounts").run();
@@ -297,6 +370,7 @@ try {
     ).n;
     await page.goto(base + "/app/n5");
     await page.getByRole("button", { name: "Open episode 1" }).click();
+    await page.getByRole("heading", { name: "Meet someone new." }).waitFor();
     await page
       .getByRole("link", { name: `Resume unfinished ${script} practice` })
       .click();
@@ -308,7 +382,7 @@ try {
     assert.equal(
       (await app.db.prepare("SELECT COUNT(*) AS n FROM n5_enrolments").first())
         .n,
-      enrolments,
+      enrolments + 1,
     );
     await page.goto(base + `/app/n5/results/${id}`);
     await page.waitForURL(`**/attempts/${id}`);
@@ -648,7 +722,7 @@ try {
       ),
     );
     await page.unroute("**/api/n5/**");
-    await page.reload();
+    await page.getByRole("link", { name: "Reload after signing in" }).click();
     await page
       .getByRole("heading", { name: "Make the words yours." })
       .waitFor();
@@ -665,6 +739,8 @@ try {
   }
   assert.ok(!responses.join("").includes("correctOption"));
   assert.ok(!responses.join("").includes("avc_st_"));
+  assert.ok(!responses.join("").includes("avc_n5_"));
+  assert.deepEqual((await app.kv.list({ prefix: "synctoken:user:" })).keys, []);
   await stop();
   await start(false);
   assert.equal((await probe.get(base + "/api/n5/catalog")).status(), 404);
@@ -686,6 +762,7 @@ try {
   await stop();
   await probe.dispose();
   await browser.close();
+  await new Promise((resolve) => kvBridge.close(resolve));
   await app.mf.dispose();
   await writeFile(`${artifacts}/next.log`, logs);
 }

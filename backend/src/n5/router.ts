@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { N5Catalog, N5Course } from "../../../shared/n5/contracts";
-import { requireAuth } from "../sync-auth";
+import { requireN5Auth } from "./auth";
 import { CONTENT_VERSION, COURSE_ID, LESSON_ID, TRACKS, UNITS } from "./content";
 import { answersSchema, attemptSchema, completeAnswers, enrolmentSchema, eventSchema, finishSchema, publicLesson, scriptSchema, invalidAnswerQuestionId } from "./domain";
 import { CourseError, CourseStore } from "./store";
@@ -61,7 +61,7 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
     const origin = req.headers.get("Origin");
     if (origin && !allowedOrigin(origin)) throw new CourseError("origin_not_allowed", 403, "Origin not allowed.");
     if (req.method === "OPTIONS") return response(req, { apiVersion: 1 });
-    const auth = await requireAuth(env.AVC_KV, req, (r, _data, status) => response(r, { error: { code: "unauthorized", message: "Sign in to continue." } }, status));
+    const auth = await requireN5Auth(env.AVC_KV, req, (r, _data, status) => response(r, { error: { code: "unauthorized", message: "Sign in to continue." } }, status));
     if (!auth.ok) return auth.response;
     const allowed = (env.N5_PREVIEW_USERS ?? "").split(",").map((id) => id.trim()).filter(Boolean);
     if (!allowed.includes(auth.userId)) notFound();

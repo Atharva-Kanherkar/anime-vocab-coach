@@ -83,15 +83,22 @@ export class CourseStore {
     if (existing) { checkFingerprint(existing.fingerprint, hash); return publicAttempt(existing); }
     const enrolment = await this.enrolment();
     if (!enrolment) throw new CourseError("enrolment_required", 409, "Select a course track first.");
+    if (body.script !== undefined && body.script !== enrolment.script)
+      throw new CourseError("enrolment_changed", 409, "Your course script changed. Reload the lesson before starting.");
     const packHash = await fingerprint(QUESTIONS);
     // Stale packs remain readable/deletable but cannot block current practice.
     // The bound is atomic even for simultaneous create requests.
     await this.statement(`INSERT INTO n5_attempts(id,user_id,request_key,fingerprint,lesson_id,content_version,pack_hash,script,created_at)
       SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM n5_attempts WHERE user_id=? AND status='active' AND lesson_id=? AND content_version=? AND pack_hash=?) < 5
+      AND (SELECT script FROM n5_enrolments WHERE user_id=? ORDER BY id DESC LIMIT 1)=?
       ON CONFLICT(user_id,request_key) DO NOTHING`, crypto.randomUUID(), this.userId, body.idempotencyKey, hash,
-      body.lessonId, body.contentVersion, packHash, enrolment.script, Date.now(), this.userId, body.lessonId, body.contentVersion, packHash).run();
+      body.lessonId, body.contentVersion, packHash, enrolment.script, Date.now(), this.userId, body.lessonId, body.contentVersion, packHash, this.userId, enrolment.script).run();
     const row = await this.statement("SELECT * FROM n5_attempts WHERE user_id=? AND request_key=?", this.userId, body.idempotencyKey).first<AttemptRow>();
-    if (!row) throw new CourseError("attempt_limit", 429, "Finish or delete an active attempt before starting another.");
+    if (!row) {
+      if ((await this.enrolment())?.script !== enrolment.script)
+        throw new CourseError("enrolment_changed", 409, "Your course script changed. Reload the lesson before starting.");
+      throw new CourseError("attempt_limit", 429, "Finish or delete an active attempt before starting another.");
+    }
     checkFingerprint(row.fingerprint, hash);
     return publicAttempt(row);
   }
