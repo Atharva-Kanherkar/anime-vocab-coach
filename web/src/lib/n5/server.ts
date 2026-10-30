@@ -4,10 +4,18 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { courseCredential } from "./credential";
 import { audioRoute, bodyLimit, gatewayRoute } from "./core";
 
+/** A Cloudflare service binding to the API Worker (env.N5_API). */
+interface ApiBinding {
+  fetch(request: Request): Promise<Response>;
+}
+function apiBinding(value: unknown): ApiBinding | null {
+  return value && typeof (value as ApiBinding).fetch === "function" ? (value as ApiBinding) : null;
+}
 export async function n5Config(): Promise<{
   enabled: boolean;
   origin: string;
   previewUsers: string[];
+  api: ApiBinding | null;
 }> {
   let env: Record<string, unknown> = {};
   try {
@@ -31,6 +39,7 @@ export async function n5Config(): Promise<{
       enabled: false,
       origin: "https://avc-api.animevocab.workers.dev",
       previewUsers,
+      api: null,
     };
   const configured = env.N5_API_ORIGIN ?? process.env.N5_API_ORIGIN;
   const origin =
@@ -58,28 +67,36 @@ export async function n5Config(): Promise<{
     u.hash
   )
     throw new Error("Invalid N5 upstream configuration");
-  return { enabled, origin: u.origin, previewUsers };
+  return { enabled, origin: u.origin, previewUsers, api: apiBinding(env.N5_API) };
 }
 /** The session id is verified locally; no Clerk Backend API read for N5 views. */
 export async function n5OwnerId(): Promise<string | null> {
   return DEV_NO_CLERK ? DEV_PROFILE.id : (await auth()).userId;
 }
+/**
+ * In production the API is reached over the N5_API service binding, a direct
+ * Worker-to-Worker call. Without one (local dev), the configured origin is used.
+ * Workers reject redirect: "error", so redirects are not followed; a 3xx is not
+ * an accepted status and fails closed below.
+ */
 function upstreamRequest(
-  origin: string,
+  config: { origin: string; api: ApiBinding | null },
   route: string,
   token: string,
   init: RequestInit = {},
 ) {
-  return fetch(origin + "/v1/n5" + route, {
+  const url = config.origin + "/v1/n5" + route;
+  const options: RequestInit = {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
       ...(init.method === "POST" ? { "Content-Type": "application/json" } : {}),
     },
     cache: "no-store",
-    redirect: "error",
+    redirect: "manual",
     signal: AbortSignal.timeout(15_000),
-  });
+  };
+  return config.api ? config.api.fetch(new Request(url, options)) : fetch(url, options);
 }
 /** Fail closed for the pilot, without making the main dashboard depend on it. */
 export async function n5AvailableFor(
@@ -216,7 +233,7 @@ export async function gateway(
     if (req.method === "DELETE" && payload !== undefined)
       return fail("invalid_request", 400);
     const token = await courseCredential(ownerId);
-    const upstream = await upstreamRequest(config.origin, route, token, {
+    const upstream = await upstreamRequest(config, route, token, {
       method: req.method,
       body: payload,
     });
