@@ -345,12 +345,15 @@ try {
     await page.getByRole("button", { name: "Next", exact: true }).click();
     check(`${script} learn audio and instant drill feedback`);
     await page.getByRole("navigation", { name: "Lesson steps" }).getByRole("button", { name: /Watch/ }).click();
-    assert.match(
-      await page
-        .getByRole("link", { name: /Open on Crunchyroll/ })
-        .getAttribute("href"),
-      /^https:\/\/www.crunchyroll.com\/series\//,
+    assert.equal(
+      await page.locator(".n5-watch-link", { hasText: "Netflix" }).getAttribute("href"),
+      "https://www.netflix.com/title/80041089",
     );
+    assert.equal(
+      await page.locator(".n5-watch-link", { hasText: "U-NEXT" }).getAttribute("href"),
+      "https://video.unext.jp/episode/SID0012508/ED00071632",
+    );
+    assert.equal(await page.locator(".n5-watch-link").count(), 11);
     await page.getByRole("button", { name: "I watched episode 1" }).click();
     await page.getByText("Episode recap", { exact: true }).waitFor();
     await page.getByRole("button", { name: /Practise this unit/ }).click();

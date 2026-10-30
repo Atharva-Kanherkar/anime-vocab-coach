@@ -272,6 +272,17 @@
 .n5-drill-done .n5-actions { justify-content: center; }
 
 /* Watch */
+.n5-where { display: grid; gap: var(--s3); }
+.n5-where h3 { font-size: 15px; }
+.n5-watch-list { list-style: none; padding: 0; display: grid; gap: var(--s2); }
+.n5-watch-link { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); padding: var(--s3) var(--s4); border: 1px solid var(--av-line); border-radius: 10px; background: var(--av-panel); text-decoration: none !important; }
+.n5-watch-link:hover { border-color: var(--n5-faint); }
+.n5-watch-name { display: grid; gap: 2px; min-width: 0; }
+.n5-watch-name strong { font-size: 15px; font-weight: 650; }
+.n5-watch-name small { font-size: 12px; }
+.n5-watch-go { display: inline-flex; align-items: center; gap: var(--s2); flex: none; font-size: 13px; font-weight: 650; }
+.n5-watch-more summary { cursor: pointer; font-size: 14px; font-weight: 650; color: var(--n5-muted); }
+.n5-watch-more .n5-watch-list { margin-top: var(--s3); }
 .n5-recap { border-left: 2px solid var(--av-line); padding-left: var(--s4); }
 .n5-recap > * + * { margin-top: var(--s2); }
 

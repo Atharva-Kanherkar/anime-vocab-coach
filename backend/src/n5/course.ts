@@ -1,6 +1,7 @@
 import type { N5Course, N5Lesson, N5Script, N5Skill, N5Text } from "../../../shared/n5/contracts";
 import { UNITS, type UnitSource } from "./curriculum";
 import { clipId, render, renderInline, speechText } from "./text";
+import { watchLinks } from "./watch";
 
 export const COURSE_ID = "n5-foundations";
 export const CONTENT_VERSION = "course-1";
@@ -14,7 +15,6 @@ export const TRACKS = [
   { id: "haikyu-2014", title: "Haikyu!!", adaptation: "2014 TV", season: "1", status: "planned" },
   { id: "fruits-basket-2019", title: "Fruits Basket", adaptation: "2019 TV", season: "1", status: "planned" },
 ] as const;
-const SERIES_URL = "https://www.crunchyroll.com/series/G63V7KN9Y/your-lie-in-april";
 
 /** Rendered Japanese with its audio clip. */
 interface Spoken { text: N5Text; audio: string }
@@ -138,7 +138,7 @@ export function publicLesson(lesson: PrivateLesson, script: N5Script): N5Lesson 
     grammar: lesson.grammar.map((g) => ({ id: g.id, title: g.title[script], explanation: g.explanation[script], example: g.examples[0].text[script],
       examples: g.examples.map((e) => ({ text: e.text[script], english: e.english, audio: e.audio })) })),
     dialogue: lesson.dialogue.map((d) => ({ speaker: d.speaker, text: d.text[script], english: d.english, audio: d.audio })),
-    watchLinks: lesson.episode ? [{ provider: "Crunchyroll", url: SERIES_URL, region: "unknown", availability: "unknown", checkedAt: null }] : [],
+    watchLinks: watchLinks(lesson.episode?.number ?? null),
     questions: lesson.questions.map((q) => q.kind === "choice"
       ? { id: q.id, kind: "choice", skill: q.skill, objectiveId: q.objectiveId, prompt: q.prompt[script],
         ...(q.text ? { text: q.text[script] } : {}), ...(q.audio ? { audio: q.audio } : {}),

@@ -35,6 +35,17 @@ export interface N5Question {
   choices?: N5Choice[];
 }
 export interface N5Spoken { text: string; english: string; audio: string }
+/** An official, legal place to watch. Regions are ISO country codes from a dated check. */
+export interface N5WatchLink {
+  provider: string;
+  url: string;
+  /** episode: opens this lesson's episode directly; series: opens the series page. */
+  scope: "episode" | "series";
+  regions: string[];
+  access: "subscription" | "free_with_ads" | "purchase";
+  note: string | null;
+  checkedAt: string;
+}
 export interface N5Lesson {
   apiVersion: 1;
   id: string;
@@ -55,7 +66,7 @@ export interface N5Lesson {
   vocabulary: { id: string; reading: string; meaning: string; audio: string }[];
   grammar: { id: string; title: string; explanation: string; example: string; examples: N5Spoken[] }[];
   dialogue: (N5Spoken & { speaker: "A" | "B" })[];
-  watchLinks: { provider: string; url: string; region: "unknown"; availability: "unknown"; checkedAt: null }[];
+  watchLinks: N5WatchLink[];
   questions: N5Question[];
   speaking: { goal: string; opener: N5Spoken; prompts: string[] };
   previousLessonId: string | null;

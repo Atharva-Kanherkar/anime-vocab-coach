@@ -315,7 +315,7 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
           <section className="n5-about">
             <h2>Good to know</h2>
             <ul>
-              <li>Watch on your own Crunchyroll subscription; availability depends on your region.</li>
+              <li>Each unit links to official services such as Netflix, U-NEXT, FOD, Hulu, Prime Video and Crunchyroll, with your region first. Availability depends on your country.</li>
               <li>All example sentences and questions are original practice material, not lines from the show.</li>
               <li>{course.limitation}</li>
             </ul>
