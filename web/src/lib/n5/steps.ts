@@ -9,6 +9,29 @@ export const STEP_INFO: Record<StepId, { label: string; minutes: number; blurb: 
   practice: { label: "Practice", minutes: 10, blurb: "Graded quiz plus short typed answers" },
   speak: { label: "Speak", minutes: 5, blurb: "A short conversation with Haru, your AI partner" },
 };
+/** What to do on each step, and why it sits where it does. Shown on the step and in the course guide. */
+export const STEP_GUIDE: Record<StepId, { todo: string; why: string }> = {
+  learn: {
+    todo: "Flip each word card and play its audio, then read the grammar notes and the model conversation. Press “I've studied these” when you're done.",
+    why: "Fast native speech sounds like noise if you don't know the words yet. Learning them first means you'll catch them in the episode.",
+  },
+  drill: {
+    todo: "Answer quick rounds of word questions. Run it again until you get them all right.",
+    why: "Recalling a word, not just reading it, is what makes it stick, so you recognise it at real speaking speed.",
+  },
+  watch: {
+    todo: "Open the episode on an official service, watch it with Japanese audio, then mark it watched and read the recap.",
+    why: "Hearing the words in a scene you care about is what makes them memorable.",
+  },
+  practice: {
+    todo: "Take the graded quiz and write a few short answers. Score 80% to pass; every answer is explained and you can retake it.",
+    why: "Testing a little later checks what actually stuck, not what you just read.",
+  },
+  speak: {
+    todo: "Have a short conversation with Haru, your AI partner. Hold the mic to talk, or type. Speak at least three replies aloud for it to count.",
+    why: "Speaking is the hardest skill, so it comes last, once you've heard and used the words.",
+  },
+};
 export type UnitKind = N5Course["units"][number]["kind"];
 export function stepsFor(kind: UnitKind): StepId[] {
   return kind === "episode" ? ["learn", "drill", "watch", "practice", "speak"] : ["learn", "drill", "practice", "speak"];

@@ -7,6 +7,7 @@ import type { N5Enrolment, N5LessonProgress, N5Script } from "../../../../shared
 import { SECTIONS, STEP_INFO, completedSteps, readLocalSteps, sectionIndex, stepsFor, type StepId } from "@/lib/n5/steps";
 import { courseRequest, Failure, Loading, newKey, useCourse } from "./common";
 import { loadOverview, type Overview } from "./player";
+import { CourseGuide, guideSeen } from "./guide";
 
 export function CourseHub({ ownerId = "" }: { ownerId?: string }) {
   const state = useCourse(loadOverview);
@@ -55,6 +56,8 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [key, setKey] = useState<string | null>(null);
+  // First visit opens the guide once; it's always one click away afterwards.
+  const [guideOpen, setGuideOpen] = useState(() => !guideSeen());
   const pilot = catalog.tracks.find((t) => t.status === "unreviewed_preview");
   const lessons = progress.lessons ?? [];
   const byLesson = new Map(lessons.map((l) => [l.lessonId, l]));
@@ -97,6 +100,11 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
       return nextOpen;
     });
   const allOpen = expandedSections.size === SECTIONS.length;
+  const startLabel = progress.enrolment ? `Continue: Unit ${next?.number}` : "Start Unit 1";
+  const chooseScript = (s: N5Script) => {
+    setScript(s);
+    setKey(null);
+  };
 
   const card = (
     <aside className="n5-course-card" aria-label="Your course">
@@ -130,10 +138,7 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
                   name="course-script"
                   value={s}
                   checked={script === s}
-                  onChange={() => {
-                    setScript(s);
-                    setKey(null);
-                  }}
+                  onChange={() => chooseScript(s)}
                 />
                 {s === "romaji" ? "Romaji" : "Kana"}
                 <small data-owned-japanese lang={s === "kana" ? "ja" : undefined}>
@@ -154,7 +159,7 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
         )}
         {Boolean(error) && <Failure error={error} />}
         <button className="n5-primary n5-big n5-block" disabled={!script || !pilot || !next || Boolean(busy)} onClick={() => next && open(next.lessonId)}>
-          {busy === next?.lessonId ? "Opening…" : progress.enrolment ? `Continue: Unit ${next?.number}` : "Start Unit 1"}
+          {busy === next?.lessonId ? "Opening…" : startLabel}
         </button>
         {!script && <p className="n5-muted n5-center">Choose romaji or kana to begin.</p>}
         <p className="n5-card-includes-title">This course includes</p>
@@ -172,6 +177,14 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
 
   return (
     <div className="n5-course-home">
+      <CourseGuide
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        script={script}
+        onScript={chooseScript}
+        startLabel={startLabel}
+        onStart={() => next && open(next.lessonId)}
+      />
       <section className="n5-course-hero">
         <div className="n5-wrap n5-hero-inner">
           <nav className="n5-crumbs" aria-label="Breadcrumb">
@@ -191,6 +204,10 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
             <li>~{Math.round(minutes / 60)} hours</li>
             <li>AI speaking practice</li>
           </ul>
+          <button type="button" className="n5-hero-guide" onClick={() => setGuideOpen(true)}>
+            <Icon name="bulb" size={16} />
+            How this course works
+          </button>
         </div>
       </section>
 
@@ -310,6 +327,9 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
               ))}
             </ol>
             <p className="n5-muted">Score 80% in Practice to pass a unit. Speaking counts once you&apos;ve spoken at least three replies aloud.</p>
+            <button type="button" className="n5-link" onClick={() => setGuideOpen(true)}>
+              Read the full course guide
+            </button>
           </section>
 
           <section className="n5-about">

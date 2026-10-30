@@ -216,6 +216,7 @@ try {
   check("course-only credentials never link the extension; backend membership remains independent");
   // Script recovery exercises real commits with deliberately lost HTTP responses.
   const scriptContext = await browser.newContext();
+  await scriptContext.addInitScript(() => localStorage.setItem("avc:n5:guide:v1", "seen"));
   const scriptPage = await scriptContext.newPage();
   scriptPage.setDefaultNavigationTimeout(120000);
   await scriptPage.goto(base + "/app/n5");
@@ -313,17 +314,36 @@ try {
       await page.locator(".n5-about").innerText(),
       /More anime tracks are planned: SPY x FAMILY, BOCCHI THE ROCK!, Laid-Back Camp, Haikyu!!, Fruits Basket\./,
     );
-    await page
-      .getByRole("radio", { name: script === "kana" ? /Kana/ : /Romaji/ })
-      .focus();
-    await page.keyboard.press("Space");
-    assert.ok(
+    // First visit opens the course guide once.
+    const guide = page.locator("dialog.n5-guide");
+    await guide.getByRole("heading", { name: "Welcome to your Japanese course" }).waitFor();
+    if (script === "romaji") {
+      await guide.getByRole("button", { name: "Next" }).click();
+      assert.ok(await guide.getByRole("button", { name: "Next" }).isDisabled());
+      await guide.getByRole("radio", { name: /Romaji/ }).check();
+      for (let i = 0; i < 3; i++) await guide.getByRole("button", { name: "Next" }).click();
+      await guide.getByRole("heading", { name: "Passing and progress" }).waitFor();
+      await guide.getByRole("button", { name: "Start Unit 1" }).click();
+    } else {
+      await guide.getByRole("button", { name: "Skip guide" }).click();
+      await guide.waitFor({ state: "hidden" });
+      await page.getByRole("button", { name: "How this course works" }).click();
+      await guide.getByRole("heading", { name: "Welcome to your Japanese course" }).waitFor();
+      await page.keyboard.press("Escape");
+      await guide.waitFor({ state: "hidden" });
       await page
         .getByRole("radio", { name: script === "kana" ? /Kana/ : /Romaji/ })
-        .isChecked(),
-    );
-    await page.getByRole("button", { name: "Start Unit 1" }).click();
+        .focus();
+      await page.keyboard.press("Space");
+      assert.ok(
+        await page
+          .getByRole("radio", { name: script === "kana" ? /Kana/ : /Romaji/ })
+          .isChecked(),
+      );
+      await page.getByRole("button", { name: "Start Unit 1" }).click();
+    }
     await lessonReady(page);
+    await page.getByText("Step 1 of 5: Learn").waitFor();
     assert.equal(
       await page.getByText("Episode recap", { exact: true }).count(),
       0,

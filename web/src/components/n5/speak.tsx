@@ -8,6 +8,8 @@ import { MAX_RECORDING_MS, recorderTransition, recordingType, remaining } from "
 import { CourseFailure, courseRequest, Failure, Loading, newKey, useCourse } from "./common";
 import { PlayButton, playAudio, stopAudio } from "./audio";
 import { PlayerShell } from "./player";
+import { StepGuide } from "./guide";
+import { stepsFor } from "@/lib/n5/steps";
 
 type TurnBody = { afterSeq: number; idempotencyKey: string } & ({ text: string } | { audio: { data: string; mime: string } });
 
@@ -226,6 +228,7 @@ function Speak({ lesson, ownerId }: { lesson: N5Lesson; ownerId: string }) {
           ))}
         </ul>
       </section>
+      {!conversation && <StepGuide step="speak" position={stepsFor(lesson.kind).length} total={stepsFor(lesson.kind).length} />}
       {!conversation ? (
         <section className="n5-panel n5-speak-start">
           <p>
