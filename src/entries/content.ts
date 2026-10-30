@@ -585,6 +585,8 @@ declare global {
     pageHasEnglish = !!en;
     const script = lensScript(current);
     const fromEpisode = cue !== undefined ? episode : null;
+    // Whatever order the tracks and the settings arrived in.
+    if (fromEpisode) syncNativeSubs(current);
     showLensLine(line, en, tokens, wordStates, {
       script,
       readings: fromEpisode ? glossaryReadings(tokens, fromEpisode.glossary) : undefined,
@@ -905,6 +907,14 @@ declare global {
     timelineCue = -1;
     startTimeline();
     syncNativeSubs();
+    // The tracks can arrive with the page, before any line has loaded the
+    // settings; hiding Netflix's own subtitles waits on them.
+    if (!settings) {
+      void storage.getSettings().then((s) => {
+        if (!settings) settings = s;
+        syncNativeSubs();
+      }).catch(() => {});
+    }
     log(`netflix tracks: ${ja.length} Japanese lines, English ${ep.source === "track" ? "from Netflix" : "translated ahead"}`);
     overlay.showToast(
       ep.source === "track"
@@ -950,8 +960,8 @@ declare global {
 
   /** With the track driving dual subtitles, the player's own subtitles are
    * the same lines twice: hide them and sit where they were. */
-  function syncNativeSubs(): void {
-    const hide = !!episode && !!settings && lensOn(settings) && siteEnabled(settings);
+  function syncNativeSubs(known: Settings | null = settings): void {
+    const hide = !!episode && !!known && lensOn(known) && siteEnabled(known);
     let style = document.getElementById("avc-hide-native-subs");
     if (hide && !style) {
       style = document.createElement("style");

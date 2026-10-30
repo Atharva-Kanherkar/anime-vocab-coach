@@ -6121,6 +6121,7 @@
       pageHasEnglish = !!en;
       const script = lensScript(current2);
       const fromEpisode = cue !== void 0 ? episode : null;
+      if (fromEpisode) syncNativeSubs(current2);
       showLensLine(line, en, tokens, wordStates, {
         script,
         readings: fromEpisode ? glossaryReadings(tokens, fromEpisode.glossary) : void 0,
@@ -6360,6 +6361,13 @@
       timelineCue = -1;
       startTimeline();
       syncNativeSubs();
+      if (!settings) {
+        void getSettings().then((s) => {
+          if (!settings) settings = s;
+          syncNativeSubs();
+        }).catch(() => {
+        });
+      }
       log(`netflix tracks: ${ja.length} Japanese lines, English ${ep.source === "track" ? "from Netflix" : "translated ahead"}`);
       showToast(
         ep.source === "track" ? "Dual subtitles: Netflix's Japanese and English tracks, on the video's own timing." : "Dual subtitles: Netflix's Japanese track, with this episode's English translated ahead of time.",
@@ -6396,8 +6404,8 @@
       timelineCue = -1;
       syncNativeSubs();
     }
-    function syncNativeSubs() {
-      const hide = !!episode && !!settings && lensOn(settings) && siteEnabled(settings);
+    function syncNativeSubs(known = settings) {
+      const hide = !!episode && !!known && lensOn(known) && siteEnabled(known);
       let style = document.getElementById("avc-hide-native-subs");
       if (hide && !style) {
         style = document.createElement("style");
