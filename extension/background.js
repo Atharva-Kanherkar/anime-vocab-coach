@@ -1223,6 +1223,30 @@
       return { ok: false, error: "network" };
     }
   }
+  async function fetchSubBatch(req) {
+    const token = await getSyncToken();
+    if (!token) return { ok: false, error: "not_linked" };
+    try {
+      const res = await fetch(WEB_URL + "/api/ai/translate-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ title: req.title || void 0, lines: req.lines, context: req.context }),
+        signal: AbortSignal.timeout(3e4)
+      });
+      const data = await res.json().catch(() => ({}));
+      const en = data.result?.en;
+      if (!res.ok || !Array.isArray(en) || en.length !== req.lines.length) return { ok: false, error: data.error || `http_${res.status}` };
+      const names = {};
+      if (data.result?.names && typeof data.result.names === "object") {
+        for (const [k, v] of Object.entries(data.result.names)) {
+          if (k.length <= 20 && typeof v === "string" && /^[\u3041-\u3096\u30a1-\u30faー]{1,30}$/.test(v)) names[k] = v;
+        }
+      }
+      return { ok: true, result: { en: en.map((e) => typeof e === "string" ? e.slice(0, 400) : ""), names } };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
 
   // src/lib/capture-starts.ts
   var CaptureStarts = class {
@@ -1623,6 +1647,10 @@
     }
     if (msg.type === "avc-pick-word") {
       fetchWordPick(msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
+    if (msg.type === "avc-translate-batch") {
+      fetchSubBatch(msg.payload).then(sendResponse).catch(() => sendResponse({ ok: false, error: "network" }));
       return true;
     }
     if (msg.type === "avc-translate") {

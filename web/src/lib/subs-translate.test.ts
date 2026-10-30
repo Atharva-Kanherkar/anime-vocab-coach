@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { normalizeSubRequest, parseSubTranslation, runSubTranslate, subCacheKey, subPrompt, type SubTranslateRequest } from "./subs-translate";
+import { MAX_BATCH_LINES, batchCacheKey, batchPrompt, normalizeBatchRequest, normalizeSubRequest, parseBatch, parseSubTranslation, runBatchTranslate, runSubTranslate, subCacheKey, subPrompt, type SubTranslateRequest } from "./subs-translate";
 
 vi.mock("./telemetry", () => ({ recordLlmCall: vi.fn(async () => {}) }));
 
@@ -91,5 +91,52 @@ describe("runSubTranslate", () => {
     await expect(runSubTranslate("k", "gpt-4.1-mini", req())).rejects.toThrow("openai_500");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: '{"en":"弾いて"}' } }] }) }));
     await expect(runSubTranslate("k", "gpt-4.1-mini", req())).rejects.toThrow("openai_empty");
+  });
+});
+
+describe("whole-episode chunks", () => {
+  const batch = { title: "Your Lie in April", lines: ["公生、ピアノ弾いてよ。", "はじめまして。", "……"], context: ["前の行"] };
+
+  it("accepts a bounded chunk with some Japanese, and keeps recent context", () => {
+    const out = normalizeBatchRequest({ ...batch, context: ["a", "b", "c", "d"] });
+    expect("req" in out && out.req).toEqual({ ...batch, context: ["b", "c", "d"] });
+    expect(normalizeBatchRequest({ lines: [] })).toEqual({ error: "invalid_lines" });
+    expect(normalizeBatchRequest({ lines: Array(MAX_BATCH_LINES + 1).fill("はい") })).toEqual({ error: "invalid_lines" });
+    expect(normalizeBatchRequest({ lines: ["hello"] })).toEqual({ error: "invalid_lines" });
+    expect(normalizeBatchRequest({ lines: ["はい", 3] })).toEqual({ error: "invalid_lines" });
+    expect(normalizeBatchRequest(null)).toEqual({ error: "invalid_body" });
+  });
+
+  it("caches by show and lines, not by context", async () => {
+    const key = await batchCacheKey(batch);
+    expect(key).toBe(await batchCacheKey({ ...batch, context: [] }));
+    expect(key).not.toBe(await batchCacheKey({ ...batch, title: "Other" }));
+    expect(key.startsWith("ai:subs-batch:v1:")).toBe(true);
+  });
+
+  it("numbers the lines and asks for one English line each", () => {
+    const { system, user } = batchPrompt(batch);
+    expect(system).toContain("same order and count");
+    expect(user).toContain("1. 公生、ピアノ弾いてよ。");
+    expect(user).toContain("Lines (3):");
+  });
+
+  it("keeps aligned answers and names that appear, in kana", () => {
+    expect(parseBatch({ en: ["1. Kousei, play.", "Nice to meet you.", "…"], names: { 公生: "こうせい", 猫: "ねこ", 宮園: "miyazono" } }, batch))
+      .toEqual({ en: ["Kousei, play.", "Nice to meet you.", ""], names: { 公生: "こうせい" } });
+    expect(parseBatch({ en: ["one", "two"] }, batch)).toBeNull();
+    expect(parseBatch({ en: ["", "", ""] }, batch)).toBeNull();
+    expect(parseBatch(null, batch)).toBeNull();
+  });
+
+  it("runs with reasoning off and enough room for every line", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: '{"en":["Play.","Hi.",""],"names":{}}' } }] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await runBatchTranslate("k", "gpt-4.1-mini", batch)).toEqual({ en: ["Play.", "Hi.", ""], names: {} });
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sent.max_tokens).toBe(60 * 3 + 200);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: '{"en":["only one"]}' } }] }) }));
+    await expect(runBatchTranslate("k", "gpt-4.1-mini", batch)).rejects.toThrow("openai_misaligned");
+    vi.unstubAllGlobals();
   });
 });

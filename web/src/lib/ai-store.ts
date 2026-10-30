@@ -212,7 +212,7 @@ async function writeUsage(key: string, value: number): Promise<void> {
   }
 }
 
-async function addUsage(
+export async function addUsage(
   userId: string,
   month: string,
   bucket: UsageBucket,

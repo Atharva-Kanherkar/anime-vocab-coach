@@ -100,6 +100,8 @@ export interface JudgmentMeta {
 export interface LineContext {
   en: string;
   fromAudio?: boolean;
+  /** Index of the cue in the player's own subtitle track, when the line came from it. */
+  cue?: number;
 }
 
 export interface TranscriptSegment {

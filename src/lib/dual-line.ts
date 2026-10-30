@@ -91,6 +91,12 @@ export function dualPieces(tokens: Token[], script: SubScript, readings: Record<
       }
       return;
     }
+    // An empty reading means "part of the word before" (a name split across
+    // tokens, read as one by the reading on its first token).
+    if (readings[String(i)] === "" && last && last.head >= 0 && !last.after) {
+      last.members.push(i);
+      return;
+    }
     const kana = kanaOf(t, readings[String(i)], script);
     const open = last && last.head >= 0 && !last.after && !opening;
     if (open && t.pos === "名詞" && t.pos1 === "接尾" && HONORIFICS.has(t.surface)) {

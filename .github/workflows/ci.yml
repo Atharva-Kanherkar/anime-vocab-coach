@@ -83,6 +83,8 @@ jobs:
         run: npm run test:e2e:n5
       - name: Dual subtitles (romaji + English) on a Netflix-shaped player
         run: npm run test:e2e:dual-subs
+      - name: Dual subtitles from Netflix's own tracks, timed against the video clock
+        run: npm run test:e2e:netflix-tracks
       - name: Architecture guide on desktop and mobile
         run: node e2e/n5-system.mjs
       - name: N5 extension evidence

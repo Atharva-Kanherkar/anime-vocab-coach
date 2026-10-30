@@ -4,6 +4,19 @@ The Subtitle Lens is now **dual subtitles**: the current line in romaji (or kana
 
 Why: Netflix in Japan has no English track for most anime, and the Lens showed the Japanese line in kanji, which a beginner can't read.
 
+## On Netflix: the player's own tracks
+
+On Netflix, dual subtitles no longer read whatever line the player has on screen. `page/netflix-main.js` runs at `document_start` in the page and reads the player's manifest as it parses it (`JSON.parse` and `Response.json`, observed only, never changed). The manifest lists every subtitle language licensed in the learner's region. The page script downloads the **Japanese track** and, when the region has one, the **English track**, using the same request the player makes when the learner picks a language. Nothing is redistributed.
+
+- **Timing**: `content.ts` puts up the cue the video is at, every frame (`cueAt`, 50 ms lead). It takes the line down at the cue's end. In e2e every line appears within ±8 ms of its cue, and its English appears in the same frame.
+- **English track in the region**: the official English is paired with each Japanese cue by overlap (`englishFor`), and no translation runs at all.
+- **No English track (Netflix in Japan)**: `EpisodeSubs` translates the whole episode ahead through `POST /api/ai/translate-batch`, 20 lines a chunk, 4 at a time. The chunk playing now goes first, then what follows, and a seek reorders the queue. Chunks are cut at fixed places in the track, so every learner watching the episode shares the cache. The batch also returns the episode's names with their readings.
+- **Readings**: furigana in the track (official) and the batch's names fix the romaji of names the tokenizer misreads (宮園 → Miyazono, 公生 → Kousei), including names it splits into several tokens.
+- **Course, cards, Listening**: track lines feed the same pipeline as before, so course words light up without Listening. Audio transcripts are ignored while a track is driving, because the track already has the lines, exactly timed.
+- **Netflix's own subtitles** are hidden while ours show the same lines, and ours sit where they were.
+
+Anywhere else, or on a title whose Japanese subtitles are images, the per-line path below still applies.
+
 ## Where each half comes from
 
 - **Japanese line**: kuromoji, locally, in about 70 ms (`src/lib/dual-line.ts`). Words are grouped the way learners read them: "tabete imasu", "yonda", "Kaori-chan", particle は as "wa". The script follows the course while Listening follows a lesson. Otherwise it follows Settings → "Japanese is written as" (romaji by default, kana, or the original).
