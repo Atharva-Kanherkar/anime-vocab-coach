@@ -4042,61 +4042,48 @@
     opacity: 0; transition: opacity 160ms ease;
   }
   .lens.on { opacity: 1; }
-  /* One card for the pair, not a pill per language: the two lines read as
-     one subtitle. */
+  /* Plain subtitles, the way the player draws its own: white text with a dark
+     outline that reads on any scene, no box. The two lines read as one
+     subtitle. */
   .card {
     display: flex; flex-direction: column; align-items: center; gap: 2px;
     max-width: 100%;
-    padding: 8px 18px 9px; border-radius: 14px;
-    background: rgba(14, 13, 18, 0.78);
-    backdrop-filter: blur(10px) saturate(1.15); -webkit-backdrop-filter: blur(10px) saturate(1.15);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+    padding: 4px 12px;
     animation: lens-in 150ms ease-out;
   }
   @keyframes lens-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .line {
     max-width: 100%;
-    color: rgba(246, 244, 239, 0.97);
+    color: #fff;
     text-align: center;
     text-wrap: balance;
+    text-shadow:
+      0 0 2px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.95),
+      0 1px 3px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.5);
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
   }
   .line.jp {
-    font-size: clamp(18px, 2.35vw, 30px); font-weight: 700; line-height: 1.6;
-    letter-spacing: 0.02em;
+    font-size: clamp(20px, 2.5vw, 34px); font-weight: 600; line-height: 1.45;
+    letter-spacing: 0.01em;
   }
-  .line.en.pending { min-height: 1.45em; opacity: 0.35; }
-  .line.jp.romaji { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0.01em; }
+  .line.jp.romaji { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
   .line.en {
-    font-size: clamp(12.5px, 1.3vw, 16px); font-weight: 450; line-height: 1.45;
-    color: rgba(236, 234, 228, 0.7);
+    font-size: clamp(16px, 1.9vw, 26px); font-weight: 500; line-height: 1.35;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    letter-spacing: 0.005em;
+    animation: lens-in 150ms ease-out;
   }
-  /* The word-state mark is a drawn underline inset from both ends, so
-     neighbouring words keep a visible gap instead of fusing into one rule. */
+  /* Words carry no colour of their own; hovering one lights it up. */
   .tok {
-    --mark: transparent;
-    pointer-events: auto; cursor: pointer; border-radius: 6px;
-    padding: 0 1px 3px;
-    background-image: linear-gradient(var(--mark), var(--mark));
-    background-repeat: no-repeat;
-    background-size: calc(100% - 4px) 2px;
-    background-position: 50% 100%;
+    pointer-events: auto; cursor: pointer; border-radius: 5px;
+    padding: 0 2px;
     transition: background-color 90ms ease;
   }
-  .tok.new { --mark: rgba(240, 196, 104, 0.5); }
-  .tok.learning { --mark: rgba(236, 118, 88, 0.8); }
-  .tok.saved { --mark: rgba(128, 184, 232, 0.9); }
-  .tok:hover, .tok.linked-hot { background-color: rgba(240, 196, 104, 0.2); }
-  .en .tok { --mark: rgba(236, 234, 228, 0.28); background-size: calc(100% - 4px) 1px; padding-bottom: 2px; }
-  .en .tok:hover { color: rgba(250, 214, 138, 1); background-color: transparent; }
+  .tok:hover, .tok.linked-hot { background-color: rgba(255, 255, 255, 0.22); }
   .tip {
     position: fixed; z-index: 2; pointer-events: auto;
     min-width: 230px; max-width: 340px;
     padding: 12px 14px 12px; border-radius: 14px;
-    background: rgba(18, 17, 22, 0.96);
+    background: rgba(20, 20, 20, 0.96);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.09);
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
@@ -4109,11 +4096,11 @@
     font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
     font-size: 24px; font-weight: 700; line-height: 1.25;
   }
-  .tip-reading { font-size: 13px; color: rgba(240, 196, 104, 0.95); margin-top: 3px; }
+  .tip-reading { font-size: 13px; color: rgba(255, 255, 255, 0.72); margin-top: 3px; }
   .tip-gloss { font-size: 13.5px; line-height: 1.45; margin-top: 8px; color: rgba(246, 244, 239, 0.9); }
   .tip-meta { font-size: 11px; color: rgba(236, 234, 228, 0.5); margin-top: 8px;
     display: flex; gap: 8px; align-items: center; }
-  .tip-state { color: rgba(128, 184, 232, 0.95); }
+  .tip-state { color: rgba(255, 255, 255, 0.8); }
   .tip-actions { display: flex; gap: 6px; margin-top: 11px; }
   .tip-btn {
     flex: 1; padding: 6px 8px; border-radius: 9px; cursor: pointer;
@@ -4124,16 +4111,16 @@
   }
   .tip-btn:hover { background: rgba(255, 255, 255, 0.1); }
   .tip-btn.primary {
-    border-color: rgba(240, 196, 104, 0.55); background: rgba(240, 196, 104, 0.18);
-    color: rgba(252, 214, 134, 1); font-weight: 600;
+    border-color: #fff; background: #fff;
+    color: #111; font-weight: 600;
   }
-  .tip-btn.primary:hover { background: rgba(240, 196, 104, 0.28); }
+  .tip-btn.primary:hover { background: rgba(255, 255, 255, 0.85); }
   .tip-btn kbd {
     font-family: ui-monospace, monospace; font-size: 10px; opacity: .6;
     border: 1px solid rgba(236,234,228,.25); border-radius: 4px; padding: 0 3px;
     margin-left: 5px;
   }
-  .tip-saved { color: rgba(128, 184, 232, 0.95); font-size: 12px;
+  .tip-saved { color: rgba(255, 255, 255, 0.85); font-size: 12px;
     margin-top: 10px; font-weight: 600; }
   .tip-link { font-size: 11px; color: rgba(236, 234, 228, 0.55); margin-top: 4px; }
 `;
@@ -4476,10 +4463,6 @@
       }
     }
     if (update.en) paintEnglish(update.en);
-    else if (shown.enEl?.classList.contains("pending")) {
-      shown.enEl.remove();
-      shown.enEl = null;
-    }
   }
   function showLensLine(text, en, tokens, vocab, options) {
     opts = options;
@@ -4535,13 +4518,6 @@
     card.appendChild(jpLine);
     shown = { text, tokens, script, source, card, pieces: rendered, enEl: null };
     if (en) paintEnglish(en);
-    else if (options.englishPending) {
-      const pending = document.createElement("div");
-      pending.className = "line en pending";
-      pending.textContent = "\u2026";
-      card.appendChild(pending);
-      shown.enEl = pending;
-    }
     lensEl.appendChild(card);
     placedFor = "";
     position();
@@ -5213,9 +5189,15 @@
   };
 
   // src/lib/adapters/netflix.ts
+  function rowText(row) {
+    if (!row.querySelector("rt, rp")) return row.textContent || "";
+    const copy = row.cloneNode(true);
+    copy.querySelectorAll("rt, rp").forEach((n) => n.remove());
+    return copy.textContent || "";
+  }
   function getVisibleText2() {
     const rows = document.querySelectorAll(".player-timedtext-text-container");
-    return normalize(Array.from(rows).map((r) => r.textContent || "").join(" "));
+    return normalize(Array.from(rows).map(rowText).join(" "));
   }
   var netflixAdapter = {
     name: "netflix",
@@ -5824,7 +5806,6 @@
       const script = lensScript(current2);
       showLensLine(line, en, tokens, wordStates, {
         script,
-        englishPending: !en,
         peekPause: current2.subLensPeek !== false,
         getVideo: () => adapter ? adapter.getVideo() : null,
         getTitle: currentTitle,

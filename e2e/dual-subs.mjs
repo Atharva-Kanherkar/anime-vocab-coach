@@ -27,6 +27,7 @@ const watchPage = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><t
   setInterval(() => { g.fillStyle = "#123"; g.fillRect(0, 0, 320, 180); }, 100);
   v.srcObject = c.captureStream(10); v.play().catch(() => {});
   window.avcCaption = (t) => { document.querySelector(".player-timedtext-text-container").textContent = t; };
+  window.avcCaptionHtml = (h) => { document.querySelector(".player-timedtext-text-container").innerHTML = h; };
 </script></body></html>`;
 
 // What the model would say, keyed by line. Readings fix the tokenizer's 公生 (きみお).
@@ -36,6 +37,7 @@ const ANSWERS = {
   "明日も会えるかな。": { en: "Will I see you tomorrow too?", readings: {} },
   "君は嘘をついていた。": { en: "You were lying.", readings: {} },
   "はじめまして。わたしは学生です。": { en: "Nice to meet you. I'm a student.", readings: {} },
+  "宮園さん、こんにちは。": { en: "Hello, Miyazono.", readings: {} },
 };
 const DELAY_MS = 250;
 let quotaExhausted = false;
@@ -100,6 +102,7 @@ try {
   assert.equal(full.jp, "Kousei, piano hiite yo.");
   assert.equal(asked.at(-1).words[0].s, "公生");
   console.log(`   romaji in ${first.ms}ms, English in ${first.ms + full.ms}ms (server delay ${DELAY_MS}ms)`);
+  await page.waitForTimeout(300); // let the English finish fading in
   await page.screenshot({ path: join(artifacts, "dual-romaji.png") });
   check("Netflix Japanese line → romaji at once, English and corrected name reading a moment later");
 
@@ -155,12 +158,20 @@ try {
   await page.evaluate(() => window.avcCaption(""));
   check("with English on the page, nothing is translated ahead and the page's English is shown");
 
+  // Furigana above a word is not part of the line.
+  await page.evaluate(() => window.avcCaptionHtml("<ruby>宮園<rt>みやぞの</rt></ruby>さん、こんにちは。"));
+  const ruby = await waitFor(page, (v) => v.en === "Hello, Miyazono.");
+  assert.equal(asked.at(-1).line, "宮園さん、こんにちは。");
+  assert.ok(!/miyazonomiyazono|みやぞのみやぞの/i.test(ruby.jp), ruby.jp);
+  check("Netflix furigana is left out of the line");
+
   // Kana, when the learner reads kana.
   await sw.evaluate(async () => { const { settings } = await chrome.storage.local.get("settings"); await chrome.storage.local.set({ settings: { ...settings, displayScript: "kana" } }); });
   await page.waitForTimeout(300);
   await page.evaluate(() => window.avcCaption("君は嘘をついていた。"));
   const kana = await waitFor(page, (v) => !!v.en && v.jp.includes("うそ"));
   assert.ok(!/[A-Za-z]/.test(kana.jp), kana.jp);
+  await page.waitForTimeout(300);
   await page.screenshot({ path: join(artifacts, "dual-kana.png") });
   check("kana learners get kana with English");
 

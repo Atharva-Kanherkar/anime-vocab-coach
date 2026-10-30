@@ -18,7 +18,15 @@ Why: Netflix in Japan has no English track for most anime, and the Lens showed t
 
 ## Limits
 
-The `subs` meter counts cache misses only: free 20,000 lines a month, Pro 60,000, Max 150,000 (one episode is about 300 lines). A KV hiccup fails open. When the limit is reached the romaji keeps working and the learner is told once. `AI_SUBS_MODEL` overrides the model (default: the coach model).
+The `subs` meter counts cache misses only: free 20,000 lines a month, Pro 60,000, Max 150,000 (one episode is about 300 lines). A KV hiccup fails open. When the limit is reached the romaji keeps working and the learner is told once. 
+
+## Model and server latency
+
+The default is `gpt-4.1-mini` (`AI_SUBS_MODEL` overrides it), not the coach model. Production telemetry for gpt-5.6-luna with reasoning off showed 1.1–2.6 s per line (median 1.5 s). With the extension hop and server writes on top, the English often arrived after Netflix had moved on, so the learner saw only a placeholder. The route now waits on nothing but the model: the quota is read in parallel, and the usage count and shared cache are written after the response (`afterResponse`, Workers `waitUntil`).
+
+## Look
+
+The subtitles look like the player's own: white text with a dark outline, no box, no colour marks on words, and hovering a word lights it up. There is no placeholder while the English is on its way; it fades in when it lands.
 
 ## Fixed on the way
 

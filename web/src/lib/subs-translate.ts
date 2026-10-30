@@ -130,7 +130,8 @@ export async function runSubTranslate(
   apiKey: string,
   model: string,
   req: SubTranslateRequest,
-  ctx?: LlmContext
+  ctx?: LlmContext,
+  signal?: AbortSignal
 ): Promise<SubTranslation> {
   const startedAt = Date.now();
   const base = { ...ctx, model, operation: "subs_translate", effort: "none" as const };
@@ -149,6 +150,7 @@ export async function runSubTranslate(
       // Whatever AI_SUBS_MODEL is set to: o-series and GPT-5 reject "none".
       ...completionTuning(model, { temperature: 0.2, maxTokens: 300, effort: fastestReasoningEffort(model) }),
     }),
+    signal,
   });
   if (!res.ok) {
     await recordLlmCall({ ...base, status: "error", errorCode: `openai_${res.status}`, latencyMs: Date.now() - startedAt });

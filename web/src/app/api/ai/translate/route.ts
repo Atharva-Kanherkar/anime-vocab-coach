@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveProfile, resolvePlan } from "@/lib/auth";
 import { isOwnerEmail, OWNER_AI_LIMIT } from "@/lib/entitlements";
-import { currentMonth, getCachedResult, getOpenAiKey, getSubsModel, putCachedResult, reserveUsage } from "@/lib/ai-store";
+import { afterResponse, currentMonth, getCachedResult, getOpenAiKey, getSubsModel, getUsage, incrementUsage, putCachedResult } from "@/lib/ai-store";
 import {
   SUB_LINE_LIMITS,
   normalizeSubRequest,
@@ -40,36 +40,35 @@ async function handlePOST(req: Request) {
   const apiKey = await getOpenAiKey();
   if (!apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 503 });
 
+  // Latency is the product here: only the model call waits. The quota is read
+  // alongside it, and the count and the cache are written after the response.
   const limit = owner ? OWNER_AI_LIMIT : SUB_LINE_LIMITS[plan];
-  let refund = async () => {};
-  try {
-    const reservation = await reserveUsage(profile.id, currentMonth(), "subs", limit);
-    if (!reservation.ok) {
-      return NextResponse.json({ error: "subs_quota_exhausted", usage: { used: reservation.used, limit, plan } }, { status: 429 });
-    }
-    refund = reservation.refund;
-  } catch (err) {
-    // The meter is abuse protection, not the product: a KV hiccup must not
-    // take the learner's subtitles away mid-episode.
-    console.warn("[subs] usage meter unavailable", err);
+  const month = currentMonth();
+  const abort = new AbortController();
+  const translation = runSubTranslate(apiKey, await getSubsModel(), subReq, {
+    userId: profile.id,
+    plan: owner ? "owner" : plan,
+    country: requestFacts(req).country,
+    surface: surfaceOf(req),
+    direction: "en-ja",
+  }, abort.signal);
+  // A KV hiccup must not take the learner's subtitles away mid-episode: the
+  // meter is abuse protection, not the product.
+  const used = await getUsage(profile.id, month, "subs").catch(() => 0);
+  if (used >= limit) {
+    abort.abort();
+    translation.catch(() => {});
+    return NextResponse.json({ error: "subs_quota_exhausted", usage: { used, limit, plan } }, { status: 429 });
   }
 
   try {
-    const result = await runSubTranslate(apiKey, await getSubsModel(), subReq, {
-      userId: profile.id,
-      plan: owner ? "owner" : plan,
-      country: requestFacts(req).country,
-      surface: surfaceOf(req),
-      direction: "en-ja",
-    });
-    try {
-      await putCachedResult(cacheKey, result, SUBS_CACHE_TTL_SECONDS);
-    } catch (err) {
-      console.warn("[subs] cache write failed", err);
-    }
+    const result = await translation;
+    await afterResponse(Promise.all([
+      putCachedResult(cacheKey, result, SUBS_CACHE_TTL_SECONDS),
+      incrementUsage(profile.id, month, "subs"),
+    ]));
     return NextResponse.json({ result, cached: false });
   } catch (err) {
-    await refund().catch(() => {});
     return NextResponse.json({ error: err instanceof Error ? err.message : "translate_failed" }, { status: 502 });
   }
 }
