@@ -63,6 +63,34 @@ export interface CoachRequest {
   /** chat mode only */
   message?: string;
   history?: ChatMessage[];
+  /** Set while Listening follows an N5 course lesson. */
+  course?: CourseContext;
+}
+
+/** The N5 lesson Listening Mode is following, as the extension knows it. */
+export interface CourseContext {
+  unit: number;
+  title: string;
+  canDo: string;
+  script: "romaji" | "kana";
+  /** "reading — meaning" for each unit word. */
+  words: string[];
+}
+
+export const MAX_COURSE_WORDS = 20;
+
+function normalizeCourse(input: unknown): CourseContext | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const c = input as Record<string, unknown>;
+  const unit = Number(c.unit);
+  if (!Number.isInteger(unit) || unit < 1 || unit > 99) return undefined;
+  if (c.script !== "romaji" && c.script !== "kana") return undefined;
+  const title = typeof c.title === "string" ? clamp(c.title, MAX_TITLE_LEN) : "";
+  const canDo = typeof c.canDo === "string" ? clamp(c.canDo, MAX_LINE_LEN) : "";
+  const words = Array.isArray(c.words)
+    ? c.words.filter((w): w is string => typeof w === "string").map((w) => clamp(w, MAX_WORD_LEN * 2)).filter(Boolean).slice(0, MAX_COURSE_WORDS)
+    : [];
+  return { unit, title, canDo, script: c.script, words };
 }
 
 export interface ExplainResult {
@@ -301,6 +329,7 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
       direction: normalizeDirection(body.direction),
       message,
       history,
+      course: normalizeDirection(body.direction) === "en-ja" ? normalizeCourse(body.course) : undefined,
     },
   };
 }
@@ -309,7 +338,9 @@ export function normalizeCoachRequest(input: unknown): { req: CoachRequest } | {
 export async function coachCacheKey(req: CoachRequest): Promise<string> {
   const ctxPart = req.animeContext ? req.animeContext.slice(0, 80) : "";
   const dir = normalizeDirection(req.direction);
-  const basis = `${dir}\u0001${req.word}\u0001${req.line}\u0001${req.level ?? 0}\u0001${ctxPart}`;
+  // A course answer is written for one unit, in one script.
+  const coursePart = req.course ? `\u0001${req.course.unit}:${req.course.script}` : "";
+  const basis = `${dir}\u0001${req.word}\u0001${req.line}\u0001${req.level ?? 0}\u0001${ctxPart}${coursePart}`;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(basis));
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
   return `ai:v2:${req.mode}:${hex}`;
@@ -350,6 +381,28 @@ function contextBlock(req: CoachRequest): string {
   return bits.join("\n");
 }
 
+/**
+ * What changes when Listening follows an N5 lesson: the same tutor, held to
+ * the learner's level and script, and pointed at the unit they are studying.
+ */
+export function courseInstructions(course: CourseContext | undefined): string {
+  if (!course) return "";
+  const script =
+    course.script === "romaji"
+      ? "Write every Japanese word or sentence in romaji only (Hepburn), never kana or kanji, followed by the English."
+      : "Write every Japanese word or sentence in hiragana/katakana only, never kanji, followed by the English.";
+  return (
+    "\n\nThe learner is a complete beginner taking AnimeVocab's JLPT N5 course while watching Your Lie in April. " +
+    `They are on unit ${course.unit}${course.title ? ` (${course.title})` : ""}.` +
+    (course.canDo ? ` Unit goal: ${course.canDo}` : "") +
+    (course.words.length ? ` Unit words: ${course.words.join("; ")}.` : "") +
+    ` ${script} ` +
+    "Keep to N5 grammar and vocabulary, short sentences and one idea at a time. " +
+    "When the line uses a unit word or this unit's grammar, say so and connect it to the unit. " +
+    "When the line is well above N5, give the gist in English and pick out only the parts they can use now."
+  );
+}
+
 function buildPrompt(req: CoachRequest): { system: string; user: string } {
   const direction = normalizeDirection(req.direction);
   const target = targetLangName(direction);
@@ -365,7 +418,8 @@ function buildPrompt(req: CoachRequest): { system: string; user: string } {
         `Return strict JSON with two fields. \`meaning\`: the word's meaning in simple beginner ${explain}, 1-2 sentences. ` +
         `\`nuance\`: why the character phrased it THIS way in THIS line — ${nuanceHint}. ` +
         "Be specific to the line, not generic. Keep each field under 60 words. " +
-        'Respond only as {"meaning": string, "nuance": string}.',
+        'Respond only as {"meaning": string, "nuance": string}.' +
+        courseInstructions(req.course),
       user: contextBlock(req),
     };
   }
@@ -375,7 +429,8 @@ function buildPrompt(req: CoachRequest): { system: string; user: string } {
       "Given a word and the exact anime line it appeared in, " +
       "create exactly 3 short, vivid memory hooks that tie the word's sound or meaning to the scene so it sticks. " +
       `Each hook is one sentence in ${explain}, playful, and references the line or anime moment. ` +
-      'Respond only as strict JSON {"hooks": [string, string, string]}.',
+      'Respond only as strict JSON {"hooks": [string, string, string]}.' +
+      courseInstructions(req.course),
     user: contextBlock(req),
   };
 }
@@ -463,7 +518,7 @@ function buildChatMessages(req: CoachRequest): { role: "system" | "user" | "assi
   const message = (req.message || "").trim();
   const contextUser = `[Scene context]\n${contextBlock(req)}\n\n[Learner question]\n${message}`;
   const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-    { role: "system", content: chatSystemPrompt(normalizeDirection(req.direction)) },
+    { role: "system", content: chatSystemPrompt(normalizeDirection(req.direction)) + courseInstructions(req.course) },
   ];
   for (const turn of req.history || []) {
     messages.push({ role: turn.role, content: turn.content });

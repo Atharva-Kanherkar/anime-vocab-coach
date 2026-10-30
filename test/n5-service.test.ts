@@ -1,94 +1,147 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const env = vi.hoisted(() => ({ token: "avc_st_alice", direction: "en-ja", local: {} as Record<string, unknown>, session: {} as Record<string, unknown>, send: vi.fn(), create: vi.fn(), network: vi.fn() }));
-vi.mock("../src/lib/storage", () => ({ getSyncToken: async () => env.token, getSettings: async () => ({ learningDirection: env.direction }) }));
-import { handleN5 } from "../src/lib/n5-service";
-const context = { courseId: "n5-foundations", trackId: "your-lie-in-april-2014", unitId: "unit-1", episodeId: "your-lie-in-april-2014-s1-e1", lessonId: "your-lie-in-april-s1-e1", contentVersion: "preview-1", script: "romaji" };
-const snapshot = { apiVersion: 1, ownerId: "alice", context, lesson: { id: context.lessonId, contentVersion: "preview-1", script: "romaji", canDo: "Introduce yourself", vocabulary: [], grammar: [] }, watched: false, activeAttempts: [], completedAttempts: 0, mastery: false };
-const own = { id: "extension", url: "chrome-extension://extension/course/course.html" };
-const provider = { id: "extension", url: "https://www.youtube.com/watch?v=1", tab: { id: 7 }, frameId: 0 };
-const clone = <T>(v: T): T => structuredClone(v);
-const store = (area: "local" | "session") => ({ get: async (key: string) => ({ [key]: clone(env[area][key]) }), set: async (values: Record<string, unknown>) => Object.assign(env[area], clone(values)), remove: async (key: string) => { delete env[area][key]; } });
-const stop = vi.fn(async () => {});
-async function run(command: object, sender = own) { return await handleN5(command, sender, stop) as { ok: boolean; code?: string; pending?: number; state?: typeof snapshot; offline?: boolean; players?: number[] }; }
-beforeEach(() => {
-  env.token = "avc_st_alice"; env.direction = "en-ja"; env.local = {}; env.session = {}; stop.mockReset().mockResolvedValue(); env.create.mockReset().mockResolvedValue({ id: 9 });
-  env.send.mockReset().mockImplementation(async (_id, message) => message.type === "avc-n5-mount" ? { ok: true, sessionId: "youtube:1" } : { ok: true });
-  env.network.mockReset().mockImplementation(async (_url, init) => init.method === "POST" ? Response.json({ id: "event" }) : Response.json(snapshot));
-  vi.stubGlobal("fetch", env.network);
-  vi.stubGlobal("chrome", { runtime: { id: "extension", getURL: (path: string) => "chrome-extension://extension/" + path.replace(/^\//, "") }, storage: { local: store("local"), session: store("session") }, tabs: { get: async () => ({ id: 7, url: provider.url }), sendMessage: env.send, create: env.create }, scripting: { executeScript: async () => [{ frameId: 0, result: 10000 }] } });
+const env = vi.hoisted(() => ({ token: "avc_st_alice" as string | null, local: {} as Record<string, unknown>, create: vi.fn(), network: vi.fn() }));
+vi.mock("../src/lib/storage", () => ({ getSyncToken: async () => env.token }));
+import { handleN5, invalidateN5, retryPendingN5 } from "../src/lib/n5-service";
+
+const LESSON = "your-lie-in-april-u01";
+const EPISODE = "your-lie-in-april-2014-s1-e01";
+const words = [
+  { id: "tomodachi", reading: "tomodachi", meaning: "friend", kana: "ともだち" },
+  { id: "piano", reading: "piano", meaning: "piano", kana: "ピアノ" },
+];
+const snapshot = (heard: string[] = []) => ({
+  apiVersion: 1, ownerId: "alice",
+  context: { courseId: "n5-foundations", trackId: "your-lie-in-april-2014", unitId: "unit-1", episodeId: EPISODE, lessonId: LESSON, contentVersion: "course-1", script: "romaji" },
+  lesson: { id: LESSON, contentVersion: "course-1", script: "romaji", canDo: "Greet someone new.", unit: 1, title: "Greet", episode: { number: 1, title: "Monotone/Colorful" }, vocabulary: words, grammar: [], heard },
+  watched: false, activeAttempts: [], completedAttempts: 0, mastery: false,
 });
-describe("N5 background orchestration", () => {
-  it("rejects provider auth/config access, forged fields and untrusted senders", async () => {
-    for (const [command, sender] of [[{ type: "avc-n5-state" }, provider], [{ type: "avc-n5-enrol", script: "kana", userId: "bob" }, own], [{ type: "avc-n5-state" }, { ...own, id: "other" }], [{ type: "avc-n5-state" }, { ...own, url: "file:///course/course.html" }], [{ type: "avc-n5-state" }, { ...own, url: "chrome-extension://other/course/course.html" }]]) expect((await run(command, sender)).ok).toBe(false);
-    expect(env.network).not.toHaveBeenCalled();
+const tab = { id: "extension", url: "https://www.netflix.com/watch/1", tab: { id: 7 } } as chrome.runtime.MessageSender;
+const popup = { id: "extension", url: "chrome-extension://extension/popup/popup.html" } as chrome.runtime.MessageSender;
+const app = { id: "extension", url: "https://animevocab.com/app/n5", tab: { id: 3 } } as chrome.runtime.MessageSender;
+const clone = <T>(v: T): T => structuredClone(v);
+const stop = vi.fn(async () => {});
+type Reply = { ok: boolean; error?: string; lesson?: { id: string; heard: string[]; words: unknown[] } | null };
+const run = async (message: object, sender = tab) => (await handleN5(message, sender, stop)) as Reply;
+const posts = (path: string) => env.network.mock.calls.filter(([url, init]) => String(url).endsWith(path) && init.method === "POST").map(([, init]) => JSON.parse(init.body));
+const settle = () => new Promise((r) => setTimeout(r, 0));
+
+let serverHeard: string[] = [];
+beforeEach(() => {
+  env.token = "avc_st_alice"; env.local = {}; serverHeard = [];
+  stop.mockReset().mockResolvedValue(undefined);
+  env.create.mockReset().mockResolvedValue({ id: 9 });
+  env.network.mockReset().mockImplementation(async (url: string, init: RequestInit) => {
+    if (url.endsWith("/extension/state")) return Response.json(snapshot(serverHeard));
+    if (url.endsWith("/heard")) {
+      serverHeard = [...new Set([...serverHeard, ...JSON.parse(String(init.body)).wordIds])];
+      return Response.json({ lessonId: LESSON, heard: serverHeard });
+    }
+    return Response.json({ id: "event" });
   });
-  it("confirms course-only Japanese without changing general preferences or deck", async () => {
-    env.direction = "ja-en";
-    expect((await run({ type: "avc-n5-attach", tabId: 7 })).code).toBe("confirm_japanese");
-    expect((await run({ type: "avc-n5-attach", tabId: 7, confirmJapanese: true })).players).toEqual([7]);
-    expect(env.direction).toBe("ja-en"); expect(env.local.settings).toBeUndefined(); expect(env.local.vocab).toBeUndefined();
+  vi.stubGlobal("fetch", env.network);
+  vi.stubGlobal("chrome", {
+    runtime: { id: "extension" },
+    storage: { local: {
+      get: async (key: string) => ({ [key]: clone(env.local[key]) }),
+      set: async (values: Record<string, unknown>) => Object.assign(env.local, clone(values)),
+      remove: async (key: string) => { delete env.local[key]; },
+    } },
+    tabs: { create: env.create },
   });
-  it("opens a fixed, secret-free practice route only after player and capture acknowledgements", async () => {
-    expect((await run({ type: "avc-n5-attach", tabId: 7 })).ok).toBe(true);
-    const result = await run({ type: "avc-n5-start-assessment" }, provider);
-    expect(result.ok).toBe(true); expect(stop).toHaveBeenCalledWith(7);
-    expect(env.create).toHaveBeenCalledWith({ url: "https://animevocab.com/app/n5/lessons/your-lie-in-april-s1-e1?script=romaji" });
-    expect(env.send.mock.calls.findIndex(([, m]) => m.type === "avc-n5-pause")).toBeGreaterThanOrEqual(0);
-    expect(env.local["n5Pilot:alice"]).toMatchObject({ queue: [], state: { watched: true } });
-    expect(JSON.stringify(env.send.mock.calls)).not.toMatch(/avc_st_|ownerId|correctOption/);
+});
+
+describe("N5 course for Listening Mode", () => {
+  it("gives the linked account's lesson to content scripts and the popup, and caches it", async () => {
+    const first = await run({ type: "avc-n5-lesson" });
+    expect(first.lesson).toMatchObject({ id: LESSON, unit: 1, script: "romaji", episode: { number: 1 } });
+    expect(first.lesson?.words).toEqual(words);
+    expect((await run({ type: "avc-n5-lesson" }, popup)).lesson?.id).toBe(LESSON);
+    expect(env.network).toHaveBeenCalledTimes(1);
+    await run({ type: "avc-n5-lesson", refresh: true });
+    expect(env.network).toHaveBeenCalledTimes(2);
   });
-  it("does not open a tab or enqueue completion when capture or pause cannot be confirmed", async () => {
-    await run({ type: "avc-n5-attach", tabId: 7 });
-    stop.mockRejectedValueOnce(new Error("Capture did not stop"));
-    expect((await run({ type: "avc-n5-start-assessment" }, provider)).ok).toBe(false);
-    env.send.mockResolvedValueOnce({ ok: false });
-    expect((await run({ type: "avc-n5-start-assessment" }, provider)).ok).toBe(false);
-    expect(env.create).not.toHaveBeenCalled(); expect(env.local["n5Pilot:alice"]).toMatchObject({ queue: [] });
+
+  it("has no lesson without an account, without course access, or for another extension", async () => {
+    env.token = null;
+    expect((await run({ type: "avc-n5-lesson" })).lesson).toBeNull();
+    env.token = "avc_st_alice";
+    env.network.mockResolvedValueOnce(new Response("{}", { status: 404 }));
+    expect((await run({ type: "avc-n5-lesson" })).lesson).toBeNull();
+    expect(env.network).toHaveBeenCalledTimes(1);
+    expect((await run({ type: "avc-n5-lesson" }, { ...tab, id: "other" })).ok).toBe(false);
   });
-  it("persists offline completion before handoff and replays the identical event after worker restart", async () => {
-    await run({ type: "avc-n5-attach", tabId: 7 });
-    env.network.mockRejectedValue(new TypeError("offline"));
-    const result = await run({ type: "avc-n5-start-assessment" }, provider);
-    expect(result).toMatchObject({ ok: true, offline: true, pending: 1 });
-    const cached = clone(env.local["n5Pilot:alice"]) as { queue: { idempotencyKey: string }[] };
-    expect(cached.queue).toHaveLength(1); expect(env.create).toHaveBeenCalledTimes(1);
-    vi.resetModules();
-    const { handleN5: restarted } = await import("../src/lib/n5-service");
-    env.network.mockImplementation(async (_url, init) => init.method === "POST" ? Response.json({ id: "event" }) : Response.json(snapshot));
-    expect(await restarted({ type: "avc-n5-state", refresh: true }, own, stop)).toMatchObject({ ok: true, pending: 0 });
-    const call = env.network.mock.calls.find(([, init]) => init.method === "POST");
-    expect(JSON.parse(call![1].body).idempotencyKey).toBe(cached.queue[0].idempotencyKey);
+
+  it("keeps the last lesson through a network blip, but never another account's", async () => {
+    await run({ type: "avc-n5-lesson" });
+    env.network.mockRejectedValueOnce(new TypeError("offline"));
+    expect((await run({ type: "avc-n5-lesson", refresh: true })).lesson?.id).toBe(LESSON);
+    env.token = "avc_st_bob";
+    env.network.mockRejectedValueOnce(new TypeError("offline"));
+    expect((await run({ type: "avc-n5-lesson" })).lesson).toBeNull();
+    await invalidateN5();
+    expect(env.local.n5Listen).toBeUndefined();
   });
-  it("keeps another owner's outbox isolated across account changes", async () => {
-    await run({ type: "avc-n5-attach", tabId: 7 }); env.network.mockRejectedValue(new TypeError("offline"));
-    await run({ type: "avc-n5-start-assessment" }, provider);
-    env.token = "avc_st_bob"; env.network.mockImplementation(async () => Response.json({ ...snapshot, ownerId: "bob" }));
-    const result = await run({ type: "avc-n5-state", refresh: true });
-    expect(result.state?.ownerId).toBe("bob"); expect(result.pending).toBe(0); expect(result.players).toEqual([]);
-    expect(env.local["n5Pilot:alice"]).toMatchObject({ queue: [expect.anything()] });
-    expect(env.network.mock.calls.filter(([, init]) => init.headers.Authorization === "Bearer avc_st_bob" && init.method === "POST")).toEqual([]);
+
+  it("saves heard lesson words to the account, once each, and only lesson words", async () => {
+    await run({ type: "avc-n5-lesson" });
+    expect((await run({ type: "avc-n5-heard", lessonId: LESSON, wordIds: ["tomodachi", "not-a-word"] })).lesson?.heard).toEqual(["tomodachi"]);
+    await settle(); await settle();
+    expect(posts("/heard")).toEqual([{ lessonId: LESSON, wordIds: ["tomodachi"] }]);
+    await run({ type: "avc-n5-heard", lessonId: LESSON, wordIds: ["tomodachi"] });
+    await settle();
+    expect(posts("/heard")).toHaveLength(1);
+    expect((await run({ type: "avc-n5-heard", lessonId: "other-lesson", wordIds: ["piano"] })).ok).toBe(false);
+    expect((await run({ type: "avc-n5-lesson" })).lesson?.heard).toEqual(["tomodachi"]);
   });
-  it("does not turn a disabled pilot into cached offline success", async () => {
-    await run({ type: "avc-n5-attach", tabId: 7 });
-    env.network.mockResolvedValue(Response.json({ error: {} }, { status: 404 }));
-    expect(await run({ type: "avc-n5-state", refresh: true })).toMatchObject({ ok: false, code: "unavailable" });
-    expect(env.session.n5PilotBindings).toEqual({});
-    env.network.mockRejectedValue(new TypeError("offline"));
-    expect((await run({ type: "avc-n5-attach", tabId: 7 })).ok).toBe(false);
-    expect(env.local["n5Pilot:alice"]).toBeDefined();
+
+  it("holds heard words offline and sends them later, never with another account's token", async () => {
+    await run({ type: "avc-n5-lesson" });
+    env.network.mockRejectedValueOnce(new TypeError("offline"));
+    expect((await run({ type: "avc-n5-heard", lessonId: LESSON, wordIds: ["piano"] })).lesson?.heard).toEqual(["piano"]);
+    await settle(); await settle();
+    expect(serverHeard).toEqual([]);
+    expect((await run({ type: "avc-n5-lesson" })).lesson?.heard).toEqual(["piano"]);
+    env.token = "avc_st_bob";
+    await retryPendingN5();
+    expect(serverHeard).toEqual([]);
+    env.token = "avc_st_alice";
+    await retryPendingN5();
+    expect(serverHeard).toEqual(["piano"]);
+    const auth = env.network.mock.calls.filter(([url]) => String(url).endsWith("/heard")).map(([, init]) => init.headers.Authorization);
+    expect(new Set(auth)).toEqual(new Set(["Bearer avc_st_alice"]));
   });
-  it.each([401,404])("invalidates offline authorization when enrolment is denied with %s after a successful snapshot", async status => {
-    await run({type:"avc-n5-attach",tabId:7});
-    env.network.mockImplementation(async (_url,init) => init.method === "POST" ? Response.json({}, {status}) : Response.json(snapshot));
-    expect((await run({type:"avc-n5-enrol",script:"kana"})).ok).toBe(false);
-    expect(env.session.n5PilotBindings).toEqual({});
-    expect(env.local["n5Pilot:alice"]).toBeDefined();
-    env.network.mockRejectedValue(new TypeError("offline"));
-    expect((await run({type:"avc-n5-attach",tabId:7})).ok).toBe(false);
+
+  it("finishes the episode: stops listening on the tab, records it, then opens practice on animevocab.com", async () => {
+    await run({ type: "avc-n5-lesson" });
+    const order: string[] = [];
+    stop.mockImplementation(async () => { order.push("stop"); });
+    env.create.mockImplementation(async () => { order.push("open"); return { id: 9 }; });
+    expect((await run({ type: "avc-n5-finish" })).ok).toBe(true);
+    expect(stop).toHaveBeenCalledWith(7);
+    expect(posts("/events")).toEqual([{ episodeId: EPISODE, kind: "watch_complete", idempotencyKey: expect.any(String) }]);
+    expect(order).toEqual(["stop", "open"]);
+    expect(env.create).toHaveBeenCalledWith({ url: `https://animevocab.com/app/n5/lessons/${LESSON}?script=romaji#practice` });
+    expect((await run({ type: "avc-n5-finish" }, popup)).ok).toBe(false);
   });
-  it("rejects an account switch while a server response is in flight", async () => {
-    env.network.mockImplementationOnce(async () => { env.token = "avc_st_bob"; return Response.json(snapshot); });
-    expect(await run({ type: "avc-n5-state", refresh: true })).toMatchObject({ ok: false, code: "account_changed" });
-    expect(env.local).toEqual({});
+
+  it("keeps a finished episode durable when the network fails, and replays the same receipt", async () => {
+    await run({ type: "avc-n5-lesson" });
+    env.network.mockRejectedValueOnce(new TypeError("offline"));
+    expect((await run({ type: "avc-n5-finish" })).ok).toBe(true);
+    expect(env.create).toHaveBeenCalledOnce();
+    const pending = (env.local.n5ListenOutbox as { watched: { idempotencyKey: string }[] }).watched;
+    expect(pending).toHaveLength(1);
+    await retryPendingN5();
+    // The failed try and the retry carry the same receipt, so the server records one.
+    expect(posts("/events")).toEqual(Array(2).fill({ episodeId: EPISODE, kind: "watch_complete", idempotencyKey: pending[0].idempotencyKey }));
+    expect((env.local.n5ListenOutbox as { watched: unknown[] }).watched).toEqual([]);
+  });
+
+  it("refreshes when the course changes on animevocab.com, and from nowhere else on the web", async () => {
+    await run({ type: "avc-n5-lesson" });
+    serverHeard = ["piano"];
+    expect((await run({ type: "avc-n5-refresh" }, app)).lesson?.heard).toEqual(["piano"]);
+    expect((await run({ type: "avc-n5-refresh" }, { ...app, url: "https://evil.example/app/n5" })).ok).toBe(false);
+    expect((await run({ type: "avc-n5-refresh" }, tab)).ok).toBe(false);
   });
 });

@@ -20,7 +20,7 @@ export const STEP_GUIDE: Record<StepId, { todo: string; why: string }> = {
     why: "Recalling a word, not just reading it, is what makes it stick, so you recognise it at real speaking speed.",
   },
   watch: {
-    todo: "Open the episode on an official service, watch it with Japanese audio, then mark it watched and read the recap.",
+    todo: "Open the episode on an official service with Japanese audio and press Start Listening in AnimeVocab. Then mark it watched and read the recap.",
     why: "Hearing the words in a scene you care about is what makes them memorable.",
   },
   practice: {

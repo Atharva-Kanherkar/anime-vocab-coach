@@ -80,6 +80,26 @@ describe("real Worker and D1 end-to-end", () => {
     expect((await app.request("/extension/state", { token: "avc_st_denied" })).status).toBe(404);
   });
 
+  it("records lesson words heard while listening and returns them to the web and the extension", async () => {
+    expect((await app.request("/heard", { body: { lessonId: LESSON_ID, wordIds: ["tomodachi"] } })).status).toBe(409);
+    await app.request("/enrolments", { body: { ...enrol, script: "romaji" } });
+    const state = await (await app.request("/extension/state")).json();
+    const word = state.lesson.vocabulary.find((v: { id: string }) => v.id === "tomodachi");
+    expect(word).toMatchObject({ reading: "tomodachi", kana: "ともだち" });
+    expect(state.lesson.vocabulary.find((v: { id: string }) => v.id === "yoroshiku-onegaishimasu").kana).toBe("よろしくおねがいします");
+    expect(state.lesson.heard).toEqual([]);
+    const first = await (await app.request("/heard", { body: { lessonId: LESSON_ID, wordIds: ["tomodachi", "tomodachi", "piano"] } })).json();
+    expect(first).toEqual({ lessonId: LESSON_ID, heard: ["piano", "tomodachi"] });
+    expect(await (await app.request("/heard", { body: { lessonId: LESSON_ID, wordIds: ["tomodachi"] } })).json()).toEqual(first);
+    expect((await app.request("/heard", { body: { lessonId: LESSON_ID, wordIds: ["not-a-lesson-word"] } })).status).toBe(400);
+    expect((await app.request("/heard", { body: { lessonId: LESSON_ID, wordIds: [], extra: 1 } })).status).toBe(400);
+    expect((await (await app.request("/extension/state")).json()).lesson.heard).toEqual(["piano", "tomodachi"]);
+    const progress = await (await app.request("/me/progress")).json();
+    expect(progress.lessons.find((l: { lessonId: string }) => l.lessonId === LESSON_ID).heard).toEqual(["piano", "tomodachi"]);
+    expect((await (await app.request("/me/export")).json()).heard).toHaveLength(2);
+    expect((await (await app.request("/extension/state", { token: "avc_st_n5other" })).json()).lesson).toBeNull();
+  });
+
   it.each(["romaji", "kana"])("completes and resumes the %s preview without awarding untested skills", async (script) => {
     const catalog = await app.request("/catalog");
     expect(catalog.status).toBe(200);
@@ -112,7 +132,7 @@ describe("real Worker and D1 end-to-end", () => {
     expect(progress.observations).toEqual([{ episodeId: EPISODE_ID, kind: "watch_complete" }]);
     expect(progress.attempts).toEqual([{ id: fresh.id, lessonId: LESSON_ID, status: "complete", script, result: finished.result }]);
     expect(progress.lessons).toHaveLength(24);
-    expect(progress.lessons[0]).toEqual({ lessonId: LESSON_ID, status: "passed", bestPercent: 100, watched: true, speaking: "not_started" });
+    expect(progress.lessons[0]).toEqual({ lessonId: LESSON_ID, status: "passed", bestPercent: 100, watched: true, speaking: "not_started", heard: [] });
     expect(progress.nextLessonId).toBe(progress.lessons[1].lessonId);
     expect(progress.enrolment).toEqual({ trackId: TRACK_ID, script });
     const reviews = await (await app.request("/me/reviews")).json();
@@ -404,8 +424,8 @@ describe("observation receipt migration", () => {
       await isolated.db!.prepare("INSERT INTO n5_events(id,user_id,request_key,fingerprint,episode_id,kind,created_at) VALUES('recent','n5-local-user',?,?,?,'watch_complete',1005)").bind(retained.idempotencyKey, await fingerprint(retained), EPISODE_ID).run();
       await isolated.mf.dispose();
       isolated = await runtime({ persist });
-      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM d1_migrations").first())?.n).toBe(3);
-      for (const table of ["n5_usage", "n5_feedback", "n5_conversations", "n5_turns"]) expect(await isolated.db!.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").bind(table).first()).not.toBeNull();
+      expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM d1_migrations").first())?.n).toBe(4);
+      for (const table of ["n5_usage", "n5_feedback", "n5_conversations", "n5_turns", "n5_heard"]) expect(await isolated.db!.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").bind(table).first()).not.toBeNull();
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_event_requests").first())?.n).toBe(1000);
       expect((await isolated.db!.prepare("SELECT COUNT(*) AS n FROM n5_events").first())?.n).toBe(2);
       expect(await (await isolated.request("/events", { body: retained })).json()).toEqual({ id: "recent" });

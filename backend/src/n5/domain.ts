@@ -9,6 +9,8 @@ export const lessonIdSchema = z.enum(LESSON_IDS);
 export const enrolmentSchema = z.strictObject({ trackId: z.literal(TRACK_ID), script: scriptSchema, idempotencyKey: key });
 export const attemptSchema = z.strictObject({ lessonId: lessonIdSchema, contentVersion: z.literal(CONTENT_VERSION), script: scriptSchema.optional(), idempotencyKey: key });
 export const eventSchema = z.strictObject({ episodeId: z.enum(EPISODE_IDS), kind: z.enum(["watch_complete", "practice_complete"]), idempotencyKey: key });
+/** Lesson words Listening Mode heard in the episode. Word ids only, never dialogue. */
+export const heardSchema = z.strictObject({ lessonId: lessonIdSchema, wordIds: z.array(key).min(1).max(20) });
 export const answerSchema = z.strictObject({
   questionId: key,
   value: z.string().min(1).max(500),

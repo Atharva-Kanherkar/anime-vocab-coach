@@ -6,7 +6,6 @@ import * as esbuild from "esbuild";
 const watch = process.argv.includes("--watch");
 
 const entries = [
-  { in: "src/entries/course.ts", out: "extension/course/course.js" },
   { in: "src/entries/content.ts", out: "extension/content.js" },
   { in: "src/entries/key-shield.ts", out: "extension/key-shield.js" },
   { in: "src/entries/background.ts", out: "extension/background.js" },

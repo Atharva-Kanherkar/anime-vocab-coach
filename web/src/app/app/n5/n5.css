@@ -634,3 +634,12 @@
   .n5-dialogue li[data-speaker="B"] { margin-left: var(--s4); }
   .n5-root .n5-step { min-width: 80px; }
 }
+
+/* Watch: listening along with the extension */
+.n5-listen { display: grid; gap: var(--s2); padding: var(--s4); border: 1px solid var(--av-line); border-radius: 12px; background: var(--av-panel); }
+.n5-listen h3 { margin: 0; font-size: 16px; }
+.n5-listen ol { margin: 0; padding-left: 1.3em; list-style: decimal; display: grid; gap: var(--s1); }
+.n5-heard { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--s2); }
+.n5-heard li { padding: 2px var(--s3); border-radius: 999px; border: 1px dashed var(--av-line); color: var(--n5-muted); font-size: 14px; }
+.n5-heard li[data-heard] { border-style: solid; border-color: color-mix(in srgb, var(--av-ok) 45%, transparent); color: var(--av-ok); font-weight: 650; }
+.n5-heard li[data-heard]::before { content: "✓ "; }

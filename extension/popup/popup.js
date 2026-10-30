@@ -701,6 +701,13 @@
     return n;
   }
 
+  // src/lib/course-listening.ts
+  var ID = /^[a-z0-9][a-z0-9-]{0,127}$/;
+  function lessonUrl(lesson, step) {
+    if (!ID.test(lesson.id)) throw new Error("Invalid lesson");
+    return `https://animevocab.com/app/n5/lessons/${lesson.id}?script=${lesson.script}#${step}`;
+  }
+
   // src/entries/popup.ts
   var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   function todayKey() {
@@ -960,6 +967,21 @@
     const dot = byId(`${id}-dot`);
     dot.className = `av-mode-dot${state === "on" ? " on" : state === "warn" ? " warn" : ""}`;
   }
+  async function renderCourse() {
+    const res = await runtimeMessage({ type: "avc-n5-lesson" });
+    const lesson = res?.ok ? res.lesson ?? null : null;
+    const settings = await getSettings();
+    const box = byId("n5-course");
+    box.hidden = !lesson || settings.learningDirection !== "en-ja";
+    byId("mode-lens-row").hidden = !box.hidden;
+    if (box.hidden || !lesson) return;
+    byId("n5-course-title").textContent = [lesson.unit ? `N5 \xB7 Unit ${lesson.unit}` : "N5 course", lesson.episode ? `Episode ${lesson.episode.number}` : ""].filter(Boolean).join(" \xB7 ");
+    byId("n5-course-goal").textContent = lesson.canDo;
+    byId("n5-course-link").onclick = (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: lessonUrl(lesson, "watch") });
+    };
+  }
   async function initModeControls() {
     const copilotBtn = byId("copilot-btn");
     const listeningBtn = byId("listening-btn");
@@ -1020,7 +1042,8 @@
       listeningBtn.classList.toggle("active", modeState.listening);
       copilotBtn.textContent = modeState.copilot ? "Close Copilot" : "Open Copilot";
       copilotBtn.classList.toggle("active", modeState.copilot);
-      sessionBtn.textContent = modeState.listening && modeState.copilot ? "Stop Listening + Copilot" : "Start Listening + Copilot";
+      sessionBtn.textContent = modeState.listening ? "Stop Listening" : "Start Listening";
+      sessionBtn.classList.toggle("active", modeState.listening);
     };
     const setListening = async (active) => {
       errEl.hidden = true;
@@ -1063,8 +1086,7 @@
     });
     sessionBtn.addEventListener("click", () => {
       void (async () => {
-        const stopBoth = !!modeState?.listening && !!modeState?.copilot;
-        if (stopBoth) {
+        if (modeState?.listening) {
           await Promise.all([setListening(false), setCopilot(false)]);
         } else {
           await setCopilot(true);
@@ -1077,9 +1099,7 @@
   }
   document.addEventListener("DOMContentLoaded", () => {
     initTheme();
-    byId("n5-course").addEventListener("click", () => {
-      void chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => chrome.tabs.create({ url: chrome.runtime.getURL("course/course.html") + (tab?.id ? `?tabId=${tab.id}` : "") }));
-    });
+    void renderCourse();
     void render();
     void renderAccount();
     void renderUsage();

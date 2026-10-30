@@ -13,6 +13,7 @@ import {
   proPromptEligible,
 } from "../lib/pro-moment";
 import type { DailyStats, PauseMode } from "../types";
+import { lessonUrl, type CourseLesson } from "../lib/course-listening";
 
 type Theme = "dark" | "light";
 
@@ -461,6 +462,27 @@ function setModeRow(id: string, status: string | null, detail: string, state: "o
   dot.className = `av-mode-dot${state === "on" ? " on" : state === "warn" ? " warn" : ""}`;
 }
 
+/**
+ * The N5 lesson Listening follows, when the account has one. The course
+ * itself lives on animevocab.com; this only says what Listening will do.
+ */
+async function renderCourse(): Promise<void> {
+  const res = await runtimeMessage<{ ok?: boolean; lesson?: CourseLesson | null }>({ type: "avc-n5-lesson" });
+  const lesson = res?.ok ? res.lesson ?? null : null;
+  const settings = await storage.getSettings();
+  const box = byId("n5-course");
+  box.hidden = !lesson || settings.learningDirection !== "en-ja";
+  // Following a lesson, the Lens stays off; there is nothing to switch.
+  byId("mode-lens-row").hidden = !box.hidden;
+  if (box.hidden || !lesson) return;
+  byId("n5-course-title").textContent = [lesson.unit ? `N5 · Unit ${lesson.unit}` : "N5 course", lesson.episode ? `Episode ${lesson.episode.number}` : ""].filter(Boolean).join(" · ");
+  byId("n5-course-goal").textContent = lesson.canDo;
+  byId("n5-course-link").onclick = (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: lessonUrl(lesson, "watch") });
+  };
+}
+
 async function initModeControls(): Promise<void> {
   const copilotBtn = byId<HTMLButtonElement>("copilot-btn");
   const listeningBtn = byId<HTMLButtonElement>("listening-btn");
@@ -531,9 +553,8 @@ async function initModeControls(): Promise<void> {
     listeningBtn.classList.toggle("active", modeState.listening);
     copilotBtn.textContent = modeState.copilot ? "Close Copilot" : "Open Copilot";
     copilotBtn.classList.toggle("active", modeState.copilot);
-    sessionBtn.textContent = modeState.listening && modeState.copilot
-      ? "Stop Listening + Copilot"
-      : "Start Listening + Copilot";
+    sessionBtn.textContent = modeState.listening ? "Stop Listening" : "Start Listening";
+    sessionBtn.classList.toggle("active", modeState.listening);
   };
 
   const setListening = async (active: boolean): Promise<void> => {
@@ -585,8 +606,7 @@ async function initModeControls(): Promise<void> {
 
   sessionBtn.addEventListener("click", () => {
     void (async () => {
-      const stopBoth = !!modeState?.listening && !!modeState?.copilot;
-      if (stopBoth) {
+      if (modeState?.listening) {
         await Promise.all([setListening(false), setCopilot(false)]);
       } else {
         await setCopilot(true);
@@ -601,9 +621,7 @@ async function initModeControls(): Promise<void> {
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  byId("n5-course").addEventListener("click", () => {
-    void chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => chrome.tabs.create({ url: chrome.runtime.getURL("course/course.html") + (tab?.id ? `?tabId=${tab.id}` : "") }));
-  });
+  void renderCourse();
   void render();
   void renderAccount();
   void renderUsage();

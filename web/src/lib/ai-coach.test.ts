@@ -3,6 +3,7 @@ import {
   aiLimitForPlan,
   coachCacheKey,
   completionTuning,
+  courseInstructions,
   DEFAULT_COACH_MODEL,
   isReasoningModel,
   normalizeCoachRequest,
@@ -100,6 +101,39 @@ describe("coachCacheKey", () => {
     expect(a).toBe(b);
     expect(a).not.toBe(c);
     expect(a.startsWith("ai:v2:explain:")).toBe(true);
+  });
+});
+
+describe("N5 course listening", () => {
+  const course = { unit: 1, title: "Greet and introduce yourself", canDo: "Greet someone new.", script: "romaji", words: ["tomodachi — friend"] };
+
+  it("keeps a bounded course block for Japanese learners only", () => {
+    const out = normalizeCoachRequest({ mode: "chat", word: "友達", line: "友達だよ", message: "?", course: { ...course, words: Array(30).fill("x"), extra: 1 } });
+    expect("req" in out && out.req.course).toMatchObject({ unit: 1, script: "romaji" });
+    expect("req" in out && out.req.course?.words).toHaveLength(20);
+    const english = normalizeCoachRequest({ mode: "chat", word: "friend", line: "a friend", message: "?", direction: "ja-en", course });
+    expect("req" in english && english.req.course).toBeUndefined();
+    for (const bad of [{ ...course, unit: 0 }, { ...course, script: "kanji" }, "unit 1", null]) {
+      const r = normalizeCoachRequest({ mode: "explain", word: "a", line: "b", course: bad });
+      expect("req" in r && r.req.course).toBeUndefined();
+    }
+  });
+
+  it("holds the tutor to the learner's script and unit", () => {
+    expect(courseInstructions(undefined)).toBe("");
+    const romaji = courseInstructions({ ...course, script: "romaji" });
+    expect(romaji).toContain("unit 1 (Greet and introduce yourself)");
+    expect(romaji).toContain("romaji only");
+    expect(romaji).toContain("tomodachi — friend");
+    expect(courseInstructions({ ...course, script: "kana" })).toContain("never kanji");
+  });
+
+  it("caches course answers apart from ordinary ones without moving ordinary keys", async () => {
+    const plain = await coachCacheKey(baseReq);
+    const withCourse = await coachCacheKey({ ...baseReq, course: { ...course, script: "romaji" } });
+    const kana = await coachCacheKey({ ...baseReq, course: { ...course, script: "kana" } });
+    expect(new Set([plain, withCourse, kana]).size).toBe(3);
+    expect(plain).toBe(await coachCacheKey({ ...baseReq, course: undefined }));
   });
 });
 

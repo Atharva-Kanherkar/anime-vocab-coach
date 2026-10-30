@@ -93,7 +93,7 @@ function LessonContent({
     markLocalStep(ownerId, lesson.id, s);
     setLocal((all) => (all.includes(s) ? all : [...all, s]));
   }
-  const doneSet = completedSteps(lesson.kind, status ? { ...status, watched: watched || status.watched } : { lessonId: lesson.id, status: "not_started", bestPercent: null, watched, speaking: "not_started" }, local);
+  const doneSet = completedSteps(lesson.kind, status ? { ...status, watched: watched || status.watched } : { lessonId: lesson.id, status: "not_started", bestPercent: null, watched, speaking: "not_started", heard: [] }, local);
   const position = steps.indexOf(step);
   const section = SECTIONS[sectionIndex(lesson.unit)];
   const ja = lesson.script === "kana" ? "ja" : undefined;
@@ -162,7 +162,7 @@ function LessonContent({
             }}
           />
         )}
-        {step === "watch" && <Watch lesson={lesson} watched={watched} onWatched={() => setWatched(true)} ownerId={ownerId} onNext={() => go("practice")} />}
+        {step === "watch" && <Watch lesson={lesson} watched={watched} heard={status?.heard ?? []} onWatched={() => setWatched(true)} ownerId={ownerId} onNext={() => go("practice")} />}
         {step === "practice" && <Practice lesson={lesson} ownerId={ownerId} active={active} completed={completed} watched={watched} onWatch={() => go("watch")} />}
         {step === "speak" && <SpeakIntro lesson={lesson} status={status} />}
       </div>
@@ -486,9 +486,74 @@ function WhereToWatch({ lesson }: { lesson: N5Lesson }) {
   );
 }
 
-function Watch({ lesson, watched, onWatched, ownerId, onNext }: { lesson: N5Lesson; watched: boolean; onWatched: () => void; ownerId: string; onNext: () => void }) {
+/**
+ * Lesson words Listening Mode has heard, live from the account. The extension
+ * records them while the episode plays in another tab, so look again whenever
+ * the learner comes back to this one.
+ */
+function useHeard(lesson: N5Lesson, initial: string[], onWatched: () => void): string[] {
+  const [heard, setHeard] = useState(initial);
+  const watched = useRef(onWatched);
+  useEffect(() => {
+    watched.current = onWatched;
+  });
+  useEffect(() => {
+    let alive = true;
+    async function refresh() {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const progress = await courseRequest<N5Progress>("/me/progress");
+        if (!alive) return;
+        const mine = progress.lessons.find((l) => l.lessonId === lesson.id);
+        if (mine) setHeard(mine.heard ?? []);
+        if (mine?.watched) watched.current();
+      } catch {
+        /* keep what we have; the next visit retries */
+      }
+    }
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [lesson.id]);
+  return heard;
+}
+
+function ListenAlong({ lesson, heard }: { lesson: N5Lesson; heard: string[] }) {
+  const ja = lesson.script === "kana" ? "ja" : undefined;
+  const count = lesson.vocabulary.filter((v) => heard.includes(v.id)).length;
+  return (
+    <div className="n5-listen">
+      <h3>Listen along with AnimeVocab</h3>
+      <ol>
+        <li>Open the episode above.</li>
+        <li>
+          Click the AnimeVocab icon in Chrome and press <strong>Start Listening</strong>.
+        </li>
+        <li>This unit&apos;s words light up as they&apos;re spoken. Ask the copilot about any line; it answers at your level, in {lesson.script}.</li>
+      </ol>
+      <p className="n5-eyebrow">
+        Heard in the episode · {count} / {lesson.vocabulary.length}
+      </p>
+      <ul className="n5-heard" aria-label="Unit words heard while listening">
+        {lesson.vocabulary.map((v) => (
+          <li key={v.id} data-heard={heard.includes(v.id) ? "" : undefined} title={v.meaning}>
+            <span lang={ja}>{v.reading}</span>
+            {heard.includes(v.id) && <span className="n5-visually-hidden"> (heard)</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Watch({ lesson, watched, heard: initialHeard, onWatched, ownerId, onNext }: { lesson: N5Lesson; watched: boolean; heard: string[]; onWatched: () => void; ownerId: string; onNext: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const heard = useHeard(lesson, initialHeard, onWatched);
   const source = lesson.summarySource ? safeLink(lesson.summarySource, "source") : null;
   async function markWatched() {
     if (!lesson.episodeId || busy) return;
@@ -530,7 +595,7 @@ function Watch({ lesson, watched, onWatched, ownerId, onNext }: { lesson: N5Less
         <strong>While you watch:</strong> {lesson.hook}
       </p>
       <WhereToWatch lesson={lesson} />
-      <p>With the AnimeVocab extension installed, this unit&apos;s words appear beside the video.</p>
+      <ListenAlong lesson={lesson} heard={heard} />
       {!watched && (
         <div className="n5-actions">
           <button className="n5-primary" disabled={busy} onClick={markWatched}>
