@@ -9,6 +9,7 @@
 import { WEB_URL } from "../config";
 import { getSyncToken } from "./storage";
 import type { Token } from "../types";
+import type { BatchRequest, BatchResponse } from "./episode-subs";
 
 export interface SubTranslation {
   en: string;
@@ -103,6 +104,32 @@ export async function fetchSubTranslation(req: SubRequest): Promise<SubResponse>
       }
     }
     return { ok: true, result: { en: data.result.en.slice(0, 400), readings } };
+  } catch {
+    return { ok: false, error: "network" };
+  }
+}
+
+/** Background side: a chunk of an episode's lines (see episode-subs). */
+export async function fetchSubBatch(req: BatchRequest): Promise<BatchResponse> {
+  const token = await getSyncToken();
+  if (!token) return { ok: false, error: "not_linked" };
+  try {
+    const res = await fetch(WEB_URL + "/api/ai/translate-batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ title: req.title || undefined, lines: req.lines, context: req.context }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const data = (await res.json().catch(() => ({}))) as { result?: { en?: unknown; names?: unknown }; error?: string };
+    const en = data.result?.en;
+    if (!res.ok || !Array.isArray(en) || en.length !== req.lines.length) return { ok: false, error: data.error || `http_${res.status}` };
+    const names: Record<string, string> = {};
+    if (data.result?.names && typeof data.result.names === "object") {
+      for (const [k, v] of Object.entries(data.result.names as Record<string, unknown>)) {
+        if (k.length <= 20 && typeof v === "string" && /^[\u3041-\u3096\u30a1-\u30faー]{1,30}$/.test(v)) names[k] = v;
+      }
+    }
+    return { ok: true, result: { en: en.map((e) => (typeof e === "string" ? e.slice(0, 400) : "")), names } };
   } catch {
     return { ok: false, error: "network" };
   }

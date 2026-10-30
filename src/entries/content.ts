@@ -7,7 +7,9 @@ import * as tokenizer from "../lib/tokenizer";
 import { tokenizeEnglish } from "../lib/english-tokenize";
 import { pickTargetSmart } from "../lib/pick-target";
 import * as overlay from "../lib/overlay";
-import { showLensLine, hideLens, clearLensLine, updateLensLine } from "../lib/sub-lens";
+import { showLensLine, hideLens, clearLensLine, updateLensLine, endLensLine, setLensBaseline } from "../lib/sub-lens";
+import { cueAt, parseTimedText } from "../lib/netflix-tracks";
+import { EpisodeSubs, glossaryReadings, type BatchResponse } from "../lib/episode-subs";
 import { SubTranslator, type SubResponse } from "../lib/subs-client";
 import type { SubScript } from "../lib/dual-line";
 import { installKeyShield } from "../lib/key-shield";
@@ -102,9 +104,10 @@ declare global {
    * by render, not by text, so the same dialogue coming round again later
    * ("わかった", "本当？") still gets its card. */
   const judgedLensSeqs = new Set<number>();
-  /** Last tokenization, shared by the Lens and the card pipeline, which both
-   * need the same line tokenized within milliseconds of each other. */
-  let tokenMemo: { text: string; tokens: Token[] } | null = null;
+  /** Recent tokenizations, shared by the Lens and the card pipeline, which
+   * both need the same line within milliseconds of each other, and filled
+   * ahead of time for the next line of a subtitle track. */
+  const tokenMemo = new Map<string, Token[]>();
   let initPromise: Promise<void> | null = null;
   let jaReady = false;
   let jaPromise: Promise<boolean> | null = null;
@@ -149,7 +152,12 @@ declare global {
     if (adapter && !started) {
       started = true;
       log("adapter chosen:", adapter.name);
-      adapter.start(onLine, clearLensLine);
+      // While the player's own subtitle track drives the lines (see
+      // useNetflixTracks), what the subtitle DOM shows is the same lines, late.
+      adapter.start(
+        (text, context) => { if (!episode) onLine(text, context); },
+        () => { if (!episode) clearLensLine(); }
+      );
       // Load kuromoji and the dictionary now, not on the first subtitle line:
       // lazily, the first lines of every episode waited seconds for a cold
       // dictionary load before anything could appear.
@@ -439,9 +447,11 @@ declare global {
   }
 
   async function tokenizeJa(text: string): Promise<Token[]> {
-    if (tokenMemo && tokenMemo.text === text) return tokenMemo.tokens;
+    const hit = tokenMemo.get(text);
+    if (hit) return hit;
     const tokens = await tokenizer.tokenize(text);
-    tokenMemo = { text, tokens };
+    tokenMemo.set(text, tokens);
+    if (tokenMemo.size > 64) tokenMemo.delete(tokenMemo.keys().next().value as string);
     return tokens;
   }
 
@@ -556,7 +566,10 @@ declare global {
   async function renderLens(line: string, context?: LineContext, groupSeq?: number): Promise<void> {
     const seq = ++lensSeq;
     const sessionId = currentSessionId();
-    const stale = (): boolean => seq !== lensSeq || currentSessionId() !== sessionId;
+    const cue = context?.cue;
+    // A track line whose time is already up (a very short cue) is not drawn late.
+    const stale = (): boolean =>
+      seq !== lensSeq || currentSessionId() !== sessionId || (cue !== undefined && cue !== timelineCue);
     const current = settings || (await storage.getSettings());
     if (stale()) return;
     if (!siteEnabled(current) || !lensOn(current)) {
@@ -571,8 +584,10 @@ declare global {
     const en = context?.en || "";
     pageHasEnglish = !!en;
     const script = lensScript(current);
+    const fromEpisode = cue !== undefined ? episode : null;
     showLensLine(line, en, tokens, wordStates, {
       script,
+      readings: fromEpisode ? glossaryReadings(tokens, fromEpisode.glossary) : undefined,
       peekPause: current.subLensPeek !== false,
       getVideo: () => (adapter ? adapter.getVideo() : null),
       getTitle: currentTitle,
@@ -590,6 +605,21 @@ declare global {
       onJudged: () => { void refreshState(); },
     });
     if (en) return;
+    if (fromEpisode && cue !== undefined) {
+      // The English track says nothing here (a song, a sign): neither do we.
+      if (fromEpisode.source === "track") return;
+      const ahead = await fromEpisode.whenEnglish(cue);
+      if (ahead !== null) {
+        if (ahead) updateLensLine(line, { en: ahead });
+        return;
+      }
+      if (fromEpisode.lastError && /quota|not_linked|unauthorized/.test(fromEpisode.lastError)) {
+        subs.lastError = fromEpisode.lastError;
+        explainMissingEnglish();
+        return;
+      }
+      // Its chunk failed: this one line on its own.
+    }
     const translated = await subs.translate(line, tokens, currentTitle());
     updateLensLine(line, translated ?? {});
     if (!translated) explainMissingEnglish();
@@ -834,6 +864,105 @@ declare global {
     });
   }
 
+  // ---- The player's own subtitle tracks (Netflix) ---------------------------
+
+  /** The episode's lines from the player's tracks (see netflix-main). While
+   * set, they drive dual subtitles, cards and the course on the video's own
+   * clock, instead of the subtitle DOM or the audio. */
+  let episode: EpisodeSubs | null = null;
+  let episodeId = "";
+  /** The track cue on screen now, or -1. */
+  let timelineCue = -1;
+  let timelineFrame = 0;
+  /** A line goes up this early, so it is drawn on the frame it starts. */
+  const TIMELINE_LEAD_SEC = 0.05;
+
+  function netflixId(): string {
+    return location.pathname.match(/\/watch\/(\d+)/)?.[1] || window.__avcNetflixVideoId || "";
+  }
+
+  /** The page script may have the tracks already: ask for them. */
+  function requestNetflixTracks(): void {
+    if (!location.hostname.endsWith("netflix.com")) return;
+    const movieId = netflixId();
+    if (movieId) window.postMessage({ source: "avc-content", type: "avc-netflix-timedtext-request", movieId }, location.origin);
+  }
+
+  function useNetflixTracks(data: { movieId?: unknown; ja?: { text?: unknown } | null; en?: { text?: unknown } | null }): void {
+    if (typeof data.movieId !== "string" || data.movieId !== netflixId() || data.movieId === episodeId) return;
+    if (typeof data.ja?.text !== "string") return;
+    const ja = parseTimedText(data.ja.text);
+    if (ja.length < 5) return;
+    const en = typeof data.en?.text === "string" ? parseTimedText(data.en.text) : null;
+    episode?.stop();
+    episodeId = data.movieId;
+    const ep = new EpisodeSubs(ja, en && en.length >= 5 ? en : null, currentTitle(), (payload) =>
+      chrome.runtime.sendMessage({ type: "avc-translate-batch", payload }) as Promise<BatchResponse | undefined>
+    );
+    episode = ep;
+    const video = adapter?.getVideo();
+    ep.translateFrom(video ? cueAt(ep.cues, video.currentTime) : 0);
+    timelineCue = -1;
+    startTimeline();
+    syncNativeSubs();
+    log(`netflix tracks: ${ja.length} Japanese lines, English ${ep.source === "track" ? "from Netflix" : "translated ahead"}`);
+    overlay.showToast(
+      ep.source === "track"
+        ? "Dual subtitles: Netflix's Japanese and English tracks, on the video's own timing."
+        : "Dual subtitles: Netflix's Japanese track, with this episode's English translated ahead of time.",
+      "info"
+    );
+  }
+
+  /** Each frame, put up the cue the video is at. */
+  function startTimeline(): void {
+    cancelAnimationFrame(timelineFrame);
+    const tick = (): void => {
+      timelineFrame = requestAnimationFrame(tick);
+      const ep = episode;
+      const video = adapter?.getVideo();
+      if (!ep || !video) return;
+      const i = cueAt(ep.cues, video.currentTime + TIMELINE_LEAD_SEC);
+      if (i === timelineCue) return;
+      // A seek: translate from where the learner landed.
+      if (Math.abs(i - timelineCue) > 2) ep.translateFrom(i);
+      timelineCue = i;
+      if (i < 0) {
+        endLensLine();
+        return;
+      }
+      onLine(ep.cues[i].text, { en: ep.englishAt(i) ?? "", cue: i });
+      const next = ep.cues[i + 1];
+      if (next && jaReady) void tokenizeJa(next.text);
+    };
+    timelineFrame = requestAnimationFrame(tick);
+  }
+
+  function stopTimeline(): void {
+    cancelAnimationFrame(timelineFrame);
+    timelineFrame = 0;
+    episode?.stop();
+    episode = null;
+    episodeId = "";
+    timelineCue = -1;
+    syncNativeSubs();
+  }
+
+  /** With the track driving dual subtitles, the player's own subtitles are
+   * the same lines twice: hide them and sit where they were. */
+  function syncNativeSubs(): void {
+    const hide = !!episode && !!settings && lensOn(settings) && siteEnabled(settings);
+    let style = document.getElementById("avc-hide-native-subs");
+    if (hide && !style) {
+      style = document.createElement("style");
+      style.id = "avc-hide-native-subs";
+      style.textContent = ".player-timedtext { opacity: 0 !important; }";
+      document.documentElement.append(style);
+    }
+    if (!hide) style?.remove();
+    setLensBaseline(hide ? 0.9 : 0.76);
+  }
+
   /**
    * Ask which N5 lesson, if any, Listening follows for this account. The
    * lesson lives on animevocab.com; the background keeps a short-lived copy.
@@ -953,6 +1082,8 @@ declare global {
    * spoken goes to the cards but not the Lens (see audioLineIsCurrent).
    */
   function handleTranscript(text: string, start: number | undefined, end: number | undefined): void {
+    // The player's own subtitle track has these lines already, exactly timed.
+    if (episode) return;
     const a = pickAdapter();
     if (!a) { warn("transcript arrived but no adapter matched this frame"); return; }
     const video = a.getVideo();
@@ -1036,6 +1167,7 @@ declare global {
         hideLens();
       }
       overlay.applyPanelSettings(next);
+      syncNativeSubs();
       if (courseLoad || course) void loadCourse();
     }).catch(() => {});
   });
@@ -1132,6 +1264,8 @@ declare global {
       captionNoticeShown = false;
       refreshCacheKey();
       log("session reset for new video:", sid);
+      stopTimeline();
+      requestNetflixTracks();
       prefetchAnimeContext(currentTitle());
     }
   }, 2000);
@@ -1142,7 +1276,9 @@ declare global {
     if (e.data.type === "avc-netflix-video-id" && e.data.videoId) {
       window.__avcNetflixVideoId = e.data.videoId;
       refreshCacheKey();
+      requestNetflixTracks();
     }
+    if (e.data.type === "avc-netflix-timedtext") useNetflixTracks(e.data);
   });
 
   refreshCacheKey();
@@ -1153,4 +1289,6 @@ declare global {
   void storage.setAgentPinned(false);
 
   void restoreTabSession();
+  // The player may have read its subtitle tracks before this script loaded.
+  requestNetflixTracks();
 })();

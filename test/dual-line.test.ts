@@ -70,3 +70,16 @@ describe("dual subtitle kana and original", () => {
     expect(romaji("……")).toBe("……");
   });
 });
+
+describe("readings from the track", () => {
+  it("reads a name split by the tokenizer as one word", () => {
+    const toks = tokens("公生、ピアノ弾いてよ。");
+    const split = toks.findIndex((t) => t.surface === "公");
+    if (split >= 0 && toks[split + 1]?.surface === "生") {
+      expect(dualText(dualPieces(toks, "romaji", { [split]: "こうせい", [split + 1]: "" }), "romaji")).toBe("Kousei, piano hiite yo.");
+    } else {
+      const whole = toks.findIndex((t) => t.surface === "公生");
+      expect(dualText(dualPieces(toks, "romaji", { [whole]: "こうせい" }), "romaji")).toBe("Kousei, piano hiite yo.");
+    }
+  });
+});

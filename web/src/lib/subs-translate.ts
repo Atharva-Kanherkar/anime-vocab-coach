@@ -168,3 +168,124 @@ export async function runSubTranslate(
   if (!result) throw new Error("openai_empty");
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Whole episodes: a chunk of lines at a time, translated before they play.
+
+export const MAX_BATCH_LINES = 25;
+
+export interface SubBatchRequest {
+  title?: string;
+  lines: string[];
+  /** Lines just before the chunk, for meaning only. */
+  context: string[];
+}
+
+export interface SubBatchResult {
+  /** One English line per input line, same order; "" where none fits. */
+  en: string[];
+  /** Names in these lines, as written → their reading in kana. */
+  names: Record<string, string>;
+}
+
+export function normalizeBatchRequest(input: unknown): { req: SubBatchRequest } | { error: string } {
+  if (!input || typeof input !== "object") return { error: "invalid_body" };
+  const body = input as Record<string, unknown>;
+  if (!Array.isArray(body.lines) || !body.lines.length || body.lines.length > MAX_BATCH_LINES) return { error: "invalid_lines" };
+  const lines = body.lines.map((l) => (typeof l === "string" ? clamp(l, MAX_SUB_LINE_LEN) : ""));
+  if (lines.some((l) => !l) || !lines.some((l) => JAPANESE.test(l))) return { error: "invalid_lines" };
+  const context = Array.isArray(body.context)
+    ? body.context.filter((c): c is string => typeof c === "string").map((c) => clamp(c, MAX_SUB_LINE_LEN)).filter(Boolean).slice(-MAX_SUB_CONTEXT)
+    : [];
+  return {
+    req: { lines, context, title: typeof body.title === "string" && body.title.trim() ? clamp(body.title, 120) : undefined },
+  };
+}
+
+/** Shared across users: the same track cut into the same chunks. */
+export async function batchCacheKey(req: SubBatchRequest): Promise<string> {
+  const basis = `${req.title ?? ""}\u0001${req.lines.join("\n")}`;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(basis));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
+  return `ai:subs-batch:v1:${hex}`;
+}
+
+export function batchPrompt(req: SubBatchRequest): { system: string; user: string } {
+  const system =
+    "You write English subtitles for Japanese anime. Translate each numbered line into natural, concise English " +
+    "a subtitler would use, keeping each speaker's tone. Keep one English line per Japanese line, same order and " +
+    "count; never merge or split lines; if a line cannot be translated on its own, translate it as it reads. " +
+    "Keep names as names (Hepburn romaji). Earlier lines are context only. Also list the character and place names " +
+    "that appear in these lines, as written, with their reading in this show in hiragana (katakana for foreign names). " +
+    'Respond only as JSON {"en": [string, ...], "names": {"<as written>": "<reading>"}}.';
+  const user = [
+    req.title ? `Anime: ${req.title}` : "",
+    req.context.length ? `Earlier lines:\n${req.context.map((c) => `- ${c}`).join("\n")}` : "",
+    `Lines (${req.lines.length}):\n${req.lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return { system, user };
+}
+
+export function parseBatch(raw: unknown, req: SubBatchRequest): SubBatchResult | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (!Array.isArray(r.en) || r.en.length !== req.lines.length) return null;
+  const en = r.en.map((e) => {
+    const line = typeof e === "string" ? clamp(e.replace(/^\d+\.\s*/, ""), 400) : "";
+    return /[A-Za-z]/.test(line) ? line : "";
+  });
+  if (!en.some(Boolean)) return null;
+  const names: Record<string, string> = {};
+  if (r.names && typeof r.names === "object" && !Array.isArray(r.names)) {
+    const all = req.lines.join("");
+    for (const [written, reading] of Object.entries(r.names as Record<string, unknown>)) {
+      if (typeof reading !== "string" || !written || written.length > 20 || !all.includes(written)) continue;
+      const kana = reading.replace(/\s+/g, "");
+      if (kana && kana.length <= 30 && KANA_ONLY.test(kana)) names[written] = kana;
+    }
+  }
+  return { en, names };
+}
+
+export async function runBatchTranslate(
+  apiKey: string,
+  model: string,
+  req: SubBatchRequest,
+  ctx?: LlmContext,
+  signal?: AbortSignal
+): Promise<SubBatchResult> {
+  const startedAt = Date.now();
+  const base = { ...ctx, model, operation: "subs_batch", effort: "none" as const };
+  const { system, user } = batchPrompt(req);
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      response_format: { type: "json_object" },
+      ...completionTuning(model, { temperature: 0.2, maxTokens: 60 * req.lines.length + 200, effort: fastestReasoningEffort(model) }),
+    }),
+    signal,
+  });
+  if (!res.ok) {
+    await recordLlmCall({ ...base, status: "error", errorCode: `openai_${res.status}`, latencyMs: Date.now() - startedAt });
+    throw new Error(`openai_${res.status}`);
+  }
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[]; usage?: unknown };
+  await recordLlmCall({ ...base, status: "ok", usage: parseUsage(data.usage), latencyMs: Date.now() - startedAt });
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data.choices?.[0]?.message?.content ?? "{}");
+  } catch {
+    throw new Error("openai_bad_json");
+  }
+  const result = parseBatch(parsed, req);
+  if (!result) throw new Error("openai_misaligned");
+  return result;
+}

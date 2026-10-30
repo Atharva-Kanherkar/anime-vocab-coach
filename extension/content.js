@@ -3930,6 +3930,10 @@
         }
         return;
       }
+      if (readings[String(i)] === "" && last && last.head >= 0 && !last.after) {
+        last.members.push(i);
+        return;
+      }
       const kana = kanaOf(t, readings[String(i)], script);
       const open = last && last.head >= 0 && !last.after && !opening;
       if (open && t.pos === "\u540D\u8A5E" && t.pos1 === "\u63A5\u5C3E" && HONORIFICS.has(t.surface)) {
@@ -4178,6 +4182,13 @@
     parent.appendChild(host);
   }
   var placedFor = "";
+  var baseline = 0.76;
+  function setLensBaseline(fraction) {
+    if (fraction === baseline) return;
+    baseline = fraction;
+    placedFor = "";
+    position();
+  }
   function position() {
     if (!lensEl || !opts) return;
     const video = opts.getVideo();
@@ -4188,7 +4199,7 @@
     if (key === placedFor) return;
     placedFor = key;
     lensEl.style.left = `${r.left + r.width / 2}px`;
-    lensEl.style.top = `${r.top + r.height * 0.76}px`;
+    lensEl.style.top = `${r.top + r.height * baseline}px`;
     lensEl.style.transform = "translate(-50%, -100%)";
     lensEl.style.maxWidth = `${Math.max(280, r.width * 0.86)}px`;
   }
@@ -4220,6 +4231,16 @@
       lensEl?.classList.remove("on");
       currentLine = "";
     }, CLEAR_GRACE_MS);
+  }
+  function endLensLine() {
+    if (!currentLine) return;
+    if (hover) {
+      clearLensLine();
+      return;
+    }
+    cancelPendingClear();
+    lensEl?.classList.remove("on");
+    currentLine = "";
   }
   function watchVideo(video) {
     if (!video || video === watchedVideo) return;
@@ -4452,7 +4473,7 @@
   function updateLensLine(text, update) {
     if (!shown || shown.text !== text || currentLine !== text) return;
     if (update.readings && Object.keys(update.readings).length && shown.script !== "kanji") {
-      const fixed = dualPieces(shown.tokens, shown.script, update.readings);
+      const fixed = dualPieces(shown.tokens, shown.script, { ...update.readings, ...shown.readings });
       if (fixed.length === shown.pieces.length) {
         const texts = displayTexts(fixed, shown.script);
         fixed.forEach((piece, n) => {
@@ -4481,7 +4502,7 @@
     const jpLine = document.createElement("div");
     jpLine.className = `line jp${script === "romaji" ? " romaji" : ""}`;
     if (script !== "romaji") jpLine.lang = "ja";
-    const pieces = dualPieces(tokens, script);
+    const pieces = dualPieces(tokens, script, options.readings);
     const texts = displayTexts(pieces, script);
     const rendered = [];
     pieces.forEach((piece, n) => {
@@ -4516,7 +4537,7 @@
       jpLine.appendChild(s);
     });
     card.appendChild(jpLine);
-    shown = { text, tokens, script, source, card, pieces: rendered, enEl: null };
+    shown = { text, tokens, script, source, card, pieces: rendered, enEl: null, readings: options.readings ?? {} };
     if (en) paintEnglish(en);
     lensEl.appendChild(card);
     placedFor = "";
@@ -4556,6 +4577,291 @@
     hideTip();
     lensEl?.classList.remove("on");
     releasePeekPause();
+  }
+
+  // src/lib/netflix-tracks.ts
+  var ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+  function decode(s) {
+    return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
+      if (e[0] === "#") {
+        const code = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+      }
+      return ENTITIES[e.toLowerCase()] ?? m;
+    });
+  }
+  function ttmlTime(expr, base) {
+    if (!expr) return NaN;
+    const s = expr.trim();
+    let m = /^(\d+(?:\.\d+)?)(h|m|s|ms|f|t)$/.exec(s);
+    if (m) {
+      const n = parseFloat(m[1]);
+      return m[2] === "h" ? n * 3600 : m[2] === "m" ? n * 60 : m[2] === "s" ? n : m[2] === "ms" ? n / 1e3 : m[2] === "f" ? n / base.frameRate : n / base.tickRate;
+    }
+    m = /^(\d+):(\d{2}):(\d{2})(?:\.(\d+)|:(\d+(?:\.\d+)?))?$/.exec(s);
+    if (m) {
+      const secs = +m[1] * 3600 + +m[2] * 60 + +m[3];
+      if (m[4]) return secs + parseFloat("0." + m[4]);
+      if (m[5]) return secs + parseFloat(m[5]) / base.frameRate;
+      return secs;
+    }
+    return NaN;
+  }
+  function attrs(raw) {
+    const out = {};
+    for (const m of raw.matchAll(/([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g)) out[m[1]] = decode(m[3] ?? m[4] ?? "");
+    return out;
+  }
+  var local = (name) => name.slice(name.indexOf(":") + 1);
+  function attr(a, name) {
+    for (const [k, v] of Object.entries(a)) if (local(k) === name) return v;
+    return void 0;
+  }
+  function parseTtml(xml) {
+    const head = /<tt\b([^>]*)>/.exec(xml);
+    const ttAttrs = head ? attrs(head[1]) : {};
+    const frameRate = parseFloat(attr(ttAttrs, "frameRate") || "30") || 30;
+    const mult = (attr(ttAttrs, "frameRateMultiplier") || "1 1").split(/\s+/).map(Number);
+    const base = {
+      tickRate: parseFloat(attr(ttAttrs, "tickRate") || "") || frameRate * (mult[0] / (mult[1] || 1)),
+      frameRate: frameRate * (mult[0] / (mult[1] || 1))
+    };
+    const styleRuby = /* @__PURE__ */ new Map();
+    for (const m of xml.matchAll(/<(?:[\w-]+:)?style\b([^>]*)\/?>/g)) {
+      const a = attrs(m[1]);
+      const id = attr(a, "id");
+      const ruby = attr(a, "ruby");
+      if (id && ruby) styleRuby.set(id, ruby);
+    }
+    const body = xml.slice(xml.search(/<(?:[\w-]+:)?body\b/) >= 0 ? xml.search(/<(?:[\w-]+:)?body\b/) : 0);
+    const cues = [];
+    for (const p of body.matchAll(/<(?:[\w-]+:)?p\b([^>]*)>([\s\S]*?)<\/(?:[\w-]+:)?p>/g)) {
+      const a = attrs(p[1]);
+      const start = ttmlTime(attr(a, "begin"), base);
+      let end = ttmlTime(attr(a, "end"), base);
+      if (!Number.isFinite(end)) end = start + (ttmlTime(attr(a, "dur"), base) || 0);
+      if (!Number.isFinite(start) || !(end > start)) continue;
+      const stack = [];
+      let text = "";
+      let rubyBase = "";
+      let rubyText = "";
+      const ruby = [];
+      for (const t of p[2].matchAll(/<(\/?)([\w:.-]+)([^>]*?)(\/?)>|([^<]+)/g)) {
+        if (t[5] !== void 0) {
+          const chunk = decode(t[5]).replace(/\s+/g, " ");
+          const role = [...stack].reverse().find((r) => r) ?? "";
+          if (role === "text" || role === "textContainer") rubyText += chunk;
+          else if (role === "delimiter") continue;
+          else {
+            text += chunk;
+            if (role === "base" || role === "baseContainer") rubyBase += chunk;
+          }
+          continue;
+        }
+        const name = local(t[2]);
+        if (name === "br") {
+          text += " ";
+          continue;
+        }
+        if (name !== "span") continue;
+        if (t[1]) {
+          const role = stack.pop();
+          if (role === "container" && rubyBase.trim() && rubyText.trim()) {
+            ruby.push([rubyBase.trim(), rubyText.trim()]);
+            rubyBase = rubyText = "";
+          }
+        } else {
+          const sa = attrs(t[3]);
+          const role = attr(sa, "ruby") ?? styleRuby.get((attr(sa, "style") ?? "").split(/\s+/)[0]) ?? "";
+          if (!t[4]) stack.push(role);
+          if (role === "container") rubyBase = rubyText = "";
+        }
+      }
+      const clean = text.replace(/\s+/g, " ").trim();
+      if (clean) cues.push({ start, end, text: clean, ruby });
+    }
+    return cues.sort((x, y) => x.start - y.start);
+  }
+  function parseVtt(vtt) {
+    const cues = [];
+    const time = (s) => {
+      const m = /^(?:(\d+):)?(\d{2}):(\d{2})[.,](\d{3})/.exec(s.trim());
+      return m ? +(m[1] || 0) * 3600 + +m[2] * 60 + +m[3] + +m[4] / 1e3 : NaN;
+    };
+    for (const block of vtt.replace(/\r/g, "").split(/\n{2,}/)) {
+      const lines = block.split("\n");
+      const at = lines.findIndex((l) => l.includes("-->"));
+      if (at < 0) continue;
+      const [a, b] = lines[at].split("-->");
+      const start = time(a), end = time(b);
+      if (!Number.isFinite(start) || !(end > start)) continue;
+      const raw = lines.slice(at + 1).join(" ");
+      const ruby = [];
+      for (const m of raw.matchAll(/<ruby>([\s\S]*?)<rt>([\s\S]*?)<\/rt>\s*<\/ruby>/g)) {
+        const written = decode(m[1].replace(/<[^>]+>/g, "")).trim();
+        const reading = decode(m[2].replace(/<[^>]+>/g, "")).trim();
+        if (written && reading) ruby.push([written, reading]);
+      }
+      const text = decode(raw.replace(/<rt>[\s\S]*?<\/rt>/g, "").replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+      if (text) cues.push({ start, end, text, ruby });
+    }
+    return cues.sort((x, y) => x.start - y.start);
+  }
+  function parseTimedText(text) {
+    return /^﻿?WEBVTT/.test(text) ? parseVtt(text) : parseTtml(text);
+  }
+  function cueAt(cues, t) {
+    let lo = 0, hi = cues.length - 1, found = -1;
+    while (lo <= hi) {
+      const mid = lo + hi >> 1;
+      if (cues[mid].start <= t) {
+        found = mid;
+        lo = mid + 1;
+      } else hi = mid - 1;
+    }
+    for (let i = found; i >= 0 && i > found - 4; i--) if (t < cues[i].end) return i;
+    return -1;
+  }
+  function englishFor(ja, en) {
+    return ja.map((cue) => {
+      const len = cue.end - cue.start;
+      const parts = en.filter((e) => {
+        const overlap = Math.min(e.end, cue.end) - Math.max(e.start, cue.start);
+        return overlap > 0 && (overlap >= 0.4 * len || overlap >= 0.4 * (e.end - e.start));
+      });
+      return parts.map((p) => p.text).join(" ").replace(/\s+/g, " ").trim();
+    });
+  }
+  function chunkOrder(chunks, current2) {
+    const now = Math.min(Math.max(current2, 0), Math.max(chunks - 1, 0));
+    const out = [];
+    for (let i = now; i < chunks; i++) out.push(i);
+    for (let i = now - 1; i >= 0; i--) out.push(i);
+    return out;
+  }
+
+  // src/lib/episode-subs.ts
+  var CHUNK = 20;
+  var PARALLEL = 4;
+  var EpisodeSubs = class {
+    constructor(cues, englishTrack, title, send) {
+      this.cues = cues;
+      this.title = title;
+      this.send = send;
+      /** Furigana and names: as written → reading. */
+      this.glossary = /* @__PURE__ */ new Map();
+      this.queue = [];
+      this.running = 0;
+      this.waiters = /* @__PURE__ */ new Map();
+      this.stopped = false;
+      this.lastError = null;
+      for (const cue of cues) for (const [written, reading] of cue.ruby) this.glossary.set(written, reading);
+      if (englishTrack && englishTrack.length) {
+        this.source = "track";
+        this.english = englishFor(cues, englishTrack);
+        this.chunks = [];
+      } else {
+        this.source = "translation";
+        this.english = cues.map(() => null);
+        this.chunks = Array.from({ length: Math.ceil(cues.length / CHUNK) }, () => "idle");
+      }
+    }
+    /** The English for cue `i` if it is known now. */
+    englishAt(i) {
+      return this.english[i] ?? null;
+    }
+    /** The English for cue `i` once it is known; null if it could not be had. */
+    whenEnglish(i) {
+      const now = this.english[i];
+      if (now !== null && now !== void 0) return Promise.resolve(now);
+      if (this.source === "track" || this.chunks[Math.floor(i / CHUNK)] === "failed" || this.stopped) return Promise.resolve(null);
+      return new Promise((resolve) => {
+        const list = this.waiters.get(i) ?? [];
+        list.push(resolve);
+        this.waiters.set(i, list);
+        this.translateFrom(i);
+      });
+    }
+    /** Translate from cue `i` onwards (then what came before). Cheap to call
+     * on every cue: it only reorders what is still waiting. */
+    translateFrom(i) {
+      if (this.source === "track" || this.stopped) return;
+      const order = chunkOrder(this.chunks.length, Math.floor(Math.max(i, 0) / CHUNK));
+      this.queue = order.filter((c) => this.chunks[c] === "idle");
+      while (this.running < PARALLEL && this.queue.length) this.runNext();
+    }
+    /** Chunks translated so far, of all. */
+    progress() {
+      return { done: this.chunks.filter((c) => c === "done").length, total: this.chunks.length };
+    }
+    /** Stop asking (another video, or the account is out of lines). */
+    stop() {
+      this.stopped = true;
+      this.queue = [];
+      for (const [i, list] of this.waiters) for (const resolve of list) resolve(this.english[i] ?? null);
+      this.waiters.clear();
+    }
+    runNext() {
+      const chunk = this.queue.shift();
+      if (chunk === void 0 || this.chunks[chunk] !== "idle") return;
+      this.chunks[chunk] = "loading";
+      this.running++;
+      const from = chunk * CHUNK;
+      const lines = this.cues.slice(from, from + CHUNK).map((c) => c.text);
+      const context = this.cues.slice(Math.max(0, from - 3), from).map((c) => c.text);
+      this.send({ title: this.title, lines, context }).then((res) => {
+        if (res?.ok && res.result.en.length === lines.length) {
+          this.chunks[chunk] = "done";
+          res.result.en.forEach((en, k) => this.settle(from + k, en));
+          for (const [written, reading] of Object.entries(res.result.names)) {
+            if (!this.glossary.has(written)) this.glossary.set(written, reading);
+          }
+        } else {
+          this.fail(chunk, res && !res.ok ? res.error : "no_response");
+        }
+      }, () => this.fail(chunk, "network")).finally(() => {
+        this.running--;
+        if (!this.stopped) while (this.running < PARALLEL && this.queue.length) this.runNext();
+      });
+    }
+    settle(i, en) {
+      this.english[i] = en;
+      const list = this.waiters.get(i);
+      if (!list) return;
+      this.waiters.delete(i);
+      for (const resolve of list) resolve(en);
+    }
+    fail(chunk, error) {
+      this.chunks[chunk] = "failed";
+      this.lastError = error;
+      if (/quota|not_linked|unauthorized/.test(error)) this.stop();
+      const from = chunk * CHUNK;
+      for (let i = from; i < from + CHUNK; i++) {
+        const list = this.waiters.get(i);
+        if (!list) continue;
+        this.waiters.delete(i);
+        for (const resolve of list) resolve(null);
+      }
+    }
+  };
+  function glossaryReadings(tokens, glossary) {
+    const readings = {};
+    if (!glossary.size) return readings;
+    for (let i = 0; i < tokens.length; i++) {
+      let joined = "";
+      for (let j = i; j < Math.min(tokens.length, i + 4); j++) {
+        joined += tokens[j].surface;
+        const reading = glossary.get(joined);
+        if (reading && /[㐀-鿿]/.test(joined)) {
+          readings[String(i)] = reading;
+          for (let k = i + 1; k <= j; k++) readings[String(k)] = "";
+          i = j;
+          break;
+        }
+        if (joined.length > 12) break;
+      }
+    }
+    return readings;
   }
 
   // src/lib/subs-client.ts
@@ -5072,7 +5378,7 @@
       }
     }
   }
-  function cueAt(cues, t) {
+  function cueAt2(cues, t) {
     for (const cue of cues) {
       if (t >= cue.start && t <= cue.end) return cue;
       if (cue.start > t) break;
@@ -5083,7 +5389,7 @@
     if (dropCuesFromOtherVideo()) return;
     if (!targetCues.length || !onLineCb || !attachedVideo) return;
     const t = attachedVideo.currentTime;
-    const cue = cueAt(targetCues, t);
+    const cue = cueAt2(targetCues, t);
     if (!cue) {
       if (lastCueKey) {
         lastCueKey = "";
@@ -5095,7 +5401,7 @@
     if (key === lastCueKey) return;
     lastCueKey = key;
     if (!matchesTargetScript(cue.text, getAdapterDirection())) return;
-    const ctxCue = cueAt(contextCues, (cue.start + cue.end) / 2);
+    const ctxCue = cueAt2(contextCues, (cue.start + cue.end) / 2);
     onLineCb(cue.text, { en: ctxCue ? ctxCue.text : "" });
   }
   function getVideo() {
@@ -5476,7 +5782,7 @@
     const pendingLines = [];
     let lensSeq = 0;
     const judgedLensSeqs = /* @__PURE__ */ new Set();
-    let tokenMemo = null;
+    const tokenMemo = /* @__PURE__ */ new Map();
     let initPromise2 = null;
     let jaReady = false;
     let jaPromise = null;
@@ -5499,7 +5805,14 @@
       if (adapter && !started) {
         started = true;
         log("adapter chosen:", adapter.name);
-        adapter.start(onLine, clearLensLine);
+        adapter.start(
+          (text, context) => {
+            if (!episode) onLine(text, context);
+          },
+          () => {
+            if (!episode) clearLensLine();
+          }
+        );
         void ensureInit();
       }
       return adapter;
@@ -5711,9 +6024,11 @@
       return !(s.sites && s.sites[siteKey] === false);
     }
     async function tokenizeJa(text) {
-      if (tokenMemo && tokenMemo.text === text) return tokenMemo.tokens;
+      const hit = tokenMemo.get(text);
+      if (hit) return hit;
       const tokens = await tokenize(text);
-      tokenMemo = { text, tokens };
+      tokenMemo.set(text, tokens);
+      if (tokenMemo.size > 64) tokenMemo.delete(tokenMemo.keys().next().value);
       return tokens;
     }
     function countProgress2(vocab) {
@@ -5789,7 +6104,8 @@
     async function renderLens(line, context, groupSeq) {
       const seq = ++lensSeq;
       const sessionId = currentSessionId();
-      const stale = () => seq !== lensSeq || currentSessionId() !== sessionId;
+      const cue = context?.cue;
+      const stale = () => seq !== lensSeq || currentSessionId() !== sessionId || cue !== void 0 && cue !== timelineCue;
       const current2 = settings || await getSettings();
       if (stale()) return;
       if (!siteEnabled(current2) || !lensOn(current2)) {
@@ -5804,8 +6120,10 @@
       const en = context?.en || "";
       pageHasEnglish = !!en;
       const script = lensScript(current2);
+      const fromEpisode = cue !== void 0 ? episode : null;
       showLensLine(line, en, tokens, wordStates, {
         script,
+        readings: fromEpisode ? glossaryReadings(tokens, fromEpisode.glossary) : void 0,
         peekPause: current2.subLensPeek !== false,
         getVideo: () => adapter ? adapter.getVideo() : null,
         getTitle: currentTitle,
@@ -5822,6 +6140,19 @@
         }
       });
       if (en) return;
+      if (fromEpisode && cue !== void 0) {
+        if (fromEpisode.source === "track") return;
+        const ahead = await fromEpisode.whenEnglish(cue);
+        if (ahead !== null) {
+          if (ahead) updateLensLine(line, { en: ahead });
+          return;
+        }
+        if (fromEpisode.lastError && /quota|not_linked|unauthorized/.test(fromEpisode.lastError)) {
+          subs.lastError = fromEpisode.lastError;
+          explainMissingEnglish();
+          return;
+        }
+      }
       const translated = await subs.translate(line, tokens, currentTitle());
       updateLensLine(line, translated ?? {});
       if (!translated) explainMissingEnglish();
@@ -5996,6 +6327,87 @@
         dismissAgent();
       });
     }
+    let episode = null;
+    let episodeId = "";
+    let timelineCue = -1;
+    let timelineFrame = 0;
+    const TIMELINE_LEAD_SEC = 0.05;
+    function netflixId() {
+      return location.pathname.match(/\/watch\/(\d+)/)?.[1] || window.__avcNetflixVideoId || "";
+    }
+    function requestNetflixTracks() {
+      if (!location.hostname.endsWith("netflix.com")) return;
+      const movieId = netflixId();
+      if (movieId) window.postMessage({ source: "avc-content", type: "avc-netflix-timedtext-request", movieId }, location.origin);
+    }
+    function useNetflixTracks(data2) {
+      if (typeof data2.movieId !== "string" || data2.movieId !== netflixId() || data2.movieId === episodeId) return;
+      if (typeof data2.ja?.text !== "string") return;
+      const ja = parseTimedText(data2.ja.text);
+      if (ja.length < 5) return;
+      const en = typeof data2.en?.text === "string" ? parseTimedText(data2.en.text) : null;
+      episode?.stop();
+      episodeId = data2.movieId;
+      const ep = new EpisodeSubs(
+        ja,
+        en && en.length >= 5 ? en : null,
+        currentTitle(),
+        (payload) => chrome.runtime.sendMessage({ type: "avc-translate-batch", payload })
+      );
+      episode = ep;
+      const video = adapter?.getVideo();
+      ep.translateFrom(video ? cueAt(ep.cues, video.currentTime) : 0);
+      timelineCue = -1;
+      startTimeline();
+      syncNativeSubs();
+      log(`netflix tracks: ${ja.length} Japanese lines, English ${ep.source === "track" ? "from Netflix" : "translated ahead"}`);
+      showToast(
+        ep.source === "track" ? "Dual subtitles: Netflix's Japanese and English tracks, on the video's own timing." : "Dual subtitles: Netflix's Japanese track, with this episode's English translated ahead of time.",
+        "info"
+      );
+    }
+    function startTimeline() {
+      cancelAnimationFrame(timelineFrame);
+      const tick = () => {
+        timelineFrame = requestAnimationFrame(tick);
+        const ep = episode;
+        const video = adapter?.getVideo();
+        if (!ep || !video) return;
+        const i = cueAt(ep.cues, video.currentTime + TIMELINE_LEAD_SEC);
+        if (i === timelineCue) return;
+        if (Math.abs(i - timelineCue) > 2) ep.translateFrom(i);
+        timelineCue = i;
+        if (i < 0) {
+          endLensLine();
+          return;
+        }
+        onLine(ep.cues[i].text, { en: ep.englishAt(i) ?? "", cue: i });
+        const next = ep.cues[i + 1];
+        if (next && jaReady) void tokenizeJa(next.text);
+      };
+      timelineFrame = requestAnimationFrame(tick);
+    }
+    function stopTimeline() {
+      cancelAnimationFrame(timelineFrame);
+      timelineFrame = 0;
+      episode?.stop();
+      episode = null;
+      episodeId = "";
+      timelineCue = -1;
+      syncNativeSubs();
+    }
+    function syncNativeSubs() {
+      const hide = !!episode && !!settings && lensOn(settings) && siteEnabled(settings);
+      let style = document.getElementById("avc-hide-native-subs");
+      if (hide && !style) {
+        style = document.createElement("style");
+        style.id = "avc-hide-native-subs";
+        style.textContent = ".player-timedtext { opacity: 0 !important; }";
+        document.documentElement.append(style);
+      }
+      if (!hide) style?.remove();
+      setLensBaseline(hide ? 0.9 : 0.76);
+    }
     function loadCourse(refresh = false) {
       const run = (async () => {
         let next = null;
@@ -6099,6 +6511,7 @@
       );
     });
     function handleTranscript(text, start, end) {
+      if (episode) return;
       const a = pickAdapter();
       if (!a) {
         warn("transcript arrived but no adapter matched this frame");
@@ -6166,6 +6579,7 @@
           hideLens();
         }
         applyPanelSettings(next);
+        syncNativeSubs();
         if (courseLoad || course2) void loadCourse();
       }).catch(() => {
       });
@@ -6234,6 +6648,8 @@
         captionNoticeShown = false;
         refreshCacheKey();
         log("session reset for new video:", sid);
+        stopTimeline();
+        requestNetflixTracks();
         prefetchAnimeContext(currentTitle());
       }
     }, 2e3);
@@ -6243,12 +6659,15 @@
       if (e.data.type === "avc-netflix-video-id" && e.data.videoId) {
         window.__avcNetflixVideoId = e.data.videoId;
         refreshCacheKey();
+        requestNetflixTracks();
       }
+      if (e.data.type === "avc-netflix-timedtext") useNetflixTracks(e.data);
     });
     refreshCacheKey();
     const initial = pickAdapter();
     lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
     void setAgentPinned(false);
     void restoreTabSession();
+    requestNetflixTracks();
   })();
 })();

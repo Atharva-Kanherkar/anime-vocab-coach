@@ -27,7 +27,8 @@ import {
 } from "../lib/extension-events";
 import { toastTab } from "../lib/notify";
 import { handleN5, invalidateN5, retryPendingN5 } from "../lib/n5-service";
-import { fetchSubTranslation, type SubRequest } from "../lib/subs-client";
+import { fetchSubBatch, fetchSubTranslation, type SubRequest } from "../lib/subs-client";
+import type { BatchRequest } from "../lib/episode-subs";
 import { CaptureStarts } from "../lib/capture-starts";
 import { listeningRegistry, retryCaptureStart } from "../lib/listening-coordination";
 const captureStarts = new CaptureStarts();
@@ -392,7 +393,7 @@ interface RuntimeMsg {
   mode?: "explain" | "hooks";
   message?: string;
   history?: ChatMessage[];
-  payload?: CoachPayload | WordPickRequest | ExtractWordsRequest | SubRequest;
+  payload?: CoachPayload | WordPickRequest | ExtractWordsRequest | SubRequest | BatchRequest;
   event?: string;
   surface?: string;
   url?: string;
@@ -536,6 +537,13 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     fetchWordPick(msg.payload as WordPickRequest)
       .then(sendResponse)
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
+  if (msg.type === "avc-translate-batch") {
+    fetchSubBatch(msg.payload as BatchRequest)
+      .then(sendResponse)
+      .catch(() => sendResponse({ ok: false, error: "network" }));
     return true;
   }
 

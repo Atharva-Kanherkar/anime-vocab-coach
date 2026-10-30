@@ -31,6 +31,8 @@ export interface SubLensOptions {
   onJudged?: () => void;
   /** How the Japanese line is written. */
   script?: SubScript;
+  /** Known readings by token index (furigana, names); "" joins a token to the one before. */
+  readings?: Record<string, string>;
 }
 
 interface HoverContext {
@@ -186,6 +188,7 @@ let shown: {
   card: HTMLElement;
   pieces: { piece: DualPiece; el: HTMLElement }[];
   enEl: HTMLElement | null;
+  readings: Record<string, string>;
 } | null = null;
 
 function ensureMounted(): void {
@@ -223,6 +226,17 @@ function ensureMounted(): void {
 /** The video rect the Lens was last placed against, so the 500ms tick only
  * touches the layout when the player actually moved or resized. */
 let placedFor = "";
+/** Where the bottom of the subtitles sits, as a fraction of the video's
+ * height: above the player's own subtitles, or in their place when they are
+ * hidden. */
+let baseline = 0.76;
+
+export function setLensBaseline(fraction: number): void {
+  if (fraction === baseline) return;
+  baseline = fraction;
+  placedFor = "";
+  position();
+}
 
 function position(): void {
   if (!lensEl || !opts) return;
@@ -235,7 +249,7 @@ function position(): void {
   placedFor = key;
   // Sit in the lower quarter of the video, above where native subs render.
   lensEl.style.left = `${r.left + r.width / 2}px`;
-  lensEl.style.top = `${r.top + r.height * 0.76}px`;
+  lensEl.style.top = `${r.top + r.height * baseline}px`;
   lensEl.style.transform = "translate(-50%, -100%)";
   lensEl.style.maxWidth = `${Math.max(280, r.width * 0.86)}px`;
 }
@@ -269,6 +283,18 @@ export function clearLensLine(): void {
     lensEl?.classList.remove("on");
     currentLine = "";
   }, CLEAR_GRACE_MS);
+}
+
+/**
+ * The line's time is up: take it down now, not after the grace period a
+ * blinking native subtitle needs. A line being hovered stays until let go.
+ */
+export function endLensLine(): void {
+  if (!currentLine) return;
+  if (hover) { clearLensLine(); return; }
+  cancelPendingClear();
+  lensEl?.classList.remove("on");
+  currentLine = "";
 }
 
 /**
@@ -539,7 +565,8 @@ function paintEnglish(en: string): void {
 export function updateLensLine(text: string, update: { en?: string; readings?: Record<string, string> }): void {
   if (!shown || shown.text !== text || currentLine !== text) return;
   if (update.readings && Object.keys(update.readings).length && shown.script !== "kanji") {
-    const fixed = dualPieces(shown.tokens, shown.script, update.readings);
+    // Readings already known (furigana) win over a model's guess.
+    const fixed = dualPieces(shown.tokens, shown.script, { ...update.readings, ...shown.readings });
     if (fixed.length === shown.pieces.length) {
       const texts = displayTexts(fixed, shown.script);
       fixed.forEach((piece, n) => {
@@ -583,7 +610,7 @@ export function showLensLine(
   const jpLine = document.createElement("div");
   jpLine.className = `line jp${script === "romaji" ? " romaji" : ""}`;
   if (script !== "romaji") jpLine.lang = "ja";
-  const pieces = dualPieces(tokens, script);
+  const pieces = dualPieces(tokens, script, options.readings);
   const texts = displayTexts(pieces, script);
   const rendered: { piece: DualPiece; el: HTMLElement }[] = [];
   pieces.forEach((piece, n) => {
@@ -614,7 +641,7 @@ export function showLensLine(
     jpLine.appendChild(s);
   });
   card.appendChild(jpLine);
-  shown = { text, tokens, script, source, card, pieces: rendered, enEl: null };
+  shown = { text, tokens, script, source, card, pieces: rendered, enEl: null, readings: options.readings ?? {} };
   // A translated line fades in when it lands (updateLensLine); no
   // placeholder, which read as broken whenever the line moved on first.
   if (en) paintEnglish(en);
