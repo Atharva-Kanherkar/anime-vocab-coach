@@ -9,7 +9,7 @@
  * prompt, a small answer, and a shared cache. The same line of the same show
  * is translated once for everybody.
  */
-import { completionTuning, isReasoningModel } from "./ai-coach";
+import { completionTuning, fastestReasoningEffort } from "./ai-coach";
 import { parseUsage } from "./llm-pricing";
 import { recordLlmCall, type LlmContext } from "./telemetry";
 
@@ -146,7 +146,8 @@ export async function runSubTranslate(
       ],
       response_format: { type: "json_object" },
       // Reasoning off: a subtitle that arrives after its line is gone is worthless.
-      ...completionTuning(model, { temperature: 0.2, maxTokens: 300, effort: isReasoningModel(model) ? "none" : undefined }),
+      // Whatever AI_SUBS_MODEL is set to: o-series and GPT-5 reject "none".
+      ...completionTuning(model, { temperature: 0.2, maxTokens: 300, effort: fastestReasoningEffort(model) }),
     }),
   });
   if (!res.ok) {

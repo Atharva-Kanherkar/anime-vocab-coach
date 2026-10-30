@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import kuromoji from "kuromoji";
 import { resolve } from "node:path";
-import { dualPieces, dualText } from "../src/lib/dual-line";
+import { displayTexts, dualPieces, dualText } from "../src/lib/dual-line";
 import { kataToHira } from "../src/lib/romaji";
 import type { Token } from "../src/types";
 
@@ -32,6 +32,14 @@ describe("dual subtitle romaji", () => {
     ["「好きだよ」って言ったんだ。", "“Suki da yo” tte ittan da."],
   ])("%s → %s", (line, expected) => {
     expect(romaji(line)).toBe(expected);
+  });
+
+  it("capitalises every sentence in the pieces themselves, as shown on screen", () => {
+    const pieces = dualPieces(tokens("はじめまして。わたしは学生です。「好きだよ」って。"), "romaji");
+    const shown = displayTexts(pieces, "romaji");
+    expect(shown).toEqual(["Hajimemashite.", "Watashi", "wa", "gakusei", "desu.", "“Suki", "da", "yo”", "tte."]);
+    expect(dualText(pieces, "romaji")).toBe(shown.join(" "));
+    expect(displayTexts(dualPieces(tokens("きみはうそをついた。"), "kana"), "kana")[0]).toBe("きみ");
   });
 
   it("takes corrected readings for words the tokenizer misread", () => {

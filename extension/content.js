@@ -3953,6 +3953,16 @@
       return { text: g.before + word + g.after, token: g.head, tokens: g.members, attached: n === 0 };
     });
   }
+  function displayTexts(pieces, script) {
+    if (script !== "romaji") return pieces.map((p) => p.text);
+    let sentenceStart = true;
+    return pieces.map((p) => {
+      const text = sentenceStart ? p.text.replace(/^([^A-Za-z]*)([a-z])/, (_m, a, b) => a + b.toUpperCase()) : p.text;
+      if (/[A-Za-z]/.test(p.text)) sentenceStart = false;
+      if (/[.!?…][\u201d")]*$/.test(p.text)) sentenceStart = true;
+      return text;
+    });
+  }
 
   // src/lib/gloss-link.ts
   var GLOSS_STOP = /* @__PURE__ */ new Set([
@@ -4404,9 +4414,6 @@
     if (rec.state === "learning") return "learning";
     return "";
   }
-  function capitalise(text) {
-    return text.replace(/^([^A-Za-z]*)([a-z])/, (_m, a, b) => a + b.toUpperCase());
-  }
   function paintEnglish(en) {
     if (!shown) return;
     const { tokens, pieces, source } = shown;
@@ -4460,10 +4467,11 @@
     if (update.readings && Object.keys(update.readings).length && shown.script !== "kanji") {
       const fixed = dualPieces(shown.tokens, shown.script, update.readings);
       if (fixed.length === shown.pieces.length) {
+        const texts = displayTexts(fixed, shown.script);
         fixed.forEach((piece, n) => {
           const slot = shown.pieces[n];
           slot.piece = piece;
-          slot.el.textContent = n === 0 && shown.script === "romaji" ? capitalise(piece.text) : piece.text;
+          slot.el.textContent = texts[n];
         });
       }
     }
@@ -4491,13 +4499,14 @@
     jpLine.className = `line jp${script === "romaji" ? " romaji" : ""}`;
     if (script !== "romaji") jpLine.lang = "ja";
     const pieces = dualPieces(tokens, script);
+    const texts = displayTexts(pieces, script);
     const rendered = [];
     pieces.forEach((piece, n) => {
       if (n > 0 && !piece.attached && script !== "kanji") jpLine.appendChild(document.createTextNode(" "));
       const tk = piece.token >= 0 ? tokens[piece.token] : null;
       const entry = tk ? lookup(tk.base) : null;
       const s = document.createElement("span");
-      s.textContent = n === 0 && script === "romaji" ? capitalise(piece.text) : piece.text;
+      s.textContent = texts[n];
       rendered.push({ piece, el: s });
       if (!tk || !entry) {
         jpLine.appendChild(s);
@@ -4664,6 +4673,10 @@
         if (this.entries[j].text) return this.entries[j].text;
       }
       return "";
+    }
+    /** Whether any line sampled so far passes `test`. */
+    some(test) {
+      return this.entries.some((e) => !!e.text && test(e.text));
     }
     clear() {
       this.entries = [];
@@ -5705,8 +5718,9 @@
       subsNoticeShown = true;
       showToast(text, "info");
     }
-    async function prefetchEnglish(line) {
-      if (pageHasEnglish || !await ensureJa()) return;
+    async function prefetchEnglish(line, a) {
+      if (pageHasEnglish || hasEnglish(a.getVisibleText()) || contextSubs.some(hasEnglish)) return;
+      if (!await ensureJa()) return;
       subs.translate(line, await tokenize(line), currentTitle()).catch(() => {
       });
     }
@@ -6120,7 +6134,7 @@
       if (ahead > EARLY_LINE_TOLERANCE_SEC) {
         if (ahead > MAX_EARLY_HOLD_SEC) return;
         if (settings && lensOn(settings)) {
-          for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece);
+          for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece, a);
         }
         const sessionId = currentSessionId();
         const generation = cachePollGeneration;

@@ -16,7 +16,7 @@ import { requestAnimeContext, peekAnimeContext } from "../lib/anime-context-clie
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
-import { matchesTargetScript, setAdapterDirection } from "../lib/adapters/util";
+import { hasEnglish, matchesTargetScript, setAdapterDirection } from "../lib/adapters/util";
 import { audioLang, normalizeDirection } from "../lib/direction";
 import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-client";
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
@@ -425,8 +425,11 @@ declare global {
   }
 
   /** Start translating a line now so its English is ready when it is shown. */
-  async function prefetchEnglish(line: string): Promise<void> {
-    if (pageHasEnglish || !(await ensureJa())) return;
+  async function prefetchEnglish(line: string, a: SiteAdapter): Promise<void> {
+    // English already on the page (now, or in what has been sampled) will be
+    // shown with the line; translating ahead would spend a line for nothing.
+    if (pageHasEnglish || hasEnglish(a.getVisibleText()) || contextSubs.some(hasEnglish)) return;
+    if (!(await ensureJa())) return;
     subs.translate(line, await tokenizer.tokenize(line), currentTitle()).catch(() => {});
   }
 
@@ -963,7 +966,7 @@ declare global {
       if (ahead > MAX_EARLY_HOLD_SEC) return; // a seek or a stale window; the cache poll covers it
       // Seconds early: long enough to have its English ready when it is due.
       if (settings && lensOn(settings)) {
-        for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece);
+        for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece, a);
       }
       const sessionId = currentSessionId();
       const generation = cachePollGeneration;

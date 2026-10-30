@@ -119,10 +119,23 @@ export function dualPieces(tokens: Token[], script: SubScript, readings: Record<
 }
 
 /** The pieces as one string, first letter up for romaji. */
+/** Each piece as shown. In romaji every sentence starts with a capital,
+ * quoted ones included; the subtitle's word spans and dualText both use this,
+ * so what is on screen and what is reported never differ. */
+export function displayTexts(pieces: DualPiece[], script: SubScript): string[] {
+  if (script !== "romaji") return pieces.map((p) => p.text);
+  let sentenceStart = true;
+  return pieces.map((p) => {
+    const text = sentenceStart ? p.text.replace(/^([^A-Za-z]*)([a-z])/, (_m, a: string, b: string) => a + b.toUpperCase()) : p.text;
+    if (/[A-Za-z]/.test(p.text)) sentenceStart = false;
+    if (/[.!?…][\u201d")]*$/.test(p.text)) sentenceStart = true;
+    return text;
+  });
+}
+
 export function dualText(pieces: DualPiece[], script: SubScript): string {
+  const texts = displayTexts(pieces, script);
   let out = "";
-  for (const p of pieces) out += (out && !p.attached && script !== "kanji" ? " " : "") + p.text;
-  out = out.trim();
-  // Sentences start with a capital, quoted ones included.
-  return script === "romaji" ? out.replace(/(^|[.!?…]\s+)([^A-Za-z]*)([a-z])/g, (_m, a: string, b: string, c: string) => a + b + c.toUpperCase()) : out;
+  pieces.forEach((p, i) => { out += (out && !p.attached && script !== "kanji" ? " " : "") + texts[i]; });
+  return out.trim();
 }

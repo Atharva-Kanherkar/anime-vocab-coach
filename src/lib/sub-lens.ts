@@ -11,7 +11,7 @@
 // over the player without eating clicks on its controls.
 import { lookup } from "./dictionary";
 import { toRomaji } from "./romaji";
-import { dualPieces, dualText, type DualPiece, type SubScript } from "./dual-line";
+import { displayTexts, dualPieces, dualText, type DualPiece, type SubScript } from "./dual-line";
 import { commonnessLabel } from "./levels";
 import { buildGlossIndex, linkEnglishWord } from "./gloss-link";
 import { PlaybackHold } from "./playback-hold";
@@ -499,10 +499,6 @@ function tokenClass(base: string): string {
   return "";
 }
 
-function capitalise(text: string): string {
-  return text.replace(/^([^A-Za-z]*)([a-z])/, (_m, a: string, b: string) => a + b.toUpperCase());
-}
-
 /** The English line, with words that translate a word above linked to it. */
 function paintEnglish(en: string): void {
   if (!shown) return;
@@ -560,10 +556,11 @@ export function updateLensLine(text: string, update: { en?: string; readings?: R
   if (update.readings && Object.keys(update.readings).length && shown.script !== "kanji") {
     const fixed = dualPieces(shown.tokens, shown.script, update.readings);
     if (fixed.length === shown.pieces.length) {
+      const texts = displayTexts(fixed, shown.script);
       fixed.forEach((piece, n) => {
         const slot = shown!.pieces[n];
         slot.piece = piece;
-        slot.el.textContent = n === 0 && shown!.script === "romaji" ? capitalise(piece.text) : piece.text;
+        slot.el.textContent = texts[n];
       });
     }
   }
@@ -606,13 +603,14 @@ export function showLensLine(
   jpLine.className = `line jp${script === "romaji" ? " romaji" : ""}`;
   if (script !== "romaji") jpLine.lang = "ja";
   const pieces = dualPieces(tokens, script);
+  const texts = displayTexts(pieces, script);
   const rendered: { piece: DualPiece; el: HTMLElement }[] = [];
   pieces.forEach((piece, n) => {
     if (n > 0 && !piece.attached && script !== "kanji") jpLine.appendChild(document.createTextNode(" "));
     const tk = piece.token >= 0 ? tokens[piece.token] : null;
     const entry = tk ? lookup(tk.base) : null;
     const s = document.createElement("span");
-    s.textContent = n === 0 && script === "romaji" ? capitalise(piece.text) : piece.text;
+    s.textContent = texts[n];
     rendered.push({ piece, el: s });
     if (!tk || !entry) {
       jpLine.appendChild(s);

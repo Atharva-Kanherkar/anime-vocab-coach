@@ -46,6 +46,11 @@ export class SubtitleHistory {
     return "";
   }
 
+  /** Whether any line sampled so far passes `test`. */
+  some(test: (text: string) => boolean): boolean {
+    return this.entries.some((e) => !!e.text && test(e.text));
+  }
+
   clear(): void {
     this.entries = [];
   }

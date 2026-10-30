@@ -35,6 +35,7 @@ const ANSWERS = {
   "わたしは宮園かをりです。": { en: "I'm Kaori Miyazono.", readings: {} },
   "明日も会えるかな。": { en: "Will I see you tomorrow too?", readings: {} },
   "君は嘘をついていた。": { en: "You were lying.", readings: {} },
+  "はじめまして。わたしは学生です。": { en: "Nice to meet you. I'm a student.", readings: {} },
 };
 const DELAY_MS = 250;
 let quotaExhausted = false;
@@ -134,6 +135,25 @@ try {
   const heard = await waitFor(page, (v) => v.jp.startsWith("Ashita"), 6000);
   assert.equal(heard.en, "Will I see you tomorrow too?", "English is there the moment the line is");
   check("a line heard ahead of its moment has its English ready when it is shown");
+
+  // Two sentences in one subtitle: both start with a capital on screen.
+  await page.evaluate(() => window.avcCaption("はじめまして。わたしは学生です。"));
+  const two = await waitFor(page, (v) => v.en === "Nice to meet you. I'm a student.");
+  assert.equal(two.jp, "Hajimemashite. Watashi wa gakusei desu.");
+  check("every sentence in a subtitle starts with a capital on screen");
+
+  // English already on the page: a line heard early is not translated ahead.
+  await page.evaluate(() => window.avcCaption("See you tomorrow."));
+  await page.waitForTimeout(300);
+  const t2 = await page.evaluate(() => document.querySelector("video").currentTime);
+  await sw.evaluate(({ tabId, start }) => chrome.tabs.sendMessage(tabId, { type: "avc-transcript", text: "また明日会おう。", start, end: start + 2 }), { tabId, start: t2 + 2 });
+  await page.waitForTimeout(800);
+  assert.ok(!asked.some((a) => a.line === "また明日会おう。"), "no translation spent while the page shows English");
+  const native = await waitFor(page, (v) => v.jp.startsWith("Mata"), 6000);
+  assert.equal(native.en, "See you tomorrow.", "the page's own English is used");
+  assert.ok(!asked.some((a) => a.line === "また明日会おう。"));
+  await page.evaluate(() => window.avcCaption(""));
+  check("with English on the page, nothing is translated ahead and the page's English is shown");
 
   // Kana, when the learner reads kana.
   await sw.evaluate(async () => { const { settings } = await chrome.storage.local.get("settings"); await chrome.storage.local.set({ settings: { ...settings, displayScript: "kana" } }); });

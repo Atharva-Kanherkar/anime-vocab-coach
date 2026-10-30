@@ -65,6 +65,27 @@ describe("runSubTranslate", () => {
     expect(sent.response_format).toEqual({ type: "json_object" });
   });
 
+  it.each([
+    ["gpt-5.6-luna", "none"],
+    ["gpt-5-mini", "minimal"],
+    ["o3-mini", "low"],
+    ["o4", "low"],
+  ])("asks %s for its fastest supported effort (%s)", async (model, effort) => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: '{"en":"Play."}' } }] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(runSubTranslate("k", model, req())).resolves.toMatchObject({ en: "Play." });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).reasoning_effort).toBe(effort);
+  });
+
+  it("sends no reasoning params to models that do not reason", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: '{"en":"Play."}' } }] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await runSubTranslate("k", "gpt-4.1-mini", req());
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sent.reasoning_effort).toBeUndefined();
+    expect(sent.temperature).toBe(0.2);
+  });
+
   it("throws on provider errors and unusable answers", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
     await expect(runSubTranslate("k", "gpt-4.1-mini", req())).rejects.toThrow("openai_500");
