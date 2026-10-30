@@ -46,7 +46,9 @@ export function CourseLesson({ lessonId, ownerId, script }: { lessonId: string; 
       </>
     );
   if (!state.data) return <Loading variant="lesson" label="Opening your lesson…" />;
-  return <LessonContent ownerId={ownerId} {...state.data} />;
+  // Keyed: moving to another lesson keeps the old data on screen until the new
+  // loads, and step, watched and heard state must not carry across.
+  return <LessonContent key={state.data.lesson.id} ownerId={ownerId} {...state.data} />;
 }
 
 type Step = "learn" | "drill" | "watch" | "practice" | "speak";

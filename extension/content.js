@@ -1774,7 +1774,10 @@
     const heard = [];
     for (const word of words) {
       const key = soundKey(word.kana);
-      if (key.length < 2) continue;
+      if (key.length < 2) {
+        if (key && tokens.some((t, i) => sounds[i] === key && t.pos === "\u540D\u8A5E" && t.pos1 !== "\u63A5\u5C3E" && /[\u3400-\u9fff]/.test(t.surface))) heard.push(word.id);
+        continue;
+      }
       let found = bases.includes(key);
       for (let i = 0; !found && i < sounds.length; i++) {
         let run = "";

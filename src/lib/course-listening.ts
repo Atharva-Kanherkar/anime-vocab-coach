@@ -54,7 +54,7 @@ export function soundKey(text: string): string {
  * gives that reading when the dictionary knows it.
  */
 export function wordsHeard(
-  tokens: Pick<Token, "surface" | "base" | "reading">[],
+  tokens: (Pick<Token, "surface" | "base" | "reading"> & Partial<Pick<Token, "pos" | "pos1">>)[],
   words: Pick<CourseWord, "id" | "kana">[],
   baseReading: (base: string) => string | null = () => null
 ): string[] {
@@ -66,8 +66,12 @@ export function wordsHeard(
   const heard: string[] = [];
   for (const word of words) {
     const key = soundKey(word.kana);
-    // One kana is too little to tell a word from a particle or a sound.
-    if (key.length < 2) continue;
+    if (key.length < 2) {
+      // One kana is too little to tell a word from a particle, an ending or a
+      // sound, so 目, 手 and 木 count only as a noun of their own, written in kanji.
+      if (key && tokens.some((t, i) => sounds[i] === key && t.pos === "名詞" && t.pos1 !== "接尾" && /[\u3400-\u9fff]/.test(t.surface))) heard.push(word.id);
+      continue;
+    }
     let found = bases.includes(key);
     for (let i = 0; !found && i < sounds.length; i++) {
       let run = "";

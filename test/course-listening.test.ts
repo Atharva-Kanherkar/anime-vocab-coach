@@ -30,7 +30,18 @@ describe("hearing lesson words", () => {
   it("does not take a slice of a longer word, or a single kana", () => {
     expect(wordsHeard([t("友達たち", "トモダチタチ")], words)).toEqual([]);
     expect(wordsHeard([t("え", "エ"), t("？", "")], words)).toEqual([]);
+    expect(wordsHeard([{ ...t("絵", "エ"), pos: "名詞", pos1: "一般" }], [{ id: "blank", kana: "" }])).toEqual([]);
     expect(wordsHeard([], words)).toEqual([]);
+  });
+
+  it("hears one-kana nouns only as nouns written in kanji", () => {
+    const eye = [{ id: "me", kana: "め" }, { id: "te", kana: "て" }];
+    const n = (surface: string, reading: string, pos1 = "一般") => ({ surface, base: surface, reading, pos: "名詞", pos1 });
+    expect(wordsHeard([n("目", "メ"), { ...t("が", "ガ"), pos: "助詞" }], eye)).toEqual(["me"]);
+    expect(wordsHeard([n("手", "テ")], eye)).toEqual(["te"]);
+    expect(wordsHeard([{ ...t("食べ", "タベ"), pos: "動詞" }, { ...t("て", "テ"), pos: "助詞" }], eye)).toEqual([]);
+    expect(wordsHeard([n("一つ", "ヒトツ"), n("目", "メ", "接尾")], eye)).toEqual([]);
+    expect(wordsHeard([n("め", "メ")], eye)).toEqual([]);
   });
 
   it("hears conjugated forms through the dictionary form", () => {

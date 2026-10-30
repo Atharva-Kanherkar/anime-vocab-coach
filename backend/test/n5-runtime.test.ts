@@ -98,6 +98,9 @@ describe("real Worker and D1 end-to-end", () => {
     expect(progress.lessons.find((l: { lessonId: string }) => l.lessonId === LESSON_ID).heard).toEqual(["piano", "tomodachi"]);
     expect((await (await app.request("/me/export")).json()).heard).toHaveLength(2);
     expect((await (await app.request("/extension/state", { token: "avc_st_n5other" })).json()).lesson).toBeNull();
+    // D1 enforces foreign keys, so deleting the account takes heard words with it.
+    expect((await app.request("/me", { method: "DELETE" })).status).toBe(200);
+    expect((await app.db!.prepare("SELECT COUNT(*) AS n FROM n5_heard").first())?.n).toBe(0);
   });
 
   it.each(["romaji", "kana"])("completes and resumes the %s preview without awarding untested skills", async (script) => {
