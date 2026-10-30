@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useUser } from "@clerk/nextjs";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
+import { CourseLoading } from "./loading";
 
 export class CourseFailure extends Error {
   constructor(
@@ -216,10 +217,6 @@ export function Failure({ error }: { error: unknown }) {
   );
 }
 
-export function Loading() {
-  return (
-    <p role="status" className="n5-panel">
-      Loading your practice…
-    </p>
-  );
+export function Loading({ variant, label }: { variant?: "home" | "lesson" | "page"; label?: string } = {}) {
+  return <CourseLoading variant={variant} label={label} />;
 }

@@ -37,7 +37,7 @@ export function CourseAttempt({ attemptId, ownerId, mode = "attempt" }: { attemp
       </>
     );
   }
-  if (!state.data) return <Loading />;
+  if (!state.data) return <Loading variant="lesson" />;
   const { attempt, lesson } = state.data;
   if (attempt.status === "complete") return <Results attempt={attempt} lesson={lesson} ownerId={ownerId} />;
   if (mode === "results") return <AttemptRedirect attemptId={attemptId} />;
@@ -400,7 +400,7 @@ function AttemptForm({ initial, lesson, ownerId }: { initial: N5Attempt; lesson:
     if (target === total && answered > 0 && !practice.saved && !state.pending && !state.blocked && !busy) void practice.submit(false);
     setIndex(target);
   }
-  if (finished) return <Loading />;
+  if (finished) return <Loading variant="lesson" label="Scoring your answers…" />;
   return (
     <PlayerShell ownerId={ownerId} lessonId={lesson.id} step="practice">
       <section className="n5-hero n5-quiz-hero">

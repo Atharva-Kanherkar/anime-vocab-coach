@@ -17,7 +17,7 @@ export function CourseHub({ ownerId = "" }: { ownerId?: string }) {
         <button onClick={() => location.reload()}>Retry loading course</button>
       </div>
     );
-  if (!state.data) return <Loading />;
+  if (!state.data) return <Loading variant="home" label="Getting your course ready…" />;
   return <HubContent {...state.data} ownerId={ownerId} />;
 }
 
