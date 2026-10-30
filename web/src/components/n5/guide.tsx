@@ -51,8 +51,15 @@ export function CourseGuide({
   useEffect(() => {
     const el = dialog.current;
     if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
+    // Browsers without modal dialogs still show the guide, just without the backdrop.
+    if (open && !el.open) {
+      if (typeof el.showModal === "function") el.showModal();
+      else el.setAttribute("open", "");
+    }
+    if (!open && el.open) {
+      if (typeof el.close === "function") el.close();
+      else el.removeAttribute("open");
+    }
   }, [open]);
   useEffect(() => {
     if (open) heading.current?.focus();
