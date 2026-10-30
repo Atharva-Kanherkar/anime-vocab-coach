@@ -106,6 +106,8 @@ describe("recorder", () => {
     expect(recorderTransition({ phase: "recording", startedAt: 0 }, { type: "reset" })).toEqual({ phase: "recording", startedAt: 0 });
     expect(recorderTransition({ phase: "recording", startedAt: 0 }, { type: "stop", at: 600 })).toEqual({ phase: "sending" });
     expect(recorderTransition({ phase: "recording", startedAt: 0 }, { type: "stop", at: 599 })).toEqual({ phase: "error", reason: "too_short" });
+    expect(recorderTransition({ phase: "recording", startedAt: 0 }, { type: "cancel" })).toEqual({ phase: "idle" });
+    expect(recorderTransition({ phase: "sending" }, { type: "cancel" })).toEqual({ phase: "sending" });
     expect(remaining({ phase: "idle" }, 123)).toBe(30);
     expect(remaining({ phase: "recording", startedAt: 0 }, 0)).toBe(30);
   });

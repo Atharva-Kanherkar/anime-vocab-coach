@@ -7,6 +7,57 @@ import type { N5Catalog, N5Course, N5Progress } from "../../../../shared/n5/cont
 import { SECTIONS, STEP_INFO, completedSteps, readLocalSteps, sectionIndex, stepsFor, type StepId } from "@/lib/n5/steps";
 import { courseRequest, useCourse } from "./common";
 
+/**
+ * Back and forward through a unit's steps, pinned to the bottom of the player.
+ * At either end it continues to the previous or next unit.
+ */
+export function StepBar({ lessonId, steps, step, onStep, previousLessonId, nextLessonId }: { lessonId: string; steps: StepId[]; step: StepId; onStep?: (step: StepId) => void; previousLessonId: string | null; nextLessonId: string | null }) {
+  const position = steps.indexOf(step);
+  const previous = steps[position - 1];
+  const following = steps[position + 1];
+  const target = (s: StepId, primary: boolean, children: ReactNode) =>
+    onStep && s !== "speak" ? (
+      <button type="button" className={primary ? "n5-primary" : undefined} onClick={() => onStep(s)}>
+        {children}
+      </button>
+    ) : (
+      <Link className={primary ? "n5-primary" : "n5-secondary"} href={stepHref(lessonId, s)}>
+        {children}
+      </Link>
+    );
+  return (
+    <nav className="n5-playbar" aria-label="Step navigation">
+      <div className="n5-playbar-inner">
+        <div className="n5-playbar-side">
+          {previous ? (
+            target(previous, false, <><Icon name="chevron-left" size={18} /><span><small>Previous</small>{STEP_INFO[previous].label}</span></>)
+          ) : previousLessonId ? (
+            <Link className="n5-secondary" href={`/app/n5/lessons/${previousLessonId}`}>
+              <Icon name="chevron-left" size={18} />
+              <span><small>Previous</small>Unit</span>
+            </Link>
+          ) : null}
+        </div>
+        <ol className="n5-playbar-dots" aria-label={`Step ${position + 1} of ${steps.length}`}>
+          {steps.map((s) => (
+            <li key={s} data-current={s === step || undefined} title={STEP_INFO[s].label} />
+          ))}
+        </ol>
+        <div className="n5-playbar-side n5-playbar-next">
+          {following ? (
+            target(following, true, <><span><small>Next</small>{STEP_INFO[following].label}</span><Icon name="chevron-right" size={18} /></>)
+          ) : nextLessonId ? (
+            <Link className="n5-primary" href={`/app/n5/lessons/${nextLessonId}`}>
+              <span><small>Next</small>Unit</span>
+              <Icon name="chevron-right" size={18} />
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 export interface Overview { catalog: N5Catalog; course: N5Course; progress: N5Progress }
 
 export async function loadOverview(signal: AbortSignal): Promise<Overview> {
@@ -164,7 +215,7 @@ export function PlayerShell({ ownerId, lessonId, step, localDone, onStep, childr
             </div>
           )}
           <Link href="/app/n5" className="n5-side-home">
-            ← Course home
+            <Icon name="home" size={15} /> Course home
           </Link>
         </div>
       </aside>

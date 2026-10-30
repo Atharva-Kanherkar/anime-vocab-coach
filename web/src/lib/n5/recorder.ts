@@ -13,7 +13,9 @@ export type RecorderAction =
   | { type: "stop"; at: number }
   | { type: "sent" }
   | { type: "failed" }
-  | { type: "reset" };
+  | { type: "reset" }
+  /** Listening ended with nothing said: drop the recording without sending. */
+  | { type: "cancel" };
 
 export const MAX_RECORDING_MS = 30_000;
 export const MIN_RECORDING_MS = 600;
@@ -30,6 +32,7 @@ export function recorderTransition(state: RecorderState, action: RecorderAction)
     case "sent": return state.phase === "sending" ? { phase: "idle" } : state;
     case "failed": return state.phase === "sending" ? { phase: "error", reason: "failed" } : state;
     case "reset": return state.phase === "recording" || state.phase === "sending" ? state : { phase: "idle" };
+    case "cancel": return state.phase === "recording" ? { phase: "idle" } : state;
   }
 }
 

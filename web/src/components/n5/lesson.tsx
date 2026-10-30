@@ -9,9 +9,9 @@ import { safeLink } from "@/lib/n5/core";
 import { buildDrill, requeue, type DrillRound } from "@/lib/n5/drill";
 import { CourseFailure, courseRequest, Failure, Loading, newKey, useCourse } from "./common";
 import { PlayButton, playAudio } from "./audio";
-import { PlayerShell } from "./player";
+import { PlayerShell, StepBar } from "./player";
 import { CourseGuide, StepGuide } from "./guide";
-import { SECTIONS, STEP_INFO, completedSteps, markLocalStep, readLocalSteps, sectionIndex, stepsFor, type StepId } from "@/lib/n5/steps";
+import { SECTIONS, completedSteps, markLocalStep, readLocalSteps, sectionIndex, stepsFor, type StepId } from "@/lib/n5/steps";
 
 export function CourseLesson({ lessonId, ownerId, script }: { lessonId: string; ownerId: string; script?: N5Script }) {
   const load = useCallback(
@@ -95,8 +95,6 @@ function LessonContent({
   }
   const doneSet = completedSteps(lesson.kind, status ? { ...status, watched: watched || status.watched } : { lessonId: lesson.id, status: "not_started", bestPercent: null, watched, speaking: "not_started" }, local);
   const position = steps.indexOf(step);
-  const previous = steps[position - 1];
-  const following = steps[position + 1];
   const section = SECTIONS[sectionIndex(lesson.unit)];
   const ja = lesson.script === "kana" ? "ja" : undefined;
   return (
@@ -168,30 +166,7 @@ function LessonContent({
         {step === "practice" && <Practice lesson={lesson} ownerId={ownerId} active={active} completed={completed} watched={watched} onWatch={() => go("watch")} />}
         {step === "speak" && <SpeakIntro lesson={lesson} status={status} />}
       </div>
-      <nav className="n5-step-nav" aria-label="Step navigation">
-        {previous ? (
-          <button type="button" onClick={() => go(previous)}>
-            ← {STEP_INFO[previous].label}
-          </button>
-        ) : lesson.previousLessonId ? (
-          <Link className="n5-secondary" href={`/app/n5/lessons/${lesson.previousLessonId}`}>
-            ← Previous unit
-          </Link>
-        ) : (
-          <span />
-        )}
-        {following ? (
-          <button type="button" className="n5-primary" onClick={() => go(following)}>
-            {STEP_INFO[following].label} →
-          </button>
-        ) : lesson.nextLessonId ? (
-          <Link className="n5-primary" href={`/app/n5/lessons/${lesson.nextLessonId}`}>
-            Next unit →
-          </Link>
-        ) : (
-          <span />
-        )}
-      </nav>
+      <StepBar lessonId={lesson.id} steps={steps} step={step} onStep={go} previousLessonId={lesson.previousLessonId} nextLessonId={lesson.nextLessonId} />
     </PlayerShell>
   );
 }
@@ -221,7 +196,8 @@ function Learn({ lesson, ja, onDone }: { lesson: N5Lesson; ja?: string; onDone: 
         <div className="n5-row">
           <h2 id="n5-words-title">Words</h2>
           <span className="n5-muted">
-            {index + 1} / {lesson.vocabulary.length}
+            Word {index + 1} of {lesson.vocabulary.length}
+            <span className="n5-keys-hint"> · use the arrow keys</span>
           </span>
         </div>
         {card && (
@@ -233,25 +209,42 @@ function Learn({ lesson, ja, onDone }: { lesson: N5Lesson; ja?: string; onDone: 
               if (e.key === "ArrowLeft") move(-1);
             }}
           >
-            <button type="button" className="n5-flashcard-face" onClick={() => setFlipped((f) => !f)} aria-label={flipped ? "Show the word" : "Show the meaning"}>
-              <strong data-owned-japanese lang={ja}>
-                {card.reading}
-              </strong>
-              <span className="n5-flashcard-meaning" aria-live="polite">
-                {flipped ? card.meaning : "Tap to reveal the meaning"}
-              </span>
+            <button type="button" className="n5-card-arrow" onClick={() => move(-1)} aria-label="Previous word">
+              <Icon name="chevron-left" size={22} />
             </button>
-            <PlayButton path={`/audio/${card.audio}`} label={card.reading} kana={kana ? card.reading : undefined} />
+            <div className="n5-flashcard-stage">
+              <button type="button" className="n5-flashcard-face" key={card.id} onClick={() => setFlipped((f) => !f)} aria-label={flipped ? "Show the word" : "Show the meaning"}>
+                <strong data-owned-japanese lang={ja}>
+                  {card.reading}
+                </strong>
+                <span className="n5-flashcard-meaning" aria-live="polite">
+                  {flipped ? card.meaning : "Tap to reveal the meaning"}
+                </span>
+              </button>
+              <div className="n5-flashcard-audio">
+                <PlayButton path={`/audio/${card.audio}`} label={card.reading} kana={kana ? card.reading : undefined} />
+              </div>
+            </div>
+            <button type="button" className="n5-card-arrow" onClick={() => move(1)} aria-label="Next word">
+              <Icon name="chevron-right" size={22} />
+            </button>
           </div>
         )}
-        <div className="n5-actions">
-          <button type="button" onClick={() => move(-1)}>
-            ← Previous
-          </button>
-          <button type="button" onClick={() => move(1)}>
-            Next →
-          </button>
-        </div>
+        <ol className="n5-card-dots" aria-label="Words">
+          {lesson.vocabulary.map((v, i) => (
+            <li key={v.id}>
+              <button
+                type="button"
+                aria-label={`Word ${i + 1}`}
+                aria-current={i === index ? "true" : undefined}
+                onClick={() => {
+                  setFlipped(false);
+                  setIndex(i);
+                }}
+              />
+            </li>
+          ))}
+        </ol>
         <details className="n5-wordlist">
           <summary>All {lesson.vocabulary.length} words</summary>
           <ul>
@@ -315,8 +308,8 @@ function Learn({ lesson, ja, onDone }: { lesson: N5Lesson; ja?: string; onDone: 
         <p className="n5-muted">Original practice sentences written for this course, not lines from the show.</p>
       </section>
       <div className="n5-actions n5-end">
-        <button type="button" className="n5-primary" onClick={onDone}>
-          I&apos;ve studied these → Drill
+        <button type="button" className="n5-primary n5-big" onClick={onDone}>
+          I&apos;ve studied these, start the drill <Icon name="arrow-right" />
         </button>
       </div>
     </>
@@ -352,7 +345,7 @@ function DrillRun({ lesson, seed, onAgain, onDone }: { lesson: N5Lesson; seed: n
             Drill again
           </button>
           <button type="button" className="n5-primary" onClick={onDone}>
-            Continue →
+            Continue <Icon name="arrow-right" />
           </button>
         </div>
       </section>
@@ -525,7 +518,7 @@ function Watch({ lesson, watched, onWatched, ownerId, onNext }: { lesson: N5Less
         <h2>No episode for this unit</h2>
         <p>{lesson.hook}</p>
         <button type="button" className="n5-primary" onClick={onNext}>
-          Go to practice →
+          Go to practice <Icon name="arrow-right" />
         </button>
       </section>
     );
@@ -557,7 +550,7 @@ function Watch({ lesson, watched, onWatched, ownerId, onNext }: { lesson: N5Less
           )}
           <div className="n5-actions">
             <button type="button" className="n5-primary" onClick={onNext}>
-              Practise this unit →
+              Practise this unit <Icon name="arrow-right" />
             </button>
           </div>
         </div>
@@ -679,7 +672,7 @@ function Practice({
           {completed.slice(0, 5).map((a) => (
             <Link key={a.id} href={`/app/n5/results/${a.id}`} className="n5-resume">
               {a.result ? `${a.result.correct}/${a.result.total} · ${Math.round(a.result.objectivePercent)}%${a.result.passed ? " · passed" : ""}` : "Result"} ({a.script})
-              <span aria-hidden>→</span>
+              <Icon name="arrow-right" />
             </Link>
           ))}
         </div>

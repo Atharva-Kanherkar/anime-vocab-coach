@@ -37,6 +37,8 @@ export async function playAudio(path: string, rate = 1): Promise<void> {
   playing = audio;
   await new Promise<void>((resolve, reject) => {
     audio.onended = () => resolve();
+    // Stopped early (another clip, or the learner interrupting) also counts as done.
+    audio.onpause = () => resolve();
     audio.onerror = () => reject(new CourseFailure("audio_unavailable", 503));
     audio.play().catch(reject);
   });
