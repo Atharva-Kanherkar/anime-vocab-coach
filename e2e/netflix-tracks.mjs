@@ -158,6 +158,12 @@ try {
   const a = await ctx.newPage();
   await a.goto("https://www.netflix.com/watch/111");
   await record(a);
+  // Before the first line: the tracks arrive with the page, often before the
+  // extension has loaded its settings, and Netflix's own subtitles must
+  // still go.
+  await a.waitForFunction(() => getComputedStyle(document.querySelector(".player-timedtext")).opacity === "0", null, { timeout: 5000 })
+    .catch(() => { throw new Error("Netflix's own subtitles still showing before the first line"); });
+  assert.ok(await a.evaluate(() => document.querySelector("video").currentTime) < 7, "hidden before the first line");
   const reportA = await watch(a, "English track", join(artifacts, "english-track.png"));
   console.log("   English track, per line (ms after cue start / after cue end):", JSON.stringify(reportA));
   assert.equal(batches.length, 0, "no translation when Netflix has the English");
