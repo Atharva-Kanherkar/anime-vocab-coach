@@ -246,7 +246,8 @@ export const DEFAULT_MAX_AUTO_LIMIT = TIERS.max.autoCallsPerMonth;
  *          made the advertised allowance evaporate without the learner ever
  *          opening the coach.
  */
-export type UsageBucket = "ai" | "auto";
+/** "subs" counts dual-subtitle lines that missed the shared cache. */
+export type UsageBucket = "ai" | "auto" | "subs";
 
 // Bounds keep the prompt small (cost + the "never send more than needed" constraint).
 export const MAX_WORD_LEN = 80;

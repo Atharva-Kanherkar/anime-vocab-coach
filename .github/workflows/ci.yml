@@ -81,6 +81,8 @@ jobs:
         run: npm run test:n5:mutation
       - name: Actual extension and real local Worker/KV/D1
         run: npm run test:e2e:n5
+      - name: Dual subtitles (romaji + English) on a Netflix-shaped player
+        run: npm run test:e2e:dual-subs
       - name: Architecture guide on desktop and mobile
         run: node e2e/n5-system.mjs
       - name: N5 extension evidence

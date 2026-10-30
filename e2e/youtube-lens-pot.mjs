@@ -88,7 +88,7 @@ const ctx = await chromium.launchPersistentContext("", {
 
 try {
   const sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 15000 }));
-  const SETTINGS = { pauseMode: "off", subLens: true, subLensPeek: false, learningDirection: "en-ja", targetLevel: 5 };
+  const SETTINGS = { pauseMode: "off", subLens: true, subLensPeek: false, displayScript: "kanji" /* compares mirrored text with the Japanese */, learningDirection: "en-ja", targetLevel: 5 };
   let seeded = false;
   for (let i = 0; i < 12 && !seeded; i++) {
     await sw.evaluate((s) => chrome.storage.local.set({ settings: s, vocab: {}, stats: { daily: {}, cardTimestamps: [] } }), SETTINGS);

@@ -67,6 +67,7 @@ try {
     autoResumeSec: 60,
     autoSpeak: false,
     subLens: true,
+    displayScript: "kanji", // compares the mirrored line with the Japanese it was given
     subLensPeek: false,
     targetLevel: 5,
     learningDirection: "en-ja",

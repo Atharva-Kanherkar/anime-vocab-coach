@@ -1199,6 +1199,31 @@
     }
   }
 
+  // src/lib/subs-client.ts
+  async function fetchSubTranslation(req) {
+    const token = await getSyncToken();
+    if (!token) return { ok: false, error: "not_linked" };
+    try {
+      const res = await fetch(WEB_URL + "/api/ai/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ line: req.line, context: req.context, title: req.title || void 0, words: req.words }),
+        signal: AbortSignal.timeout(8e3)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.result || typeof data.result.en !== "string") return { ok: false, error: data.error || `http_${res.status}` };
+      const readings = {};
+      if (data.result.readings && typeof data.result.readings === "object") {
+        for (const [k, v] of Object.entries(data.result.readings)) {
+          if (/^\d{1,3}$/.test(k) && typeof v === "string" && /^[ぁ-ゖァ-ヺー]{1,30}$/.test(v)) readings[k] = v;
+        }
+      }
+      return { ok: true, result: { en: data.result.en.slice(0, 400), readings } };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
+
   // src/lib/capture-starts.ts
   var CaptureStarts = class {
     constructor() {
@@ -1598,6 +1623,10 @@
     }
     if (msg.type === "avc-pick-word") {
       fetchWordPick(msg.payload).then(sendResponse).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
+    if (msg.type === "avc-translate") {
+      fetchSubTranslation(msg.payload).then(sendResponse).catch(() => sendResponse({ ok: false, error: "network" }));
       return true;
     }
     if (msg.type === "avc-extract-words") {

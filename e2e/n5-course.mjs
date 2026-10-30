@@ -65,11 +65,11 @@ try {
   await popup.locator("#n5-course").waitFor();
   assert.equal(await popup.locator("#n5-course-title").textContent(), "N5 · Unit 1 · Episode 1");
   assert.equal(await popup.locator("#study-session-btn").textContent(), "Start Listening");
-  assert.equal(await popup.locator("#mode-lens-row").isHidden(), true);
+  assert.equal(await popup.locator("#mode-lens-row").isVisible(), true, "dual subtitles stay one click away");
   assert.equal(await popup.locator(".av-more").evaluate(d => d.open), false);
   await popup.screenshot({ path: join(artifacts, "popup-course.png"), fullPage: true });
   assert.equal(await popup.getByText("N5 Course · private pilot").count(), 0);
-  check("popup: one Listening button, the lesson it follows, no Lens or course-focus switches");
+  check("popup: one Listening button, dual subtitles, the lesson it follows, no course-focus switches");
 
   // Open the copilot the way Start Listening does, then hear the episode.
   await popup.evaluate(tabId => chrome.runtime.sendMessage({ type: "avc-agent-show", tabId }), tabId);
@@ -85,7 +85,6 @@ try {
   await panel.locator(".avc-course-word.avc-heard", { hasText: "tomodachi" }).waitFor();
   await panel.locator(".avc-course-word.avc-heard", { hasText: "hajimemashite" }).waitFor();
   await panel.locator(".avc-course-moment").waitFor();
-  assert.equal(await video.locator("[data-avc-sub-lens]").count(), 0, "no Lens while following a lesson");
   await video.waitForFunction(async () => true);
   for (let i = 0; i < 50 && (await heardOnServer()).length < 2; i++) await video.waitForTimeout(100);
   assert.deepEqual((await heardOnServer()).sort(), ["hajimemashite", "tomodachi"]);
