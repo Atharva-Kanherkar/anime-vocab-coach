@@ -131,7 +131,7 @@ function Results({ attempt, lesson, ownerId }: { attempt: N5Attempt; lesson: N5L
         <div className="n5-actions">
           {lesson?.nextLessonId && result.passed && (
             <Link className="n5-primary" href={`/app/n5/lessons/${lesson.nextLessonId}`}>
-              Next unit →
+              Next unit <Icon name="arrow-right" />
             </Link>
           )}
           <Link className={result.passed ? "n5-secondary" : "n5-primary"} href={`/app/n5/speak/${attempt.lessonId}`}>
@@ -453,10 +453,10 @@ function AttemptForm({ initial, lesson, ownerId }: { initial: N5Attempt; lesson:
             />
             <div className="n5-actions">
               <button type="button" disabled={index === 0} onClick={() => move(index - 1)}>
-                ← Back
+                <Icon name="chevron-left" size={18} /> Back
               </button>
               <button className="n5-primary" type="submit">
-                {index === total - 1 ? "Review answers →" : values[question.id] ? "Next →" : "Skip for now →"}
+                {index === total - 1 ? "Review answers" : values[question.id] ? "Next" : "Skip for now"} <Icon name="chevron-right" size={18} />
               </button>
             </div>
           </div>

@@ -790,7 +790,7 @@ try {
     await page.locator(".n5-chat li").nth(2).waitFor();
     const chat = (await page.locator(".n5-chat [data-owned-japanese]").allTextContents()).join("");
     assert.ok(script === "romaji" ? !/[ぁ-ヿ一-龯]/u.test(chat) : !/[A-Za-z一-龯]/u.test(chat), `mixed chat: ${chat}`);
-    await page.getByRole("button", { name: "Finish and get feedback" }).click();
+    await page.getByRole("button", { name: "End call" }).click();
     await page.getByText("Typed practice complete").waitFor();
     assert.equal((await (await app.request("/me/progress", { token })).json()).lessons[0].speaking, "practice_only");
     await page.screenshot({ path: `${artifacts}/speak-${script}.png`, fullPage: true });

@@ -222,7 +222,7 @@ function HubContent({ catalog, course, progress, ownerId }: Overview & { ownerId
                 <Link key={a.id} className="n5-resume" href={`/app/n5/attempts/${a.id}`}>
                   Resume unfinished {a.script} practice
                   {a.lessonId ? ` · Unit ${course.units.find((u) => u.lessonId === a.lessonId)?.number ?? "?"}` : ""}
-                  <span aria-hidden>→</span>
+                  <Icon name="arrow-right" />
                 </Link>
               ))}
             </section>

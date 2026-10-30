@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 
 export type IconName =
   | "check" | "cross" | "play" | "pause" | "loading" | "mic" | "stop" | "book" | "bolt" | "film" | "clipboard" | "chat"
-  | "headphones" | "pencil" | "type" | "bulb" | "chevron" | "arrow-right" | "arrow-left" | "clock" | "layers";
+  | "headphones" | "pencil" | "type" | "bulb" | "chevron" | "arrow-right" | "arrow-left" | "clock" | "layers"
+  | "chevron-left" | "chevron-right" | "phone" | "phone-off" | "captions" | "keyboard" | "restart" | "home" | "list" | "wave";
 
 const PATHS: Record<IconName, ReactNode> = {
   check: <path d="M4 12.5l5 5L20 6.5" />,
@@ -47,6 +48,26 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   layers: <path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" />,
+  "chevron-left": <path d="M15 6l-6 6 6 6" />,
+  "chevron-right": <path d="M9 6l6 6-6 6" />,
+  phone: <path d="M6.6 3.5h2.6l1.4 4-2 1.4a12 12 0 0 0 6.5 6.5l1.4-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z" />,
+  "phone-off": <path d="M3.5 13.2a12.5 12.5 0 0 1 17 0l-.3 2.6-3.6-.8-.6-2.6a9 9 0 0 0-8 0l-.6 2.6-3.6.8z" />,
+  captions: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="M10.5 10.2a2.2 2.2 0 1 0 0 3.6M17 10.2a2.2 2.2 0 1 0 0 3.6" />
+    </>
+  ),
+  keyboard: (
+    <>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8 14h8" />
+    </>
+  ),
+  restart: <path d="M4 12a8 8 0 1 0 2.3-5.6M4 4.5V9h4.5" />,
+  home: <path d="M4 10.5L12 4l8 6.5V20h-5.5v-5.5h-5V20H4z" />,
+  list: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
+  wave: <path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 10.5v3M21 12h.01" />,
 };
 
 export function Icon({ name, size = 16, label }: { name: IconName; size?: number; label?: string }) {
