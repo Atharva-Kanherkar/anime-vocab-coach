@@ -1,15 +1,17 @@
-// Subtitle Lens: an interactive mirror of the current subtitle line, floated
-// just above the site's native subtitles. Hover any Japanese word for an
-// instant local dictionary popup; click (or press Q) to save it as a card.
-// English-line words that translate a word in the Japanese line are hoverable
-// too and link back to it. Everything here is local (kuromoji + bundled
-// JMdict + chrome.storage) — no account, no quota, no network.
+// Dual subtitles: the current line in romaji (or kana, or as written) with its
+// English underneath, floated just above the site's native subtitles. Hover
+// any word for an instant local dictionary popup; click (or press Q) to save
+// it as a card. English words that translate a word in the line are hoverable
+// too and link back to it. The Japanese line is local (kuromoji + bundled
+// JMdict); the English comes from the page when it has an English track, and
+// from animevocab.com otherwise (see subs-client), arriving a moment later.
 //
 // Invariant shared with the agent panel ("P0 #9"): the overlay container is
 // pointer-events: none and only word spans opt back in, so the lens can sit
 // over the player without eating clicks on its controls.
 import { lookup } from "./dictionary";
 import { toRomaji } from "./romaji";
+import { displayTexts, dualPieces, dualText, type DualPiece, type SubScript } from "./dual-line";
 import { commonnessLabel } from "./levels";
 import { buildGlossIndex, linkEnglishWord } from "./gloss-link";
 import { PlaybackHold } from "./playback-hold";
@@ -27,6 +29,10 @@ export interface SubLensOptions {
   onJudgeStart?: () => void;
   /** Called after a word is saved so the caller can refresh its vocab cache. */
   onJudged?: () => void;
+  /** How the Japanese line is written. */
+  script?: SubScript;
+  /** An English line is on its way (a translation was requested). */
+  englishPending?: boolean;
 }
 
 interface HoverContext {
@@ -83,6 +89,8 @@ const STYLES = `
     font-size: clamp(18px, 2.35vw, 30px); font-weight: 700; line-height: 1.6;
     letter-spacing: 0.02em;
   }
+  .line.en.pending { min-height: 1.45em; opacity: 0.35; }
+  .line.jp.romaji { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0.01em; }
   .line.en {
     font-size: clamp(12.5px, 1.3vw, 16px); font-weight: 450; line-height: 1.45;
     color: rgba(236, 234, 228, 0.7);
@@ -183,6 +191,17 @@ let unwatch: (() => void) | null = null;
 let keysBound = false;
 let currentLine = "";
 const judgmentsInFlight = new Set<string>();
+/** The line on screen, kept so a late English line or corrected readings can
+ * be painted into it without rebuilding what the learner may be hovering. */
+let shown: {
+  text: string;
+  tokens: Token[];
+  script: SubScript;
+  source: WordSource;
+  card: HTMLElement;
+  pieces: { piece: DualPiece; el: HTMLElement }[];
+  enEl: HTMLElement | null;
+} | null = null;
 
 function ensureMounted(): void {
   const parent = (document.fullscreenElement as HTMLElement | null) || document.body;
@@ -480,6 +499,83 @@ function tokenClass(base: string): string {
   return "";
 }
 
+/** The English line, with words that translate a word above linked to it. */
+function paintEnglish(en: string): void {
+  if (!shown) return;
+  const { tokens, pieces, source } = shown;
+  source.en = en;
+  const glossIndex = buildGlossIndex(tokens, lookup);
+  const enLine = document.createElement("div");
+  enLine.className = "line en";
+  for (const piece of en.split(/(\s+)/)) {
+    const idx = /\s/.test(piece) ? -1 : linkEnglishWord(piece, glossIndex);
+    const jpSpan = idx >= 0 ? pieces.find((p) => p.piece.tokens.includes(idx))?.el ?? null : null;
+    const token = idx >= 0 ? tokens[idx] : null;
+    const entry = token ? lookup(token.base) : null;
+    if (!token || !entry) {
+      enLine.appendChild(document.createTextNode(piece));
+      continue;
+    }
+    const s = document.createElement("span");
+    s.className = "tok";
+    s.textContent = piece;
+    const ctx: HoverContext = {
+      base: token.base,
+      meta: {
+        reading: entry.reading || token.reading,
+        gloss: entry.glosses.slice(0, 3).join("; "),
+        level: entry.level,
+        freqRank: entry.freqRank,
+      },
+      source,
+      el: s,
+    };
+    s.addEventListener("mouseenter", () => {
+      jpSpan?.classList.add("linked-hot");
+      showTip(ctx, piece);
+    });
+    s.addEventListener("mouseleave", () => jpSpan?.classList.remove("linked-hot"));
+    s.addEventListener("click", (e) => { e.stopPropagation(); showTip(ctx, piece); void judgeHovered("learn"); });
+    enLine.appendChild(s);
+  }
+  if (shown.enEl) shown.enEl.replaceWith(enLine);
+  else shown.card.appendChild(enLine);
+  shown.enEl = enLine;
+  placedFor = "";
+  position();
+}
+
+/**
+ * The English for a line already on screen, and readings the tokenizer got
+ * wrong (names, mostly). Painted in place: the words keep their hover and
+ * their saves, so a learner reading the line loses nothing when it lands.
+ * A line that has already gone is left alone.
+ */
+export function updateLensLine(text: string, update: { en?: string; readings?: Record<string, string> }): void {
+  if (!shown || shown.text !== text || currentLine !== text) return;
+  if (update.readings && Object.keys(update.readings).length && shown.script !== "kanji") {
+    const fixed = dualPieces(shown.tokens, shown.script, update.readings);
+    if (fixed.length === shown.pieces.length) {
+      const texts = displayTexts(fixed, shown.script);
+      fixed.forEach((piece, n) => {
+        const slot = shown!.pieces[n];
+        slot.piece = piece;
+        slot.el.textContent = texts[n];
+      });
+    }
+  }
+  if (update.en) paintEnglish(update.en);
+  else if (shown.enEl?.classList.contains("pending")) {
+    shown.enEl.remove();
+    shown.enEl = null;
+  }
+}
+
+/** The Japanese line as shown, for tests and the copilot. */
+export function lensLineText(): string {
+  return shown ? dualText(shown.pieces.map((p) => p.piece), shown.script) : "";
+}
+
 /** Render the current subtitle pair. Call on every emitted line. */
 export function showLensLine(
   text: string,
@@ -499,23 +595,28 @@ export function showLensLine(
   lensEl.innerHTML = "";
 
   const source: WordSource = { title: options.getTitle(), line: text, en: en || null };
-  const jpSpans: (HTMLElement | null)[] = [];
+  const script: SubScript = options.script ?? "kanji";
 
   const card = document.createElement("div");
   card.className = "card";
   const jpLine = document.createElement("div");
-  jpLine.className = "line jp";
-  jpLine.lang = "ja";
-  tokens.forEach((tk) => {
-    const entry = lookup(tk.base);
-    if (!entry) {
-      jpLine.appendChild(document.createTextNode(tk.surface));
-      jpSpans.push(null);
+  jpLine.className = `line jp${script === "romaji" ? " romaji" : ""}`;
+  if (script !== "romaji") jpLine.lang = "ja";
+  const pieces = dualPieces(tokens, script);
+  const texts = displayTexts(pieces, script);
+  const rendered: { piece: DualPiece; el: HTMLElement }[] = [];
+  pieces.forEach((piece, n) => {
+    if (n > 0 && !piece.attached && script !== "kanji") jpLine.appendChild(document.createTextNode(" "));
+    const tk = piece.token >= 0 ? tokens[piece.token] : null;
+    const entry = tk ? lookup(tk.base) : null;
+    const s = document.createElement("span");
+    s.textContent = texts[n];
+    rendered.push({ piece, el: s });
+    if (!tk || !entry) {
+      jpLine.appendChild(s);
       return;
     }
-    const s = document.createElement("span");
     s.className = `tok ${tokenClass(tk.base)}`.trim();
-    s.textContent = tk.surface;
     const ctx: HoverContext = {
       base: tk.base,
       meta: {
@@ -530,46 +631,16 @@ export function showLensLine(
     s.addEventListener("mouseenter", () => showTip(ctx));
     s.addEventListener("click", (e) => { e.stopPropagation(); showTip(ctx); void judgeHovered("learn"); });
     jpLine.appendChild(s);
-    jpSpans.push(s);
   });
   card.appendChild(jpLine);
-
-  if (en) {
-    const glossIndex = buildGlossIndex(tokens, lookup);
-    const enLine = document.createElement("div");
-    enLine.className = "line en";
-    for (const piece of en.split(/(\s+)/)) {
-      const idx = /\s/.test(piece) ? -1 : linkEnglishWord(piece, glossIndex);
-      const jpSpan = idx >= 0 ? jpSpans[idx] : null;
-      const token = idx >= 0 ? tokens[idx] : null;
-      const entry = token ? lookup(token.base) : null;
-      if (!token || !entry) {
-        enLine.appendChild(document.createTextNode(piece));
-        continue;
-      }
-      const s = document.createElement("span");
-      s.className = "tok";
-      s.textContent = piece;
-      const ctx: HoverContext = {
-        base: token.base,
-        meta: {
-          reading: entry.reading || token.reading,
-          gloss: entry.glosses.slice(0, 3).join("; "),
-          level: entry.level,
-          freqRank: entry.freqRank,
-        },
-        source,
-        el: s,
-      };
-      s.addEventListener("mouseenter", () => {
-        jpSpan?.classList.add("linked-hot");
-        showTip(ctx, piece);
-      });
-      s.addEventListener("mouseleave", () => jpSpan?.classList.remove("linked-hot"));
-      s.addEventListener("click", (e) => { e.stopPropagation(); showTip(ctx, piece); void judgeHovered("learn"); });
-      enLine.appendChild(s);
-    }
-    card.appendChild(enLine);
+  shown = { text, tokens, script, source, card, pieces: rendered, enEl: null };
+  if (en) paintEnglish(en);
+  else if (options.englishPending) {
+    const pending = document.createElement("div");
+    pending.className = "line en pending";
+    pending.textContent = "…";
+    card.appendChild(pending);
+    shown.enEl = pending;
   }
   lensEl.appendChild(card);
 

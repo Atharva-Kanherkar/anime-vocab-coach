@@ -32,6 +32,7 @@ interface CoachEnv {
   AVC_SYNC_KV?: CoachKV;
   OPENAI_API_KEY?: string;
   AI_COACH_MODEL?: string;
+  AI_SUBS_MODEL?: string;
   AI_COACH_REASONING_EFFORT?: string;
   FREE_AI_CALLS_PER_MONTH?: string;
   PRO_AI_CALLS_PER_MONTH?: string;
@@ -66,6 +67,12 @@ export async function getOpenAiKey(): Promise<string | null> {
   if (fromProcess) return fromProcess;
   const env = await cfEnv();
   return env.OPENAI_API_KEY ?? null;
+}
+
+/** The dual-subtitle model: AI_SUBS_MODEL, else the coach model. */
+export async function getSubsModel(): Promise<string> {
+  const env = await cfEnv();
+  return process.env.AI_SUBS_MODEL || env.AI_SUBS_MODEL || process.env.AI_COACH_MODEL || env.AI_COACH_MODEL || DEFAULT_COACH_MODEL;
 }
 
 export async function getCoachConfig(): Promise<{
@@ -132,7 +139,7 @@ export function currentMonth(now = new Date()): string {
 /** The `ai` meter keeps the original unsuffixed key so counters already in KV
  * carry over; `auto` gets its own namespace. */
 function usageKey(userId: string, month: string, bucket: UsageBucket): string {
-  return bucket === "auto" ? `ai:usage:auto:${userId}:${month}` : `ai:usage:${userId}:${month}`;
+  return bucket === "ai" ? `ai:usage:${userId}:${month}` : `ai:usage:${bucket}:${userId}:${month}`;
 }
 
 export async function getUsage(

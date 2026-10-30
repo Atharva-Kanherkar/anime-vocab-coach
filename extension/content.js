@@ -3104,7 +3104,7 @@
     lensBtn.className = "avc-agent-lens-toggle";
     lensBtn.type = "button";
     lensBtn.textContent = "CC";
-    lensBtn.setAttribute("aria-label", "Subtitle Lens");
+    lensBtn.setAttribute("aria-label", "Dual subtitles");
     lensBtn.setAttribute("aria-pressed", "true");
     lensBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -3570,8 +3570,8 @@
     if (!wordPending) applyInteractionMode(pauseModeToInteraction(s.pauseMode));
     const lensOn = normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
     shell.lensBtn.setAttribute("aria-pressed", String(lensOn));
-    shell.lensBtn.title = lensOn ? "Subtitle Lens on \u2014 click to hide our subtitles and just listen" : "Subtitle Lens off \u2014 click to show interactive subtitles";
-    shell.lensBtn.hidden = normalizeDirection(s.learningDirection) !== "en-ja" || !!course;
+    shell.lensBtn.title = lensOn ? "Dual subtitles on (romaji + English) \u2014 click to hide them and just listen" : "Dual subtitles off \u2014 click to show romaji + English";
+    shell.lensBtn.hidden = normalizeDirection(s.learningDirection) !== "en-ja";
   }
   function setCourse(next, actions) {
     const changed = next?.id !== course?.id;
@@ -3860,6 +3860,110 @@
     return pickTargetHeuristic(newWords, wordStates, settings);
   }
 
+  // src/lib/dual-line.ts
+  var PUNCT = {
+    "\u3002": ".",
+    "\u3001": ",",
+    "\uFF01": "!",
+    "\uFF1F": "?",
+    "!": "!",
+    "?": "?",
+    "\u2026": "\u2026",
+    "\u2025": "\u2026",
+    "\u30FB": " ",
+    "\u300C": "\u201C",
+    "\u300D": "\u201D",
+    "\u300E": "\u201C",
+    "\u300F": "\u201D",
+    "\uFF08": "(",
+    "\uFF09": ")",
+    "\u301C": "~",
+    "\uFF5E": "~",
+    "\u30FC": "-",
+    "\u2015": "-"
+  };
+  var HONORIFICS = /* @__PURE__ */ new Set(["\u3055\u3093", "\u3061\u3083\u3093", "\u304F\u3093", "\u541B", "\u69D8", "\u3055\u307E", "\u5148\u8F29", "\u305B\u3093\u3071\u3044", "\u5148\u751F", "\u305B\u3093\u305B\u3044", "\u6BBF", "\u6C0F"]);
+  var COPULA = /* @__PURE__ */ new Set(["\u3067\u3059", "\u3060"]);
+  var OPENING = /* @__PURE__ */ new Set(["\u201C", "(", "\u300C", "\u300E", "\uFF08"]);
+  function isPunct(t) {
+    return t.pos === "\u8A18\u53F7" || /^[\s。、！？!?…‥・「」『』（）〜～ー―.,]+$/.test(t.surface);
+  }
+  function joins(t, prev) {
+    if (!prev || isPunct(prev)) return false;
+    const inflecting = prev.pos === "\u52D5\u8A5E" || prev.pos === "\u5F62\u5BB9\u8A5E" || prev.pos === "\u52A9\u52D5\u8A5E";
+    if (t.pos === "\u52A9\u52D5\u8A5E") return inflecting && (!COPULA.has(t.base) || prev.pos === "\u52D5\u8A5E" && /[んい]$/.test(prev.surface));
+    if (t.pos === "\u52D5\u8A5E" && t.pos1 === "\u975E\u81EA\u7ACB" && /^(て|で|ちゃ|じゃ|と|ど)/.test(t.surface)) return inflecting;
+    if (t.pos === "\u52A9\u8A5E" && t.pos1 === "\u63A5\u7D9A\u52A9\u8A5E") return inflecting && /^(て|で|ば|ちゃ|じゃ)$/.test(t.surface);
+    if (t.pos === "\u52D5\u8A5E" && t.pos1 === "\u63A5\u5C3E") return true;
+    if (t.pos === "\u540D\u8A5E" && t.pos1 === "\u63A5\u5C3E") return true;
+    if (t.pos === "\u540D\u8A5E" && t.pos1 === "\u975E\u81EA\u7ACB" && t.surface === "\u3093") return inflecting;
+    return false;
+  }
+  function kanaOf(t, override, script) {
+    if (override) return override;
+    if (/^[\u3041-\u3096\u30a1-\u30faー]+$/.test(t.surface)) return script === "kana" ? t.surface : kataToHira(t.surface);
+    return t.reading || t.surface;
+  }
+  function romajiOf(kana, head, single) {
+    if (single && head.pos === "\u52A9\u8A5E") {
+      if (head.surface === "\u306F") return "wa";
+      if (head.surface === "\u3078") return "e";
+    }
+    const r = toRomaji(kana);
+    return head.pos1 === "\u56FA\u6709\u540D\u8A5E" ? r.charAt(0).toUpperCase() + r.slice(1) : r;
+  }
+  function dualPieces(tokens, script, readings = {}) {
+    if (script === "kanji") {
+      return tokens.map((t, i) => ({ text: t.surface, token: isPunct(t) ? -1 : i, tokens: [i], attached: true }));
+    }
+    const groups = [];
+    let opening = "";
+    tokens.forEach((t, i) => {
+      const last = groups[groups.length - 1];
+      if (isPunct(t)) {
+        for (const c of t.surface) {
+          const mark = (script === "romaji" ? PUNCT[c] ?? c : c).trim();
+          if (!mark) continue;
+          if (OPENING.has(mark)) opening += mark;
+          else if (last) last.after += mark;
+          else groups.push({ head: -1, members: [i], kana: "", suffix: "", before: "", after: mark });
+        }
+        return;
+      }
+      const kana = kanaOf(t, readings[String(i)], script);
+      const open = last && last.head >= 0 && !last.after && !opening;
+      if (open && t.pos === "\u540D\u8A5E" && t.pos1 === "\u63A5\u5C3E" && HONORIFICS.has(t.surface)) {
+        last.suffix += kana;
+        last.members.push(i);
+        return;
+      }
+      if (open && !last.suffix && joins(t, tokens[i - 1])) {
+        last.kana += kana;
+        last.members.push(i);
+        return;
+      }
+      groups.push({ head: i, members: [i], kana, suffix: "", before: opening, after: "" });
+      opening = "";
+    });
+    if (opening && groups.length) groups[groups.length - 1].after += opening;
+    return groups.map((g, n) => {
+      if (g.head < 0) return { text: g.after, token: -1, tokens: g.members, attached: true };
+      const head = tokens[g.head];
+      const word = script === "romaji" ? romajiOf(g.kana, head, g.members.length === 1) + (g.suffix ? "-" + toRomaji(g.suffix) : "") : g.kana + g.suffix;
+      return { text: g.before + word + g.after, token: g.head, tokens: g.members, attached: n === 0 };
+    });
+  }
+  function displayTexts(pieces, script) {
+    if (script !== "romaji") return pieces.map((p) => p.text);
+    let sentenceStart = true;
+    return pieces.map((p) => {
+      const text = sentenceStart ? p.text.replace(/^([^A-Za-z]*)([a-z])/, (_m, a, b) => a + b.toUpperCase()) : p.text;
+      if (/[A-Za-z]/.test(p.text)) sentenceStart = false;
+      if (/[.!?…][\u201d")]*$/.test(p.text)) sentenceStart = true;
+      return text;
+    });
+  }
+
   // src/lib/gloss-link.ts
   var GLOSS_STOP = /* @__PURE__ */ new Set([
     "the",
@@ -3962,6 +4066,8 @@
     font-size: clamp(18px, 2.35vw, 30px); font-weight: 700; line-height: 1.6;
     letter-spacing: 0.02em;
   }
+  .line.en.pending { min-height: 1.45em; opacity: 0.35; }
+  .line.jp.romaji { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0.01em; }
   .line.en {
     font-size: clamp(12.5px, 1.3vw, 16px); font-weight: 450; line-height: 1.45;
     color: rgba(236, 234, 228, 0.7);
@@ -4056,6 +4162,7 @@
   var keysBound = false;
   var currentLine = "";
   var judgmentsInFlight = /* @__PURE__ */ new Set();
+  var shown = null;
   function ensureMounted() {
     const parent = document.fullscreenElement || document.body;
     if (host && host.parentElement === parent) return;
@@ -4307,6 +4414,73 @@
     if (rec.state === "learning") return "learning";
     return "";
   }
+  function paintEnglish(en) {
+    if (!shown) return;
+    const { tokens, pieces, source } = shown;
+    source.en = en;
+    const glossIndex = buildGlossIndex(tokens, lookup);
+    const enLine = document.createElement("div");
+    enLine.className = "line en";
+    for (const piece of en.split(/(\s+)/)) {
+      const idx = /\s/.test(piece) ? -1 : linkEnglishWord(piece, glossIndex);
+      const jpSpan = idx >= 0 ? pieces.find((p) => p.piece.tokens.includes(idx))?.el ?? null : null;
+      const token = idx >= 0 ? tokens[idx] : null;
+      const entry = token ? lookup(token.base) : null;
+      if (!token || !entry) {
+        enLine.appendChild(document.createTextNode(piece));
+        continue;
+      }
+      const s = document.createElement("span");
+      s.className = "tok";
+      s.textContent = piece;
+      const ctx = {
+        base: token.base,
+        meta: {
+          reading: entry.reading || token.reading,
+          gloss: entry.glosses.slice(0, 3).join("; "),
+          level: entry.level,
+          freqRank: entry.freqRank
+        },
+        source,
+        el: s
+      };
+      s.addEventListener("mouseenter", () => {
+        jpSpan?.classList.add("linked-hot");
+        showTip(ctx, piece);
+      });
+      s.addEventListener("mouseleave", () => jpSpan?.classList.remove("linked-hot"));
+      s.addEventListener("click", (e) => {
+        e.stopPropagation();
+        showTip(ctx, piece);
+        void judgeHovered("learn");
+      });
+      enLine.appendChild(s);
+    }
+    if (shown.enEl) shown.enEl.replaceWith(enLine);
+    else shown.card.appendChild(enLine);
+    shown.enEl = enLine;
+    placedFor = "";
+    position();
+  }
+  function updateLensLine(text, update) {
+    if (!shown || shown.text !== text || currentLine !== text) return;
+    if (update.readings && Object.keys(update.readings).length && shown.script !== "kanji") {
+      const fixed = dualPieces(shown.tokens, shown.script, update.readings);
+      if (fixed.length === shown.pieces.length) {
+        const texts = displayTexts(fixed, shown.script);
+        fixed.forEach((piece, n) => {
+          const slot = shown.pieces[n];
+          slot.piece = piece;
+          slot.el.textContent = texts[n];
+        });
+      }
+    }
+    if (update.en) paintEnglish(update.en);
+    else if (shown.enEl?.classList.contains("pending")) {
+      shown.enEl.remove();
+      shown.enEl = null;
+    }
+  }
   function showLensLine(text, en, tokens, vocab, options) {
     opts = options;
     vocabSnapshot = vocab;
@@ -4318,22 +4492,27 @@
     hideTip();
     lensEl.innerHTML = "";
     const source = { title: options.getTitle(), line: text, en: en || null };
-    const jpSpans = [];
+    const script = options.script ?? "kanji";
     const card = document.createElement("div");
     card.className = "card";
     const jpLine = document.createElement("div");
-    jpLine.className = "line jp";
-    jpLine.lang = "ja";
-    tokens.forEach((tk) => {
-      const entry = lookup(tk.base);
-      if (!entry) {
-        jpLine.appendChild(document.createTextNode(tk.surface));
-        jpSpans.push(null);
+    jpLine.className = `line jp${script === "romaji" ? " romaji" : ""}`;
+    if (script !== "romaji") jpLine.lang = "ja";
+    const pieces = dualPieces(tokens, script);
+    const texts = displayTexts(pieces, script);
+    const rendered = [];
+    pieces.forEach((piece, n) => {
+      if (n > 0 && !piece.attached && script !== "kanji") jpLine.appendChild(document.createTextNode(" "));
+      const tk = piece.token >= 0 ? tokens[piece.token] : null;
+      const entry = tk ? lookup(tk.base) : null;
+      const s = document.createElement("span");
+      s.textContent = texts[n];
+      rendered.push({ piece, el: s });
+      if (!tk || !entry) {
+        jpLine.appendChild(s);
         return;
       }
-      const s = document.createElement("span");
       s.className = `tok ${tokenClass(tk.base)}`.trim();
-      s.textContent = tk.surface;
       const ctx = {
         base: tk.base,
         meta: {
@@ -4352,49 +4531,16 @@
         void judgeHovered("learn");
       });
       jpLine.appendChild(s);
-      jpSpans.push(s);
     });
     card.appendChild(jpLine);
-    if (en) {
-      const glossIndex = buildGlossIndex(tokens, lookup);
-      const enLine = document.createElement("div");
-      enLine.className = "line en";
-      for (const piece of en.split(/(\s+)/)) {
-        const idx = /\s/.test(piece) ? -1 : linkEnglishWord(piece, glossIndex);
-        const jpSpan = idx >= 0 ? jpSpans[idx] : null;
-        const token = idx >= 0 ? tokens[idx] : null;
-        const entry = token ? lookup(token.base) : null;
-        if (!token || !entry) {
-          enLine.appendChild(document.createTextNode(piece));
-          continue;
-        }
-        const s = document.createElement("span");
-        s.className = "tok";
-        s.textContent = piece;
-        const ctx = {
-          base: token.base,
-          meta: {
-            reading: entry.reading || token.reading,
-            gloss: entry.glosses.slice(0, 3).join("; "),
-            level: entry.level,
-            freqRank: entry.freqRank
-          },
-          source,
-          el: s
-        };
-        s.addEventListener("mouseenter", () => {
-          jpSpan?.classList.add("linked-hot");
-          showTip(ctx, piece);
-        });
-        s.addEventListener("mouseleave", () => jpSpan?.classList.remove("linked-hot"));
-        s.addEventListener("click", (e) => {
-          e.stopPropagation();
-          showTip(ctx, piece);
-          void judgeHovered("learn");
-        });
-        enLine.appendChild(s);
-      }
-      card.appendChild(enLine);
+    shown = { text, tokens, script, source, card, pieces: rendered, enEl: null };
+    if (en) paintEnglish(en);
+    else if (options.englishPending) {
+      const pending = document.createElement("div");
+      pending.className = "line en pending";
+      pending.textContent = "\u2026";
+      card.appendChild(pending);
+      shown.enEl = pending;
     }
     lensEl.appendChild(card);
     placedFor = "";
@@ -4436,6 +4582,64 @@
     releasePeekPause();
   }
 
+  // src/lib/subs-client.ts
+  var MAX_REMEMBERED = 400;
+  var KANJI = /[㐀-䶿一-鿿]/;
+  function wordsToRead(tokens) {
+    const out = [];
+    tokens.forEach((t, i) => {
+      if (KANJI.test(t.surface) && t.surface.length <= 20 && out.length < 40) out.push({ i, s: t.surface });
+    });
+    return out;
+  }
+  var SubTranslator = class {
+    constructor(send) {
+      this.send = send;
+      this.lines = /* @__PURE__ */ new Map();
+      this.recent = [];
+      /** Why the last request failed, so the caller can say so once. */
+      this.lastError = null;
+    }
+    /** The translation of `line`, from memory or the network; null if there is none. */
+    translate(line, tokens, title) {
+      const hit = this.lines.get(line);
+      if (hit) {
+        this.lines.delete(line);
+        this.lines.set(line, hit);
+        return hit;
+      }
+      const context = this.recent.slice(-3);
+      this.recent = [...this.recent.filter((l) => l !== line), line].slice(-6);
+      const pending = this.send({ line, context, title, words: wordsToRead(tokens) }).then(
+        (res) => {
+          if (res?.ok) {
+            this.lastError = null;
+            return res.result;
+          }
+          this.lastError = res?.error ?? "no_response";
+          if (!/quota|not_linked|unauthorized/.test(this.lastError)) this.lines.delete(line);
+          return null;
+        },
+        () => {
+          this.lines.delete(line);
+          this.lastError = "network";
+          return null;
+        }
+      );
+      this.lines.set(line, pending);
+      while (this.lines.size > MAX_REMEMBERED) this.lines.delete(this.lines.keys().next().value);
+      return pending;
+    }
+    /** Already answered, without asking: for painting a line that is due now. */
+    peek(line) {
+      return this.lines.get(line);
+    }
+    clear() {
+      this.lines.clear();
+      this.recent = [];
+    }
+  };
+
   // src/lib/subtitle-history.ts
   var MAX_ENTRIES = 300;
   var SubtitleHistory = class {
@@ -4469,6 +4673,10 @@
         if (this.entries[j].text) return this.entries[j].text;
       }
       return "";
+    }
+    /** Whether any line sampled so far passes `test`. */
+    some(test) {
+      return this.entries.some((e) => !!e.text && test(e.text));
     }
     clear() {
       this.entries = [];
@@ -5449,11 +5657,12 @@
       contextSubs.clear();
     }
     function contextForAudio(a, start) {
+      let text = a.getVisibleText();
       if (typeof start === "number") {
         const at = contextSubs.textAt(start);
-        if (at !== null) return at;
+        if (at !== null) text = at;
       }
-      return a.getVisibleText();
+      return text && matchesTargetScript(text, normalizeDirection(settings?.learningDirection)) ? "" : text;
     }
     function audioLineIsCurrent(video, start, end) {
       if (!video) return true;
@@ -5491,7 +5700,29 @@
     }
     let lastContextTitle = "";
     function lensOn(s) {
-      return normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false && !course2;
+      return normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
+    }
+    function lensScript(s) {
+      if (course2) return course2.script;
+      return s.displayScript === "kana" ? "kana" : s.displayScript === "kanji" ? "kanji" : "romaji";
+    }
+    const subs = new SubTranslator(
+      (payload) => chrome.runtime.sendMessage({ type: "avc-translate", payload })
+    );
+    let pageHasEnglish = false;
+    let subsNoticeShown = false;
+    function explainMissingEnglish() {
+      if (subsNoticeShown || !subs.lastError) return;
+      const text = /quota/.test(subs.lastError) ? "English subtitles are paused: this month's limit is used up. Romaji keeps working." : /not_linked|unauthorized/.test(subs.lastError) ? "Sign in to AnimeVocab to get English under the romaji." : "";
+      if (!text) return;
+      subsNoticeShown = true;
+      showToast(text, "info");
+    }
+    async function prefetchEnglish(line, a) {
+      if (pageHasEnglish || hasEnglish(a.getVisibleText()) || contextSubs.some(hasEnglish)) return;
+      if (!await ensureJa()) return;
+      subs.translate(line, await tokenize(line), currentTitle()).catch(() => {
+      });
     }
     function siteEnabled(s) {
       const siteKey = adapter ? adapter.name : "generic";
@@ -5588,7 +5819,12 @@
       if (!await ensureJa() || stale()) return;
       const tokens = await tokenizeJa(line);
       if (stale() || !tokens.length) return;
-      showLensLine(line, context?.en || "", tokens, wordStates, {
+      const en = context?.en || "";
+      pageHasEnglish = !!en;
+      const script = lensScript(current2);
+      showLensLine(line, en, tokens, wordStates, {
+        script,
+        englishPending: !en,
         peekPause: current2.subLensPeek !== false,
         getVideo: () => adapter ? adapter.getVideo() : null,
         getTitle: currentTitle,
@@ -5604,6 +5840,10 @@
           void refreshState();
         }
       });
+      if (en) return;
+      const translated = await subs.translate(line, tokens, currentTitle());
+      updateLensLine(line, translated ?? {});
+      if (!translated) explainMissingEnglish();
     }
     let lensChain = 0;
     function cancelPacedLens() {
@@ -5787,10 +6027,6 @@
         const current2 = settings || await getSettings();
         if (normalizeDirection(current2.learningDirection) !== "en-ja") next = null;
         course2 = next;
-        if (course2) {
-          cancelPacedLens();
-          hideLens();
-        }
         setCourse(course2, course2 ? courseActions2 : null);
       })();
       courseLoad = run;
@@ -5897,6 +6133,9 @@
       const ahead = typeof start === "number" ? start - video.currentTime : 0;
       if (ahead > EARLY_LINE_TOLERANCE_SEC) {
         if (ahead > MAX_EARLY_HOLD_SEC) return;
+        if (settings && lensOn(settings)) {
+          for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece, a);
+        }
         const sessionId = currentSessionId();
         const generation = cachePollGeneration;
         setTimeout(() => {
@@ -6005,6 +6244,9 @@
         pendingLines.length = 0;
         judgedLensSeqs.clear();
         contextSubs.clear();
+        subs.clear();
+        pageHasEnglish = false;
+        subsNoticeShown = false;
         emittedCueKeys.clear();
         lastContextTitle = "";
         resetCaptions();

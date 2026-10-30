@@ -142,6 +142,16 @@ export function reasoningEffortForModel(model: string, requested?: ReasoningEffo
   return "medium";
 }
 
+/**
+ * The quickest effort a model accepts, for latency-bound calls: "none" on
+ * GPT-5.4+, "minimal" on GPT-5, "low" on o-series and on reasoning models
+ * this file does not know. Undefined for models that do not reason.
+ */
+export function fastestReasoningEffort(model: string): ReasoningEffort | undefined {
+  if (!isReasoningModel(model)) return undefined;
+  return supportedReasoningEfforts(model)?.[0] ?? "low";
+}
+
 function supportedReasoningEfforts(model: string): readonly ReasoningEffort[] | null {
   if (/^gpt-5\.[56](?:-|$)/.test(model)) return GPT_56_EFFORTS;
   if (/^gpt-5\.4(?:-|$)/.test(model)) return ["none", "low", "medium", "high", "xhigh"];
@@ -246,7 +256,8 @@ export const DEFAULT_MAX_AUTO_LIMIT = TIERS.max.autoCallsPerMonth;
  *          made the advertised allowance evaporate without the learner ever
  *          opening the coach.
  */
-export type UsageBucket = "ai" | "auto";
+/** "subs" counts dual-subtitle lines that missed the shared cache. */
+export type UsageBucket = "ai" | "auto" | "subs";
 
 // Bounds keep the prompt small (cost + the "never send more than needed" constraint).
 export const MAX_WORD_LEN = 80;

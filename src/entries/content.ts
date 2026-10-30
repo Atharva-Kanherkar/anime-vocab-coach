@@ -7,14 +7,16 @@ import * as tokenizer from "../lib/tokenizer";
 import { tokenizeEnglish } from "../lib/english-tokenize";
 import { pickTargetSmart } from "../lib/pick-target";
 import * as overlay from "../lib/overlay";
-import { showLensLine, hideLens, clearLensLine } from "../lib/sub-lens";
+import { showLensLine, hideLens, clearLensLine, updateLensLine } from "../lib/sub-lens";
+import { SubTranslator, type SubResponse } from "../lib/subs-client";
+import type { SubScript } from "../lib/dual-line";
 import { installKeyShield } from "../lib/key-shield";
 import { SubtitleHistory } from "../lib/subtitle-history";
 import { requestAnimeContext, peekAnimeContext } from "../lib/anime-context-client";
 import { youtubeAdapter } from "../lib/adapters/youtube";
 import { netflixAdapter } from "../lib/adapters/netflix";
 import { genericAdapter } from "../lib/adapters/generic";
-import { setAdapterDirection } from "../lib/adapters/util";
+import { hasEnglish, matchesTargetScript, setAdapterDirection } from "../lib/adapters/util";
 import { audioLang, normalizeDirection } from "../lib/direction";
 import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-client";
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
@@ -325,11 +327,15 @@ declare global {
   /** The context subtitle for a line heard from the audio at `start` (video
    * seconds), or what is on screen now when the start is unknown. */
   function contextForAudio(a: SiteAdapter, start: number | undefined): string {
+    let text = a.getVisibleText();
     if (typeof start === "number") {
       const at = contextSubs.textAt(start);
-      if (at !== null) return at;
+      if (at !== null) text = at;
     }
-    return a.getVisibleText();
+    // The page's subtitle is only a translation when it is in the other
+    // language. With Japanese subtitles on (Netflix in Japan), it is the same
+    // line again, and showing it as "the English" helped nobody.
+    return text && matchesTargetScript(text, normalizeDirection(settings?.learningDirection)) ? "" : text;
   }
 
   /**
@@ -387,8 +393,44 @@ declare global {
   let lastContextTitle = "";
 
   function lensOn(s: Settings): boolean {
-    // Following a course lesson, the copilot carries the lesson instead.
-    return normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false && !course;
+    return normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
+  }
+
+  /** How dual subtitles write the Japanese: the course's script while
+   * following a lesson, otherwise the learner's display setting. */
+  function lensScript(s: Settings): SubScript {
+    if (course) return course.script;
+    return s.displayScript === "kana" ? "kana" : s.displayScript === "kanji" ? "kanji" : "romaji";
+  }
+
+  /** English for lines the page has no English for (see subs-client). */
+  const subs = new SubTranslator(
+    (payload) => chrome.runtime.sendMessage({ type: "avc-translate", payload }) as Promise<SubResponse | undefined>
+  );
+  /** Whether the page has been supplying English lines, so a line heard ahead
+   * of its moment is only translated early when it will need it. */
+  let pageHasEnglish = false;
+  let subsNoticeShown = false;
+
+  function explainMissingEnglish(): void {
+    if (subsNoticeShown || !subs.lastError) return;
+    const text = /quota/.test(subs.lastError)
+      ? "English subtitles are paused: this month's limit is used up. Romaji keeps working."
+      : /not_linked|unauthorized/.test(subs.lastError)
+        ? "Sign in to AnimeVocab to get English under the romaji."
+        : "";
+    if (!text) return;
+    subsNoticeShown = true;
+    overlay.showToast(text, "info");
+  }
+
+  /** Start translating a line now so its English is ready when it is shown. */
+  async function prefetchEnglish(line: string, a: SiteAdapter): Promise<void> {
+    // English already on the page (now, or in what has been sampled) will be
+    // shown with the line; translating ahead would spend a line for nothing.
+    if (pageHasEnglish || hasEnglish(a.getVisibleText()) || contextSubs.some(hasEnglish)) return;
+    if (!(await ensureJa())) return;
+    subs.translate(line, await tokenizer.tokenize(line), currentTitle()).catch(() => {});
   }
 
   function siteEnabled(s: Settings): boolean {
@@ -526,7 +568,12 @@ declare global {
     if (!(await ensureJa()) || stale()) return;
     const tokens = await tokenizeJa(line);
     if (stale() || !tokens.length) return;
-    showLensLine(line, context?.en || "", tokens, wordStates, {
+    const en = context?.en || "";
+    pageHasEnglish = !!en;
+    const script = lensScript(current);
+    showLensLine(line, en, tokens, wordStates, {
+      script,
+      englishPending: !en,
       peekPause: current.subLensPeek !== false,
       getVideo: () => (adapter ? adapter.getVideo() : null),
       getTitle: currentTitle,
@@ -543,6 +590,10 @@ declare global {
       },
       onJudged: () => { void refreshState(); },
     });
+    if (en) return;
+    const translated = await subs.translate(line, tokens, currentTitle());
+    updateLensLine(line, translated ?? {});
+    if (!translated) explainMissingEnglish();
   }
 
   /** The paced Lens run in progress, if any (see showPacedLens). */
@@ -801,10 +852,6 @@ declare global {
       const current = settings || (await storage.getSettings());
       if (normalizeDirection(current.learningDirection) !== "en-ja") next = null;
       course = next;
-      if (course) {
-        cancelPacedLens();
-        hideLens();
-      }
       overlay.setCourse(course, course ? courseActions : null);
     })();
     courseLoad = run;
@@ -917,6 +964,10 @@ declare global {
     const ahead = typeof start === "number" ? start - video.currentTime : 0;
     if (ahead > EARLY_LINE_TOLERANCE_SEC) {
       if (ahead > MAX_EARLY_HOLD_SEC) return; // a seek or a stale window; the cache poll covers it
+      // Seconds early: long enough to have its English ready when it is due.
+      if (settings && lensOn(settings)) {
+        for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece, a);
+      }
       const sessionId = currentSessionId();
       const generation = cachePollGeneration;
       setTimeout(() => {
@@ -1073,6 +1124,9 @@ declare global {
       pendingLines.length = 0;
       judgedLensSeqs.clear();
       contextSubs.clear();
+      subs.clear();
+      pageHasEnglish = false;
+      subsNoticeShown = false;
       emittedCueKeys.clear();
       lastContextTitle = "";
       resetCaptions();

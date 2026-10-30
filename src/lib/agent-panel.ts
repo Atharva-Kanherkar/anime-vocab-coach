@@ -1574,7 +1574,7 @@ function buildShell(root: ShadowRoot): Shell {
   lensBtn.className = "avc-agent-lens-toggle";
   lensBtn.type = "button";
   lensBtn.textContent = "CC";
-  lensBtn.setAttribute("aria-label", "Subtitle Lens");
+  lensBtn.setAttribute("aria-label", "Dual subtitles");
   lensBtn.setAttribute("aria-pressed", "true");
   lensBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -2154,10 +2154,9 @@ export function applyPanelSettings(s: Settings): void {
   const lensOn = normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
   shell.lensBtn.setAttribute("aria-pressed", String(lensOn));
   shell.lensBtn.title = lensOn
-    ? "Subtitle Lens on — click to hide our subtitles and just listen"
-    : "Subtitle Lens off — click to show interactive subtitles";
-  // Following a course, the copilot shows the lesson; there is no Lens to switch.
-  shell.lensBtn.hidden = normalizeDirection(s.learningDirection) !== "en-ja" || !!course;
+    ? "Dual subtitles on (romaji + English) — click to hide them and just listen"
+    : "Dual subtitles off — click to show romaji + English";
+  shell.lensBtn.hidden = normalizeDirection(s.learningDirection) !== "en-ja";
 }
 
 export interface CourseActions {

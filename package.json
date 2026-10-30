@@ -34,6 +34,7 @@
     "deploy:site": "cd web && npm run deploy",
     "deploy:api": "cd backend && npm ci && npx wrangler deploy --config wrangler.toml",
     "test:e2e:n5": "node e2e/n5-course.mjs",
+    "test:e2e:dual-subs": "node e2e/dual-subs.mjs",
     "test:n5:fuzz": "vitest run --config vitest.n5-fuzz.config.ts",
     "test:n5:mutation": "stryker run stryker.n5.config.json"
   },

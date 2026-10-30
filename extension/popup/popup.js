@@ -973,7 +973,6 @@
     const settings = await getSettings();
     const box = byId("n5-course");
     box.hidden = !lesson || settings.learningDirection !== "en-ja";
-    byId("mode-lens-row").hidden = !box.hidden;
     if (box.hidden || !lesson) return;
     byId("n5-course-title").textContent = [lesson.unit ? `N5 \xB7 Unit ${lesson.unit}` : "N5 course", lesson.episode ? `Episode ${lesson.episode.number}` : ""].filter(Boolean).join(" \xB7 ");
     byId("n5-course-goal").textContent = lesson.canDo;
@@ -1021,13 +1020,13 @@
       setModeRow(
         "mode-lens",
         lensLive ? "On" : "Off",
-        !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Hover or click subtitle words" : "Off \u2014 no subtitles of ours on screen",
+        !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Romaji + English, hover any word" : "Off \u2014 no subtitles of ours on screen",
         lensLive ? "on" : lensConfigured ? "warn" : "off"
       );
       lensToggle.setAttribute("aria-checked", String(lensLive));
       lensToggle.disabled = !lensSupported;
       const cardStatus = settings.pauseMode === "pause" ? "Focus" : settings.pauseMode === "copilot" ? "Ambient" : "Off";
-      const cardDetail = settings.pauseMode === "pause" ? "Pauses for each automatic card" : settings.pauseMode === "copilot" ? "Shows automatic cards without pausing" : "Subtitle Lens can still run";
+      const cardDetail = settings.pauseMode === "pause" ? "Pauses for each automatic card" : settings.pauseMode === "copilot" ? "Shows automatic cards without pausing" : "Dual subtitles can still run";
       setModeRow(
         "mode-cards",
         null,

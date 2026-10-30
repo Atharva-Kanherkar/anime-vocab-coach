@@ -472,8 +472,6 @@ async function renderCourse(): Promise<void> {
   const settings = await storage.getSettings();
   const box = byId("n5-course");
   box.hidden = !lesson || settings.learningDirection !== "en-ja";
-  // Following a lesson, the Lens stays off; there is nothing to switch.
-  byId("mode-lens-row").hidden = !box.hidden;
   if (box.hidden || !lesson) return;
   byId("n5-course-title").textContent = [lesson.unit ? `N5 · Unit ${lesson.unit}` : "N5 course", lesson.episode ? `Episode ${lesson.episode.number}` : ""].filter(Boolean).join(" · ");
   byId("n5-course-goal").textContent = lesson.canDo;
@@ -525,7 +523,7 @@ async function initModeControls(): Promise<void> {
     setModeRow(
       "mode-lens",
       lensLive ? "On" : "Off",
-      !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Hover or click subtitle words" : "Off — no subtitles of ours on screen",
+      !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Romaji + English, hover any word" : "Off — no subtitles of ours on screen",
       lensLive ? "on" : lensConfigured ? "warn" : "off"
     );
     lensToggle.setAttribute("aria-checked", String(lensLive));
@@ -535,7 +533,7 @@ async function initModeControls(): Promise<void> {
       ? "Pauses for each automatic card"
       : settings.pauseMode === "copilot"
         ? "Shows automatic cards without pausing"
-        : "Subtitle Lens can still run";
+        : "Dual subtitles can still run";
     // A video with no study-language captions is why cards stopped appearing,
     // so that fact outranks the mode description on this row.
     setModeRow(
