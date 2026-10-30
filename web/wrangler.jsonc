@@ -14,6 +14,9 @@
   "routes": [
     { "pattern": "www.animevocab.com/*", "zone_name": "animevocab.com" }
   ],
+  // Direct Worker-to-Worker route to the API for the N5 course gateway. Same-account
+  // workers.dev fetches are not a reliable path from a Worker; a service binding is.
+  "services": [{ "binding": "N5_API", "service": "avc-api" }],
   "kv_namespaces": [
     {
       "binding": "AVC_SYNC_KV",

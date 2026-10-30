@@ -4,12 +4,13 @@ const mocks = vi.hoisted(() => ({
   token: vi.fn(),
   existing: vi.fn(),
   auth: vi.fn(),
+  env: {} as Record<string, unknown>,
 }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/auth", () => ({ resolveProfile: mocks.profile }));
 vi.mock("./credential", () => ({ courseCredential: mocks.token }));
 vi.mock("@opennextjs/cloudflare", () => ({
-  getCloudflareContext: async () => ({ env: {} }),
+  getCloudflareContext: async () => ({ env: mocks.env }),
 }));
 import { gateway, n5Config, n5AvailableFor } from "./server";
 const upstream = vi.fn();
@@ -53,6 +54,37 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  mocks.env = {};
+});
+describe("Workers-compatible upstream calls", () => {
+  it("prefers the N5_API service binding over the public network", async () => {
+    const binding = { fetch: vi.fn(async () => Response.json({ tracks: [] })) };
+    mocks.env = { N5_API: binding };
+    const response = await request("enrolments", "POST", '{"script":"kana"}');
+    expect(response.status).toBe(200);
+    expect(upstream).not.toHaveBeenCalled();
+    expect(binding.fetch).toHaveBeenCalledTimes(1);
+    const sent = (binding.fetch.mock.calls[0] as unknown as [Request])[0];
+    expect(sent.url).toBe("https://avc-api.animevocab.workers.dev/v1/n5/enrolments");
+    expect(sent.method).toBe("POST");
+    expect(sent.redirect).toBe("manual");
+    expect(sent.headers.get("Authorization")).toBe("Bearer private-bearer-never-in-browser");
+    expect(sent.headers.get("Content-Type")).toBe("application/json");
+    expect(sent.headers.get("Cookie")).toBeNull();
+    expect(await sent.text()).toBe('{"script":"kana"}');
+  });
+  it("ignores a binding without fetch and never asks the runtime for redirect: error", async () => {
+    mocks.env = { N5_API: "not-a-binding" };
+    await request();
+    expect(upstream).toHaveBeenCalledTimes(1);
+    expect((upstream.mock.calls[0] as unknown as [string, RequestInit])[1].redirect).toBe("manual");
+  });
+  it("fails closed on an upstream redirect instead of following it", async () => {
+    upstream.mockImplementation(async () => new Response(null, { status: 302, headers: { Location: "https://evil.test/" } }));
+    const response = await request();
+    expect(response.status).toBe(503);
+    expect((await response.json()).error.code).toBe("course_unavailable");
+  });
 });
 describe("authenticated N5 gateway", () => {
   it("defaults off before auth or network activity", async () => {
@@ -69,7 +101,7 @@ describe("authenticated N5 gateway", () => {
       "https://avc-api.animevocab.workers.dev/v1/n5/enrolments",
       expect.objectContaining({
         method: "POST",
-        redirect: "error",
+        redirect: "manual",
         cache: "no-store",
         headers: {
           Authorization: "Bearer private-bearer-never-in-browser",
