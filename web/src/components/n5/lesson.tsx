@@ -10,6 +10,7 @@ import { buildDrill, requeue, type DrillRound } from "@/lib/n5/drill";
 import { CourseFailure, courseRequest, Failure, Loading, newKey, useCourse } from "./common";
 import { PlayButton, playAudio } from "./audio";
 import { PlayerShell } from "./player";
+import { CourseGuide, StepGuide } from "./guide";
 import { SECTIONS, STEP_INFO, completedSteps, markLocalStep, readLocalSteps, sectionIndex, stepsFor, type StepId } from "@/lib/n5/steps";
 
 export function CourseLesson({ lessonId, ownerId, script }: { lessonId: string; ownerId: string; script?: N5Script }) {
@@ -75,6 +76,7 @@ function LessonContent({
   const router = useRouter();
   const [watched, setWatched] = useState(initialWatched);
   const [local, setLocal] = useState<StepId[]>(() => readLocalSteps(ownerId, lesson.id));
+  const [guide, setGuide] = useState(false);
   const steps = stepsFor(lesson.kind);
   const [step, setStep] = useState<Step>(() => {
     const hash = typeof location === "undefined" ? "" : location.hash.slice(1);
@@ -118,8 +120,12 @@ function LessonContent({
             </span>
           )}
           {status?.speaking === "demonstrated" && <span>Speaking demonstrated</span>}
+          <button type="button" className="n5-link" onClick={() => setGuide(true)}>
+            How this course works
+          </button>
         </div>
       </header>
+      {guide && <CourseGuide open onClose={() => setGuide(false)} />}
       <nav className="n5-steps" aria-label="Lesson steps">
         {STEPS.filter((s) => steps.includes(s.id)).map((s, index) => (
           <button
@@ -138,6 +144,7 @@ function LessonContent({
         ))}
       </nav>
       <div id="n5-step" tabIndex={-1} className="n5-step-body">
+        <StepGuide step={step} position={position + 1} total={steps.length} />
         {step === "learn" && (
           <Learn
             lesson={lesson}

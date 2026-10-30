@@ -9,6 +9,8 @@ vi.mock("./common", async (original) => ({
   useCourse: () => ({ data: api.data, error: null }),
   courseRequest: api.request,
 }));
+// These tests cover the hub itself; the first-visit guide has its own tests.
+vi.mock("./guide", async (original) => ({ ...(await original<typeof import("./guide")>()), guideSeen: () => true }));
 import { CourseHub } from "./hub";
 import { CourseLesson } from "./lesson";
 const trackId = "your-lie-in-april-2014";
