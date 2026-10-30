@@ -27,6 +27,7 @@ import type { DictEntry, DisplayScript, Judgment, PauseMode, Settings, Target, T
 import { trackExtensionEvent } from "./extension-events";
 import { trackPro } from "./feature-events";
 import { UI_HOST_ATTR, isTypingEvent, keepFocusOnMouseClick } from "./key-shield";
+import { coursePrompt, type CourseLesson, type CoursePrompt } from "./course-listening";
 
 export type InteractionMode = "ambient" | "focus";
 
@@ -83,6 +84,7 @@ interface Shell {
   lensBtn: HTMLButtonElement;
   wordSection: HTMLElement;
   scrollArea: HTMLElement;
+  course: HTMLElement;
   wordIdle: HTMLElement;
   wordActive: HTMLElement;
   collapseBtn: HTMLElement;
@@ -105,6 +107,10 @@ let wordResolve: ((judgment: Judgment | "dismiss") => void) | null = null;
 let wordCtx: WordContext | null = null;
 let chatHistory: ChatTurn[] = [];
 let chatPayload: CoachPayload | null = null;
+/** The N5 lesson Listening is following, if any (see setCourse). */
+let course: CourseLesson | null = null;
+let courseActions: CourseActions | null = null;
+let courseMoment: { wordIds: string[]; line: string } | null = null;
 
 let keyHandler: ((e: KeyboardEvent) => void) | null = null;
 /** Both auto-dismiss clocks freeze while the learner has the video paused. */
@@ -178,6 +184,7 @@ interface CoachPayload {
   learnerLevel?: number | null;
   wordsKnown?: number | null;
   direction?: LearningDirection;
+  course?: CoursePrompt | null;
 }
 
 const STYLES = `
@@ -406,6 +413,28 @@ const STYLES = `
     font-size: 12px; line-height: 1.6;
   }
   .avc-agent-idle strong { color: rgba(227, 186, 99, 0.5); font-weight: 500; }
+  .avc-course { display: none; margin: 0 -2px 10px; padding: 12px; border-radius: 12px;
+    background: rgba(6, 5, 9, 0.62); border: 1px solid rgba(255, 255, 255, 0.07);
+    color: rgba(236, 234, 228, 0.82); font-size: 12px; line-height: 1.45; }
+  .avc-course.avc-active { display: block; }
+  .avc-course-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .avc-course-tag { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(227, 186, 99, 0.85); }
+  .avc-course-link { background: none; border: 0; padding: 0; font: inherit; font-size: 11px; color: rgba(236, 234, 228, 0.55); cursor: pointer; text-decoration: underline; }
+  .avc-course-goal { margin: 4px 0 8px; font-weight: 600; }
+  .avc-course-words { display: flex; flex-wrap: wrap; gap: 4px; }
+  .avc-course-word { padding: 2px 7px; border-radius: 999px; border: 1px dashed rgba(255, 255, 255, 0.16);
+    color: rgba(236, 234, 228, 0.55); font-size: 11px; }
+  .avc-course-word.avc-heard { border-style: solid; border-color: rgba(120, 200, 150, 0.55); color: rgb(160, 225, 180); }
+  .avc-course-word.avc-just { background: rgba(120, 200, 150, 0.18); }
+  .avc-course-count { margin-top: 6px; font-size: 10px; color: rgba(236, 234, 228, 0.42); }
+  .avc-course-moment { margin-top: 8px; padding: 8px; border-radius: 8px; background: rgba(120, 200, 150, 0.08); }
+  .avc-course-moment q { display: block; margin: 4px 0 6px; color: rgba(236, 234, 228, 0.7); }
+  .avc-course-btn { padding: 6px 8px; font: inherit; font-size: 11px; cursor: pointer; border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05); color: rgba(236, 234, 228, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); }
+  .avc-course-btn:hover { background: rgba(255, 255, 255, 0.1); }
+  .avc-course-btn:disabled { opacity: 0.45; cursor: default; }
+  .avc-course-finish { display: block; width: 100%; margin-top: 10px; color: rgba(227, 186, 99, 0.95); border-color: rgba(227, 186, 99, 0.35); }
+  .avc-course-status { margin-top: 6px; font-size: 11px; color: rgba(236, 234, 228, 0.6); }
   .avc-agent-word-block { display: none; }
   .avc-agent-word-block.avc-active { display: block; }
   /* Ambient: readable text on a small local card — sidebar background stays glassy */
@@ -1112,6 +1141,7 @@ function payloadFromCtx(ctx: WordContext): CoachPayload {
     learnerLevel: ctx.options.learnerLevel ?? null,
     wordsKnown: ctx.options.wordsKnown ?? null,
     direction: normalizeDirection(ctx.options.learningDirection),
+    course: course ? coursePrompt(course) : null,
   };
 }
 
@@ -1221,17 +1251,18 @@ function thawAutoTimers(): void {
   autoTimerMax.thaw();
 }
 
-async function submitChat(): Promise<void> {
-  if (!shell) return;
-  const payload: CoachPayload = chatPayload || {
+async function submitChat(question?: string, about?: CoachPayload): Promise<void> {
+  if (!shell || chatStreaming) return;
+  const payload: CoachPayload = about || chatPayload || {
     word: "general",
     line: "The learner is watching anime with Japanese subtitles.",
     gloss: "",
     title: null,
+    course: course ? coursePrompt(course) : null,
   };
-  const text = shell.chatInput.value.trim();
+  const text = (question ?? shell.chatInput.value).trim();
   if (!text) return;
-  shell.chatInput.value = "";
+  if (question === undefined) shell.chatInput.value = "";
   appendChatBubble(shell.chatLog, "user", text);
   chatHistory.push({ role: "user", content: text });
   shell.chatSend.disabled = true;
@@ -1589,6 +1620,11 @@ function buildShell(root: ShadowRoot): Shell {
   const scrollArea = document.createElement("div");
   scrollArea.className = "avc-agent-scroll";
 
+  const courseBox = document.createElement("div");
+  courseBox.className = "avc-course";
+  courseBox.setAttribute("role", "region");
+  courseBox.setAttribute("aria-label", "N5 course lesson");
+
   const wordIdle = document.createElement("div");
   wordIdle.className = "avc-agent-idle";
   wordIdle.innerHTML = "Watching. New words appear here.<br><strong>Ask anything</strong> in the chat below.";
@@ -1628,6 +1664,7 @@ function buildShell(root: ShadowRoot): Shell {
   chat.appendChild(chatLabel);
   chat.appendChild(chatLog);
 
+  scrollArea.appendChild(courseBox);
   scrollArea.appendChild(wordIdle);
   scrollArea.appendChild(wordActive);
   scrollArea.appendChild(chat);
@@ -1724,7 +1761,7 @@ function buildShell(root: ShadowRoot): Shell {
 
   return {
     root, ambient, sidebar, panel, modeSelect, lensBtn, wordSection: scrollArea, scrollArea,
-    wordIdle, wordActive, foot, buttons, hint, chatLog, chatInput, chatSend,
+    course: courseBox, wordIdle, wordActive, foot, buttons, hint, chatLog, chatInput, chatSend,
     aiOut, explainBtn, hookBtn, collapseBtn, rail,
   };
 }
@@ -2088,6 +2125,7 @@ export function ensureAgentMounted(): void {
   // the flag must not carry a previous mount's state into this one.
   collapsed = false;
   mounted = true;
+  renderCourse();
   romaji.preloadVoices();
   announceVisibility(true);
 
@@ -2118,7 +2156,134 @@ export function applyPanelSettings(s: Settings): void {
   shell.lensBtn.title = lensOn
     ? "Subtitle Lens on — click to hide our subtitles and just listen"
     : "Subtitle Lens off — click to show interactive subtitles";
-  shell.lensBtn.hidden = normalizeDirection(s.learningDirection) !== "en-ja";
+  // Following a course, the copilot shows the lesson; there is no Lens to switch.
+  shell.lensBtn.hidden = normalizeDirection(s.learningDirection) !== "en-ja" || !!course;
+}
+
+export interface CourseActions {
+  /** Open the lesson on animevocab.com. */
+  openLesson: () => void;
+  /** Pause, stop listening, record the episode and open practice. */
+  finish: () => Promise<void>;
+}
+
+/**
+ * Follow an N5 lesson, or stop following one (null). The copilot keeps doing
+ * everything it does; it also shows the unit's words, lights them up as they
+ * are heard, and answers inside the unit (see coursePrompt).
+ */
+export function setCourse(next: CourseLesson | null, actions: CourseActions | null): void {
+  const changed = next?.id !== course?.id;
+  course = next;
+  courseActions = next ? actions : null;
+  if (changed) courseMoment = null;
+  if (chatPayload) chatPayload = { ...chatPayload, course: course ? coursePrompt(course) : null };
+  renderCourse();
+  if (shell) void getSettings().then(applyPanelSettings);
+}
+
+/** Lesson words were just heard in `line`. */
+export function courseHeard(wordIds: string[], line: string): void {
+  if (!course || !wordIds.length) return;
+  course = { ...course, heard: [...new Set([...course.heard, ...wordIds])] };
+  courseMoment = { wordIds, line };
+  renderCourse();
+}
+
+function renderCourse(): void {
+  if (!shell) return;
+  const box = shell.course;
+  box.replaceChildren();
+  box.classList.toggle("avc-active", !!course);
+  shell.wordIdle.innerHTML = course
+    ? "Listening along with your lesson.<br>Unit words light up when they're spoken. <strong>Ask anything</strong> below."
+    : "Watching. New words appear here.<br><strong>Ask anything</strong> in the chat below.";
+  if (!course) return;
+  const lesson = course;
+  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] => {
+    const node = document.createElement(tag);
+    node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const ja = lesson.script === "kana" ? "ja" : "";
+
+  const top = el("div", "avc-course-top");
+  const tag = [lesson.unit ? `N5 · Unit ${lesson.unit}` : "N5 course", lesson.episode ? `Episode ${lesson.episode.number}` : ""].filter(Boolean).join(" · ");
+  top.appendChild(el("span", "avc-course-tag", tag));
+  const link = el("button", "avc-course-link", "Lesson ↗");
+  link.type = "button";
+  link.title = "Open this lesson on animevocab.com";
+  link.addEventListener("click", (e) => { e.stopPropagation(); courseActions?.openLesson(); });
+  top.appendChild(link);
+  box.appendChild(top);
+  box.appendChild(el("div", "avc-course-goal", lesson.canDo));
+
+  const words = el("div", "avc-course-words");
+  for (const w of lesson.words) {
+    const heard = lesson.heard.includes(w.id);
+    const chip = el("span", "avc-course-word" + (heard ? " avc-heard" : "") + (courseMoment?.wordIds.includes(w.id) ? " avc-just" : ""), (heard ? "✓ " : "") + w.reading);
+    if (ja) chip.lang = ja;
+    chip.title = w.meaning;
+    words.appendChild(chip);
+  }
+  box.appendChild(words);
+  const count = lesson.words.filter((w) => lesson.heard.includes(w.id)).length;
+  box.appendChild(el("div", "avc-course-count", `Heard ${count} of ${lesson.words.length} unit words · saved to your account`));
+
+  if (courseMoment) {
+    const moment = el("div", "avc-course-moment");
+    moment.setAttribute("aria-live", "polite");
+    const heardWords = lesson.words.filter((w) => courseMoment!.wordIds.includes(w.id));
+    const said = el("div", "");
+    said.append("Heard ");
+    heardWords.forEach((w, i) => {
+      if (i) said.append(", ");
+      const b = el("strong", "", w.reading);
+      if (ja) b.lang = ja;
+      said.append(b, ` (${w.meaning})`);
+    });
+    moment.appendChild(said);
+    const q = el("q", "", courseMoment.line);
+    q.lang = "ja";
+    moment.appendChild(q);
+    const explain = el("button", "avc-course-btn", "Explain this line");
+    explain.type = "button";
+    const line = courseMoment.line;
+    explain.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const first = heardWords[0];
+      void submitChat(`Explain this line for my unit: ${line}`, {
+        word: first ? first.kana || first.reading : line.slice(0, 20),
+        reading: first?.reading,
+        gloss: first?.meaning || "",
+        line,
+        title: null,
+        course: coursePrompt(lesson),
+      });
+    });
+    moment.appendChild(explain);
+    box.appendChild(moment);
+  }
+
+  if (lesson.episode) {
+    const finish = el("button", "avc-course-btn avc-course-finish", `Finish episode ${lesson.episode.number} · practise`);
+    finish.type = "button";
+    const status = el("div", "avc-course-status");
+    status.setAttribute("aria-live", "polite");
+    finish.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!courseActions) return;
+      finish.disabled = true;
+      status.textContent = "Saving and opening practice…";
+      courseActions.finish().then(
+        () => { status.textContent = "Practice opened in a new tab."; },
+        (err: unknown) => { status.textContent = err instanceof Error ? err.message : "Please try again."; }
+      ).finally(() => { finish.disabled = false; });
+    });
+    box.appendChild(finish);
+    box.appendChild(status);
+  }
 }
 
 /**

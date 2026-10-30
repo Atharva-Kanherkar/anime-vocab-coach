@@ -623,3 +623,18 @@ a:focus-visible {
   gap: 6px;
   margin-top: 8px;
 }
+
+.av-listen-note { margin: 0; color: var(--av-ink-3); font-size: 10px; line-height: 1.45; }
+.av-course {
+  display: grid; gap: 3px; padding: 9px 11px;
+  border: 1.5px solid var(--av-line); border-radius: 12px; background: var(--av-panel);
+  font-size: 11px; line-height: 1.4;
+}
+.av-course[hidden] { display: none; }
+.av-course b { font-size: 12px; }
+.av-course-note { color: var(--av-ink-3); font-size: 10px; }
+.av-course a { color: var(--av-ink); font-weight: 650; }
+.av-more { margin-top: 10px; }
+.av-more > summary { cursor: pointer; color: var(--av-ink-2); font-size: 10.5px; font-weight: 700; }
+.av-more .av-modes { margin-top: 8px; }
+.av-mode-note { margin-top: 7px; color: var(--av-ink-3); font-size: 9.5px; line-height: 1.45; }

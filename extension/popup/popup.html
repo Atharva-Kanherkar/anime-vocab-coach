@@ -31,53 +31,56 @@
 
     <section class="av-review-prompt-host" id="review-prompt" hidden></section>
 
-    <section class="av-modes" aria-labelledby="modes-title">
-      <div class="av-modes-head">
-        <b id="modes-title">Modes on this tab</b>
-        <span>Mix any of them</span>
-      </div>
-      <div class="av-mode-row">
-        <span class="av-mode-dot" id="mode-lens-dot"></span>
-        <div><b>Subtitle Lens</b><span id="mode-lens-detail">Checking…</span></div>
-        <button type="button" class="av-mode-switch" id="mode-lens-status" role="switch" aria-checked="false" aria-label="Subtitle Lens">—</button>
-      </div>
-      <div class="av-mode-row">
-        <span class="av-mode-dot" id="mode-cards-dot"></span>
-        <div><b>Auto cards</b><span id="mode-cards-detail">Checking…</span></div>
-        <select class="av-mode-select" id="mode-cards-select" aria-label="Auto cards">
-          <option value="copilot">Ambient</option>
-          <option value="pause">Focus</option>
-          <option value="off">Off</option>
-        </select>
-      </div>
-      <div class="av-mode-row">
-        <span class="av-mode-dot" id="mode-listen-dot"></span>
-        <div><b>Listening</b><span>Transcribes spoken audio</span></div>
-        <strong id="mode-listen-status">—</strong>
-      </div>
-      <div class="av-mode-row">
-        <span class="av-mode-dot" id="mode-copilot-dot"></span>
-        <div><b>Copilot</b><span>Explains words and scenes</span></div>
-        <strong id="mode-copilot-status">—</strong>
-      </div>
-      <details class="av-mode-help">
-        <summary>How the modes work together</summary>
-        <p>Subtitle Lens and Auto cards read subtitle tracks. Listening adds words from spoken audio. Copilot explains either kind of card. Start both Listening and Copilot for the full study session, or run each separately.</p>
-        <p>Just want to listen? Turn Subtitle Lens and Auto cards off here; the video plays with nothing of ours on screen, and Listening can keep running for the copilot.</p>
-      </details>
-    </section>
-
     <section class="av-actions">
       <button id="review-due" class="av-btn av-btn-primary av-btn-block" type="button" hidden></button>
-      <button id="study-session-btn" type="button" class="av-btn av-btn-primary av-btn-block">Start Listening + Copilot</button>
-      <div class="av-mode-actions">
-        <button id="listening-btn" type="button" class="av-btn av-btn-ghost">Start Listening</button>
-        <button id="copilot-btn" type="button" class="av-btn av-btn-ghost">Open Copilot</button>
+      <button id="study-session-btn" type="button" class="av-btn av-btn-primary av-btn-block">Start Listening</button>
+      <p class="av-listen-note" id="listen-note">Listens to the video and explains what's said in a side panel. Words you save sync to your account.</p>
+      <div class="av-course" id="n5-course" hidden>
+        <b id="n5-course-title">N5 course</b>
+        <span id="n5-course-goal"></span>
+        <span class="av-course-note">Listening follows this lesson: its words light up as they're spoken and are saved to your course.</span>
+        <a href="#" id="n5-course-link">Open lesson on animevocab.com ↗</a>
       </div>
       <p class="av-error" id="listen-error" hidden></p>
     </section>
 
-    <section class="av-actions"><button id="n5-course" class="av-btn av-btn-ghost av-btn-block" type="button">N5 Course · private pilot</button></section>
+    <details class="av-more">
+      <summary>More options</summary>
+      <section class="av-modes" aria-labelledby="modes-title">
+        <div class="av-modes-head">
+          <b id="modes-title">On this tab</b>
+        </div>
+        <div class="av-mode-row" id="mode-lens-row">
+          <span class="av-mode-dot" id="mode-lens-dot"></span>
+          <div><b>Subtitle Lens</b><span id="mode-lens-detail">Checking…</span></div>
+          <button type="button" class="av-mode-switch" id="mode-lens-status" role="switch" aria-checked="false" aria-label="Subtitle Lens">—</button>
+        </div>
+        <div class="av-mode-row">
+          <span class="av-mode-dot" id="mode-cards-dot"></span>
+          <div><b>Auto cards</b><span id="mode-cards-detail">Checking…</span></div>
+          <select class="av-mode-select" id="mode-cards-select" aria-label="Auto cards">
+            <option value="copilot">Ambient</option>
+            <option value="pause">Focus</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+        <div class="av-mode-row">
+          <span class="av-mode-dot" id="mode-listen-dot"></span>
+          <div><b>Listening</b><span>Transcribes spoken audio</span></div>
+          <strong id="mode-listen-status">—</strong>
+        </div>
+        <div class="av-mode-row">
+          <span class="av-mode-dot" id="mode-copilot-dot"></span>
+          <div><b>Copilot</b><span>Explains words and scenes</span></div>
+          <strong id="mode-copilot-status">—</strong>
+        </div>
+        <div class="av-mode-actions">
+          <button id="listening-btn" type="button" class="av-btn av-btn-ghost">Start Listening</button>
+          <button id="copilot-btn" type="button" class="av-btn av-btn-ghost">Open Copilot</button>
+        </div>
+        <p class="av-mode-note">Start Listening runs both: it hears the audio and opens the copilot. Run them separately here, or turn the Subtitle Lens and automatic cards off to keep the screen clear.</p>
+      </section>
+    </details>
 
     <section class="av-stamp-rally" id="stamp-rally"></section>
 

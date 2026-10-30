@@ -1,5 +1,6 @@
 import { WEB_URL } from "../config";
 import { getSyncToken } from "./storage";
+import type { CoursePrompt } from "./course-listening";
 
 export type CoachMode = "explain" | "hooks" | "chat";
 
@@ -14,6 +15,8 @@ export interface CoachPayload {
   learnerLevel?: number | null;
   wordsKnown?: number | null;
   direction?: "en-ja" | "ja-en";
+  /** The N5 lesson Listening is following, when there is one. */
+  course?: CoursePrompt | null;
 }
 
 export interface ChatMessage {

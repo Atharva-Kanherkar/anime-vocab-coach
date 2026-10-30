@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { N5Catalog } from "../../../shared/n5/contracts";
 import { requireN5Auth } from "./auth";
 import { CLIPS, CONTENT_VERSION, COURSE_ID, TRACKS, courseOutline, lessonById, publicLesson } from "./course";
-import { answersSchema, attemptSchema, completeAnswers, conversationStartSchema, emptySchema, enrolmentSchema, eventSchema, fingerprint, finishSchema, scriptSchema, invalidAnswerQuestionId, turnSchema, validScript } from "./domain";
+import { answersSchema, attemptSchema, completeAnswers, conversationStartSchema, emptySchema, enrolmentSchema, eventSchema, fingerprint, heardSchema, finishSchema, scriptSchema, invalidAnswerQuestionId, turnSchema, validScript } from "./domain";
 import { FEEDBACK_SCHEMA, fallbackItems, feedbackPrompt, feedbackRequest, matchedItems, orderItems, parseFeedback } from "./feedback";
 import { ProviderError, aiEnabled, speech, structured, transcribe, ttsModel, ttsVoice, type ProviderEnv } from "./provider";
 import { CourseError, CourseStore, MAX_TURNS, type StoredTurn } from "./store";
@@ -162,6 +162,7 @@ export async function handleN5(req: Request, env: N5Environment & { AVC_KV: KVNa
       return response(req, publicLesson(lesson, selected.data));
     }
     if (path === "/events") { method(req, "POST"); return response(req, await store.observe(await body(req, eventSchema))); }
+    if (path === "/heard") { method(req, "POST"); return response(req, await store.heard(await body(req, heardSchema))); }
     if (path === "/attempts") { method(req, "POST"); return response(req, await store.create(await body(req, attemptSchema))); }
     const match = path.match(/^\/attempts\/([^/]+)(?:\/(answers|finish|feedback))?$/);
     if (match) {

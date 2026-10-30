@@ -26,7 +26,7 @@ import {
   sendExtensionEventBeacon,
 } from "../lib/extension-events";
 import { toastTab } from "../lib/notify";
-import { handleN5, invalidateN5, bounded, retryPendingN5 } from "../lib/n5-service";
+import { handleN5, invalidateN5, retryPendingN5 } from "../lib/n5-service";
 import { CaptureStarts } from "../lib/capture-starts";
 import { listeningRegistry, retryCaptureStart } from "../lib/listening-coordination";
 const captureStarts = new CaptureStarts();
@@ -404,19 +404,10 @@ interface RuntimeMsg {
 }
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
-  if (typeof msg?.type === "string" && msg.type.startsWith("avc-n5-") && !["avc-n5-mount", "avc-n5-unmount", "avc-n5-pause"].includes(msg.type)) {
-    void handleN5(msg, sender, async (tabId) => {
-      captureStarts.cancel(tabId);
-      const listening = await getListening();
-      const exists = await chrome.offscreen.hasDocument();
-      if (!exists) {
-        if (listening[tabId]) throw new Error("Capture stop could not be confirmed.");
-        return;
-      }
-      const ack = await bounded(chrome.runtime.sendMessage({ type: "avc-offscreen-stop", tabId })) as { ok?: boolean };
-      if (!ack?.ok) throw new Error("Capture stop could not be confirmed.");
-      await stopListening(tabId);
-    }).then(sendResponse);
+  if (typeof msg?.type === "string" && msg.type.startsWith("avc-n5-")) {
+    // Finishing a course episode ends Listening on its tab, the same way the
+    // popup's Stop does.
+    void handleN5(msg, sender, async (tabId) => { await stopListening(tabId); }).then(sendResponse);
     return true;
   }
   if (msg.type === "avc-badge") {
@@ -723,5 +714,4 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   await setCopilotTab(tabId, false);
 });
 
-chrome.tabs.onRemoved.addListener((tabId) => { void invalidateN5(tabId); });
-chrome.tabs.onUpdated.addListener((tabId, change) => { if (change.url) void invalidateN5(tabId); });
+

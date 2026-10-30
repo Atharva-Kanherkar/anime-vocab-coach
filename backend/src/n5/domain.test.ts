@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answersSchema, attemptSchema, completeAnswers, conversationStartSchema, emptySchema, enrolmentSchema, eventSchema, fingerprint, finishSchema, grade, packHash, review, turnSchema, validScript, validateAnswers, invalidAnswerQuestionId } from "./domain";
+import { answersSchema, attemptSchema, completeAnswers, conversationStartSchema, emptySchema, enrolmentSchema, eventSchema, fingerprint, finishSchema, grade, heardSchema, packHash, review, turnSchema, validScript, validateAnswers, invalidAnswerQuestionId } from "./domain";
 import { LESSONS, MAX_QUESTIONS, lessonById, publicLesson } from "./course";
 import { CONTENT_VERSION, EPISODE_ID, LESSON_ID, TRACK_ID, correctAnswers } from "../../test/answers";
 
@@ -38,6 +38,12 @@ describe("strict request contracts", () => {
     expect(eventSchema.safeParse({ ...event, kind: "mastered" }).success).toBe(false);
     expect(eventSchema.safeParse({ ...event, kind: "practice_complete" }).success).toBe(true);
     expect(eventSchema.safeParse({ ...event, episodeId: "other" }).success).toBe(false);
+    const heard = { lessonId: LESSON_ID, wordIds: ["tomodachi"] };
+    expect(heardSchema.parse(heard)).toEqual(heard);
+    expect(heardSchema.safeParse({ ...heard, wordIds: Array(20).fill("piano") }).success).toBe(true);
+    for (const wordIds of [[], Array(21).fill("piano"), ["a/b"], [""], "tomodachi"]) expect(heardSchema.safeParse({ ...heard, wordIds }).success).toBe(false);
+    expect(heardSchema.safeParse({ ...heard, lessonId: "other-lesson" }).success).toBe(false);
+    expect(heardSchema.safeParse({ ...heard, line: "友達だよ" }).success).toBe(false);
   });
 });
 

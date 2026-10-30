@@ -141,6 +141,57 @@
       ],
       "additionalProperties": false
     },
+    "heard": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "lessonId": {
+          "type": "string",
+          "enum": [
+            "your-lie-in-april-u01",
+            "your-lie-in-april-u02",
+            "your-lie-in-april-u03",
+            "your-lie-in-april-u04",
+            "your-lie-in-april-u05",
+            "your-lie-in-april-u06",
+            "your-lie-in-april-u07",
+            "your-lie-in-april-u08",
+            "your-lie-in-april-u09",
+            "your-lie-in-april-u10",
+            "your-lie-in-april-u11",
+            "your-lie-in-april-u12",
+            "your-lie-in-april-u13",
+            "your-lie-in-april-u14",
+            "your-lie-in-april-u15",
+            "your-lie-in-april-u16",
+            "your-lie-in-april-u17",
+            "your-lie-in-april-u18",
+            "your-lie-in-april-u19",
+            "your-lie-in-april-u20",
+            "your-lie-in-april-u21",
+            "your-lie-in-april-u22",
+            "your-lie-in-april-u23",
+            "your-lie-in-april-u24"
+          ]
+        },
+        "wordIds": {
+          "minItems": 1,
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-zA-Z0-9_-]+$"
+          }
+        }
+      },
+      "required": [
+        "lessonId",
+        "wordIds"
+      ],
+      "additionalProperties": false
+    },
     "answers": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",

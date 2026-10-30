@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import type { N5Answer, N5Attempt, N5Conversation, N5Enrolment, N5Export, N5ExtensionState, N5Feedback, N5LessonProgress, N5Progress, N5Result, N5ReviewEvent, N5Reviews, N5Script, N5SpeakingResult, N5SpeakingStatus, N5Text, N5Turn } from "../../../shared/n5/contracts";
 import { CONTENT_VERSION, COURSE_ID, LESSONS, lessonById, publicLesson, type PrivateLesson } from "./course";
-import { type answersSchema, type attemptSchema, type enrolmentSchema, type eventSchema, completeAnswers, fingerprint, grade, packHash, review } from "./domain";
+import { type answersSchema, type attemptSchema, type enrolmentSchema, type eventSchema, type heardSchema, completeAnswers, fingerprint, grade, packHash, review } from "./domain";
 
 export class CourseError extends Error {
   constructor(readonly code: string, readonly status: number, message: string, readonly allow?: string, readonly details?: { questionId: string }) { super(message); }
@@ -95,6 +95,23 @@ export class CourseStore {
     checkFingerprint(receipt.fingerprint, hash);
     return { id: receipt.response_id };
   }
+  /** Record lesson words heard while listening; repeats only move last_heard_at. */
+  async heard(body: z.infer<typeof heardSchema>): Promise<{ lessonId: string; heard: string[] }> {
+    if (!await this.enrolment()) throw new CourseError("enrolment_required", 409, "Select a course track first.");
+    const lesson = lessonById(body.lessonId)!;
+    const known = new Set(lesson.vocabulary.map((v) => v.id));
+    if (body.wordIds.some((id) => !known.has(id))) throw new CourseError("invalid_request", 400, "Heard words must belong to the lesson.");
+    const now = Date.now();
+    await this.db.batch([this.account(), ...[...new Set(body.wordIds)].map((wordId) => this.statement(
+      `INSERT INTO n5_heard(user_id,lesson_id,word_id,first_heard_at,last_heard_at) VALUES(?,?,?,?,?)
+       ON CONFLICT(user_id,lesson_id,word_id) DO UPDATE SET last_heard_at=excluded.last_heard_at`,
+      this.userId, body.lessonId, wordId, now, now))]);
+    return { lessonId: body.lessonId, heard: await this.heardFor(body.lessonId) };
+  }
+  private async heardFor(lessonId: string): Promise<string[]> {
+    const rows = await this.statement("SELECT word_id FROM n5_heard WHERE user_id=? AND lesson_id=? ORDER BY first_heard_at,word_id", this.userId, lessonId).all<{ word_id: string }>();
+    return rows.results.map((row) => row.word_id);
+  }
   private async row(id: string): Promise<AttemptRow> {
     const row = await this.statement("SELECT * FROM n5_attempts WHERE user_id=? AND id=?", this.userId, id).first<AttemptRow>();
     if (!row) throw new CourseError("not_found", 404, "Attempt not found.");
@@ -183,11 +200,12 @@ export class CourseStore {
     return publicAttempt(finished);
   }
   async progress(): Promise<N5Progress> {
-    const [enrolments, events, attempts] = await this.db.batch<Record<string, unknown>>([
+    const [enrolments, events, attempts, heard] = await this.db.batch<Record<string, unknown>>([
       this.statement("SELECT track_id AS trackId,script FROM n5_enrolments WHERE user_id=? ORDER BY id DESC LIMIT 1", this.userId),
       this.statement("SELECT DISTINCT episode_id AS episodeId,kind FROM n5_events WHERE user_id=? ORDER BY episode_id,kind", this.userId),
       this.statement("SELECT id,lesson_id,content_version,pack_hash,status,script,result_json FROM n5_attempts WHERE user_id=? ORDER BY created_at,id", this.userId),
-    ]) as [D1Result<N5Enrolment>, D1Result<N5Progress["observations"][number]>, D1Result<Pick<AttemptRow, "id" | "lesson_id" | "content_version" | "pack_hash" | "status" | "script" | "result_json">>];
+      this.statement("SELECT lesson_id,word_id FROM n5_heard WHERE user_id=? ORDER BY first_heard_at,word_id", this.userId),
+    ]) as [D1Result<N5Enrolment>, D1Result<N5Progress["observations"][number]>, D1Result<Pick<AttemptRow, "id" | "lesson_id" | "content_version" | "pack_hash" | "status" | "script" | "result_json">>, D1Result<{ lesson_id: string; word_id: string }>];
     const rows = attempts.results.map((row) => ({ ...row, result: typeof row.result_json === "string" ? JSON.parse(row.result_json) as N5Result : null }));
     const speaking = await this.speakingByLesson();
     const lessons: N5LessonProgress[] = [];
@@ -202,6 +220,7 @@ export class CourseStore {
         bestPercent: results.length ? Math.max(...results.map((r) => r.objectivePercent)) : null,
         watched: events.results.some((e) => e.episodeId === lesson.episodeId && e.kind === "watch_complete"),
         speaking: speaking.get(lesson.id) ?? "not_started",
+        heard: heard.results.filter((row) => row.lesson_id === lesson.id).map((row) => row.word_id),
       });
     }
     return { enrolment: enrolments.results[0] ?? null, observations: events.results,
@@ -231,8 +250,9 @@ export class CourseStore {
       apiVersion: 1, ownerId: this.userId,
       context: enrolment && next ? { courseId: COURSE_ID, trackId: enrolment.trackId, unitId: `unit-${next.unit}`, episodeId: next.episodeId!, lessonId: next.id, contentVersion: CONTENT_VERSION, script: enrolment.script } : null,
       lesson: lesson ? { id: lesson.id, contentVersion: lesson.contentVersion, script: lesson.script, canDo: lesson.canDo, unit: lesson.unit, title: lesson.title, episode: lesson.episode,
-        vocabulary: lesson.vocabulary.map(({ id, reading, meaning }) => ({ id, reading, meaning })),
-        grammar: lesson.grammar.map(({ id, explanation, example }) => ({ id, explanation, example })) } : null,
+        vocabulary: lesson.vocabulary.map(({ id, reading, meaning }) => ({ id, reading, meaning, kana: next!.vocabulary.find((v) => v.id === id)!.text.kana.replace(/ /g, "") })),
+        grammar: lesson.grammar.map(({ id, explanation, example }) => ({ id, explanation, example })),
+        heard: await this.heardFor(lesson.id) } : null,
       watched: Boolean(next && progress?.lessons.find((p) => p.lessonId === next.id)?.watched),
       activeAttempts: active.results, completedAttempts: complete?.n ?? 0, mastery: false,
     };
@@ -340,10 +360,11 @@ export class CourseStore {
     ]) as [D1Result<N5Export["enrolments"][number]>, D1Result<N5Export["observations"][number]>, D1Result<{ payload: string }>, D1Result<N5Export["reviews"][number]>];
     const conversations = (await this.statement("SELECT id FROM n5_conversations WHERE user_id=? ORDER BY created_at,id", this.userId).all<{ id: string }>()).results;
     const feedback = (await this.statement("SELECT feedback_json FROM n5_feedback WHERE user_id=? ORDER BY created_at,attempt_id", this.userId).all<{ feedback_json: string }>()).results;
+    const heard = (await this.statement("SELECT lesson_id AS lessonId,word_id AS wordId,first_heard_at AS firstHeardAt,last_heard_at AS lastHeardAt FROM n5_heard WHERE user_id=? ORDER BY first_heard_at,lesson_id,word_id", this.userId).all<N5Export["heard"][number]>()).results;
     return { apiVersion: 1, enrolments: result[0].results, observations: result[1].results,
       attempts: result[2].results.map((row) => JSON.parse(String(row.payload)) as N5Attempt), reviews: result[3].results,
       conversations: await Promise.all(conversations.map((c) => this.conversation(c.id))),
-      feedback: feedback.map((f) => JSON.parse(f.feedback_json) as N5Feedback) };
+      feedback: feedback.map((f) => JSON.parse(f.feedback_json) as N5Feedback), heard };
   }
   async deleteData(): Promise<void> {
     await this.statement("DELETE FROM n5_accounts WHERE user_id=?", this.userId).run();

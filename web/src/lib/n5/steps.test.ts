@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { N5LessonProgress } from "../../../../shared/n5/contracts";
 import { completedSteps, localStepsKey, parseLocalSteps, sectionIndex, stepsFor, unitPercent } from "./steps";
 
-const progress = (p: Partial<N5LessonProgress>): N5LessonProgress => ({ lessonId: "l", status: "not_started", bestPercent: null, watched: false, speaking: "not_started", ...p });
+const progress = (p: Partial<N5LessonProgress>): N5LessonProgress => ({ lessonId: "l", status: "not_started", bestPercent: null, watched: false, speaking: "not_started", heard: [], ...p });
 
 describe("unit steps", () => {
   it("drops watch for study and final units", () => {

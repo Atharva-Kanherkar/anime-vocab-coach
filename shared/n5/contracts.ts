@@ -123,6 +123,8 @@ export interface N5LessonProgress {
   bestPercent: number | null;
   watched: boolean;
   speaking: N5SpeakingStatus;
+  /** Lesson word ids Listening Mode heard in the episode audio. */
+  heard: string[];
 }
 export interface N5Progress {
   enrolment: N5Enrolment | null;
@@ -144,10 +146,11 @@ export interface N5Export {
   reviews: N5ReviewEvent[];
   conversations: N5Conversation[];
   feedback: N5Feedback[];
+  heard: { lessonId: string; wordId: string; firstHeardAt: number; lastHeardAt: number }[];
 }
 export interface N5Error { error: { code: string; message: string; details?: { questionId: string } } }
 
-/** Bounded, answer-free snapshot for the extension's private course pilot. */
+/** Bounded, answer-free snapshot of the lesson Listening Mode follows. */
 export interface N5ExtensionState {
   apiVersion: 1;
   ownerId: string;
@@ -159,8 +162,12 @@ export interface N5ExtensionState {
     id: string; contentVersion: string; script: N5Script; canDo: string;
     /** Display context for the focus panel; older extension builds ignore it. */
     unit?: number; title?: string; episode?: { number: number; title: string } | null;
-    vocabulary: { id: string; reading: string; meaning: string }[];
+    /** `kana` is the word in plain kana whatever the script, for matching
+     * what Listening Mode hears; older extension builds ignore it. */
+    vocabulary: { id: string; reading: string; meaning: string; kana?: string }[];
     grammar: { id: string; explanation: string; example: string }[];
+    /** Word ids already heard while listening. */
+    heard?: string[];
   } | null;
   watched: boolean;
   activeAttempts: { id: string; script: N5Script }[];

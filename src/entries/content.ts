@@ -1,6 +1,5 @@
 // Content-script bundle: the whole learning pipeline. Loads after
 // vendor/kuromoji.js (separate script in the manifest, load order matters).
-import { installN5Content } from "../lib/n5-content";
 import { log, warn } from "../lib/log";
 import * as storage from "../lib/storage";
 import * as dict from "../lib/dictionary";
@@ -22,6 +21,7 @@ import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-k
 import { lookupTranscript } from "../lib/transcript-client";
 import { CueLedger } from "../lib/cue-ledger";
 import { cloudAppUrl } from "../config";
+import { lessonUrl, wordsHeard, type CourseLesson } from "../lib/course-listening";
 import { lensPieceDelayMs, splitForLens } from "../lib/lens-lines";
 import { ONBOARDING_STORAGE_KEY, isFirstCardTransition } from "../lib/onboarding";
 import {
@@ -76,8 +76,9 @@ declare global {
   let initialized = false;
   let pipelineDisabled = false;
   let settings: Settings | null = null;
-  let courseFocusActive = false;
-  let courseWasCopilotOpen = false;
+  /** The N5 lesson Listening follows for this account, if any (loadCourse). */
+  let course: CourseLesson | null = null;
+  let courseLoad: Promise<void> | null = null;
   let wordStates: VocabMap = {};
   let lastLine = "";
   let lastSessionId = "";
@@ -386,7 +387,8 @@ declare global {
   let lastContextTitle = "";
 
   function lensOn(s: Settings): boolean {
-    return normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false;
+    // Following a course lesson, the copilot carries the lesson instead.
+    return normalizeDirection(s.learningDirection) === "en-ja" && s.subLens !== false && !course;
   }
 
   function siteEnabled(s: Settings): boolean {
@@ -510,7 +512,6 @@ declare global {
    * wins, and the cards keep their one-at-a-time pacing.
    */
   async function renderLens(line: string, context?: LineContext, groupSeq?: number): Promise<void> {
-    if (courseFocusActive) return;
     const seq = ++lensSeq;
     const sessionId = currentSessionId();
     const stale = (): boolean => seq !== lensSeq || currentSessionId() !== sessionId;
@@ -600,9 +601,10 @@ declare global {
     context?: LineContext,
     opts: { lens?: boolean; lensSeq?: number } = {}
   ): void {
-    if (pipelineDisabled || courseFocusActive) return;
+    if (pipelineDisabled) return;
     const line = text.replace(/\s+/g, " ").trim();
     if (!line) return;
+    void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
     let seq = opts.lensSeq ?? -1;
     if (opts.lens !== false) {
       cancelPacedLens();
@@ -636,7 +638,6 @@ declare global {
     // since this line was spoken, not since the last await.
     const lineSessionId = currentSessionId();
     const staleSession = (): boolean => {
-      if (courseFocusActive) return true;
       if (currentSessionId() === lineSessionId) return false;
       log("dropped line from the previous video:", text.slice(0, 40));
       return true;
@@ -783,6 +784,66 @@ declare global {
     });
   }
 
+  /**
+   * Ask which N5 lesson, if any, Listening follows for this account. The
+   * lesson lives on animevocab.com; the background keeps a short-lived copy.
+   * Only Japanese learners follow one.
+   */
+  function loadCourse(refresh = false): Promise<void> {
+    const run = (async () => {
+      let next: CourseLesson | null = null;
+      try {
+        const res = (await chrome.runtime.sendMessage({ type: "avc-n5-lesson", refresh })) as { ok?: boolean; lesson?: CourseLesson | null } | undefined;
+        next = res?.ok ? res.lesson ?? null : null;
+      } catch {
+        next = course; // background asleep or reloading; keep what we had
+      }
+      const current = settings || (await storage.getSettings());
+      if (normalizeDirection(current.learningDirection) !== "en-ja") next = null;
+      course = next;
+      if (course) {
+        cancelPacedLens();
+        hideLens();
+      }
+      overlay.setCourse(course, course ? courseActions : null);
+    })();
+    courseLoad = run;
+    return run;
+  }
+
+  const courseActions: overlay.CourseActions = {
+    openLesson: () => {
+      if (!course) return;
+      chrome.runtime.sendMessage({ type: "avc-open-url", url: lessonUrl(course, "watch") }).catch(() => {});
+    },
+    finish: async () => {
+      adapter?.getVideo()?.pause();
+      const res = (await chrome.runtime.sendMessage({ type: "avc-n5-finish" })) as { ok?: boolean; error?: string } | undefined;
+      if (!res?.ok) throw new Error(res?.error || "Practice could not open. Please try again.");
+      listeningActive = false;
+      stopCachePolling();
+      stopPlaybackRelay();
+    },
+  };
+
+  /** Light up the lesson's words in a line just heard, and save them to the account. */
+  async function hearCourseWords(line: string): Promise<void> {
+    if (!courseLoad) void loadCourse();
+    await courseLoad;
+    const lesson = course;
+    if (!lesson || studyLang() !== "ja") return;
+    if (!(await ensureJa())) return;
+    const tokens = await tokenizeJa(line);
+    if (course !== lesson) return;
+    const ids = wordsHeard(tokens, lesson.words, (base) => dict.lookup(base)?.reading ?? null);
+    if (!ids.length) return;
+    overlay.courseHeard(ids, line);
+    const fresh = ids.filter((id) => !lesson.heard.includes(id));
+    if (!fresh.length) return;
+    lesson.heard = [...lesson.heard, ...fresh];
+    chrome.runtime.sendMessage({ type: "avc-n5-heard", lessonId: lesson.id, wordIds: fresh }).catch(() => {});
+  }
+
   // Listening mode: the offscreen document transcribes this tab's audio and the
   // background forwards Japanese text here. Only the frame that owns the video
   // handles it (matters on sites whose player lives in an iframe).
@@ -801,8 +862,8 @@ declare global {
       return true;
     }
     if (msg.type === "avc-agent-show") {
-      if (courseFocusActive) { sendResponse({ ok: false, error: "Exit N5 course focus to open the live Copilot." }); return true; }
       overlay.openAgent();
+      void loadCourse();
       sendResponse({ ok: true, visible: true });
       return true;
     }
@@ -823,6 +884,7 @@ declare global {
     if (msg.type === "avc-listening-state") {
       listeningActive = !!msg.active;
       if (listeningActive) {
+        void loadCourse(true);
         startCachePolling();
         startPlaybackRelay();
       } else {
@@ -831,7 +893,7 @@ declare global {
       }
       return;
     }
-    if (msg.type !== "avc-transcript" || courseFocusActive) return;
+    if (msg.type !== "avc-transcript") return;
     handleTranscript(msg.text || "", typeof msg.start === "number" ? msg.start : undefined,
       typeof msg.end === "number" ? msg.end : undefined);
   });
@@ -923,8 +985,14 @@ declare global {
         cancelPacedLens();
         hideLens();
       }
-      if (!courseFocusActive) overlay.applyPanelSettings(next);
+      overlay.applyPanelSettings(next);
+      if (courseLoad || course) void loadCourse();
     }).catch(() => {});
+  });
+
+  // Another account, or signed out: its lesson is not this one's.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.syncToken && (courseLoad || course)) void loadCourse(true);
   });
 
   /**
@@ -967,6 +1035,7 @@ declare global {
       return; // background asleep or extension reloading; nothing to restore
     }
     if (!state) return;
+    if (state.copilot || state.listening) void loadCourse();
     if (state.copilot) overlay.openAgent();
     if (state.listening && !listeningActive) {
       log("restoring listening session after reload");
@@ -981,13 +1050,6 @@ declare global {
   // panel was opened or closed, so the next reload restores what was there.
   overlay.onAgentVisibility((open) => {
     chrome.runtime.sendMessage({ type: "avc-copilot-state", open }).catch(() => {});
-  });
-
-  installN5Content(() => pickAdapter()?.getVideo() ?? null, currentSessionId, (active) => {
-    if (active === courseFocusActive) return;
-    courseFocusActive = active;
-    if (active) { courseWasCopilotOpen = overlay.isAgentActive(); cancelPacedLens(); hideLens(); overlay.dismissAgent(); overlay.hideAgent(); pendingLines.length = 0; lensSeq++; }
-    else if (courseWasCopilotOpen) { courseWasCopilotOpen = false; overlay.openAgent(); }
   });
 
   pickAdapter();

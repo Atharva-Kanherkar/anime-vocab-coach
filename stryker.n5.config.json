@@ -1,8 +1,7 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "mutate": [
-    "src/lib/n5-pilot.ts",
-    "src/lib/n5-course-context.ts",
+    "src/lib/course-listening.ts",
     "src/lib/listening-coordination.ts",
     "src/lib/capture-starts.ts"
   ],

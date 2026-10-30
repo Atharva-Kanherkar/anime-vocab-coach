@@ -374,6 +374,14 @@ try {
       "https://video.unext.jp/episode/SID0012508/ED00071632",
     );
     assert.equal(await page.locator(".n5-watch-link").count(), 11);
+    // Listening Mode saves heard lesson words to the account; the step shows them on return.
+    const listen = page.locator(".n5-listen");
+    await listen.getByText("Start Listening").waitFor();
+    await app.request("/heard", { token, body: { lessonId: "your-lie-in-april-u01", wordIds: ["tomodachi"] } });
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await listen.locator("li[data-heard]", { hasText: script === "kana" ? "ともだち" : "tomodachi" }).waitFor();
+    await page.screenshot({ path: `${artifacts}/watch-${script}.png`, fullPage: true });
+    check(`${script} watch step shows the words Listening heard`);
     await page.getByRole("button", { name: "I watched episode 1" }).click();
     await page.getByText("Episode recap", { exact: true }).waitFor();
     await page.getByRole("button", { name: /Practise this unit/ }).click();
