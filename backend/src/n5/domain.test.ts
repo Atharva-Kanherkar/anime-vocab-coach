@@ -100,7 +100,10 @@ describe("public rendering and server grading", () => {
       expect(JSON.stringify(pub)).not.toMatch(/correctOption|references|transcript/);
       for (const q of pub.questions) expect(Object.keys(q)).not.toContain("explanation");
     }
-    expect(publicLesson(lesson, script).watchLinks).toEqual([{ provider: "Crunchyroll", url: "https://www.crunchyroll.com/series/G63V7KN9Y/your-lie-in-april", region: "unknown", availability: "unknown", checkedAt: null }]);
+    const links = publicLesson(lesson, script).watchLinks;
+    expect(links.map((l) => l.provider)).toEqual(["Netflix", "U-NEXT", "FOD", "Hulu Japan", "Prime Video Japan", "Crunchyroll", "Hulu", "Prime Video", "Sony LIV", "ADN", "Apple TV"]);
+    expect(links.find((l) => l.provider === "U-NEXT")).toMatchObject({ scope: "episode", url: "https://video.unext.jp/episode/SID0012508/ED00071632", regions: ["JP"], checkedAt: "2026-10-30" });
+    expect(links.find((l) => l.provider === "Crunchyroll")).toMatchObject({ scope: "series", note: "Not available in Japan" });
     expect(publicLesson(lesson, script).summarySource).toBe("https://www.yourlieinapril.com/story/01.html");
   });
   it("links lessons in order", () => {

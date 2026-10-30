@@ -49,11 +49,25 @@ export function restoreDraft(raw: string | null, ownerId: string, attempt: N5Att
       pending: d.pending ? { revision: d.pending.revision, idempotencyKey: d.pending.idempotencyKey, answers: d.pending.answers.map(({ questionId, value }) => ({ questionId, value })) } : null };
   } catch { return null; }
 }
+/** Official streaming hosts and the page paths the course may link to. */
+const WATCH_HOSTS: Record<string, readonly string[]> = {
+  "www.netflix.com": ["/title/"],
+  "www.crunchyroll.com": ["/series/"],
+  "www.hulu.com": ["/series/"],
+  "www.hulu.jp": ["/watch/"],
+  "video.unext.jp": ["/title/", "/episode/"],
+  "fod.fujitv.co.jp": ["/title/"],
+  "www.amazon.co.jp": ["/dp/"],
+  "www.primevideo.com": ["/detail"],
+  "www.sonyliv.com": ["/shows/"],
+  "animationdigitalnetwork.com": ["/video/"],
+  "tv.apple.com": ["/"],
+};
 export function safeLink(raw: string, kind: "watch" | "source"): string | null {
   try {
     const u = new URL(raw);
     if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
-    if (kind === "watch" && u.hostname === "www.crunchyroll.com" && u.pathname.startsWith("/series/")) return u.href;
+    if (kind === "watch" && Object.hasOwn(WATCH_HOSTS, u.hostname) && WATCH_HOSTS[u.hostname].some((p) => u.pathname.startsWith(p))) return u.href;
     if (kind === "source" && u.hostname === "www.yourlieinapril.com" && u.pathname.startsWith("/story/")) return u.href;
     return null;
   } catch { return null; }

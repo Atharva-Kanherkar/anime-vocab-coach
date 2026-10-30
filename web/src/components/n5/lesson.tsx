@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { N5Attempt, N5Lesson, N5LessonProgress, N5Progress, N5Script } from "../../../../shared/n5/contracts";
+import type { N5Attempt, N5Lesson, N5LessonProgress, N5Progress, N5Script, N5WatchLink } from "../../../../shared/n5/contracts";
+import { REGION_NAMES, guessRegion, splitByRegion } from "@/lib/n5/region";
 import { safeLink } from "@/lib/n5/core";
 import { buildDrill, requeue, type DrillRound } from "@/lib/n5/drill";
 import { CourseFailure, courseRequest, Failure, Loading, newKey, useCourse } from "./common";
@@ -429,10 +430,65 @@ export function KeyChoices({ count, disabled, onPick }: { count: number; disable
   return null;
 }
 
+const ACCESS_LABEL: Record<N5WatchLink["access"], string> = { subscription: "Subscription", free_with_ads: "Free with ads", purchase: "Buy or rent" };
+
+/** Every official service, the learner's likely region first. Nothing is hidden by region. */
+function WhereToWatch({ lesson }: { lesson: N5Lesson }) {
+  const [region] = useState(() => {
+    try {
+      return guessRegion(Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.languages ?? []);
+    } catch {
+      return null;
+    }
+  });
+  const links = lesson.watchLinks.flatMap((l) => {
+    const href = safeLink(l.url, "watch");
+    return href ? [{ ...l, href }] : [];
+  });
+  if (!links.length) return null;
+  const { local, other } = splitByRegion(links, region);
+  const row = (l: (typeof links)[number]) => (
+    <li key={l.provider + l.href}>
+      <a href={l.href} target="_blank" rel="noopener noreferrer" className="n5-watch-link">
+        <span className="n5-watch-name">
+          <strong>{l.provider}</strong>
+          <small>
+            {ACCESS_LABEL[l.access]} · {l.regions.join(", ")}
+            {l.note ? ` · ${l.note}` : ""}
+          </small>
+        </span>
+        <span className="n5-watch-go">
+          {l.scope === "episode" ? `Episode ${lesson.episode?.number}` : "Series page"}
+          <Icon name="arrow-right" size={14} />
+        </span>
+      </a>
+    </li>
+  );
+  const checked = links[0]?.checkedAt ? new Date(`${links[0].checkedAt}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : null;
+  return (
+    <div className="n5-where">
+      {local.length > 0 && (
+        <>
+          <h3>Watch in {REGION_NAMES[region!] ?? region}</h3>
+          <ul className="n5-watch-list">{local.map(row)}</ul>
+        </>
+      )}
+      {other.length > 0 && (
+        <details className="n5-watch-more" open={local.length === 0}>
+          <summary>{local.length ? `Other regions (${other.length})` : "Where to watch"}</summary>
+          <ul className="n5-watch-list">{other.map(row)}</ul>
+        </details>
+      )}
+      <p className="n5-muted">
+        Official services only, checked {checked}. Availability changes by country, and each service needs its own subscription. AnimeVocab isn&apos;t affiliated with them and doesn&apos;t track your playback.
+      </p>
+    </div>
+  );
+}
+
 function Watch({ lesson, watched, onWatched, ownerId, onNext }: { lesson: N5Lesson; watched: boolean; onWatched: () => void; ownerId: string; onNext: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const watchUrl = safeLink(lesson.watchLinks[0]?.url ?? "", "watch");
   const source = lesson.summarySource ? safeLink(lesson.summarySource, "source") : null;
   async function markWatched() {
     if (!lesson.episodeId || busy) return;
@@ -471,24 +527,17 @@ function Watch({ lesson, watched, onWatched, ownerId, onNext }: { lesson: N5Less
       <p className="n5-eyebrow">Episode {lesson.episode.number}</p>
       <h2>{lesson.episode.title}</h2>
       <p className="n5-callout">
-        <strong>Listen for:</strong> {lesson.hook}
+        <strong>While you watch:</strong> {lesson.hook}
       </p>
-      <p>
-        Watch on your own streaming subscription. With the AnimeVocab extension installed, this unit&apos;s words appear beside the video.
-      </p>
-      <div className="n5-actions">
-        {watchUrl && (
-          <a className="n5-secondary" href={watchUrl} target="_blank" rel="noopener noreferrer">
-            Open on Crunchyroll ↗
-          </a>
-        )}
-        {!watched && (
+      <WhereToWatch lesson={lesson} />
+      <p>With the AnimeVocab extension installed, this unit&apos;s words appear beside the video.</p>
+      {!watched && (
+        <div className="n5-actions">
           <button className="n5-primary" disabled={busy} onClick={markWatched}>
             {busy ? "Saving…" : `I watched episode ${lesson.episode.number}`}
           </button>
-        )}
-      </div>
-      <p className="n5-muted">Availability depends on your region. We don&apos;t track or verify your playback.</p>
+        </div>
+      )}
       {Boolean(error) && <Failure error={error} />}
       {watched && lesson.summary && (
         <div className="n5-recap">
