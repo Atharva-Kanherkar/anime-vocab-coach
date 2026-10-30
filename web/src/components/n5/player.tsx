@@ -156,7 +156,13 @@ export function PlayerShell({ ownerId, lessonId, step, localDone, onStep, childr
           {showSide ? "Hide course content" : "Show course content"}
         </button>
         <div className="n5-side-wrap">
-          {overview ? <CourseSidebar overview={overview} ownerId={ownerId} lessonId={lessonId} step={step} localDone={localDone} onStep={onStep} /> : <p className="n5-muted n5-side-loading">Loading course content…</p>}
+          {overview ? <CourseSidebar overview={overview} ownerId={ownerId} lessonId={lessonId} step={step} localDone={localDone} onStep={onStep} /> : (
+            <div className="n5-side-loading" aria-label="Loading course content" role="status">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <span key={i} className="n5-bone" style={{ animationDelay: `${i * 80}ms` }} />
+              ))}
+            </div>
+          )}
           <Link href="/app/n5" className="n5-side-home">
             ← Course home
           </Link>

@@ -37,7 +37,7 @@ export function CourseSpeak({ lessonId, ownerId }: { lessonId: string; ownerId: 
         <Link href="/app/n5">Back to your course</Link>
       </>
     );
-  if (!state.data) return <Loading />;
+  if (!state.data) return <Loading variant="lesson" label="Getting Haru ready…" />;
   return <Speak lesson={state.data} ownerId={ownerId} />;
 }
 

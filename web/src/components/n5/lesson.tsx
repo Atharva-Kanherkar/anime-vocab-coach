@@ -44,7 +44,7 @@ export function CourseLesson({ lessonId, ownerId, script }: { lessonId: string; 
         <Link href="/app/n5">Back to your course</Link>
       </>
     );
-  if (!state.data) return <Loading />;
+  if (!state.data) return <Loading variant="lesson" label="Opening your lesson…" />;
   return <LessonContent ownerId={ownerId} {...state.data} />;
 }
 
