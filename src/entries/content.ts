@@ -573,7 +573,6 @@ declare global {
     const script = lensScript(current);
     showLensLine(line, en, tokens, wordStates, {
       script,
-      englishPending: !en,
       peekPause: current.subLensPeek !== false,
       getVideo: () => (adapter ? adapter.getVideo() : null),
       getTitle: currentTitle,

@@ -69,10 +69,32 @@ export async function getOpenAiKey(): Promise<string | null> {
   return env.OPENAI_API_KEY ?? null;
 }
 
-/** The dual-subtitle model: AI_SUBS_MODEL, else the coach model. */
+/**
+ * The dual-subtitle model: AI_SUBS_MODEL, else gpt-4.1-mini. Not the coach
+ * model: a subtitle is on screen for two or three seconds, and in production
+ * gpt-5.6-luna with reasoning off took 1.1–2.6 s (median 1.5 s) per line, so
+ * the English landed after the line had gone. A non-reasoning model answers
+ * a one-line translation in well under a second.
+ */
+export const DEFAULT_SUBS_MODEL = "gpt-4.1-mini";
 export async function getSubsModel(): Promise<string> {
   const env = await cfEnv();
-  return process.env.AI_SUBS_MODEL || env.AI_SUBS_MODEL || process.env.AI_COACH_MODEL || env.AI_COACH_MODEL || DEFAULT_COACH_MODEL;
+  return process.env.AI_SUBS_MODEL || env.AI_SUBS_MODEL || DEFAULT_SUBS_MODEL;
+}
+
+/**
+ * Run `work` after the response is sent (Workers waitUntil), so writes the
+ * caller does not need to wait for stay off its critical path. Outside
+ * Workers (local dev, tests) it simply runs.
+ */
+export async function afterResponse(work: Promise<unknown>): Promise<void> {
+  const settled = work.catch((err) => console.warn("[after-response]", err));
+  try {
+    const { ctx } = await getCloudflareContext({ async: true });
+    ctx.waitUntil(settled);
+  } catch {
+    /* not on Workers: the promise is already running */
+  }
 }
 
 export async function getCoachConfig(): Promise<{

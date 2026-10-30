@@ -2,9 +2,18 @@ import { warn } from "../log";
 import { coalesce, normalize, matchesTargetScript, getAdapterDirection } from "./util";
 import type { SiteAdapter } from "../../types";
 
+/** A row's text without furigana: ruby readings above a word are not part
+ * of the line, and read twice they would garble both subtitle lines. */
+function rowText(row: Element): string {
+  if (!row.querySelector("rt, rp")) return row.textContent || "";
+  const copy = row.cloneNode(true) as Element;
+  copy.querySelectorAll("rt, rp").forEach((n) => n.remove());
+  return copy.textContent || "";
+}
+
 function getVisibleText(): string {
   const rows = document.querySelectorAll(".player-timedtext-text-container");
-  return normalize(Array.from(rows).map((r) => r.textContent || "").join(" "));
+  return normalize(Array.from(rows).map(rowText).join(" "));
 }
 
 export const netflixAdapter: SiteAdapter = {
