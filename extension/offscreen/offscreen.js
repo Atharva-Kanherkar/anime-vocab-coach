@@ -50,6 +50,11 @@
     cancel(tabId) {
       this.pending.delete(tabId);
     }
+    cancelAll() {
+      const tabs = [...this.pending.keys()];
+      this.pending.clear();
+      return tabs;
+    }
     current(tabId, token) {
       return this.pending.get(tabId) === token;
     }

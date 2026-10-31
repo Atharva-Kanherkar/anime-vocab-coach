@@ -2,7 +2,7 @@
 //
 // While signed out the extension still needs to say why nothing is happening.
 // The chip is the smallest possible surface: one primary action and a dismiss
-// control, in a closed shadow root so the host page cannot restyle it and its
+// control, in a shadow root so the host page cannot restyle it and its
 // keyboard shortcuts cannot reach our button.
 //
 // This module owns only the chip. The content script decides whether it should

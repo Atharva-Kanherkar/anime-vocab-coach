@@ -4,6 +4,24 @@
   var log = (...args) => console.log("[AVC]", ...args);
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/config.ts
+  var BACKEND_URL = "https://api.animevocab.com";
+  var WEB_URL = "https://animevocab.com";
+  function ownedWebUrl(path, campaign) {
+    const url = new URL(path, WEB_URL);
+    url.searchParams.set("utm_source", "animevocab_extension");
+    url.searchParams.set("utm_medium", "extension");
+    url.searchParams.set("utm_campaign", campaign);
+    return url.toString();
+  }
+  function cloudAppUrl(section, campaign) {
+    return ownedWebUrl(`/app#${section}`, campaign);
+  }
+  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
+
+  // src/lib/account-cache.ts
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+
   // src/lib/locale-direction.ts
   function isJapaneseUiLocale() {
     try {
@@ -348,21 +366,6 @@
   // src/lib/review-prompt.ts
   var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
 
-  // src/config.ts
-  var BACKEND_URL = "https://api.animevocab.com";
-  var WEB_URL = "https://animevocab.com";
-  function ownedWebUrl(path, campaign) {
-    const url = new URL(path, WEB_URL);
-    url.searchParams.set("utm_source", "animevocab_extension");
-    url.searchParams.set("utm_medium", "extension");
-    url.searchParams.set("utm_campaign", campaign);
-    return url.toString();
-  }
-  function cloudAppUrl(section, campaign) {
-    return ownedWebUrl(`/app#${section}`, campaign);
-  }
-  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
-
   // src/lib/run-context.ts
   function inServiceWorker() {
     return typeof window === "undefined";
@@ -451,6 +454,19 @@
   }
 
   // src/lib/feature-events.ts
+  var SIGNIN_FEATURE_EVENTS = [
+    "signin_gate_shown",
+    "signin_started",
+    "signin_completed",
+    "signin_gate_dismissed"
+  ];
+  var SIGNIN_SURFACES = [
+    "content_chip",
+    "popup",
+    "start_page",
+    "install",
+    "startup"
+  ];
   var FEATURE_EVENTS = [
     "card_shown",
     "card_known",
@@ -459,7 +475,8 @@
     "review_done",
     "listening_started",
     "install_first_run",
-    "extension_linked"
+    "extension_linked",
+    ...SIGNIN_FEATURE_EVENTS
   ];
   function isFeatureEvent(v) {
     return typeof v === "string" && FEATURE_EVENTS.includes(v);
@@ -495,6 +512,15 @@
   function isProSurface(v) {
     return typeof v === "string" && PRO_SURFACES.includes(v);
   }
+  var SIGNIN_EVENT_SET = new Set(SIGNIN_FEATURE_EVENTS);
+  var SIGNIN_SURFACE_SET = new Set(SIGNIN_SURFACES);
+  function isSigninEvent(v) {
+    return typeof v === "string" && SIGNIN_EVENT_SET.has(v);
+  }
+  function isSigninSurface(v) {
+    return typeof v === "string" && SIGNIN_SURFACE_SET.has(v);
+  }
+  var TRACK_SIGNIN_MESSAGE = "avc-track-signin";
   var TRACK_PRO_MESSAGE = "avc-track-pro";
   async function postTrack(body) {
     const token = await syncToken();
@@ -522,6 +548,13 @@
     } catch {
     }
   }
+  async function sendSigninBeacon(event, surface) {
+    if (!isSigninEvent(event) || !isSigninSurface(surface)) return;
+    try {
+      await postTrack({ kind: "feature", name: event, surface });
+    } catch {
+    }
+  }
   async function trackFeature(event) {
     if (!isFeatureEvent(event)) return;
     if (inServiceWorker()) {
@@ -542,6 +575,18 @@
     }
     try {
       void chrome.runtime.sendMessage({ type: TRACK_PRO_MESSAGE, event, surface }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  async function trackSignin(event, surface) {
+    if (!isSigninEvent(event) || !isSigninSurface(surface)) return;
+    if (inServiceWorker()) {
+      await sendSigninBeacon(event, surface);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_SIGNIN_MESSAGE, event, surface }).catch(() => {
       });
     } catch {
     }
@@ -866,7 +911,17 @@
   }
   function getSyncToken() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
+      try {
+        chrome.storage.local.get(["syncToken"], (r) => {
+          if (chrome.runtime.lastError) {
+            resolve("");
+            return;
+          }
+          resolve(typeof r?.syncToken === "string" ? r.syncToken : "");
+        });
+      } catch {
+        resolve("");
+      }
     });
   }
 
@@ -2476,17 +2531,17 @@
   }
 `;
   function mountHost() {
-    let host2 = document.getElementById("avc-overlay-host");
+    let host3 = document.getElementById("avc-overlay-host");
     const parent = document.fullscreenElement || document.body;
-    if (!host2) {
-      host2 = document.createElement("div");
-      host2.id = "avc-overlay-host";
-      host2.style.cssText = "all:initial; position:fixed; inset:0; z-index:2147483647; pointer-events:none;";
-      host2.setAttribute(UI_HOST_ATTR, "");
-      host2.attachShadow({ mode: "open" });
+    if (!host3) {
+      host3 = document.createElement("div");
+      host3.id = "avc-overlay-host";
+      host3.style.cssText = "all:initial; position:fixed; inset:0; z-index:2147483647; pointer-events:none;";
+      host3.setAttribute(UI_HOST_ATTR, "");
+      host3.attachShadow({ mode: "open" });
     }
-    if (host2.parentElement !== parent) parent.appendChild(host2);
-    return host2.shadowRoot;
+    if (host3.parentElement !== parent) parent.appendChild(host3);
+    return host3.shadowRoot;
   }
   function pauseModeToInteraction(mode) {
     return mode === "pause" ? "focus" : "ambient";
@@ -3702,8 +3757,8 @@
     if (wordPending) finishWord("dismiss");
     chatHistory = [];
     chatPayload = null;
-    const host2 = document.getElementById("avc-overlay-host");
-    if (host2) host2.remove();
+    const host3 = document.getElementById("avc-overlay-host");
+    if (host3) host3.remove();
     shell = null;
     const was = mounted;
     mounted = false;
@@ -5748,6 +5803,200 @@
     return Math.min(4e3, Math.max(1200, piece.length * perChar));
   }
 
+  // src/lib/signin-gate.ts
+  var SIGNIN_CHIP_DISMISSED_KEY = "signinChipDismissed";
+  function isSignedIn(token) {
+    return typeof token === "string" && token.length > 0;
+  }
+  function shouldShowSigninChip(input) {
+    return !input.signedIn && !input.dismissed && input.topFrame && input.hasPlayer && input.siteEnabled;
+  }
+  var SIGNIN_GATE_COPY = {
+    chipTitle: "Sign in to start learning with this episode",
+    chipNote: "Free account. Your words, reviews and progress stay with you.",
+    chipCta: "Sign in",
+    chipBusy: "Opening sign-in...",
+    chipDismiss: "Dismiss sign-in reminder",
+    popupEyebrow: "FREE ACCOUNT",
+    popupTitle: "Sign in to start learning",
+    popupNote: "Your words, reviews and progress live in your free AnimeVocab account, on every device.",
+    popupCta: "Sign in",
+    popupFine: "Free forever. No card.",
+    upgradeNote: "Your words now live in your free account. Sign in to keep them.",
+    startTitle: "Start learning with the anime you already watch",
+    startNote: "One free account keeps your words, reviews and progress on every device.",
+    startCta: "Sign in with Google or email",
+    startFine: "Free forever. No card.",
+    signedInTitle: "You're in",
+    signedInNote: "The extension is connected. Open a supported site and start watching."
+  };
+
+  // src/lib/signin-chip.ts
+  var OPEN_SIGNIN_MESSAGE = "avc-open-signin";
+  var BUSY_TIMEOUT_MS = 15e3;
+  var MIN_PLAYER_IFRAME = 320;
+  var STYLES3 = `
+  :host { all: initial; }
+  .chip {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 2147483000;
+    width: 296px;
+    box-sizing: border-box;
+    padding: 14px 16px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 14px;
+    background: #16171d;
+    color: #f4f4f6;
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  }
+  .title {
+    margin: 0 0 4px;
+    padding-right: 18px;
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .note {
+    margin: 0 0 12px;
+    color: #b9bac4;
+    font-size: 12px;
+  }
+  .actions { display: flex; align-items: center; gap: 10px; }
+  .cta {
+    flex: 1;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 9px;
+    background: #f4f4f6;
+    color: #16171d;
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+  }
+  .cta:hover { background: #ffffff; }
+  .cta:focus-visible { outline: 2px solid #8ab4ff; outline-offset: 2px; }
+  .cta[disabled] { opacity: 0.7; cursor: default; }
+  .dismiss {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #9a9ba6;
+    font: inherit;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .dismiss:hover { background: rgba(255, 255, 255, 0.08); color: #f4f4f6; }
+  .dismiss:focus-visible { outline: 2px solid #8ab4ff; outline-offset: 2px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .chip { animation: rise 160ms ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+  }
+`;
+  var host2 = null;
+  var cta = null;
+  var busyTimer = null;
+  var busy = false;
+  function esc(s) {
+    return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  }
+  function setBusy(next) {
+    busy = next;
+    if (busyTimer) {
+      clearTimeout(busyTimer);
+      busyTimer = null;
+    }
+    if (!cta) return;
+    cta.disabled = next;
+    cta.textContent = next ? SIGNIN_GATE_COPY.chipBusy : SIGNIN_GATE_COPY.chipCta;
+    if (next) busyTimer = setTimeout(() => setBusy(false), BUSY_TIMEOUT_MS);
+  }
+  function hasPlayableMedia(doc = document) {
+    if (doc.querySelector("video")) return true;
+    const frames = doc.querySelectorAll("iframe");
+    for (const frame of Array.from(frames)) {
+      const r = frame.getBoundingClientRect();
+      if (r.width >= MIN_PLAYER_IFRAME && r.height >= MIN_PLAYER_IFRAME) return true;
+    }
+    return false;
+  }
+  async function getSigninChipDismissed() {
+    try {
+      const r = await chrome.storage.local.get([SIGNIN_CHIP_DISMISSED_KEY]);
+      return r[SIGNIN_CHIP_DISMISSED_KEY] === true;
+    } catch {
+      return false;
+    }
+  }
+  async function setSigninChipDismissed() {
+    try {
+      await chrome.storage.local.set({ [SIGNIN_CHIP_DISMISSED_KEY]: true });
+    } catch {
+    }
+  }
+  function mountSigninChip() {
+    if (host2) return;
+    const parent = document.fullscreenElement || document.body;
+    if (!parent) return;
+    host2 = document.createElement("div");
+    host2.setAttribute("data-avc-signin-chip", "");
+    host2.setAttribute(UI_HOST_ATTR, "");
+    const root2 = host2.attachShadow({ mode: "open" });
+    const style = document.createElement("style");
+    style.textContent = STYLES3;
+    root2.appendChild(style);
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.setAttribute("role", "region");
+    chip.setAttribute("aria-label", SIGNIN_GATE_COPY.chipTitle);
+    chip.innerHTML = `<p class="title">${esc(SIGNIN_GATE_COPY.chipTitle)}</p><p class="note">${esc(SIGNIN_GATE_COPY.chipNote)}</p><div class="actions"><button type="button" class="cta">${esc(SIGNIN_GATE_COPY.chipCta)}</button><button type="button" class="dismiss" aria-label="${esc(SIGNIN_GATE_COPY.chipDismiss)}" title="${esc(SIGNIN_GATE_COPY.chipDismiss)}">\xD7</button></div>`;
+    root2.appendChild(chip);
+    keepFocusOnMouseClick(root2);
+    cta = chip.querySelector(".cta");
+    cta?.addEventListener("click", () => {
+      if (busy) return;
+      setBusy(true);
+      void trackSignin("signin_started", "content_chip");
+      try {
+        void chrome.runtime.sendMessage({ type: OPEN_SIGNIN_MESSAGE, from: "content_chip" }).then(() => setBusy(false)).catch(() => setBusy(false));
+      } catch {
+        setBusy(false);
+      }
+    });
+    chip.querySelector(".dismiss")?.addEventListener("click", () => {
+      void setSigninChipDismissed();
+      unmountSigninChip();
+      void trackSignin("signin_gate_dismissed", "content_chip");
+    });
+    parent.appendChild(host2);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    void trackSignin("signin_gate_shown", "content_chip");
+  }
+  function unmountSigninChip() {
+    document.removeEventListener("fullscreenchange", onFullscreenChange);
+    if (busyTimer) {
+      clearTimeout(busyTimer);
+      busyTimer = null;
+    }
+    busy = false;
+    cta = null;
+    host2?.remove();
+    host2 = null;
+  }
+  function onFullscreenChange() {
+    if (!host2) return;
+    const parent = document.fullscreenElement || document.body;
+    if (parent && host2.parentElement !== parent) parent.appendChild(host2);
+  }
+
   // src/entries/content.ts
   var AUDIO_LENS_MAX_LAG_SEC = 7;
   var AUDIO_LENS_MAX_LAG_AFTER_END_SEC = 4;
@@ -5767,6 +6016,9 @@
     let started = false;
     let initialized = false;
     let pipelineDisabled = false;
+    let signedIn = null;
+    let accountGeneration = 0;
+    let signinChipDismissed = false;
     let settings = null;
     let course2 = null;
     let courseLoad = null;
@@ -5799,14 +6051,19 @@
       const a = adapter;
       return a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
     }
+    function matchAdapter() {
+      return adapters.find((a) => a.matches()) || null;
+    }
     function pickAdapter() {
+      if (signedIn !== true) return null;
       if (adapter) return adapter;
-      adapter = adapters.find((a) => a.matches()) || null;
+      adapter = matchAdapter();
       if (adapter && !started) {
         started = true;
         log("adapter chosen:", adapter.name);
         adapter.start(
           (text, context) => {
+            if (signedIn !== true) return;
             lastPageLineAt = Date.now();
             if (episode) {
               comparePageLine(text);
@@ -5816,12 +6073,60 @@
             onLine(text, context);
           },
           () => {
-            if (!episode) clearLensLine();
+            if (signedIn === true && !episode) clearLensLine();
           }
         );
         void ensureInit();
       }
       return adapter;
+    }
+    function syncSigninChip() {
+      if (signedIn !== false) {
+        unmountSigninChip();
+        return;
+      }
+      const siteKey = matchAdapter()?.name || "generic";
+      const enabled = !(settings?.sites && settings.sites[siteKey] === false);
+      const show = shouldShowSigninChip({
+        signedIn: false,
+        dismissed: signinChipDismissed,
+        topFrame: window.top === window,
+        hasPlayer: hasPlayableMedia(),
+        siteEnabled: enabled
+      });
+      if (show) mountSigninChip();
+      else unmountSigninChip();
+    }
+    function stopSignedOutPipeline() {
+      unmountSigninChip();
+      listeningActive = false;
+      stopCachePolling();
+      stopPlaybackRelay();
+      stopTimeline();
+      if (watchInterval) clearInterval(watchInterval);
+      watchInterval = null;
+      cancelPacedLens();
+      lensSeq++;
+      hideLens();
+      hideAgent();
+      pendingLines.length = 0;
+      judgedLensSeqs.clear();
+    }
+    async function readAccountState() {
+      const accountAtRead = signedIn;
+      let token = "";
+      try {
+        token = await getSyncToken();
+      } catch {
+        token = "";
+      }
+      try {
+        settings = await getSettings();
+      } catch {
+      }
+      if (signedIn === accountAtRead) signedIn = isSignedIn(token);
+      signinChipDismissed = signedIn ? false : await getSigninChipDismissed();
+      syncSigninChip();
     }
     function ensureInit() {
       if (initialized || pipelineDisabled) return Promise.resolve();
@@ -5836,7 +6141,7 @@
         setAdapterDirection(normalizeDirection(settings.learningDirection));
         wordStates = await getVocab();
         initialized = true;
-        startWatchInterval();
+        if (signedIn === true) startWatchInterval();
       } catch (err) {
         pipelineDisabled = true;
         warn("pipeline init failed:", err);
@@ -6045,6 +6350,7 @@
       return n;
     }
     function prefetchAnimeContext(title) {
+      if (signedIn !== true) return;
       if (!title || title === lastContextTitle) return;
       lastContextTitle = title;
       void requestAnimeContext(title);
@@ -6111,7 +6417,7 @@
       const seq = ++lensSeq;
       const sessionId = currentSessionId();
       const cue = context?.cue;
-      const stale = () => seq !== lensSeq || currentSessionId() !== sessionId || cue !== void 0 && cue !== timelineCue;
+      const stale = () => signedIn !== true || seq !== lensSeq || currentSessionId() !== sessionId || cue !== void 0 && cue !== timelineCue;
       const current2 = settings || await getSettings();
       if (stale()) return;
       if (!siteEnabled(current2) || !lensOn(current2)) {
@@ -6150,6 +6456,7 @@
       if (fromEpisode && cue !== void 0) {
         if (fromEpisode.source === "track") return;
         const ahead = await fromEpisode.whenEnglish(cue);
+        if (stale()) return;
         if (ahead !== null) {
           if (ahead) updateLensLine(line, { en: ahead });
           return;
@@ -6161,6 +6468,7 @@
         }
       }
       const translated = await subs.translate(line, tokens, currentTitle());
+      if (stale()) return;
       updateLensLine(line, translated ?? {});
       if (!translated) explainMissingEnglish();
     }
@@ -6186,7 +6494,7 @@
       return groupSeq;
     }
     function onLine(text, context, opts2 = {}) {
-      if (pipelineDisabled) return;
+      if (signedIn !== true || pipelineDisabled) return;
       const line = text.replace(/\s+/g, " ").trim();
       if (!line) return;
       void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
@@ -6218,6 +6526,7 @@
     async function processLine(text, context, lineLensSeq = -1) {
       const lineSessionId = currentSessionId();
       const staleSession = () => {
+        if (signedIn !== true) return true;
         if (currentSessionId() === lineSessionId) return false;
         log("dropped line from the previous video:", text.slice(0, 40));
         return true;
@@ -6387,11 +6696,13 @@
       return location.pathname.match(/\/watch\/(\d+)/)?.[1] || window.__avcNetflixVideoId || "";
     }
     function requestNetflixTracks() {
+      if (signedIn !== true) return;
       if (!location.hostname.endsWith("netflix.com")) return;
       const movieId = netflixId();
       if (movieId) window.postMessage({ source: "avc-content", type: "avc-netflix-timedtext-request", movieId }, location.origin);
     }
     function useNetflixTracks(data2) {
+      if (signedIn !== true) return;
       if (typeof data2.movieId !== "string" || data2.movieId !== netflixId()) return;
       const upgrade = data2.movieId === episodeId && episode?.source === "translation" && typeof data2.en?.text === "string";
       if (data2.movieId === episodeId && !upgrade) return;
@@ -6475,7 +6786,13 @@
       setLensBaseline(hide ? 0.9 : 0.76);
     }
     function loadCourse(refresh = false) {
+      const generation = accountGeneration;
       const run = (async () => {
+        if (signedIn !== true) {
+          course2 = null;
+          courseLoad = null;
+          return;
+        }
         let next = null;
         try {
           const res = await chrome.runtime.sendMessage({ type: "avc-n5-lesson", refresh });
@@ -6484,6 +6801,7 @@
           next = course2;
         }
         const current2 = settings || await getSettings();
+        if (signedIn !== true || generation !== accountGeneration) return;
         if (normalizeDirection(current2.learningDirection) !== "en-ja") next = null;
         course2 = next;
         setCourse(course2, course2 ? courseActions2 : null);
@@ -6531,6 +6849,12 @@
       if (msg.type === "avc-limit-reached") {
         void reportLimitReached(msg.kind || "ai");
         return;
+      }
+      if (signedIn !== true) {
+        if (msg.type === "avc-get-cache-key") sendResponse({ key: null });
+        else if (msg.type === "avc-agent-show") sendResponse({ ok: false, visible: false });
+        else if (msg.type === "avc-agent-status") sendResponse({ ok: true, visible: false });
+        if (msg.type === "avc-get-cache-key" || msg.type === "avc-agent-show" || msg.type === "avc-agent-status" || msg.type === "avc-listening-state" || msg.type === "avc-transcript") return;
       }
       if (msg.type === "avc-get-cache-key") {
         refreshCacheKey();
@@ -6652,12 +6976,38 @@
         }
         applyPanelSettings(next);
         syncNativeSubs();
+        if (signedIn === false) syncSigninChip();
         if (courseLoad || course2) void loadCourse();
       }).catch(() => {
       });
     });
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === "local" && changes.syncToken && (courseLoad || course2)) void loadCourse(true);
+      if (area === "local" && changes[SIGNIN_CHIP_DISMISSED_KEY]) {
+        signinChipDismissed = changes[SIGNIN_CHIP_DISMISSED_KEY].newValue === true;
+        syncSigninChip();
+      }
+      if (area !== "local" || !changes.syncToken) return;
+      const next = isSignedIn(changes.syncToken.newValue);
+      accountGeneration++;
+      signedIn = next;
+      lastContextTitle = "";
+      if (next) {
+        signinChipDismissed = false;
+        unmountSigninChip();
+        log("account gate: signed in, starting pipeline");
+        pickAdapter();
+        if (initialized) startWatchInterval();
+        if (courseLoad || course2) void loadCourse(true);
+      } else {
+        log("account gate: signed out, stopping pipeline");
+        stopSignedOutPipeline();
+        void getSigninChipDismissed().then((dismissed) => {
+          signinChipDismissed = dismissed;
+          syncSigninChip();
+        });
+        course2 = null;
+        courseLoad = null;
+      }
     });
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local") return;
@@ -6673,13 +7023,15 @@
       });
     });
     async function restoreTabSession() {
+      if (signedIn !== true) return;
+      const generation = accountGeneration;
       let state;
       try {
         state = await chrome.runtime.sendMessage({ type: "avc-session-state" });
       } catch {
         return;
       }
-      if (!state) return;
+      if (!state || signedIn !== true || generation !== accountGeneration) return;
       if (state.copilot || state.listening) void loadCourse();
       if (state.copilot) openAgent();
       if (state.listening && !listeningActive) {
@@ -6694,12 +7046,19 @@
       chrome.runtime.sendMessage({ type: "avc-copilot-state", open }).catch(() => {
       });
     });
-    pickAdapter();
+    void (async () => {
+      await readAccountState();
+      const initial = pickAdapter();
+      lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
+      refreshCacheKey();
+      if (signedIn === true) void restoreTabSession();
+    })();
     const pickTimer = setInterval(() => {
       if (pickAdapter()) clearInterval(pickTimer);
     }, 2e3);
     setInterval(() => {
       pickAdapter();
+      syncSigninChip();
       const sid = currentSessionId();
       if (sid !== lastSessionId) {
         lastSessionId = sid;
@@ -6742,11 +7101,7 @@
       if (e.data.type === "avc-netflix-timedtext") useNetflixTracks(e.data);
       if (e.data.type === "avc-netflix-clock") onNetflixClock(e.data);
     });
-    refreshCacheKey();
-    const initial = pickAdapter();
-    lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
     void setAgentPinned(false);
-    void restoreTabSession();
     requestNetflixTracks();
   })();
 })();

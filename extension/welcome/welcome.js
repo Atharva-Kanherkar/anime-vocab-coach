@@ -17,6 +17,9 @@
   // src/lib/log.ts
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/lib/account-cache.ts
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+
   // src/types.ts
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
@@ -111,7 +114,33 @@
   }
 
   // src/lib/feature-events.ts
+  var SIGNIN_FEATURE_EVENTS = [
+    "signin_gate_shown",
+    "signin_started",
+    "signin_completed",
+    "signin_gate_dismissed"
+  ];
+  var SIGNIN_SURFACES = [
+    "content_chip",
+    "popup",
+    "start_page",
+    "install",
+    "startup"
+  ];
+  var FEATURE_EVENTS = [
+    "card_shown",
+    "card_known",
+    "card_learn",
+    "word_saved",
+    "review_done",
+    "listening_started",
+    "install_first_run",
+    "extension_linked",
+    ...SIGNIN_FEATURE_EVENTS
+  ];
   var TRACK_URL = WEB_URL + "/api/track";
+  var SIGNIN_EVENT_SET = new Set(SIGNIN_FEATURE_EVENTS);
+  var SIGNIN_SURFACE_SET = new Set(SIGNIN_SURFACES);
 
   // src/lib/onboarding.ts
   var ONBOARDING_STORAGE_KEY = "onboarding";
@@ -221,7 +250,17 @@
   var queue2 = Promise.resolve();
   function getSyncToken() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
+      try {
+        chrome.storage.local.get(["syncToken"], (r) => {
+          if (chrome.runtime.lastError) {
+            resolve("");
+            return;
+          }
+          resolve(typeof r?.syncToken === "string" ? r.syncToken : "");
+        });
+      } catch {
+        resolve("");
+      }
     });
   }
   function normalizeSyncPlan(value) {
@@ -241,7 +280,6 @@
   // src/lib/account-link.ts
   var TOKEN_URL = WEB_URL + "/api/sync/token";
   var AUTO_LINK_COOLDOWN_MS = 60 * 60 * 1e3;
-  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
   function planLabel(plan) {
     return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
   }

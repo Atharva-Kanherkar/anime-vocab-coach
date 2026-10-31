@@ -3,6 +3,12 @@
   // src/lib/log.ts
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/config.ts
+  var WEB_URL = "https://animevocab.com";
+
+  // src/lib/account-cache.ts
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+
   // src/lib/locale-direction.ts
   function isJapaneseUiLocale() {
     try {
@@ -38,11 +44,34 @@
   // src/lib/review-prompt.ts
   var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
 
-  // src/config.ts
-  var WEB_URL = "https://animevocab.com";
-
   // src/lib/feature-events.ts
+  var SIGNIN_FEATURE_EVENTS = [
+    "signin_gate_shown",
+    "signin_started",
+    "signin_completed",
+    "signin_gate_dismissed"
+  ];
+  var SIGNIN_SURFACES = [
+    "content_chip",
+    "popup",
+    "start_page",
+    "install",
+    "startup"
+  ];
+  var FEATURE_EVENTS = [
+    "card_shown",
+    "card_known",
+    "card_learn",
+    "word_saved",
+    "review_done",
+    "listening_started",
+    "install_first_run",
+    "extension_linked",
+    ...SIGNIN_FEATURE_EVENTS
+  ];
   var TRACK_URL = WEB_URL + "/api/track";
+  var SIGNIN_EVENT_SET = new Set(SIGNIN_FEATURE_EVENTS);
+  var SIGNIN_SURFACE_SET = new Set(SIGNIN_SURFACES);
 
   // src/lib/onboarding.ts
   var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;

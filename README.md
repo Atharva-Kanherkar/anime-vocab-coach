@@ -6,7 +6,7 @@
 
 **Learn Japanese from the anime you already watch.**
 
-Romaji-first vocabulary cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube. Free, open source, local-first — with an optional cloud app and [Manga Studio](https://animevocab.com/studio) for creating your own manga.
+Romaji-first vocabulary cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube. Free and open source, with a free account for your words, reviews and progress, plus [Manga Studio](https://animevocab.com/studio) for creating your own manga.
 
 [**Website**](https://animevocab.com) · [**Install extension**](https://animevocab.com/app) · [**Manga Studio**](https://animevocab.com/studio) · [**Cloud app**](https://animevocab.com/app)
 
@@ -27,7 +27,7 @@ Most anime learning tools assume you can already read Japanese subtitles. AnimeV
 | **One word per line** | No flashcard flood — one useful candidate per subtitle line |
 | **Spaced repetition** | Built-in review queue; export to Anki anytime |
 | **Listening Mode** | Transcribes tab audio when JP subs are missing (Crunchyroll, etc.) |
-| **Local-first** | Progress in `chrome.storage.local` — no account required |
+| **Free account** | Sign in at [animevocab.com/start](https://animevocab.com/start) to connect the extension and sync your progress |
 | **Manga Studio** | AI-assisted manga maker at [animevocab.com/studio](https://animevocab.com/studio) |
 | **Cloud app** | Optional sync, AI coach, notebooks, streaks at [animevocab.com/app](https://animevocab.com/app) |
 
