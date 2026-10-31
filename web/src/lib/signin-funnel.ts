@@ -49,3 +49,23 @@ export function isSigninSurface(value: unknown): value is SigninSurface {
 export function normalizeSigninSurface(raw: unknown): SigninSurface | "" {
   return isSigninSurface(raw) ? raw : "";
 }
+
+/** Fire-and-forget beacon, same transport as the Pro funnel. */
+export function trackSignin(event: SigninFunnelEvent, surface: SigninSurface): void {
+  if (!isSigninFunnelEvent(event) || !isSigninSurface(surface)) return;
+  try {
+    const body = JSON.stringify({ kind: "feature", name: event, surface });
+    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+      navigator.sendBeacon("/api/track", new Blob([body], { type: "application/json" }));
+      return;
+    }
+    void fetch("/api/track", {
+      method: "POST",
+      body,
+      headers: { "content-type": "application/json" },
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // swallow
+  }
+}

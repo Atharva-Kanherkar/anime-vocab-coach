@@ -95,6 +95,8 @@ let retryAttempts = 0;
 let retryTimer: number | null = null;
 /** One mint in flight at a time: the #123 storm is not to be reintroduced. */
 let mintInFlight = false;
+let authGeneration = 0;
+let signedOut = false;
 
 function cancelRetry(): void {
   if (retryTimer !== null) {
@@ -118,6 +120,8 @@ function scheduleRetry(error: TokenError): void {
 }
 
 async function broadcastToken(force = false): Promise<void> {
+  if (signedOut) return;
+  const generation = authGeneration;
   // Once per page load: repeated extension signals must not each mint a token.
   // `force` is used only by the periodic refresh to keep a fresh, TTL'd token.
   if (tokenBroadcast && !force) return;
@@ -137,6 +141,7 @@ async function broadcastToken(force = false): Promise<void> {
       token?: string;
       profile?: { email?: string | null; name?: string | null; plan?: string | null };
     };
+    if (signedOut || generation !== authGeneration) return;
     if (!token) throw new Error("no token");
     window.postMessage(
       { source: "avc-web", type: "avc-sync-token", token, profile: profile ?? null },
@@ -146,6 +151,7 @@ async function broadcastToken(force = false): Promise<void> {
     cancelRetry();
     setToken("ok", null);
   } catch {
+    if (signedOut || generation !== authGeneration) return;
     tokenBroadcast = false; // allow a later attempt (retry, or the next refresh)
     // A 200 that carried no token is a broken response, not an HTTP failure.
     const error = tokenErrorFor(status !== null && status >= 200 && status < 300 ? 500 : status);
@@ -153,6 +159,10 @@ async function broadcastToken(force = false): Promise<void> {
     scheduleRetry(error);
   } finally {
     mintInFlight = false;
+    if (!signedOut && generation !== authGeneration) {
+      tokenBroadcast = false;
+      void broadcastToken();
+    }
   }
 }
 
@@ -203,6 +213,7 @@ function startController(): void {
 }
 
 export function notifyExtensionLinkSignedIn(): void {
+  signedOut = false;
   // Clerk can complete sign-in without a full page reload. If the first token
   // request ran while signed out it returned 401, stopped the ping loop, and
   // left this page stuck in "Could not link" forever. A signed-in transition
@@ -215,6 +226,16 @@ export function notifyExtensionLinkSignedIn(): void {
   setPresence("checking");
   startPinging();
   scheduleMissingCheck();
+}
+
+/** Discard an in-flight mint when Clerk signs out, before the extension is
+ * told to clear its credential. A late response must not reconnect it. */
+export function notifyExtensionLinkSignedOut(): void {
+  authGeneration++;
+  signedOut = true;
+  cancelRetry();
+  stopPinging();
+  setToken("idle", null);
 }
 
 export interface ExtensionLink {

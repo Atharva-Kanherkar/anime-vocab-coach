@@ -51,6 +51,7 @@ describe("middleware matcher", () => {
   it("covers pages that call currentUser()", () => {
     // /studio is public but reads sign-in state — this was the prod 500.
     expect(covered("/studio")).toBe(true);
+    expect(covered("/start")).toBe(true);
     expect(covered("/app")).toBe(true);
     expect(covered("/app/cards/abc")).toBe(true);
   });
