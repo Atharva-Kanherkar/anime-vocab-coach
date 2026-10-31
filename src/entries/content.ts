@@ -155,7 +155,12 @@ declare global {
       // While the player's own subtitle track drives the lines (see
       // useNetflixTracks), what the subtitle DOM shows is the same lines, late.
       adapter.start(
-        (text, context) => { if (!episode) onLine(text, context); },
+        (text, context) => {
+          lastPageLineAt = Date.now();
+          if (episode) { comparePageLine(text); return; }
+          subsDiag.source = "page";
+          onLine(text, context);
+        },
         () => { if (!episode) clearLensLine(); }
       );
       // Load kuromoji and the dictionary now, not on the first subtitle line:
@@ -875,6 +880,59 @@ declare global {
   let episodeId = "";
   /** The track cue on screen now, or -1. */
   let timelineCue = -1;
+  /** Netflix's player clock minus the <video> element's, in seconds. Zero
+   * unless the element's timeline also counts ad breaks; the subtitles are
+   * timed against the player's (content) clock. */
+  let netflixOffset = 0;
+  const offsetSamples: number[] = [];
+  /** The player's clock stood still while the video ran: an ad break. */
+  let netflixAdBreak = false;
+  let lastClock: { playerSec: number; videoSec: number } | null = null;
+  /** When the page's own subtitles last gave us a line. */
+  let lastPageLineAt = 0;
+  /** What drives dual subtitles on this video, for the popup. */
+  const subsDiag = {
+    source: "none" as "track" | "page" | "audio" | "none",
+    jaLines: 0,
+    english: "none" as "netflix" | "translated" | "none",
+    offsetMs: 0,
+    adBreak: false,
+    /** Netflix's own on-screen line against the track line we showed. */
+    pageChecked: 0,
+    pageMatched: 0,
+    lastMismatch: "",
+  };
+
+  function onNetflixClock(d: { movieId?: unknown; playerSec?: unknown; videoSec?: unknown }): void {
+    if (typeof d.playerSec !== "number" || typeof d.videoSec !== "number" || d.movieId !== netflixId()) return;
+    const prev = lastClock;
+    lastClock = { playerSec: d.playerSec, videoSec: d.videoSec };
+    if (prev && d.videoSec - prev.videoSec > 0.4 && Math.abs(d.playerSec - prev.playerSec) < 0.05) {
+      netflixAdBreak = true;
+      subsDiag.adBreak = true;
+      return;
+    }
+    netflixAdBreak = false;
+    offsetSamples.push(d.playerSec - d.videoSec);
+    if (offsetSamples.length > 7) offsetSamples.shift();
+    const sorted = [...offsetSamples].sort((x, y) => x - y);
+    const median = sorted[sorted.length >> 1];
+    netflixOffset = Math.abs(median) < 0.08 ? 0 : median;
+    subsDiag.offsetMs = Math.round(netflixOffset * 1000);
+  }
+
+  /** The player's line on screen, held against ours: how in sync we are. */
+  function comparePageLine(text: string): void {
+    const ep = episode;
+    if (!ep || timelineCue < 0) return;
+    const flat = (s: string) => s.replace(/[\s　]/g, "");
+    const page = flat(text);
+    if (!page) return;
+    subsDiag.pageChecked++;
+    const near = [timelineCue - 1, timelineCue, timelineCue + 1].map((i) => ep.cues[i]?.text ?? "");
+    if (near.some((c) => flat(c) === page || (c && (flat(c).includes(page) || page.includes(flat(c)))))) subsDiag.pageMatched++;
+    else subsDiag.lastMismatch = `page "${text.slice(0, 30)}" vs ours "${(ep.cues[timelineCue]?.text ?? "").slice(0, 30)}"`;
+  }
   let timelineFrame = 0;
   /** A line goes up this early, so it is drawn on the frame it starts. */
   const TIMELINE_LEAD_SEC = 0.05;
@@ -891,7 +949,11 @@ declare global {
   }
 
   function useNetflixTracks(data: { movieId?: unknown; ja?: { text?: unknown } | null; en?: { text?: unknown } | null }): void {
-    if (typeof data.movieId !== "string" || data.movieId !== netflixId() || data.movieId === episodeId) return;
+    if (typeof data.movieId !== "string" || data.movieId !== netflixId()) return;
+    // The same video again: only Netflix's English arriving after the
+    // Japanese is news (it replaces the translation).
+    const upgrade = data.movieId === episodeId && episode?.source === "translation" && typeof data.en?.text === "string";
+    if (data.movieId === episodeId && !upgrade) return;
     if (typeof data.ja?.text !== "string") return;
     const ja = parseTimedText(data.ja.text);
     if (ja.length < 5) return;
@@ -903,10 +965,16 @@ declare global {
     );
     episode = ep;
     const video = adapter?.getVideo();
-    ep.translateFrom(video ? cueAt(ep.cues, video.currentTime) : 0);
+    ep.translateFrom(video ? cueAt(ep.cues, video.currentTime + netflixOffset) : 0);
+    subsDiag.source = "track";
+    subsDiag.jaLines = ja.length;
+    subsDiag.english = ep.source === "track" ? "netflix" : "translated";
+    subsDiag.pageChecked = subsDiag.pageMatched = 0;
+    subsDiag.lastMismatch = "";
     timelineCue = -1;
     startTimeline();
     syncNativeSubs();
+    if (upgrade) return;
     // The tracks can arrive with the page, before any line has loaded the
     // settings; hiding Netflix's own subtitles waits on them.
     if (!settings) {
@@ -932,7 +1000,8 @@ declare global {
       const ep = episode;
       const video = adapter?.getVideo();
       if (!ep || !video) return;
-      const i = cueAt(ep.cues, video.currentTime + TIMELINE_LEAD_SEC);
+      // During an ad break the player's clock stands still: no subtitles.
+      const i = netflixAdBreak ? -1 : cueAt(ep.cues, video.currentTime + netflixOffset + TIMELINE_LEAD_SEC);
       if (i === timelineCue) return;
       // A seek: translate from where the learner landed.
       if (Math.abs(i - timelineCue) > 2) ep.translateFrom(i);
@@ -1061,6 +1130,10 @@ declare global {
       sendResponse({ ok: true, visible: overlay.isAgentActive() });
       return true;
     }
+    if (msg.type === "avc-subs-diag") {
+      sendResponse({ ok: true, diag: { ...subsDiag, translating: episode?.progress() ?? null, englishError: episode?.lastError ?? subs.lastError ?? null } });
+      return true;
+    }
     if (msg.type === "avc-caption-status") {
       const report = captionReport();
       sendResponse({ ok: true, report, detail: captionStatusDetail(report) });
@@ -1092,8 +1165,13 @@ declare global {
    * spoken goes to the cards but not the Lens (see audioLineIsCurrent).
    */
   function handleTranscript(text: string, start: number | undefined, end: number | undefined): void {
-    // The player's own subtitle track has these lines already, exactly timed.
+    // One source of subtitles at a time. The player's own track has these
+    // lines already, exactly timed. The page's own subtitles do too: heard
+    // lines arrive late and would fight them for the same subtitle, so they
+    // only go to the cards.
     if (episode) return;
+    const pageLive = Date.now() - lastPageLineAt < 15_000;
+    if (!pageLive) subsDiag.source = "audio";
     const a = pickAdapter();
     if (!a) { warn("transcript arrived but no adapter matched this frame"); return; }
     const video = a.getVideo();
@@ -1105,7 +1183,7 @@ declare global {
     if (ahead > EARLY_LINE_TOLERANCE_SEC) {
       if (ahead > MAX_EARLY_HOLD_SEC) return; // a seek or a stale window; the cache poll covers it
       // Seconds early: long enough to have its English ready when it is due.
-      if (settings && lensOn(settings)) {
+      if (settings && lensOn(settings) && Date.now() - lastPageLineAt >= 15_000) {
         for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece, a);
       }
       const sessionId = currentSessionId();
@@ -1122,7 +1200,7 @@ declare global {
     const context: LineContext = { en: contextForAudio(a, start), fromAudio: true };
     // The Lens shows the utterance in subtitle-sized pieces, and only while it
     // is still the scene on screen.
-    const seq = audioLineIsCurrent(video, start, end) ? showPacedLens(rawTranscript, context) : -1;
+    const seq = !pageLive && audioLineIsCurrent(video, start, end) ? showPacedLens(rawTranscript, context) : -1;
     const direction = normalizeDirection(settings?.learningDirection);
     const segments = rawTranscript
       .split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/)
@@ -1275,6 +1353,12 @@ declare global {
       refreshCacheKey();
       log("session reset for new video:", sid);
       stopTimeline();
+      offsetSamples.length = 0;
+      netflixOffset = 0;
+      netflixAdBreak = false;
+      lastClock = null;
+      lastPageLineAt = 0;
+      Object.assign(subsDiag, { source: "none", jaLines: 0, english: "none", offsetMs: 0, adBreak: false, pageChecked: 0, pageMatched: 0, lastMismatch: "" });
       requestNetflixTracks();
       prefetchAnimeContext(currentTitle());
     }
@@ -1289,6 +1373,7 @@ declare global {
       requestNetflixTracks();
     }
     if (e.data.type === "avc-netflix-timedtext") useNetflixTracks(e.data);
+    if (e.data.type === "avc-netflix-clock") onNetflixClock(e.data);
   });
 
   refreshCacheKey();
