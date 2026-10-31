@@ -204,3 +204,16 @@ is a manual check, documented below.
 - Sign out on animevocab.com: the extension chip returns on the next supported
   page load, and the popup gate returns.
 - Confirm `/pricing` still says the free plan is free forever.
+
+## Review 5722205984 regression contract
+
+This amendment replaces the earlier requirement that cache restoration must finish before a token is accepted.
+
+- Sign-out preserves every outgoing word and schedule in a durable, account-bound pending export before clearing the active cache. It attempts upload immediately and retries on sync/startup/alarm; failures never discard the pending export or upload it with another account's token.
+- Device-only `settings.openaiKey` survives sign-out and restore and never enters a cloud payload.
+- Token storage performs no network I/O inside the storage queue. A failed restore leaves the account linked, retains the restore marker and reports a visible sync error; later sync retries restore before uploading active state. Restore merges any new local words rather than replacing them.
+- Netflix tracks and anime context are requested after account state resolves and on a signed-in token transition. Signed-out track requests remain blocked.
+- An install-origin sign-in leaves `/start` open on success. Chip/popup flows still return to the original tab and close their sign-in tab.
+- `/start` passes lint, counts gate views only while signed out, and shows an installation message without claiming to be connecting when the extension is missing.
+
+Regression verification: unit tests for durable logout recovery, failed restore/retry/queue progress, device-key preservation and signed-in analytics/copy; real-extension sign-in and Netflix-track E2E; web lint/typecheck/unit tests; extension typecheck/unit tests and rebuilt bundle checks. Real Clerk OAuth remains manual as documented above.
