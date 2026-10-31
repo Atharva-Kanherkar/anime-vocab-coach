@@ -1,6 +1,7 @@
 "use client";
 
 import { GoogleOneTap, SignIn } from "@clerk/nextjs";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
 import { trackSignin } from "@/lib/signin-funnel";
@@ -36,17 +37,19 @@ function Connection() {
   const link = useExtensionLink();
   return (
     <div aria-live="polite">
-      <h1>You're in</h1>
+      <h1>You&apos;re in</h1>
       <p>{link.installed && (link.tokenState === "ok" || link.extensionLinked)
         ? "The extension is connected. Go back to your episode and start learning."
-        : "Your free account is ready. Connecting the extension..."}</p>
+        : link.state === "missing"
+          ? "Your free account is ready. Install the extension to start learning while you watch."
+          : "Your free account is ready. Connecting the extension..."}</p>
       {link.state === "missing" && <p><a href={CHROME_STORE_URL}>Install the free Chrome extension</a> to learn while you watch.</p>}
       {link.tokenState === "failed" && <p>{link.tokenError?.message} <button type="button" onClick={link.retry}>Try connecting again</button></p>}
       <nav className={styles.links} aria-label="Start watching">
         <a href="https://www.youtube.com">YouTube</a>
         <a href="https://www.crunchyroll.com">Crunchyroll</a>
         <a href="https://www.netflix.com">Netflix</a>
-        <a href="/app">Your words and reviews</a>
+        <Link href="/app">Your words and reviews</Link>
       </nav>
     </div>
   );
@@ -55,8 +58,8 @@ function Connection() {
 export function StartClient({ signedIn, name }: { signedIn: boolean; name: string }) {
   const started = useRef(false);
   useEffect(() => {
-    trackSignin("signin_gate_shown", "start_page");
-  }, []);
+    if (!signedIn) trackSignin("signin_gate_shown", "start_page");
+  }, [signedIn]);
 
   function onStart() {
     if (started.current) return;
@@ -69,7 +72,7 @@ export function StartClient({ signedIn, name }: { signedIn: boolean; name: strin
       <section className={styles.intro} aria-label="Dual subtitle demo">
         <p className={styles.eyebrow}>YOUR NEXT EPISODE IS A JAPANESE LESSON</p>
         <h2>Watch a scene.<br />Keep a word.</h2>
-        <p>Understand the line, save the words you love, and review them when they're ready.</p>
+        <p>Understand the line, save the words you love, and review them when they&apos;re ready.</p>
         <SubtitleDemo />
         <p className={styles.caption}>Dual subtitles and words that stay with you. A preview of your next episode.</p>
       </section>

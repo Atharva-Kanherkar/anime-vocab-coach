@@ -37,12 +37,14 @@ describe('/start', () => {
     render(<StartClient signedIn name="Learner" />);
     expect(useLink).toHaveBeenCalled();
     expect(screen.getByText(/The extension is connected/)).toBeTruthy();
+    expect(track).not.toHaveBeenCalledWith('signin_gate_shown', 'start_page');
     expect(screen.getByRole('link', { name: 'Your words and reviews' }).getAttribute('href')).toBe('/app');
   });
   it('offers installation after detection times out', () => {
     link.state = 'missing';
     render(<StartClient signedIn name="Learner" />);
     expect(screen.getByRole('link', { name: 'Install the free Chrome extension' })).toBeTruthy();
+    expect(screen.queryByText(/Connecting the extension/)).toBeNull();
   });
   it('reports token failure with an explicit retry', () => {
     Object.assign(link, { installed: true, state: 'installed', tokenState: 'failed', tokenError: { message: 'Connection failed.' } });
