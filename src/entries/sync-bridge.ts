@@ -1,8 +1,6 @@
-import { restoredAccountCache } from "../lib/account-cache";
-
 // Content script on the hosted web app (animevocab.com). The signed-in page
-// broadcasts a sync token via postMessage; we restore its cache, store it and
-// ask the background to push. Sign-out is serialized by the worker.
+// broadcasts a sync token via postMessage; we store it and ask the background
+// to restore/sync. Sign-out is serialized by the worker.
 (function initSyncBridge() {
 const bridgeWindow = window as Window & { __avcSyncBridgeLoaded?: boolean };
 if (bridgeWindow.__avcSyncBridgeLoaded) return;
@@ -89,7 +87,7 @@ window.addEventListener("message", (event) => {
       if (location.pathname === "/start") {
         await chrome.runtime.sendMessage({ type: "avc-signin-surface", surface: "start_page" }).catch(() => {});
       }
-      await chrome.storage.local.set({ ...await restoredAccountCache(token), ...update });
+      await chrome.storage.local.set(update);
       chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
     })().catch(() => {});
     return;

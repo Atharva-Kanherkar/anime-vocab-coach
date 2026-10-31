@@ -12,6 +12,7 @@ export async function restoredAccountCache(token: string): Promise<Record<string
   if (!clearedAt) return {};
   const res = await fetch(WEB_URL + "/api/sync/snapshot", {
     headers: { Authorization: "Bearer " + token },
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error("Could not restore your words. Please try signing in again.");
   const data = await res.json() as { envelope?: { snapshot?: unknown; webReviewSeq?: number } | null };

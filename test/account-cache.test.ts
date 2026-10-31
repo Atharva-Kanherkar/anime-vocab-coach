@@ -13,7 +13,7 @@ describe('account cache after explicit sign-out', () => {
     expect(await restoredAccountCache('token')).toEqual({});
     expect(fetch).not.toHaveBeenCalled();
   });
-  it('restores all words and review schedules before accepting the token', async () => {
+  it('reads all words and review schedules for background restoration', async () => {
     local.accountCacheClearedAt = 123;
     const vocab = { '明日': { state: 'learning', reading: 'あした', gloss: 'tomorrow', level: 5, freqRank: 100, seenCount: 9, shownCount: 2, firstSeenAt: 1700000000000, lastSeenAt: 1700000000001, srs: { stage: 3, dueAt: 1800000000000, lapses: 1 } } };
     const snapshot = normalizeAnimeVocabExport({ vocab, settings: { pauseMode: 'off' }, stats: { daily: {}, cardTimestamps: [] } });
@@ -24,7 +24,7 @@ describe('account cache after explicit sign-out', () => {
     expect(patch.webReviewSeq).toBe(9);
     expect(patch.accountCacheClearedAt).toBeNull();
   });
-  it('keeps the gate closed on restore failure', async () => {
+  it('retains the marker for a later retry on restore failure', async () => {
     local.accountCacheClearedAt = 123;
     vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 503 }));
     await expect(restoredAccountCache('token')).rejects.toThrow('Could not restore');

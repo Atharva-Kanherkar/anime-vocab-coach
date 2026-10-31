@@ -10,8 +10,10 @@ from videos you watch. This policy explains exactly what it does with data.
 
 - **Your vocabulary progress, settings, and statistics** are cached locally in your
   browser (`chrome.storage.local`) and automatically synced to your required free
-  account. Signing out clears this local cache; signing back in restores it from
-  your account.
+  account. Signing out clears the active cache while preserving your device-only
+  API key. Any progress not yet uploaded is retained in a separate pending export
+  tied to the outgoing account until upload succeeds. Signing back in restores
+  your account's cloud cache, retrying temporary failures in the background.
 - **Your OpenAI API key** (only if you use bring-your-own-key Listening Mode) is
   stored locally and sent only to OpenAI's API (`api.openai.com`) to transcribe audio.
 - **Your Pro license key** (only if you subscribe) is stored locally and sent only to

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { pushSnapshot } from "../src/lib/cloud-sync";
+import { pushSnapshot, syncPendingSignouts } from "../src/lib/cloud-sync";
+import { clearSignedOutCache, setSyncToken, setSettings } from "../src/lib/storage";
+import { normalizeAnimeVocabExport } from "../web/src/lib/sync";
 import type { VocabMap } from "../src/types";
 
 /**
@@ -64,6 +66,80 @@ beforeEach(() => {
 });
 
 describe("cloud sync round", () => {
+  it("backs up unsynced words and preserves the device key at sign-out, retrying with the outgoing token", async () => {
+    local.vocab = { 犬: learningWord(3) };
+    local.settings = { openaiKey: "device-only-key", cooldownSec: 7 };
+    await clearSignedOutCache();
+    expect(local.syncToken).toBe("");
+    expect(local.vocab).toEqual({});
+    expect(local.settings).toEqual({ openaiKey: "device-only-key" });
+    const pending = structuredClone(local.pendingSignoutExports);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    await syncPendingSignouts();
+    expect(local.pendingSignoutExports).toEqual(pending);
+    local.syncToken = "other-account";
+    stubServer({ get: () => ({ envelope: { revision: 4 } }), put: () => ({ status: 200, body: {} }) });
+    await syncPendingSignouts();
+    const put = calls.find(c => c.method === "PUT")!;
+    expect((put.body!.export as { vocab: VocabMap }).vocab).toEqual({ 犬: learningWord(3) });
+    const fetches = vi.mocked(fetch).mock.calls;
+    expect(fetches.every(([, init]) => (init?.headers as Record<string, string>).Authorization === "Bearer tok")).toBe(true);
+    expect(JSON.stringify(put.body)).not.toContain("device-only-key");
+    expect(local.pendingSignoutExports).toEqual([]);
+    expect(local.syncToken).toBe("other-account");
+  });
+
+  it("replays cloud reviews into an outgoing export without modifying the signed-out active cache", async () => {
+    local.vocab = { 食べる: learningWord(2) };
+    local.webReviewSeq = 3;
+    await clearSignedOutCache();
+    stubServer({ get: () => ({ envelope: { revision: 4, webReviews: [
+      { seq: 3, base: "食べる", result: "fail", at: new Date(T0).toISOString() },
+      { seq: 4, base: "食べる", result: "pass", at: new Date(T0).toISOString() },
+    ] } }), put: () => ({ status: 200, body: {} }) });
+    await syncPendingSignouts();
+    const body = calls.find(c => c.method === "PUT")!.body!;
+    expect((body.export as { vocab: VocabMap }).vocab['食べる'].srs?.stage).toBe(3);
+    expect(body.appliedWebReviewSeq).toBe(4);
+    expect(local.vocab).toEqual({});
+    expect(local.webReviewSeq).toBe(0);
+  });
+
+  it("accepts a token even when restore fails, reports the error, and retries without losing new words or the device key", async () => {
+    local.syncToken = "";
+    local.accountCacheClearedAt = 123;
+    local.settings = { openaiKey: "device-only-key" };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response('{}', { status: 503 })));
+    await setSyncToken("relinked");
+    expect(fetch).not.toHaveBeenCalled();
+    await pushSnapshot();
+    expect(local.syncToken).toBe("relinked");
+    expect(local.accountCacheClearedAt).toBe(123);
+    expect(local.syncStatus).toMatchObject({ state: "error", error: expect.stringContaining("restore") });
+    local.vocab = { 犬: learningWord(2) };
+    const snapshot = normalizeAnimeVocabExport({ vocab: { 食べる: learningWord(3) }, settings: { pauseMode: "off" } });
+    stubServer({ get: () => ({ envelope: { revision: 8, snapshot } }), put: () => ({ status: 200, body: {} }) });
+    await pushSnapshot();
+    expect(local.accountCacheClearedAt).toBeNull();
+    expect(Object.keys(local.vocab as object).sort()).toEqual(["犬", "食べる"].sort());
+    expect(local.settings).toMatchObject({ openaiKey: "device-only-key", pauseMode: "off" });
+    expect(local.syncStatus).toMatchObject({ state: "ok" });
+  });
+
+  it("does not block queued settings writes while a restore request is pending", async () => {
+    local.accountCacheClearedAt = 123;
+    let finish!: (res: Response) => void;
+    let started!: () => void;
+    const began = new Promise<void>(resolve => { started = resolve; });
+    vi.stubGlobal("fetch", vi.fn(() => { started(); return new Promise<Response>(resolve => { finish = resolve; }); }));
+    const sync = pushSnapshot();
+    await began;
+    await setSettings({ cooldownSec: 9 });
+    expect(local.settings).toMatchObject({ cooldownSec: 9 });
+    finish(new Response('{}', { status: 503 }));
+    await sync;
+  });
+
   it("discards a response from before sign-out without applying reviews or uploading an empty deck", async () => {
     stubServer({
       get: () => {

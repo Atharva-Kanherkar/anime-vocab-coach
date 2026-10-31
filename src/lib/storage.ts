@@ -1,5 +1,6 @@
 import { warn } from "./log";
-import { ACCOUNT_CACHE_CLEARED, SIGN_OUT_SUPPRESSION_MS, restoredAccountCache } from "./account-cache";
+import { ACCOUNT_CACHE_CLEARED, SIGN_OUT_SUPPRESSION_MS } from "./account-cache";
+import { cloudSnapshotToAnimeVocabExport, mergeCloudSnapshots, normalizeAnimeVocabExport } from "../../web/src/lib/sync";
 import { isJapaneseUiLocale, resolveStoredDirection } from "./locale-direction";
 import { checkEligibility, lookupForDirection } from "./scoring";
 import { DEFAULTS, SRS_INTERVALS } from "../types";
@@ -287,26 +288,12 @@ export function applyWebReviews(ops: WebReviewOp[], expectedToken?: string): Pro
     if (expectedToken !== undefined && r.syncToken !== expectedToken) return { applied: 0, seq: 0 };
     const stored = Number(r.webReviewSeq);
     let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
-    const fresh = ops
-      .filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string")
-      .sort((a, b) => a.seq - b.seq);
-    if (!fresh.length) return { applied: 0, seq };
-
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
-    let applied = 0;
-    for (const op of fresh) {
-      seq = op.seq;
-      const rec = vocab[op.base];
-      if (!rec || rec.state !== "learning" || !rec.srs) continue;
-      const parsed = Date.parse(op.at);
-      const at = Number.isFinite(parsed) ? parsed : Date.now();
-      applyReviewResult(rec, op.result === "pass", at);
-      const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
-      daily.reviews += 1;
-      daily.judged += 1;
-      applied++;
-    }
+    const result = replayWebReviews(vocab, stats, seq, ops);
+    if (result.seq === seq) return result;
+    seq = result.seq;
+    const { applied } = result;
     await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
     if (applied) sendBadge(stats);
     return { applied, seq };
@@ -450,6 +437,26 @@ export function exportAll(): Promise<ExportData> {
   });
 }
 
+/** Apply the same review log to active storage or a detached sign-out export. */
+export function replayWebReviews(vocab: VocabMap, stats: Stats, seq: number, ops: WebReviewOp[]): { applied: number; seq: number } {
+  const fresh = ops.filter(op => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string")
+    .sort((a, b) => a.seq - b.seq);
+  let applied = 0;
+  for (const op of fresh) {
+    seq = op.seq;
+    const rec = vocab[op.base];
+    if (!rec || rec.state !== "learning" || !rec.srs) continue;
+    const parsed = Date.parse(op.at);
+    const at = Number.isFinite(parsed) ? parsed : Date.now();
+    applyReviewResult(rec, op.result === "pass", at);
+    const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
+    daily.reviews++;
+    daily.judged++;
+    applied++;
+  }
+  return { applied, seq };
+}
+
 // Cloud sync token, handed to the extension by the signed-in web app. Its
 // presence is what "linked to an account" means; absence = local-only.
 export function getSyncToken(): Promise<string> {
@@ -471,7 +478,6 @@ export function setSyncToken(token: string): Promise<void> {
       // A fresh token (the web app re-linked us) clears any prior "re-link
       // needed" state and resets the consecutive-401 tolerance counter.
       await chrome.storage.local.set({
-        ...await restoredAccountCache(token),
         syncToken: token,
         relinkNeeded: false,
         syncAuthFailures: 0,
@@ -488,13 +494,54 @@ export function setSyncToken(token: string): Promise<void> {
  * the previous account's cache after it has been cleared. */
 export function clearSignedOutCache(): Promise<void> {
   return enqueue(async () => {
+    const r = await chrome.storage.local.get(["syncToken", "settings", "vocab", "stats", "webReviewSeq", "pendingSignoutExports"]);
+    const settings = (r.settings || {}) as Partial<Settings>;
+    const pending = (r.pendingSignoutExports || []) as PendingSignoutExport[];
+    if (typeof r.syncToken === "string" && r.syncToken) {
+      const { openaiKey: _key, ...cloudSettings } = settings;
+      pending.push({ id: crypto.randomUUID(), token: r.syncToken, appliedWebReviewSeq: Number(r.webReviewSeq) || 0, export: {
+        settings: cloudSettings, vocab: (r.vocab || {}) as VocabMap,
+        stats: (r.stats || emptyStats()) as Stats, exportedAt: new Date().toISOString(),
+      } });
+    }
+    // Persist the outgoing snapshot atomically with clearing the active cache.
+    // An offline sign-out can retry later without mixing accounts or losing words.
     await chrome.storage.local.set({
+      pendingSignoutExports: pending,
       syncToken: "", syncProfile: null, relinkNeeded: false, syncAuthFailures: 0,
       syncStatus: { ...EMPTY_SYNC_STATUS },
       autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS,
       [ACCOUNT_CACHE_CLEARED]: Date.now(),
-      vocab: {}, stats: emptyStats(), settings: {}, webReviewSeq: 0,
+      vocab: {}, stats: emptyStats(), settings: { openaiKey: settings.openaiKey || "" }, webReviewSeq: 0,
     });
+  });
+}
+
+export interface PendingSignoutExport {
+  id: string;
+  appliedWebReviewSeq: number;
+  token: string;
+  export: { settings: Partial<Settings>; vocab: VocabMap; stats: Stats; exportedAt: string };
+}
+
+export function acknowledgeSignoutExport(sent: PendingSignoutExport): Promise<void> {
+  return enqueue(async () => {
+    const r = await chrome.storage.local.get("pendingSignoutExports");
+    const pending = (r.pendingSignoutExports || []) as PendingSignoutExport[];
+    await chrome.storage.local.set({ pendingSignoutExports: pending.filter(p => p.id !== sent.id) });
+  });
+}
+
+/** Only the local merge is queued. A slow restore request never blocks saves. */
+export function applyRestoredAccountCache(token: string, clearedAt: unknown, patch: Record<string, unknown>): Promise<void> {
+  return enqueue(async () => {
+    const r = await chrome.storage.local.get(["syncToken", ACCOUNT_CACHE_CLEARED, "settings", "vocab", "stats"]);
+    if (r.syncToken !== token || r[ACCOUNT_CACHE_CLEARED] !== clearedAt) return;
+    const merged = cloudSnapshotToAnimeVocabExport(mergeCloudSnapshots(
+      normalizeAnimeVocabExport(patch), normalizeAnimeVocabExport(r)));
+    const settings = (r.settings || {}) as Partial<Settings>;
+    await chrome.storage.local.set({ ...patch, vocab: merged.vocab, stats: merged.stats,
+      settings: { ...merged.settings, openaiKey: settings.openaiKey || "" } });
   });
 }
 

@@ -189,10 +189,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     // definition — nobody has linked an account one tick after installing.
     void trackFeature("install_first_run");
     void (async () => {
-      const [active] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      await chrome.storage.session.remove([SIGNIN_RETURN_TAB_KEY, SIGNIN_START_TAB_KEY]);
       await chrome.storage.session.set({
         [SIGNIN_SURFACE_KEY]: "install",
-        ...(active?.id != null ? { [SIGNIN_RETURN_TAB_KEY]: active.id } : {}),
       });
       const tab = await chrome.tabs.create({ url: WEB_URL + signinStartPath("install") });
       if (tab.id != null) await chrome.storage.session.set({ [SIGNIN_START_TAB_KEY]: tab.id });
@@ -289,7 +288,7 @@ async function completeSignin(): Promise<void> {
       // The learner closed that tab; nothing to focus.
     }
   }
-  if (startTabId != null && startTabId !== returnTabId) {
+  if (surface !== "install" && startTabId != null && startTabId !== returnTabId) {
     try {
       await chrome.tabs.remove(startTabId);
     } catch {
@@ -603,7 +602,10 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
 
 function handleRuntimeMessage(msg: RuntimeMsg, sender: chrome.runtime.MessageSender, sendResponse: (response?: unknown) => void): true | undefined {
   if (msg.type === "avc-sign-out") {
-    void clearSignedOutCache().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
+    void clearSignedOutCache().then(() => {
+      void syncWithCloud().catch(() => {});
+      sendResponse({ ok: true });
+    }, () => sendResponse({ ok: false }));
     return true;
   }
   if (typeof msg?.type === "string" && msg.type.startsWith("avc-n5-")) {
