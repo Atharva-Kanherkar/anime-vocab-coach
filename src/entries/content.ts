@@ -1390,6 +1390,8 @@ declare global {
       unmountSigninChip();
       log("account gate: signed in, starting pipeline");
       pickAdapter();
+      requestNetflixTracks();
+      prefetchAnimeContext(currentTitle());
       if (initialized) startWatchInterval();
       // Another account, or the first sign-in: its lesson is not the old one's.
       if (courseLoad || course) void loadCourse(true);
@@ -1472,7 +1474,11 @@ declare global {
     const initial = pickAdapter();
     lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
     refreshCacheKey();
-    if (signedIn === true) void restoreTabSession();
+    if (signedIn === true) {
+      requestNetflixTracks();
+      prefetchAnimeContext(currentTitle());
+      void restoreTabSession();
+    }
   })();
 
   // Keep polling: an adapter can appear late, and after a sign-in the next
@@ -1534,6 +1540,4 @@ declare global {
   // Legacy: stop auto-opening the sidebar on every page after an old popup session pinned it.
   void storage.setAgentPinned(false);
 
-  // The player may have read its subtitle tracks before this script loaded.
-  requestNetflixTracks();
 })();
