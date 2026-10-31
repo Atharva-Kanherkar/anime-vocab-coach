@@ -15,6 +15,13 @@ On Netflix, dual subtitles no longer read whatever line the player has on screen
 - **Course, cards, Listening**: track lines feed the same pipeline as before, so course words light up without Listening. Audio transcripts are ignored while a track is driving, because the track already has the lines, exactly timed.
 - **Netflix's own subtitles** are hidden while ours show the same lines, and ours sit where they were.
 
+### Netflix as it is now (learned from asbplayer)
+
+- **Track URLs from the player.** Netflix no longer puts every language's URL in the manifest. A language listed without a URL is read from the player's state, the same way asbplayer does it: `netflix.appContext…getVideoPlayerBySessionId(…).getTimedTextTrackList()`, plus objects of type `timedtext` in the session state. If the player hasn't fetched that language yet, it is selected for a moment so it does, then the learner's own choice is restored. Japanese is shown as soon as it is there; English found later replaces the translation in place.
+- **The player's clock.** Cues are timed on content time. The page script posts `player.getCurrentTime()` next to `video.currentTime` four times a second, and the median difference corrects the clock. That difference is non-zero when the element's timeline also counts ad breaks. While the player's clock stands still and the video keeps running (an ad), no subtitle is shown.
+- **One source at a time.** While a track drives, the page's subtitle text and the audio are not used for subtitles. While the page shows its own Japanese subtitles, heard lines go only to the cards; they used to take over the same subtitle line late, which read as "not timed at all".
+- **Diagnostics.** The popup's Dual subtitles row says what is driving them ("Netflix's Japanese track · English translated · matches Netflix 41/41"). When Netflix's own Japanese line is in the page, each one is checked against the track line we showed. "Copy subtitle details" (More options) copies this for a bug report.
+
 Anywhere else, or on a title whose Japanese subtitles are images, the per-line path below still applies.
 
 ## Where each half comes from

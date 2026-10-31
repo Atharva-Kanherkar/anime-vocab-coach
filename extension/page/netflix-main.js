@@ -100,24 +100,143 @@
         return null;
       }
     }
+    const attempts = /* @__PURE__ */ new Map();
+    const latest = /* @__PURE__ */ new Map();
+    function post(movieId) {
+      const payload = latest.get(movieId);
+      if (payload) window.postMessage(payload, location.origin);
+    }
     function loadTracks(movieId) {
       const tracks = known.get(movieId);
-      if (!tracks) return Promise.resolve(null);
       let pending = loaded.get(movieId);
+      if (!pending && (attempts.get(movieId) ?? 0) >= 3) return Promise.resolve(null);
       if (!pending) {
+        attempts.set(movieId, (attempts.get(movieId) ?? 0) + 1);
         pending = (async () => {
-          const [ja, en] = await Promise.all([download(pickTrack(tracks, "ja")), download(pickTrack(tracks, "en"))]);
-          if (!ja) return null;
-          return { source: "avc", type: "avc-netflix-timedtext", movieId, ja, en };
+          const listed = (lang) => !!tracks?.some((t) => (t.language === lang || t.language.startsWith(lang + "-")) && !t.forced && !t.none);
+          let jaDl = tracks ? pickTrack(tracks, "ja") : null;
+          const enDl = tracks ? pickTrack(tracks, "en") : null;
+          const askPlayer = !tracks || !jaDl && listed("ja") || !enDl && listed("en");
+          let viaPlayer = null;
+          if (askPlayer) viaPlayer = playerTrackUrls(movieId);
+          if (!jaDl && viaPlayer) jaDl = (await viaPlayer).ja;
+          const [ja, en] = await Promise.all([download(jaDl), download(enDl)]);
+          if (!ja) {
+            loaded.delete(movieId);
+            return null;
+          }
+          const payload = { source: "avc", type: "avc-netflix-timedtext", movieId, ja, en };
+          latest.set(movieId, payload);
+          if (!en && viaPlayer) {
+            void viaPlayer.then(async (found) => {
+              const late = await download(found.en);
+              if (!late) return;
+              latest.set(movieId, { ...payload, en: late });
+              post(movieId);
+            });
+          }
+          return payload;
         })();
         loaded.set(movieId, pending);
         if (loaded.size > 6) loaded.delete(loaded.keys().next().value);
       }
       void pending.then((payload) => {
-        if (payload) window.postMessage(payload, location.origin);
+        if (payload) post(movieId);
       });
       return pending;
     }
+    function player() {
+      try {
+        const vp = netflix?.appContext?.state?.playerApp?.getAPI?.()?.videoPlayer;
+        const ids = vp?.getAllPlayerSessionIds?.() || [];
+        return ids.length ? vp.getVideoPlayerBySessionId(ids[ids.length - 1]) : null;
+      } catch {
+        return null;
+      }
+    }
+    function stateUrls() {
+      const urls = /* @__PURE__ */ new Map();
+      try {
+        const vp = netflix?.appContext?.state?.playerApp?.getAPI?.()?.videoPlayer;
+        const ids = vp?.getAllPlayerSessionIds?.() || [];
+        const root = netflix?.appContext?.state?.playerApp?.getState?.()?.videoPlayer?.cadmiumPlayerRepository?.playersById?.[ids[ids.length - 1]];
+        if (!root) return urls;
+        const seen = /* @__PURE__ */ new WeakSet();
+        const stack = [{ node: root, depth: 0 }];
+        while (stack.length) {
+          const { node, depth } = stack.pop();
+          if (!node || typeof node !== "object" || depth > 20 || seen.has(node)) continue;
+          seen.add(node);
+          if (node instanceof ArrayBuffer || ArrayBuffer.isView(node)) continue;
+          const n = node;
+          try {
+            const list = n.urls;
+            if (n.type === "timedtext" && typeof n.trackId === "string" && Array.isArray(list) && typeof list[0]?.url === "string" && !urls.has(n.trackId)) {
+              urls.set(n.trackId, list[0].url);
+            }
+          } catch {
+          }
+          for (const key of Array.isArray(node) ? node.keys() : Object.keys(n)) {
+            let value;
+            try {
+              value = n[key];
+            } catch {
+              continue;
+            }
+            if (value && typeof value === "object") stack.push({ node: value, depth: depth + 1 });
+          }
+        }
+      } catch {
+      }
+      return urls;
+    }
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    async function playerTrackUrls(movieId) {
+      const out = { ja: null, en: null };
+      let p = player();
+      for (let i = 0; i < 30 && (!p || String(p.getMovieId?.()) !== movieId || !p.getTimedTextTrackList?.()?.length); i++) {
+        await wait(500);
+        p = player();
+      }
+      if (!p || String(p.getMovieId?.()) !== movieId) return out;
+      const list = p.getTimedTextTrackList?.() || [];
+      const pick = (lang) => list.filter((t) => typeof t?.bcp47 === "string" && (t.bcp47 === lang || t.bcp47.startsWith(lang + "-")) && !t.isNoneTrack && !t.isForcedNarrative && !t.isImageBased).sort((a, b) => Number(a.rawTrackType === "CLOSEDCAPTIONS") - Number(b.rawTrackType === "CLOSEDCAPTIONS"))[0];
+      const previous = p.getTimedTextTrack?.();
+      let switched = false;
+      try {
+        for (const lang of ["ja", "en"]) {
+          const track = pick(lang);
+          if (!track) continue;
+          let url = stateUrls().get(track.trackId);
+          if (!url) {
+            await p.setTimedTextTrack(track);
+            switched = true;
+            for (let i = 0; i < 20 && !url; i++) {
+              await wait(250);
+              url = stateUrls().get(track.trackId);
+            }
+          }
+          if (url && /^https:\/\//.test(url)) out[lang] = { format: "player", url };
+        }
+      } catch {
+      } finally {
+        if (switched && previous) {
+          try {
+            await p.setTimedTextTrack(previous);
+          } catch {
+          }
+        }
+      }
+      return out;
+    }
+    setInterval(() => {
+      const p = player();
+      const video = document.querySelector("video");
+      if (!p || !video || video.paused || typeof p.getCurrentTime !== "function") return;
+      const ms = Number(p.getCurrentTime());
+      if (!Number.isFinite(ms)) return;
+      window.postMessage({ source: "avc", type: "avc-netflix-clock", movieId: String(p.getMovieId?.() ?? ""), playerSec: ms / 1e3, videoSec: video.currentTime }, location.origin);
+    }, 250);
     function inspect(value) {
       const found = findTimedTextTracks(value);
       if (!found || !found.tracks.length) return;

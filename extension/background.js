@@ -1692,7 +1692,7 @@
       sendResponse({ ok: true });
       return true;
     }
-    if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status" || msg.type === "avc-caption-status") {
+    if (msg.type === "avc-agent-pin" || msg.type === "avc-agent-show" || msg.type === "avc-agent-hide" || msg.type === "avc-agent-status" || msg.type === "avc-caption-status" || msg.type === "avc-subs-diag") {
       const tabId = msg.tabId;
       const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;
       ensureContentScript(tabId).then((ok) => {

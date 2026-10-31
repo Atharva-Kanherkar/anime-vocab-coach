@@ -5807,7 +5807,13 @@
         log("adapter chosen:", adapter.name);
         adapter.start(
           (text, context) => {
-            if (!episode) onLine(text, context);
+            lastPageLineAt = Date.now();
+            if (episode) {
+              comparePageLine(text);
+              return;
+            }
+            subsDiag.source = "page";
+            onLine(text, context);
           },
           () => {
             if (!episode) clearLensLine();
@@ -6331,6 +6337,50 @@
     let episode = null;
     let episodeId = "";
     let timelineCue = -1;
+    let netflixOffset = 0;
+    const offsetSamples = [];
+    let netflixAdBreak = false;
+    let lastClock = null;
+    let lastPageLineAt = 0;
+    const subsDiag = {
+      source: "none",
+      jaLines: 0,
+      english: "none",
+      offsetMs: 0,
+      adBreak: false,
+      /** Netflix's own on-screen line against the track line we showed. */
+      pageChecked: 0,
+      pageMatched: 0,
+      lastMismatch: ""
+    };
+    function onNetflixClock(d) {
+      if (typeof d.playerSec !== "number" || typeof d.videoSec !== "number" || d.movieId !== netflixId()) return;
+      const prev = lastClock;
+      lastClock = { playerSec: d.playerSec, videoSec: d.videoSec };
+      if (prev && d.videoSec - prev.videoSec > 0.4 && Math.abs(d.playerSec - prev.playerSec) < 0.05) {
+        netflixAdBreak = true;
+        subsDiag.adBreak = true;
+        return;
+      }
+      netflixAdBreak = false;
+      offsetSamples.push(d.playerSec - d.videoSec);
+      if (offsetSamples.length > 7) offsetSamples.shift();
+      const sorted = [...offsetSamples].sort((x, y) => x - y);
+      const median = sorted[sorted.length >> 1];
+      netflixOffset = Math.abs(median) < 0.08 ? 0 : median;
+      subsDiag.offsetMs = Math.round(netflixOffset * 1e3);
+    }
+    function comparePageLine(text) {
+      const ep = episode;
+      if (!ep || timelineCue < 0) return;
+      const flat = (s) => s.replace(/[\s　]/g, "");
+      const page = flat(text);
+      if (!page) return;
+      subsDiag.pageChecked++;
+      const near = [timelineCue - 1, timelineCue, timelineCue + 1].map((i) => ep.cues[i]?.text ?? "");
+      if (near.some((c) => flat(c) === page || c && (flat(c).includes(page) || page.includes(flat(c))))) subsDiag.pageMatched++;
+      else subsDiag.lastMismatch = `page "${text.slice(0, 30)}" vs ours "${(ep.cues[timelineCue]?.text ?? "").slice(0, 30)}"`;
+    }
     let timelineFrame = 0;
     const TIMELINE_LEAD_SEC = 0.05;
     function netflixId() {
@@ -6342,7 +6392,9 @@
       if (movieId) window.postMessage({ source: "avc-content", type: "avc-netflix-timedtext-request", movieId }, location.origin);
     }
     function useNetflixTracks(data2) {
-      if (typeof data2.movieId !== "string" || data2.movieId !== netflixId() || data2.movieId === episodeId) return;
+      if (typeof data2.movieId !== "string" || data2.movieId !== netflixId()) return;
+      const upgrade = data2.movieId === episodeId && episode?.source === "translation" && typeof data2.en?.text === "string";
+      if (data2.movieId === episodeId && !upgrade) return;
       if (typeof data2.ja?.text !== "string") return;
       const ja = parseTimedText(data2.ja.text);
       if (ja.length < 5) return;
@@ -6357,10 +6409,16 @@
       );
       episode = ep;
       const video = adapter?.getVideo();
-      ep.translateFrom(video ? cueAt(ep.cues, video.currentTime) : 0);
+      ep.translateFrom(video ? cueAt(ep.cues, video.currentTime + netflixOffset) : 0);
+      subsDiag.source = "track";
+      subsDiag.jaLines = ja.length;
+      subsDiag.english = ep.source === "track" ? "netflix" : "translated";
+      subsDiag.pageChecked = subsDiag.pageMatched = 0;
+      subsDiag.lastMismatch = "";
       timelineCue = -1;
       startTimeline();
       syncNativeSubs();
+      if (upgrade) return;
       if (!settings) {
         void getSettings().then((s) => {
           if (!settings) settings = s;
@@ -6381,7 +6439,7 @@
         const ep = episode;
         const video = adapter?.getVideo();
         if (!ep || !video) return;
-        const i = cueAt(ep.cues, video.currentTime + TIMELINE_LEAD_SEC);
+        const i = netflixAdBreak ? -1 : cueAt(ep.cues, video.currentTime + netflixOffset + TIMELINE_LEAD_SEC);
         if (i === timelineCue) return;
         if (Math.abs(i - timelineCue) > 2) ep.translateFrom(i);
         timelineCue = i;
@@ -6494,6 +6552,10 @@
         sendResponse({ ok: true, visible: isAgentActive() });
         return true;
       }
+      if (msg.type === "avc-subs-diag") {
+        sendResponse({ ok: true, diag: { ...subsDiag, translating: episode?.progress() ?? null, englishError: episode?.lastError ?? subs.lastError ?? null } });
+        return true;
+      }
       if (msg.type === "avc-caption-status") {
         const report = captionReport();
         sendResponse({ ok: true, report, detail: captionStatusDetail(report) });
@@ -6520,6 +6582,8 @@
     });
     function handleTranscript(text, start, end) {
       if (episode) return;
+      const pageLive = Date.now() - lastPageLineAt < 15e3;
+      if (!pageLive) subsDiag.source = "audio";
       const a = pickAdapter();
       if (!a) {
         warn("transcript arrived but no adapter matched this frame");
@@ -6535,7 +6599,7 @@
       const ahead = typeof start === "number" ? start - video.currentTime : 0;
       if (ahead > EARLY_LINE_TOLERANCE_SEC) {
         if (ahead > MAX_EARLY_HOLD_SEC) return;
-        if (settings && lensOn(settings)) {
+        if (settings && lensOn(settings) && Date.now() - lastPageLineAt >= 15e3) {
           for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece, a);
         }
         const sessionId = currentSessionId();
@@ -6549,7 +6613,7 @@
       log("transcript received:", rawTranscript);
       if (typeof start === "number" && !emittedCueKeys.remember(`${start}:${rawTranscript}`)) return;
       const context = { en: contextForAudio(a, start), fromAudio: true };
-      const seq = audioLineIsCurrent(video, start, end) ? showPacedLens(rawTranscript, context) : -1;
+      const seq = !pageLive && audioLineIsCurrent(video, start, end) ? showPacedLens(rawTranscript, context) : -1;
       const direction = normalizeDirection(settings?.learningDirection);
       const segments = rawTranscript.split(direction === "ja-en" ? /(?<=[.!?])\s+/ : /(?<=[。！？])/).map((s) => s.trim()).filter(Boolean);
       for (const seg of segments) onLine(seg, context, { lens: false, lensSeq: seq });
@@ -6657,6 +6721,12 @@
         refreshCacheKey();
         log("session reset for new video:", sid);
         stopTimeline();
+        offsetSamples.length = 0;
+        netflixOffset = 0;
+        netflixAdBreak = false;
+        lastClock = null;
+        lastPageLineAt = 0;
+        Object.assign(subsDiag, { source: "none", jaLines: 0, english: "none", offsetMs: 0, adBreak: false, pageChecked: 0, pageMatched: 0, lastMismatch: "" });
         requestNetflixTracks();
         prefetchAnimeContext(currentTitle());
       }
@@ -6670,6 +6740,7 @@
         requestNetflixTracks();
       }
       if (e.data.type === "avc-netflix-timedtext") useNetflixTracks(e.data);
+      if (e.data.type === "avc-netflix-clock") onNetflixClock(e.data);
     });
     refreshCacheKey();
     const initial = pickAdapter();

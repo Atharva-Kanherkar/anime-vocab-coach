@@ -481,6 +481,34 @@ async function renderCourse(): Promise<void> {
   };
 }
 
+interface SubsDiag {
+  source: "track" | "page" | "audio" | "none";
+  jaLines: number;
+  english: "netflix" | "translated" | "none";
+  offsetMs: number;
+  adBreak: boolean;
+  pageChecked: number;
+  pageMatched: number;
+  lastMismatch: string;
+  translating: { done: number; total: number } | null;
+  englishError: string | null;
+}
+let lastSubsDiag: SubsDiag | null = null;
+
+/** Where the subtitles on this tab come from, in a line. */
+function subsSourceText(d: SubsDiag): string {
+  if (d.source === "track") {
+    const english = d.english === "netflix" ? "Netflix's English" : d.translating && d.translating.done < d.translating.total
+      ? `English translating ${d.translating.done}/${d.translating.total}`
+      : "English translated";
+    const sync = d.pageChecked ? ` · matches Netflix ${d.pageMatched}/${d.pageChecked}` : "";
+    return `Netflix's Japanese track · ${english}${d.offsetMs ? ` · ad-adjusted ${(d.offsetMs / 1000).toFixed(1)}s` : ""}${sync}`;
+  }
+  if (d.source === "page") return "Reading the subtitles on screen";
+  if (d.source === "audio") return "From the audio (Listening)";
+  return "Waiting for subtitles";
+}
+
 async function initModeControls(): Promise<void> {
   const copilotBtn = byId<HTMLButtonElement>("copilot-btn");
   const listeningBtn = byId<HTMLButtonElement>("listening-btn");
@@ -520,10 +548,14 @@ async function initModeControls(): Promise<void> {
     const lensConfigured = settings.subLens !== false;
     const lensSupported = settings.learningDirection === "en-ja";
     const lensLive = lensConfigured && lensSupported;
+    const diag = lensLive
+      ? (await runtimeMessage<{ ok?: boolean; diag?: SubsDiag }>({ type: "avc-subs-diag", tabId }))?.diag ?? null
+      : null;
+    lastSubsDiag = diag;
     setModeRow(
       "mode-lens",
       lensLive ? "On" : "Off",
-      !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Romaji + English, hover any word" : "Off — no subtitles of ours on screen",
+      !lensSupported ? "Available while learning Japanese" : lensConfigured ? (diag ? subsSourceText(diag) : "Romaji + English, hover any word") : "Off — no subtitles of ours on screen",
       lensLive ? "on" : lensConfigured ? "warn" : "off"
     );
     lensToggle.setAttribute("aria-checked", String(lensLive));
@@ -659,6 +691,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Lens) and whose saves the extension never pulled back down — its next
     // sync pushed the old values over them.
     chrome.runtime.openOptionsPage();
+  });
+
+  byId("subs-diag-copy").addEventListener("click", (e) => {
+    e.preventDefault();
+    const text = JSON.stringify({ v: chrome.runtime.getManifest().version, at: new Date().toISOString(), subs: lastSubsDiag });
+    void navigator.clipboard.writeText(text).then(() => { byId("subs-diag-copy").textContent = "Copied"; });
   });
 
   byId("export-link").addEventListener("click", async (e) => {

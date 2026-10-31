@@ -129,34 +129,22 @@ try {
   assert.equal(asked.length, before);
   check("a rewound line shows its English instantly, without asking again");
 
-  // Listening: a cached transcript arrives seconds early; its English is fetched then.
-  const t = await page.evaluate(() => document.querySelector("video").currentTime);
-  const tabId = await sw.evaluate(async () => (await chrome.tabs.query({ url: "https://www.netflix.com/*" }))[0].id);
-  await sw.evaluate(({ tabId, start }) => chrome.tabs.sendMessage(tabId, { type: "avc-transcript", text: "明日も会えるかな。", start, end: start + 2 }), { tabId, start: t + 2.5 });
-  await page.waitForTimeout(600);
-  assert.ok(asked.some((a) => a.line === "明日も会えるかな。"), "translated ahead of its moment");
-  const heard = await waitFor(page, (v) => v.jp.startsWith("Ashita"), 6000);
-  assert.equal(heard.en, "Will I see you tomorrow too?", "English is there the moment the line is");
-  check("a line heard ahead of its moment has its English ready when it is shown");
+  // Listening while the page has Japanese subtitles: the heard line does not
+  // replace the one on screen (it arrives late and would fight it).
+  const tabId = await sw.evaluate(async () => (await chrome.tabs.query({ url: "https://www.netflix.com/watch/80041089" }))[0].id);
+  const onScreen = (await lens(page)).jp;
+  const t0 = await page.evaluate(() => document.querySelector("video").currentTime);
+  await sw.evaluate(({ tabId, start }) => chrome.tabs.sendMessage(tabId, { type: "avc-transcript", text: "明日も会えるかな。", start, end: start + 2 }), { tabId, start: t0 });
+  await page.waitForTimeout(1500);
+  assert.equal((await lens(page)).jp, onScreen, "the heard line did not replace the page's");
+  assert.ok(!asked.some((a) => a.line === "明日も会えるかな。"), "nothing spent on a line that is not shown");
+  check("with the page's own Japanese subtitles on, heard lines never fight them");
 
   // Two sentences in one subtitle: both start with a capital on screen.
   await page.evaluate(() => window.avcCaption("はじめまして。わたしは学生です。"));
   const two = await waitFor(page, (v) => v.en === "Nice to meet you. I'm a student.");
   assert.equal(two.jp, "Hajimemashite. Watashi wa gakusei desu.");
   check("every sentence in a subtitle starts with a capital on screen");
-
-  // English already on the page: a line heard early is not translated ahead.
-  await page.evaluate(() => window.avcCaption("See you tomorrow."));
-  await page.waitForTimeout(300);
-  const t2 = await page.evaluate(() => document.querySelector("video").currentTime);
-  await sw.evaluate(({ tabId, start }) => chrome.tabs.sendMessage(tabId, { type: "avc-transcript", text: "また明日会おう。", start, end: start + 2 }), { tabId, start: t2 + 2 });
-  await page.waitForTimeout(800);
-  assert.ok(!asked.some((a) => a.line === "また明日会おう。"), "no translation spent while the page shows English");
-  const native = await waitFor(page, (v) => v.jp.startsWith("Mata"), 6000);
-  assert.equal(native.en, "See you tomorrow.", "the page's own English is used");
-  assert.ok(!asked.some((a) => a.line === "また明日会おう。"));
-  await page.evaluate(() => window.avcCaption(""));
-  check("with English on the page, nothing is translated ahead and the page's English is shown");
 
   // Furigana above a word is not part of the line.
   await page.evaluate(() => window.avcCaptionHtml("<ruby>宮園<rt>みやぞの</rt></ruby>さん、こんにちは。"));
@@ -181,6 +169,42 @@ try {
   await waitFor(page, (v) => v.jp.startsWith("はじめまして") && !v.pending, 6000);
   await page.locator("#avc-overlay-host").getByText("English subtitles are paused").waitFor();
   check("a used-up limit keeps the Japanese line and says why the English stopped");
+  // Listening on a video with no Japanese subtitles on the page: heard lines
+  // are the subtitles. (A fresh tab: the page above had Japanese subtitles.)
+  quotaExhausted = false;
+  await page.close();
+  const listenPage = await ctx.newPage();
+  await listenPage.goto("https://www.netflix.com/watch/80041090");
+  await listenPage.waitForFunction(() => !document.querySelector("video").paused, null, { timeout: 15000 });
+  await listenPage.waitForTimeout(5000);
+  {
+    const page = listenPage;
+    const tabId = await sw.evaluate(async () => (await chrome.tabs.query({ url: "https://www.netflix.com/watch/80041090" }))[0].id);
+    await sw.evaluate(async () => { const { settings } = await chrome.storage.local.get("settings"); await chrome.storage.local.set({ settings: { ...settings, displayScript: "romaji" } }); });
+  // Listening: a cached transcript arrives seconds early; its English is fetched then.
+    const t = await page.evaluate(() => document.querySelector("video").currentTime);
+    await sw.evaluate(({ tabId, start }) => chrome.tabs.sendMessage(tabId, { type: "avc-transcript", text: "明日も会えるかな。", start, end: start + 2 }), { tabId, start: t + 2.5 });
+    await page.waitForTimeout(600);
+    assert.ok(asked.some((a) => a.line === "明日も会えるかな。"), "translated ahead of its moment");
+    const heard = await waitFor(page, (v) => v.jp.startsWith("Ashita"), 6000);
+    assert.equal(heard.en, "Will I see you tomorrow too?", "English is there the moment the line is");
+    check("a line heard ahead of its moment has its English ready when it is shown");
+
+  // English already on the page: a line heard early is not translated ahead.
+    await page.evaluate(() => window.avcCaption("See you tomorrow."));
+    await page.waitForTimeout(300);
+    const t2 = await page.evaluate(() => document.querySelector("video").currentTime);
+    await sw.evaluate(({ tabId, start }) => chrome.tabs.sendMessage(tabId, { type: "avc-transcript", text: "また明日会おう。", start, end: start + 2 }), { tabId, start: t2 + 2 });
+    await page.waitForTimeout(800);
+    assert.ok(!asked.some((a) => a.line === "また明日会おう。"), "no translation spent while the page shows English");
+    const native = await waitFor(page, (v) => v.jp.startsWith("Mata"), 6000);
+    assert.equal(native.en, "See you tomorrow.", "the page's own English is used");
+    assert.ok(!asked.some((a) => a.line === "また明日会おう。"));
+    await page.evaluate(() => window.avcCaption(""));
+    check("with English on the page, nothing is translated ahead and the page's English is shown");
+
+  }
+
 } finally {
   await ctx.close(); await new Promise((r) => server.close(r)); await rm(temp, { recursive: true, force: true });
 }

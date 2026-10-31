@@ -613,7 +613,8 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     msg.type === "avc-agent-show" ||
     msg.type === "avc-agent-hide" ||
     msg.type === "avc-agent-status" ||
-    msg.type === "avc-caption-status"
+    msg.type === "avc-caption-status" ||
+    msg.type === "avc-subs-diag"
   ) {
     const tabId = msg.tabId!;
     const outType = msg.type === "avc-agent-pin" ? "avc-agent-show" : msg.type;

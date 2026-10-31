@@ -981,6 +981,17 @@
       chrome.tabs.create({ url: lessonUrl(lesson, "watch") });
     };
   }
+  var lastSubsDiag = null;
+  function subsSourceText(d) {
+    if (d.source === "track") {
+      const english = d.english === "netflix" ? "Netflix's English" : d.translating && d.translating.done < d.translating.total ? `English translating ${d.translating.done}/${d.translating.total}` : "English translated";
+      const sync = d.pageChecked ? ` \xB7 matches Netflix ${d.pageMatched}/${d.pageChecked}` : "";
+      return `Netflix's Japanese track \xB7 ${english}${d.offsetMs ? ` \xB7 ad-adjusted ${(d.offsetMs / 1e3).toFixed(1)}s` : ""}${sync}`;
+    }
+    if (d.source === "page") return "Reading the subtitles on screen";
+    if (d.source === "audio") return "From the audio (Listening)";
+    return "Waiting for subtitles";
+  }
   async function initModeControls() {
     const copilotBtn = byId("copilot-btn");
     const listeningBtn = byId("listening-btn");
@@ -1017,10 +1028,12 @@
       const lensConfigured = settings.subLens !== false;
       const lensSupported = settings.learningDirection === "en-ja";
       const lensLive = lensConfigured && lensSupported;
+      const diag = lensLive ? (await runtimeMessage({ type: "avc-subs-diag", tabId }))?.diag ?? null : null;
+      lastSubsDiag = diag;
       setModeRow(
         "mode-lens",
         lensLive ? "On" : "Off",
-        !lensSupported ? "Available while learning Japanese" : lensConfigured ? "Romaji + English, hover any word" : "Off \u2014 no subtitles of ours on screen",
+        !lensSupported ? "Available while learning Japanese" : lensConfigured ? diag ? subsSourceText(diag) : "Romaji + English, hover any word" : "Off \u2014 no subtitles of ours on screen",
         lensLive ? "on" : lensConfigured ? "warn" : "off"
       );
       lensToggle.setAttribute("aria-checked", String(lensLive));
@@ -1123,6 +1136,13 @@
     byId("settings-link").addEventListener("click", async (e) => {
       e.preventDefault();
       chrome.runtime.openOptionsPage();
+    });
+    byId("subs-diag-copy").addEventListener("click", (e) => {
+      e.preventDefault();
+      const text = JSON.stringify({ v: chrome.runtime.getManifest().version, at: (/* @__PURE__ */ new Date()).toISOString(), subs: lastSubsDiag });
+      void navigator.clipboard.writeText(text).then(() => {
+        byId("subs-diag-copy").textContent = "Copied";
+      });
     });
     byId("export-link").addEventListener("click", async (e) => {
       e.preventDefault();
