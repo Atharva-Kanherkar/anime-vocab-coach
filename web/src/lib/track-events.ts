@@ -6,6 +6,7 @@
 // visitor write arbitrary strings into the owner's telemetry.
 
 import { PRO_FUNNEL_EVENTS } from "./pro-funnel";
+import { SIGNIN_FUNNEL_EVENTS } from "./signin-funnel";
 
 /**
  * The learning loop itself: what a learner does inside the product.
@@ -28,6 +29,7 @@ export const LEARNING_LOOP_EVENTS = [
   "card_unlocked",
   "install_first_run",
   "extension_linked",
+  ...SIGNIN_FUNNEL_EVENTS,
 ] as const;
 
 export type LearningLoopEvent = (typeof LEARNING_LOOP_EVENTS)[number];

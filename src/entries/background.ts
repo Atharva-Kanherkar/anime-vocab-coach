@@ -13,11 +13,15 @@ import { stampOnboarding } from "../lib/onboarding-store";
 import {
   TRACK_FEATURE_MESSAGE,
   TRACK_PRO_MESSAGE,
+  TRACK_SIGNIN_MESSAGE,
   isFeatureEvent,
   isProFunnelEvent,
   isProSurface,
+  isSigninEvent,
+  isSigninSurface,
   sendFeatureBeacon,
   sendProBeacon,
+  sendSigninBeacon,
   trackFeature,
 } from "../lib/feature-events";
 import {
@@ -432,6 +436,15 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   if (msg.type === TRACK_PRO_MESSAGE) {
     if (isProFunnelEvent(msg.event) && isProSurface(msg.surface)) {
       void sendProBeacon(msg.event, msg.surface);
+    }
+    return;
+  }
+
+  // The sign-in gate (#206): chip, popup, and /start all need the worker to
+  // send the beacon, for the same CORS reason.
+  if (msg.type === TRACK_SIGNIN_MESSAGE) {
+    if (isSigninEvent(msg.event) && isSigninSurface(msg.surface)) {
+      void sendSigninBeacon(msg.event, msg.surface);
     }
     return;
   }

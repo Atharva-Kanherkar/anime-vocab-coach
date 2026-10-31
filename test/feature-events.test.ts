@@ -102,6 +102,10 @@ describe("feature event allowlist", () => {
         "install_first_run",
         "listening_started",
         "review_done",
+        "signin_completed",
+        "signin_gate_dismissed",
+        "signin_gate_shown",
+        "signin_started",
         "word_saved",
       ].sort()
     );
