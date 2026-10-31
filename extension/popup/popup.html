@@ -6,7 +6,7 @@
   <title>AnimeVocab</title>
   <link rel="stylesheet" href="popup.css">
 </head>
-<body class="av">
+<body class="av av-gated">
   <div class="shell">
     <header class="av-header">
       <div class="av-brand">
@@ -22,6 +22,8 @@
         </button>
       </div>
     </header>
+
+    <section class="av-signin-gate" id="signin-gate" aria-live="polite" hidden></section>
 
     <section class="av-account" id="account" aria-live="polite"></section>
 
