@@ -1,6 +1,7 @@
 // Real extension, fresh Chromium profile, fake hosts. No production API writes.
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { normalizeAnimeVocabExport } from '../web/src/lib/sync.ts';
 import { mkdirSync } from 'node:fs';
 const shots = 'e2e/shots';
 mkdirSync(shots, { recursive: true });
@@ -28,11 +29,16 @@ try {
   await sw.evaluate(() => {
     globalThis.requests = [];
     globalThis.allowMint = false;
+    globalThis.failSnapshots = false;
+    globalThis.cloudEnvelope = null;
     globalThis.fetch = async (url, init = {}) => {
       const path = String(url);
       globalThis.requests.push({ url: path, method: init.method || 'GET', body: init.body });
       if (path.endsWith('/api/sync/token')) return new Response(JSON.stringify(globalThis.allowMint ? { token: 'silent-token', profile: { name: 'Learner', plan: 'free' } } : {}), { status: globalThis.allowMint ? 200 : 401 });
-      if (path.includes('/api/sync/snapshot')) return new Response(JSON.stringify(init.method === 'PUT' ? { ok: true } : { envelope: null }));
+      if (path.includes('/api/sync/snapshot')) {
+        if (globalThis.failSnapshots) return new Response('{}', { status: 503 });
+        return new Response(JSON.stringify(init.method === 'PUT' ? { ok: true } : { envelope: globalThis.cloudEnvelope }));
+      }
       if (path.includes('/api/track') || path.includes('/track')) return new Response(null, { status: 204 });
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     };
@@ -41,6 +47,16 @@ try {
   const requests = () => sw.evaluate(() => globalThis.requests);
   const featureRequests = async () => (await requests()).filter(r => /\/api\/(anime|ai|transcript|me|n5|tts)/.test(r.url));
   const events = async name => (await requests()).filter(r => r.url.includes('/api/track') && r.body).map(r => JSON.parse(r.body)).filter(r => r.name === name);
+  const install = ctx.pages().find(p => p.url().includes('/start?from=install'));
+  await install.goto('https://animevocab.com/start?from=install');
+  await install.evaluate(() => window.postMessage({ source: 'avc-web', type: 'avc-sync-token', token: 'install-token' }, location.origin));
+  await until(async () => (await events('signin_completed')).length === 1);
+  await until(async () => !(await sw.evaluate(() => chrome.storage.session.get('signinSurface'))).signinSurface);
+  check('install sign-in keeps /start open for the next step', !install.isClosed());
+  await sw.evaluate(() => chrome.storage.local.set({ syncToken: '' }));
+  await until(async () => !(await local()).syncToken);
+  await new Promise(r => setTimeout(r, 100));
+  await sw.evaluate(() => { globalThis.requests = []; });
   await sw.evaluate(() => chrome.storage.session.clear());
   const page = await ctx.newPage();
   const logs = [];
@@ -80,7 +96,7 @@ try {
   check('signed-out session opens /start', flow.opened === true && flow.linked === false);
   const session = await sw.evaluate(() => chrome.storage.session.get(null));
   check('return tab and start tab are recorded', session.signinReturnTab === videoTab && typeof session.signinStartTab === 'number');
-  const deck = { '明日': { word: '明日', reading: 'あした', meaning: 'tomorrow', due: 1795000000000, interval: 12, ease: 2.5, reps: 4 } };
+  const deck = { '明日': { state: 'learning', reading: 'あした', gloss: 'tomorrow', level: 5, freqRank: 100, seenCount: 9, shownCount: 2, firstSeenAt: 1700000000000, lastSeenAt: 1700000000001, srs: { stage: 3, dueAt: 1800000000000, lapses: 1 } } };
   await sw.evaluate(vocab => chrome.storage.local.set({ vocab }), deck);
   // Complete through the real sync bridge, just like the signed-in web page.
   await until(async () => ctx.pages().some(p => p.url().includes('/start?from=content_chip')));
@@ -106,6 +122,12 @@ try {
   await sw.evaluate(() => chrome.storage.local.set({ syncToken: 'test-token' }));
   await page.waitForTimeout(300);
   check('same token does not duplicate completion', (await events('signin_completed')).length === 1);
+  const unsynced = { ...deck, '犬': { ...deck['明日'], reading: 'いぬ', gloss: 'dog' } };
+  const remoteSnapshot = normalizeAnimeVocabExport({ vocab: unsynced, settings: { pauseMode: 'off' }, stats: { daily: {}, cardTimestamps: [] } });
+  await sw.evaluate(async vocab => {
+    globalThis.failSnapshots = true;
+    await chrome.storage.local.set({ vocab, settings: { openaiKey: 'fixture-device-key' } });
+  }, unsynced);
   // Sign-out runs the actual web bridge and clears the account cache.
   await sw.evaluate(id => chrome.storage.session.set({ listeningTabs: { [id]: true } }), videoTab);
   const web = await ctx.newPage();
@@ -114,6 +136,9 @@ try {
   await until(async () => !(await local()).syncToken && Object.keys((await local()).vocab || {}).length === 0);
   await page.locator('[data-avc-signin-chip] .chip').waitFor();
   check('sign-out clears cache and restores chip', Object.keys((await local()).vocab || {}).length === 0 && !(await local()).signinChipDismissed);
+  const outgoing = (await local()).pendingSignoutExports;
+  check('offline sign-out durably retains the last unsynced word', outgoing.some(p => p.token === 'test-token' && p.export.vocab['犬']));
+  check('BYO key survives sign-out and is absent from the pending upload', (await local()).settings.openaiKey === 'fixture-device-key' && !JSON.stringify(outgoing).includes('fixture-device-key'));
   const listenState = await sw.evaluate(() => chrome.storage.session.get('listeningTabs'));
   check('sign-out stops Listening', !listenState.listeningTabs?.[videoTab]);
   const before = (await featureRequests()).length;
@@ -125,5 +150,28 @@ try {
   const pagesBefore = ctx.pages().length;
   const silent = await popup.evaluate(tabId => chrome.runtime.sendMessage({ type: 'avc-open-signin', from: 'popup', tabId }), videoTab);
   check('existing website session silently links', silent.linked === true && silent.opened === false && ctx.pages().length === pagesBefore);
+  await until(async () => (await local()).syncStatus?.state === 'error');
+  check('restore failure retains the new token and a retryable error', (await local()).syncToken === 'silent-token' && !!(await local()).accountCacheClearedAt);
+  await popup.getByRole('button', { name: 'Retry cloud sync' }).waitFor();
+  await sw.evaluate(snapshot => {
+    globalThis.failSnapshots = false;
+    globalThis.cloudEnvelope = { revision: 2, snapshot, webReviewSeq: 0 };
+  }, remoteSnapshot);
+  await popup.evaluate(() => chrome.runtime.sendMessage({ type: 'avc-sync-now' }));
+  await until(async () => (await local()).accountCacheClearedAt === null);
+  check('retry restores cloud words and preserves the device key', !!(await local()).vocab['犬'] && (await local()).settings.openaiKey === 'fixture-device-key');
+  check('pending outgoing data clears only after successful upload', (await local()).pendingSignoutExports.length === 0);
+  await sw.evaluate(() => chrome.storage.local.set({ syncToken: '' }));
+  await ctx.route('https://www.netflix.com/**', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><title>Mid-episode sign-in - Netflix</title><video width="640" height="360"></video><script>
+    window.trackRequests = 0;
+    addEventListener('message', e => { if (e.data?.source === 'avc-content' && e.data.type === 'avc-netflix-timedtext-request') window.trackRequests++; });
+  </script>` }));
+  const netflix = await ctx.newPage();
+  await netflix.goto('https://www.netflix.com/watch/123');
+  await netflix.locator('[data-avc-signin-chip] .chip').waitFor();
+  check('signed-out Netflix never requests tracks', await netflix.evaluate(() => window.trackRequests) === 0);
+  await sw.evaluate(() => chrome.storage.local.set({ syncToken: 'silent-token' }));
+  await netflix.waitForFunction(() => window.trackRequests > 0);
+  check('signing in mid-episode requests Netflix tracks without reload', true);
   console.log(`${checks}/${checks} checks passed`);
 } finally { await ctx.close(); }

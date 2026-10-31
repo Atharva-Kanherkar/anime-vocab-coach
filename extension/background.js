@@ -219,6 +219,69 @@
       exportedAt: snapshot.sourceExportedAt ?? snapshot.importedAt
     };
   }
+  var MAX_MERGED_CARD_TIMESTAMPS = 1e4;
+  function earliestIso(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    return isoToTime(a) <= isoToTime(b) ? a : b;
+  }
+  function mergeWordRecords(server, incoming) {
+    const winner = isoToTime(incoming.lastSeenAt) > isoToTime(server.lastSeenAt) ? incoming : server;
+    return {
+      ...winner,
+      firstSeenAt: earliestIso(server.firstSeenAt, incoming.firstSeenAt),
+      seenCount: Math.max(server.seenCount, incoming.seenCount),
+      shownCount: Math.max(server.shownCount, incoming.shownCount)
+    };
+  }
+  function mergeWords(server, incoming) {
+    const byBase = /* @__PURE__ */ new Map();
+    for (const w of server) byBase.set(w.base, w);
+    for (const w of incoming) {
+      const existing = byBase.get(w.base);
+      byBase.set(w.base, existing ? mergeWordRecords(existing, w) : w);
+    }
+    return [...byBase.values()].sort((a, b) => a.base.localeCompare(b.base));
+  }
+  function mergeDaily(server, incoming) {
+    const byDay = /* @__PURE__ */ new Map();
+    for (const d of server) byDay.set(d.day, d);
+    for (const d of incoming) {
+      const e = byDay.get(d.day);
+      byDay.set(
+        d.day,
+        e ? {
+          day: d.day,
+          met: Math.max(e.met, d.met),
+          judged: Math.max(e.judged, d.judged),
+          reviews: Math.max(e.reviews, d.reviews),
+          watchMin: Math.max(e.watchMin, d.watchMin)
+        } : d
+      );
+    }
+    return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+  }
+  function mergeCardTimestamps(server, incoming) {
+    const set = /* @__PURE__ */ new Set();
+    for (const t of server) set.add(t);
+    for (const t of incoming) set.add(t);
+    const all = [...set].sort((a, b) => a - b);
+    return all.length > MAX_MERGED_CARD_TIMESTAMPS ? all.slice(all.length - MAX_MERGED_CARD_TIMESTAMPS) : all;
+  }
+  function mergeCloudSnapshots(server, incoming) {
+    return {
+      schemaVersion: 1,
+      source: "animevocab-extension",
+      importedAt: incoming.importedAt,
+      sourceExportedAt: incoming.sourceExportedAt ?? server.sourceExportedAt,
+      // Per-key union; the pushing device's values win (settings are push-owned).
+      // Strip secrets defensively in case a legacy stored snapshot still holds one.
+      settings: stripSecretSettings({ ...server.settings, ...incoming.settings }),
+      words: mergeWords(server.words, incoming.words),
+      daily: mergeDaily(server.daily, incoming.daily),
+      cardTimestamps: mergeCardTimestamps(server.cardTimestamps, incoming.cardTimestamps)
+    };
+  }
 
   // src/lib/account-cache.ts
   var ACCOUNT_CACHE_CLEARED = "accountCacheClearedAt";
@@ -228,7 +291,8 @@
     const clearedAt = before[ACCOUNT_CACHE_CLEARED];
     if (!clearedAt) return {};
     const res = await fetch(WEB_URL + "/api/sync/snapshot", {
-      headers: { Authorization: "Bearer " + token }
+      headers: { Authorization: "Bearer " + token },
+      signal: AbortSignal.timeout(1e4)
     });
     if (!res.ok) throw new Error("Could not restore your words. Please try signing in again.");
     const data = await res.json();
@@ -606,23 +670,12 @@
       if (expectedToken !== void 0 && r.syncToken !== expectedToken) return { applied: 0, seq: 0 };
       const stored = Number(r.webReviewSeq);
       let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
-      const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
-      if (!fresh.length) return { applied: 0, seq };
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
-      let applied = 0;
-      for (const op of fresh) {
-        seq = op.seq;
-        const rec = vocab[op.base];
-        if (!rec || rec.state !== "learning" || !rec.srs) continue;
-        const parsed = Date.parse(op.at);
-        const at = Number.isFinite(parsed) ? parsed : Date.now();
-        applyReviewResult(rec, op.result === "pass", at);
-        const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
-        daily.reviews += 1;
-        daily.judged += 1;
-        applied++;
-      }
+      const result = replayWebReviews(vocab, stats, seq, ops);
+      if (result.seq === seq) return result;
+      seq = result.seq;
+      const { applied } = result;
       await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
       if (applied) sendBadge(stats);
       return { applied, seq };
@@ -639,6 +692,23 @@
         });
       });
     });
+  }
+  function replayWebReviews(vocab, stats, seq, ops) {
+    const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
+    let applied = 0;
+    for (const op of fresh) {
+      seq = op.seq;
+      const rec = vocab[op.base];
+      if (!rec || rec.state !== "learning" || !rec.srs) continue;
+      const parsed = Date.parse(op.at);
+      const at = Number.isFinite(parsed) ? parsed : Date.now();
+      applyReviewResult(rec, op.result === "pass", at);
+      const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
+      daily.reviews++;
+      daily.judged++;
+      applied++;
+    }
+    return { applied, seq };
   }
   function getSyncToken() {
     return new Promise((resolve) => {
@@ -659,7 +729,6 @@
     return enqueue2(async () => {
       if (token) {
         await chrome.storage.local.set({
-          ...await restoredAccountCache(token),
           syncToken: token,
           relinkNeeded: false,
           syncAuthFailures: 0
@@ -671,7 +740,20 @@
   }
   function clearSignedOutCache() {
     return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["syncToken", "settings", "vocab", "stats", "webReviewSeq", "pendingSignoutExports"]);
+      const settings = r.settings || {};
+      const pending = r.pendingSignoutExports || [];
+      if (typeof r.syncToken === "string" && r.syncToken) {
+        const { openaiKey: _key, ...cloudSettings } = settings;
+        pending.push({ id: crypto.randomUUID(), token: r.syncToken, appliedWebReviewSeq: Number(r.webReviewSeq) || 0, export: {
+          settings: cloudSettings,
+          vocab: r.vocab || {},
+          stats: r.stats || emptyStats(),
+          exportedAt: (/* @__PURE__ */ new Date()).toISOString()
+        } });
+      }
       await chrome.storage.local.set({
+        pendingSignoutExports: pending,
         syncToken: "",
         syncProfile: null,
         relinkNeeded: false,
@@ -681,8 +763,32 @@
         [ACCOUNT_CACHE_CLEARED]: Date.now(),
         vocab: {},
         stats: emptyStats(),
-        settings: {},
+        settings: { openaiKey: settings.openaiKey || "" },
         webReviewSeq: 0
+      });
+    });
+  }
+  function acknowledgeSignoutExport(sent) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get("pendingSignoutExports");
+      const pending = r.pendingSignoutExports || [];
+      await chrome.storage.local.set({ pendingSignoutExports: pending.filter((p) => p.id !== sent.id) });
+    });
+  }
+  function applyRestoredAccountCache(token, clearedAt, patch) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["syncToken", ACCOUNT_CACHE_CLEARED, "settings", "vocab", "stats"]);
+      if (r.syncToken !== token || r[ACCOUNT_CACHE_CLEARED] !== clearedAt) return;
+      const merged = cloudSnapshotToAnimeVocabExport(mergeCloudSnapshots(
+        normalizeAnimeVocabExport(patch),
+        normalizeAnimeVocabExport(r)
+      ));
+      const settings = r.settings || {};
+      await chrome.storage.local.set({
+        ...patch,
+        vocab: merged.vocab,
+        stats: merged.stats,
+        settings: { ...merged.settings, openaiKey: settings.openaiKey || "" }
       });
     });
   }
@@ -873,6 +979,7 @@
     }
   }
   async function pushSnapshotOnce() {
+    await syncPendingSignouts();
     const token = await getSyncToken();
     if (!token) return;
     const startedAt = Date.now();
@@ -880,6 +987,12 @@
     const lastSuccessAt = previousStatus.lastSuccessAt;
     await setSyncStatus({ state: "syncing", lastAttemptAt: startedAt, lastSuccessAt, error: null });
     try {
+      const cache = await chrome.storage.local.get(ACCOUNT_CACHE_CLEARED);
+      if (cache[ACCOUNT_CACHE_CLEARED]) {
+        const patch = await restoredAccountCache(token);
+        await applyRestoredAccountCache(token, cache[ACCOUNT_CACHE_CLEARED], patch);
+        if (await getSyncToken() !== token) return;
+      }
       let conflictRevision = null;
       for (let attempt = 0; attempt < 2; attempt++) {
         const expectedRevision = await pullRevision(token) ?? conflictRevision;
@@ -934,6 +1047,7 @@
         error: "Cloud changed during sync. Retry to save the newest local snapshot."
       });
     } catch (err) {
+      if (await getSyncToken() !== token) return;
       warn("cloud sync error:", err);
       await setSyncStatus({
         state: "error",
@@ -941,6 +1055,36 @@
         lastSuccessAt,
         error: err instanceof Error ? err.message : "Network error while syncing."
       });
+    }
+  }
+  async function syncPendingSignouts() {
+    const r = await chrome.storage.local.get("pendingSignoutExports");
+    for (const pending of r.pendingSignoutExports || []) {
+      try {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const headers = { Authorization: "Bearer " + pending.token, "Content-Type": "application/json" };
+          const current = await fetch(SNAPSHOT_URL, { headers, signal: AbortSignal.timeout(1e4) });
+          if (!current.ok) break;
+          const data = await current.json();
+          const outgoing = structuredClone(pending.export);
+          const { seq } = replayWebReviews(
+            outgoing.vocab,
+            outgoing.stats,
+            pending.appliedWebReviewSeq,
+            data.envelope?.webReviews || []
+          );
+          const response = await fetch(SNAPSHOT_URL, {
+            method: "PUT",
+            headers,
+            signal: AbortSignal.timeout(1e4),
+            body: JSON.stringify({ export: outgoing, expectedRevision: data.envelope?.revision ?? null, appliedWebReviewSeq: seq })
+          });
+          if (response.status === 409) continue;
+          if (response.ok) await acknowledgeSignoutExport(pending);
+          break;
+        }
+      } catch {
+      }
     }
   }
 
@@ -1706,10 +1850,9 @@
       void stampOnboarding("installedAt");
       void trackFeature("install_first_run");
       void (async () => {
-        const [active] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        await chrome.storage.session.remove([SIGNIN_RETURN_TAB_KEY, SIGNIN_START_TAB_KEY]);
         await chrome.storage.session.set({
-          [SIGNIN_SURFACE_KEY]: "install",
-          ...active?.id != null ? { [SIGNIN_RETURN_TAB_KEY]: active.id } : {}
+          [SIGNIN_SURFACE_KEY]: "install"
         });
         const tab = await chrome.tabs.create({ url: WEB_URL + signinStartPath("install") });
         if (tab.id != null) await chrome.storage.session.set({ [SIGNIN_START_TAB_KEY]: tab.id });
@@ -1783,7 +1926,7 @@
       } catch {
       }
     }
-    if (startTabId != null && startTabId !== returnTabId) {
+    if (surface !== "install" && startTabId != null && startTabId !== returnTabId) {
       try {
         await chrome.tabs.remove(startTabId);
       } catch {
@@ -2021,7 +2164,11 @@
   });
   function handleRuntimeMessage(msg, sender, sendResponse) {
     if (msg.type === "avc-sign-out") {
-      void clearSignedOutCache().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
+      void clearSignedOutCache().then(() => {
+        void syncWithCloud().catch(() => {
+        });
+        sendResponse({ ok: true });
+      }, () => sendResponse({ ok: false }));
       return true;
     }
     if (typeof msg?.type === "string" && msg.type.startsWith("avc-n5-")) {

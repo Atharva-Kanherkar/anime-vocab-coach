@@ -6996,6 +6996,8 @@
         unmountSigninChip();
         log("account gate: signed in, starting pipeline");
         pickAdapter();
+        requestNetflixTracks();
+        prefetchAnimeContext(currentTitle());
         if (initialized) startWatchInterval();
         if (courseLoad || course2) void loadCourse(true);
       } else {
@@ -7051,7 +7053,11 @@
       const initial = pickAdapter();
       lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
       refreshCacheKey();
-      if (signedIn === true) void restoreTabSession();
+      if (signedIn === true) {
+        requestNetflixTracks();
+        prefetchAnimeContext(currentTitle());
+        void restoreTabSession();
+      }
     })();
     const pickTimer = setInterval(() => {
       if (pickAdapter()) clearInterval(pickTimer);
@@ -7102,6 +7108,5 @@
       if (e.data.type === "avc-netflix-clock") onNetflixClock(e.data);
     });
     void setAgentPinned(false);
-    requestNetflixTracks();
   })();
 })();
