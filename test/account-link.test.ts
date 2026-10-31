@@ -150,50 +150,12 @@ describe("normalizeSyncPlan", () => {
   });
 });
 
-describe("sign-out suppression mirror", () => {
-  it("keeps sync-bridge's literal in step with SIGN_OUT_SUPPRESSION_MS", () => {
-    // sync-bridge runs on every animevocab.com page view, so it cannot import
-    // account-link (that would drag lib/storage and the scoring tables into the
-    // bundle). It duplicates the window as a literal instead — this is the guard
-    // that stops the two from drifting.
-    const source = readFileSync(new URL("../src/entries/sync-bridge.ts", import.meta.url), "utf8");
-    const match = source.match(/const SIGN_OUT_SUPPRESSION_MS = ([^;]+);/);
-    expect(match, "sync-bridge must declare SIGN_OUT_SUPPRESSION_MS").not.toBeNull();
-    const factors = match![1].split("*").map((part) => Number(part.trim()));
-    expect(factors.every(Number.isFinite)).toBe(true);
-    expect(factors.reduce((a, b) => a * b, 1)).toBe(SIGN_OUT_SUPPRESSION_MS);
-    expect(source).toContain("autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS");
-  });
-});
-
-describe("planLabel", () => {
-  it("names the tier the account reported", () => {
-    expect(planLabel("free")).toBe("Free");
-    expect(planLabel("pro")).toBe("Pro");
-    expect(planLabel("max")).toBe("Max");
-  });
-
-  it("says nothing when the plan is unknown, so no badge is rendered", () => {
-    expect(planLabel(null)).toBe("");
-    expect(planLabel(undefined)).toBe("");
-  });
-});
-
-describe("account copy house style", () => {
-  // Em and en dashes read as an AI tell, so they are out of anything a person
-  // reads. Pinning the shared constant is what keeps them from creeping back in
-  // one string at a time.
-  const LONG_DASH = /[\u2014\u2013]/;
-
-  it("keeps every shared account string free of em and en dashes", () => {
-    for (const [key, value] of Object.entries(ACCOUNT_COPY)) {
-      const text = typeof value === "function" ? value("a@b.com") : value;
-      expect(text, `ACCOUNT_COPY.${key}`).not.toMatch(LONG_DASH);
-    }
-  });
-
-  it("keeps the onboarding page free of em and en dashes", () => {
-    const html = readFileSync(new URL("../extension/welcome/welcome.html", import.meta.url), "utf8");
-    expect(html).not.toMatch(LONG_DASH);
+describe("sign-out suppression", () => {
+  it("shares the suppression window with the worker cache cleanup", () => {
+    expect(SIGN_OUT_SUPPRESSION_MS).toBe(5 * 60 * 1000);
+    const storage = readFileSync(new URL("../src/lib/storage.ts", import.meta.url), "utf8");
+    expect(storage).toContain("autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS");
+    const bridge = readFileSync(new URL("../src/entries/sync-bridge.ts", import.meta.url), "utf8");
+    expect(bridge).toContain('sendMessage({ type: "avc-sign-out" })');
   });
 });

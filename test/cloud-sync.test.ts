@@ -64,6 +64,21 @@ beforeEach(() => {
 });
 
 describe("cloud sync round", () => {
+  it("discards a response from before sign-out without applying reviews or uploading an empty deck", async () => {
+    stubServer({
+      get: () => {
+        local.syncToken = "";
+        local.vocab = {};
+        local.webReviewSeq = 0;
+        return { envelope: { revision: 3, webReviews: [{ seq: 12, base: "食べる", result: "pass", at: new Date(T0).toISOString() }] } };
+      },
+      put: () => ({ status: 200, body: {} }),
+    });
+    await pushSnapshot();
+    expect(calls.map(c => c.method)).toEqual(["GET"]);
+    expect(local.webReviewSeq).toBe(0);
+    expect(local.vocab).toEqual({});
+  });
   it("applies the cloud app's reviews before exporting, and says how far it got", async () => {
     local.vocab = { 食べる: learningWord(2) } satisfies VocabMap;
     stubServer({

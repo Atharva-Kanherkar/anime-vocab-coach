@@ -1,4 +1,5 @@
 import { warn } from "./log";
+import { ACCOUNT_CACHE_CLEARED, SIGN_OUT_SUPPRESSION_MS, restoredAccountCache } from "./account-cache";
 import { isJapaneseUiLocale, resolveStoredDirection } from "./locale-direction";
 import { checkEligibility, lookupForDirection } from "./scoring";
 import { DEFAULTS, SRS_INTERVALS } from "../types";
@@ -280,9 +281,10 @@ export function getWebReviewSeq(): Promise<number> {
  * A word that is no longer learning here (known, ignored, gone) is left alone;
  * its op still counts as seen, or it would come back on every sync.
  */
-export function applyWebReviews(ops: WebReviewOp[]): Promise<{ applied: number; seq: number }> {
+export function applyWebReviews(ops: WebReviewOp[], expectedToken?: string): Promise<{ applied: number; seq: number }> {
   return enqueue(async () => {
-    const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
+    const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq", "syncToken"]);
+    if (expectedToken !== undefined && r.syncToken !== expectedToken) return { applied: 0, seq: 0 };
     const stored = Number(r.webReviewSeq);
     let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
     const fresh = ops
@@ -452,7 +454,14 @@ export function exportAll(): Promise<ExportData> {
 // presence is what "linked to an account" means; absence = local-only.
 export function getSyncToken(): Promise<string> {
   return new Promise((resolve) => {
-    chrome.storage.local.get(["syncToken"], (r) => resolve((r.syncToken as string | undefined) || ""));
+    try {
+      chrome.storage.local.get(["syncToken"], (r) => {
+        if (chrome.runtime.lastError) { resolve(""); return; }
+        resolve(typeof r?.syncToken === "string" ? r.syncToken : "");
+      });
+    } catch {
+      resolve("");
+    }
   });
 }
 
@@ -462,6 +471,7 @@ export function setSyncToken(token: string): Promise<void> {
       // A fresh token (the web app re-linked us) clears any prior "re-link
       // needed" state and resets the consecutive-401 tolerance counter.
       await chrome.storage.local.set({
+        ...await restoredAccountCache(token),
         syncToken: token,
         relinkNeeded: false,
         syncAuthFailures: 0,
@@ -471,6 +481,20 @@ export function setSyncToken(token: string): Promise<void> {
       // popup doesn't keep claiming "Synced as <email>".
       await chrome.storage.local.set({ syncToken: "", syncProfile: null, syncStatus: { ...EMPTY_SYNC_STATUS } });
     }
+  });
+}
+
+/** Serialize logout with local review writes so a late review cannot restore
+ * the previous account's cache after it has been cleared. */
+export function clearSignedOutCache(): Promise<void> {
+  return enqueue(async () => {
+    await chrome.storage.local.set({
+      syncToken: "", syncProfile: null, relinkNeeded: false, syncAuthFailures: 0,
+      syncStatus: { ...EMPTY_SYNC_STATUS },
+      autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS,
+      [ACCOUNT_CACHE_CLEARED]: Date.now(),
+      vocab: {}, stats: emptyStats(), settings: {}, webReviewSeq: 0,
+    });
   });
 }
 

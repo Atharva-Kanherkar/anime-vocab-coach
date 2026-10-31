@@ -83,9 +83,10 @@ async function pullRevision(token: string): Promise<number | null> {
   } catch {
     return null;
   }
+  if (await getSyncToken() !== token) return null;
   const ops = data.envelope?.webReviews;
   if (Array.isArray(ops) && ops.length) {
-    const { applied } = await applyWebReviews(ops);
+    const { applied } = await applyWebReviews(ops, token);
     if (applied) log(`cloud sync: applied ${applied} review(s) from the cloud app`);
   }
   return data.envelope?.revision ?? null;
@@ -168,6 +169,7 @@ async function pushSnapshotOnce(): Promise<void> {
       // Pull, then export: the export has to include the web's reviews, or the
       // push would carry the pre-review copies of those words.
       const expectedRevision = (await pullRevision(token)) ?? conflictRevision;
+      if (await getSyncToken() !== token) return;
       const exportData = await exportAll();
       // Never upload the user's BYO OpenAI key. The web side strips it too, but
       // stripping here means the plaintext key never leaves the device.
@@ -175,11 +177,14 @@ async function pushSnapshotOnce(): Promise<void> {
       delete settingsNoKey.openaiKey;
       const safeExport = { ...exportData, settings: settingsNoKey };
       const appliedWebReviewSeq = await getWebReviewSeq();
+      if (await getSyncToken() !== token) return;
       const res = await fetch(SNAPSHOT_URL, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
       });
+
+      if (await getSyncToken() !== token) return;
 
       if (res.status === 409) {
         // Something wrote in between, perhaps a review on the web. Run the
