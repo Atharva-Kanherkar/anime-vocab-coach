@@ -3,6 +3,13 @@
   // src/lib/log.ts
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/config.ts
+  var WEB_URL = "https://animevocab.com";
+  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
+
+  // src/lib/account-cache.ts
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+
   // src/types.ts
   var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
@@ -93,10 +100,6 @@
     return { ...prompt, dismissedForever: true };
   }
 
-  // src/config.ts
-  var WEB_URL = "https://animevocab.com";
-  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
-
   // src/lib/run-context.ts
   function inServiceWorker() {
     return typeof window === "undefined";
@@ -185,6 +188,19 @@
   }
 
   // src/lib/feature-events.ts
+  var SIGNIN_FEATURE_EVENTS = [
+    "signin_gate_shown",
+    "signin_started",
+    "signin_completed",
+    "signin_gate_dismissed"
+  ];
+  var SIGNIN_SURFACES = [
+    "content_chip",
+    "popup",
+    "start_page",
+    "install",
+    "startup"
+  ];
   var FEATURE_EVENTS = [
     "card_shown",
     "card_known",
@@ -193,7 +209,8 @@
     "review_done",
     "listening_started",
     "install_first_run",
-    "extension_linked"
+    "extension_linked",
+    ...SIGNIN_FEATURE_EVENTS
   ];
   function isFeatureEvent(v) {
     return typeof v === "string" && FEATURE_EVENTS.includes(v);
@@ -212,6 +229,8 @@
       }
     });
   }
+  var SIGNIN_EVENT_SET = new Set(SIGNIN_FEATURE_EVENTS);
+  var SIGNIN_SURFACE_SET = new Set(SIGNIN_SURFACES);
   async function postTrack(body) {
     const token = await syncToken();
     const headers = { "content-type": "application/json" };

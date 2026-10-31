@@ -1,5 +1,5 @@
 import { DEFAULTS } from "../types";
-import { BACKEND_URL } from "../config";
+import { BACKEND_URL, WEB_URL } from "../config";
 import { pullSettingsFromCloud, syncWithCloud } from "../lib/cloud-sync";
 import { attemptAutoLink } from "../lib/account-link";
 import { fetchCoach, fetchChat, streamChat, type ChatMessage, type CoachPayload } from "../lib/coach-client";
@@ -8,18 +8,34 @@ import { fetchExtractWords, type ExtractWordsRequest } from "../lib/extract-word
 import { fetchAnimeContext } from "../lib/anime-context-client";
 import { fetchTtsAudio } from "../lib/tts-client";
 import { fetchUsage } from "../lib/usage-client";
-import { getSyncToken } from "../lib/storage";
+import { clearSignedOutCache, getSyncToken } from "../lib/storage";
 import { stampOnboarding } from "../lib/onboarding-store";
+import {
+  LISTEN_SIGNIN_REQUIRED,
+  SIGNIN_CHIP_DISMISSED_KEY,
+  SIGNIN_RETURN_TAB_KEY,
+  SIGNIN_START_TAB_KEY,
+  SIGNIN_SURFACE_KEY,
+  SIGNIN_UPGRADE_NOTICE_KEY,
+  isBeforeAccountGate,
+  isSignedIn,
+  signinStartPath,
+} from "../lib/signin-gate";
 import {
   TRACK_FEATURE_MESSAGE,
   TRACK_PRO_MESSAGE,
+  TRACK_SIGNIN_MESSAGE,
   isFeatureEvent,
   isProFunnelEvent,
   isProSurface,
+  isSigninEvent,
+  isSigninSurface,
   sendFeatureBeacon,
   sendProBeacon,
+  sendSigninBeacon,
   trackFeature,
 } from "../lib/feature-events";
+import type { SigninSurface } from "../lib/feature-events";
 import {
   TRACK_EXTENSION_EVENT_MESSAGE,
   isExtensionEvent,
@@ -88,6 +104,58 @@ async function ensureSyncBridgeInOpenTabs(): Promise<void> {
   }));
 }
 
+/**
+ * The chip and the popup both ask for this (#206).
+ *
+ * Link first: if this browser already has an animevocab.com session, minting
+ * the token silently is the whole flow, and opening a tab would be a pointless
+ * detour. Only when there is no session do we send the learner to /start. The
+ * tab they came from is recorded so the completion can bring it back.
+ */
+let openingSignin: ReturnType<typeof runSigninFromGate> | null = null;
+function openSigninFromGate(msg: RuntimeMsg, sender: chrome.runtime.MessageSender) {
+  if (openingSignin) return openingSignin;
+  openingSignin = runSigninFromGate(msg, sender).finally(() => { openingSignin = null; });
+  return openingSignin;
+}
+
+async function runSigninFromGate(
+  msg: RuntimeMsg,
+  sender: chrome.runtime.MessageSender
+): Promise<{ ok: boolean; linked: boolean; opened: boolean; error?: string }> {
+  const surface: SigninSurface = msg.from === "popup" ? "popup" : "content_chip";
+  let returnTabId = typeof msg.tabId === "number" ? msg.tabId : sender.tab?.id;
+  if (returnTabId == null) {
+    const [active] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    returnTabId = active?.id;
+  }
+
+  const remembered: Record<string, unknown> = { [SIGNIN_SURFACE_KEY]: surface };
+  if (returnTabId != null) remembered[SIGNIN_RETURN_TAB_KEY] = returnTabId;
+  try {
+    await chrome.storage.session.set(remembered);
+  } catch {
+    // Session storage unavailable: the flow still works without the return path.
+  }
+
+  const result = await linkAccount("signin_gate", { force: true });
+  if (result.linked) return { ok: true, linked: true, opened: false };
+
+  try {
+    const tab = await chrome.tabs.create({ url: WEB_URL + signinStartPath(surface) });
+    if (tab.id != null) {
+      try {
+        await chrome.storage.session.set({ [SIGNIN_START_TAB_KEY]: tab.id });
+      } catch {
+        // ignore
+      }
+    }
+    return { ok: true, linked: false, opened: true };
+  } catch (err) {
+    return { ok: false, linked: false, opened: false, error: String((err as Error)?.message || err) };
+  }
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
   chrome.storage.local.get(["settings"], (result) => {
     const raw = (result.settings || {}) as Record<string, unknown>;
@@ -108,11 +176,10 @@ chrome.runtime.onInstalled.addListener((details) => {
     });
   }
 
-  // A fresh install used to land silently: no window, no instructions, and no
-  // account link unless the learner independently opened /app (#123). Show the
-  // three things that actually have to happen, and try the silent link at the
-  // same time so the account step is usually already done by the time the page
-  // paints. Only on a real install — an auto-update must not steal a tab.
+  // A fresh install opens the hosted sign-in page, not the old local welcome
+  // page (#206). A free account is now the first step, and /start carries the
+  // demo, Google one-tap, and the email form in one place. The silent link
+  // still runs, so a browser already signed in on animevocab.com lands linked.
   if (details.reason === "install") {
     // Stamped here and nowhere else: the popup checklist's 24h rule needs a
     // real install time, and an install that predates #77 has none, which is
@@ -121,8 +188,31 @@ chrome.runtime.onInstalled.addListener((details) => {
     // The top of the learning funnel in `avc_events` (#111). Anonymous by
     // definition — nobody has linked an account one tick after installing.
     void trackFeature("install_first_run");
-    chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }).catch(() => {});
-    void linkAccount("install");
+    void (async () => {
+      await chrome.storage.session.remove([SIGNIN_RETURN_TAB_KEY, SIGNIN_START_TAB_KEY]);
+      await chrome.storage.session.set({
+        [SIGNIN_SURFACE_KEY]: "install",
+      });
+      const tab = await chrome.tabs.create({ url: WEB_URL + signinStartPath("install") });
+      if (tab.id != null) await chrome.storage.session.set({ [SIGNIN_START_TAB_KEY]: tab.id });
+      await linkAccount("install");
+    })().catch(() => {});
+  }
+
+  // An update from a build that allowed signed-out use: local words are about
+  // to move into an account, and the popup explains that once (#206).
+  if (details.reason === "update" && isBeforeAccountGate(details.previousVersion || "")) {
+    void (async () => {
+      try {
+        const r = await chrome.storage.local.get(["syncToken", "vocab"]);
+        const words = r.vocab && typeof r.vocab === "object" ? Object.keys(r.vocab).length : 0;
+        if (!isSignedIn(r.syncToken) && words > 0) {
+          await chrome.storage.local.set({ [SIGNIN_UPGRADE_NOTICE_KEY]: true });
+        }
+      } catch {
+        // A failed read must not block the update.
+      }
+    })();
   }
   void ensureSyncBridgeInOpenTabs();
 });
@@ -148,6 +238,9 @@ function scheduleSync(delayMs = 8000): void {
 }
 
 chrome.runtime.onStartup.addListener(() => {
+  // If the silent link below completes, this is the surface the completion
+  // event names (#206).
+  void chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "startup" });
   syncWithCloud().catch(() => {});
   void retryPendingN5();
   // Signing in on the site after installing (or clearing the extension's
@@ -159,6 +252,86 @@ chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SYNC_ALARM) { syncWithCloud().catch(() => {}); void retryPendingN5(); }
 });
+/**
+ * A token just arrived (#206): close the loop the gate opened.
+ *
+ * Fire the completion event for the surface that started the flow, push the
+ * local deck (a learner may have watched for months before signing in), bring
+ * the tab they came from back to the front, and close the /start tab we opened.
+ */
+async function completeSignin(): Promise<void> {
+  let surface: SigninSurface = "startup";
+  let returnTabId: number | null = null;
+  let startTabId: number | null = null;
+  try {
+    const s = await chrome.storage.session.get([
+      SIGNIN_SURFACE_KEY,
+      SIGNIN_RETURN_TAB_KEY,
+      SIGNIN_START_TAB_KEY,
+    ]);
+    if (isSigninSurface(s[SIGNIN_SURFACE_KEY])) surface = s[SIGNIN_SURFACE_KEY];
+    if (typeof s[SIGNIN_RETURN_TAB_KEY] === "number") returnTabId = s[SIGNIN_RETURN_TAB_KEY];
+    if (typeof s[SIGNIN_START_TAB_KEY] === "number") startTabId = s[SIGNIN_START_TAB_KEY];
+  } catch {
+    // Session storage unavailable: still finish the part that matters.
+  }
+
+  void sendSigninBeacon("signin_completed", surface);
+  syncWithCloud().catch(() => {});
+
+  if (returnTabId != null) {
+    try {
+      const tab = await chrome.tabs.get(returnTabId);
+      await chrome.tabs.update(returnTabId, { active: true });
+      if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+    } catch {
+      // The learner closed that tab; nothing to focus.
+    }
+  }
+  if (surface !== "install" && startTabId != null && startTabId !== returnTabId) {
+    try {
+      await chrome.tabs.remove(startTabId);
+    } catch {
+      // Already closed by the learner.
+    }
+  }
+
+  try {
+    await chrome.storage.session.remove([
+      SIGNIN_SURFACE_KEY,
+      SIGNIN_RETURN_TAB_KEY,
+      SIGNIN_START_TAB_KEY,
+    ]);
+  } catch {
+    // ignore
+  }
+  await chrome.storage.local.remove(SIGNIN_UPGRADE_NOTICE_KEY);
+}
+
+/** A token just went away: stop Listening everywhere and bring the gate back. */
+async function handleSignOut(): Promise<void> {
+  const pending = captureStarts.cancelAll();
+  try {
+    const tabs = await getListening();
+    await Promise.all(
+      [...new Set([...pending, ...Object.keys(tabs).filter(id => tabs[Number(id)]).map(Number)])]
+        .map(id => stopListening(id))
+    );
+  } catch {
+    // Listening state unreadable: the token is gone either way.
+  }
+  await chrome.storage.local.remove([SIGNIN_CHIP_DISMISSED_KEY, SIGNIN_UPGRADE_NOTICE_KEY]);
+  try {
+    await chrome.storage.session.remove([
+      SIGNIN_SURFACE_KEY,
+      SIGNIN_RETURN_TAB_KEY,
+      SIGNIN_START_TAB_KEY,
+    ]);
+  } catch {
+    // ignore
+  }
+}
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
   if (changes.vocab || changes.stats) scheduleSync();
@@ -168,9 +341,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // path. Watching the transition catches both, and only the transition — a
   // re-link that rewrites the same token is not a new activation.
   const token = changes.syncToken;
-  if (token && token.oldValue !== token.newValue) void invalidateN5();
-  if (token && !token.oldValue && typeof token.newValue === "string" && token.newValue) {
+  if (!token || token.oldValue === token.newValue) return;
+  const had = isSignedIn(token.oldValue);
+  const has = isSignedIn(token.newValue);
+  void invalidateN5();
+  if (!had && has) {
     void trackFeature("extension_linked");
+    void completeSignin();
+  } else if (had && !has) {
+    void handleSignOut();
   }
 });
 
@@ -297,10 +476,6 @@ async function getCacheKeyFromTab(tabId: number): Promise<string | null> {
   }
 }
 
-const NOT_LINKED_MSG =
-  "Sign in at animevocab.com/app, keep that tab open briefly, then try again. " +
-  "Or add your OpenAI key in Settings for local-only Listening Mode.";
-
 async function startListening(tabId: number): Promise<Ack> {
   const generation = captureStarts.begin(tabId);
   const cancelled = (): boolean => !captureStarts.current(tabId, generation);
@@ -308,14 +483,17 @@ async function startListening(tabId: number): Promise<Ack> {
   const r = await chrome.storage.local.get(["settings"]);
   const settings = (r.settings as Partial<Settings> | undefined) || {};
 
+  // The account gate (#206): Listening is a learning feature, so it needs a
+  // free account before we look at a BYO key. A key alone no longer unlocks it.
+  const syncToken = await getSyncToken();
+  if (!syncToken) {
+    return { ok: false, error: LISTEN_SIGNIN_REQUIRED };
+  }
+
   let auth;
   if (settings.openaiKey?.trim()) {
     auth = { kind: "byo" as const, key: settings.openaiKey.trim() };
   } else {
-    const syncToken = await getSyncToken();
-    if (!syncToken) {
-      return { ok: false, error: NOT_LINKED_MSG };
-    }
     auth = { kind: "cloud" as const, syncToken, backendUrl: BACKEND_URL };
   }
 
@@ -400,12 +578,36 @@ interface RuntimeMsg {
   kind?: string;
   trigger?: string;
   force?: boolean;
+  from?: string;
   open?: boolean;
   lessonId?: string;
   attemptId?: string;
 }
 
+const ACCOUNT_REQUESTS = new Set([
+  "avc-coach", "avc-coach-chat", "avc-pick-word", "avc-translate-batch",
+  "avc-translate", "avc-extract-words", "avc-anime-context", "avc-tts", "avc-usage",
+]);
+
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
+  if (ACCOUNT_REQUESTS.has(msg.type) || msg.type?.startsWith("avc-n5-")) {
+    void getSyncToken().then(token => {
+      if (!token) sendResponse({ ok: false, error: "Sign in to your free account at animevocab.com/start." });
+      else handleRuntimeMessage(msg, sender, sendResponse);
+    }).catch(() => sendResponse({ ok: false, error: "Sign in to your free account at animevocab.com/start." }));
+    return true;
+  }
+  return handleRuntimeMessage(msg, sender, sendResponse);
+});
+
+function handleRuntimeMessage(msg: RuntimeMsg, sender: chrome.runtime.MessageSender, sendResponse: (response?: unknown) => void): true | undefined {
+  if (msg.type === "avc-sign-out") {
+    void clearSignedOutCache().then(() => {
+      void syncWithCloud().catch(() => {});
+      sendResponse({ ok: true });
+    }, () => sendResponse({ ok: false }));
+    return true;
+  }
   if (typeof msg?.type === "string" && msg.type.startsWith("avc-n5-")) {
     // Finishing a course episode ends Listening on its tab, the same way the
     // popup's Stop does.
@@ -432,6 +634,15 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
   if (msg.type === TRACK_PRO_MESSAGE) {
     if (isProFunnelEvent(msg.event) && isProSurface(msg.surface)) {
       void sendProBeacon(msg.event, msg.surface);
+    }
+    return;
+  }
+
+  // The sign-in gate (#206): chip, popup, and /start all need the worker to
+  // send the beacon, for the same CORS reason.
+  if (msg.type === TRACK_SIGNIN_MESSAGE) {
+    if (isSigninEvent(msg.event) && isSigninSurface(msg.surface)) {
+      void sendSigninBeacon(msg.event, msg.surface);
     }
     return;
   }
@@ -498,6 +709,27 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true })
       .then((result) => sendResponse({ ok: true, ...result }))
       .catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
+    return true;
+  }
+
+  // The chip and the popup gate share one link-first flow (#206).
+  if (msg.type === "avc-open-signin") {
+    openSigninFromGate(msg, sender)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ ok: false, linked: false, opened: false, error: String(err?.message || err) }));
+    return true;
+  }
+
+  // /start names itself before it mints, so the completion event carries the
+  // surface the learner actually started from (#206).
+  if (msg.type === "avc-signin-surface") {
+    void (async () => {
+      const s = await chrome.storage.session.get(SIGNIN_SURFACE_KEY);
+      // Keep the chip/popup/install attribution when /start is its next step.
+      if (!isSigninSurface(s[SIGNIN_SURFACE_KEY]) && msg.surface === "start_page") {
+        await chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "start_page" });
+      }
+    })().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
     return true;
   }
 
@@ -696,12 +928,16 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
       console.warn("[AVC] listening error:", msg.code, msg.detail || "");
     });
   }
-});
+}
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "avc-chat-stream") return;
   port.onMessage.addListener((msg: { message?: string; history?: ChatMessage[]; payload?: CoachPayload }) => {
     void (async () => {
+      if (!(await getSyncToken())) {
+        port.postMessage({ type: "error", error: "Sign in to your free account at animevocab.com/start." });
+        return;
+      }
       let full = "";
       const result = await streamChat(
         msg.message as string,
@@ -730,5 +966,3 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
   await setCopilotTab(tabId, false);
 });
-
-

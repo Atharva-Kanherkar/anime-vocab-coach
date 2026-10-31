@@ -1,6 +1,6 @@
 # Install AnimeVocab in Chrome
 
-**Easiest path:** sign in at [animevocab.com/app](https://animevocab.com/app) — the app walks you through download and install with copy-paste links. No GitHub account needed.
+**Easiest path:** create your free account at [animevocab.com/start](https://animevocab.com/start), then install the extension. A free account is required for subtitles, cards and Listening. No card or GitHub account is needed.
 
 **Direct download:** [animevocab-chrome-extension.zip](https://animevocab.com/downloads/animevocab-chrome-extension.zip)
 
@@ -13,7 +13,7 @@
 3. In Chrome, go to **`chrome://extensions`** (paste in the address bar).
 4. Turn **Developer mode** ON (top-right toggle).
 5. Click **Load unpacked** → select the **unzipped folder** (not the zip file).
-6. **Pin** the AnimeVocab icon. Open YouTube, Netflix, or Crunchyroll and watch with subtitles on.
+6. **Sign in** on the `/start` page opened by installation, then **pin** the AnimeVocab icon. Open YouTube, Netflix, or Crunchyroll and watch with subtitles on.
 
 > Developer mode is required until the Chrome Web Store listing is approved. This is the same extension — just installed manually.
 

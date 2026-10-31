@@ -6,7 +6,6 @@
     if (bridgeWindow.__avcSyncBridgeLoaded) return;
     bridgeWindow.__avcSyncBridgeLoaded = true;
     const ALLOWED_ORIGINS = /* @__PURE__ */ new Set(["https://animevocab.com", "https://www.animevocab.com"]);
-    const SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
     function pageOrigin() {
       return window.location.origin;
     }
@@ -33,6 +32,11 @@
         announceExtension();
         return;
       }
+      if (data.type === "avc-signin-surface") {
+        chrome.runtime.sendMessage({ type: "avc-signin-surface", surface: data.surface }).catch(() => {
+        });
+        return;
+      }
       if (data.type === "avc-sync-token") {
         const token = typeof data.token === "string" ? data.token : "";
         if (!token) return;
@@ -47,9 +51,15 @@
         if (syncProfile !== void 0) update.syncProfile = syncProfile;
         update.relinkNeeded = false;
         update.syncAuthFailures = 0;
-        chrome.storage.local.set(update, () => {
+        void (async () => {
+          if (location.pathname === "/start") {
+            await chrome.runtime.sendMessage({ type: "avc-signin-surface", surface: "start_page" }).catch(() => {
+            });
+          }
+          await chrome.storage.local.set(update);
           chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {
           });
+        })().catch(() => {
         });
         return;
       }
@@ -69,13 +79,7 @@
         return;
       }
       if (data.type === "avc-sign-out") {
-        chrome.storage.local.set({
-          syncToken: "",
-          syncProfile: null,
-          relinkNeeded: false,
-          syncAuthFailures: 0,
-          syncStatus: { state: "idle", lastAttemptAt: null, lastSuccessAt: null, error: null },
-          autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS
+        chrome.runtime.sendMessage({ type: "avc-sign-out" }).catch(() => {
         });
       }
     });

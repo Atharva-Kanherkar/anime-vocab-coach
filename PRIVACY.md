@@ -1,6 +1,6 @@
 # Privacy Policy — AnimeVocab
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-10-31_
 
 AnimeVocab is a browser extension that helps you learn Japanese vocabulary
 from videos you watch. This policy explains exactly what it does with data.
@@ -8,9 +8,12 @@ from videos you watch. This policy explains exactly what it does with data.
 
 ## What stays on your device
 
-- **Your vocabulary progress, settings, and statistics** are stored locally in your
-  browser (`chrome.storage.local`). The extension never uploads them unless you opt
-  into cloud sync.
+- **Your vocabulary progress, settings, and statistics** are cached locally in your
+  browser (`chrome.storage.local`) and automatically synced to your required free
+  account. Signing out clears the active cache while preserving your device-only
+  API key. Any progress not yet uploaded is retained in a separate pending export
+  tied to the outgoing account until upload succeeds. Signing back in restores
+  your account's cloud cache, retrying temporary failures in the background.
 - **Your OpenAI API key** (only if you use bring-your-own-key Listening Mode) is
   stored locally and sent only to OpenAI's API (`api.openai.com`) to transcribe audio.
 - **Your Pro license key** (only if you subscribe) is stored locally and sent only to
@@ -57,7 +60,8 @@ previously could not be distinguished at all.
 If your extension is linked to an account, these are associated with your
 account id in the same way website analytics are (see below), because a count of
 activity nobody can be attributed to cannot answer whether anyone is learning.
-An unlinked, local-only install sends them without any identity.
+A signed-out install sends its installation and sign-in events without any identity;
+learning features require a free account.
 
 There is no separate opt-out toggle for either kind. Signing out on
 animevocab.com unlinks the extension, after which its counters are anonymous
@@ -83,8 +87,8 @@ visible only to the site owner and is never sold or shared.
 ## What it never does
 
 - No advertising, no selling of data, and no profiles built from your vocab.
-- Cloud sync and accounts are opt-in (sign in on animevocab.com); local-only
-  use never creates an account.
+- Learning features require a free account, created by signing in at
+  animevocab.com/start. Installing alone never creates an account.
 - It reads only the video sites it supports, and only to find subtitle text and
   the video element.
 
@@ -100,7 +104,7 @@ We receive only the license key status needed to unlock Pro features.
 - **tabCapture** + **offscreen** — capture tab audio for Listening Mode (only when you start it).
 - **host access to youtube.com / netflix.com / crunchyroll.com** — detect subtitles and the video player.
 - **host access to api.openai.com** — send audio for transcription in Listening Mode.
-- **host access to animevocab.com** — cloud sync (opt-in) and the rating-prompt counter beacon.
+- **host access to animevocab.com** — account linking, automatic cloud sync and product counter beacons.
 
 ## Contact
 

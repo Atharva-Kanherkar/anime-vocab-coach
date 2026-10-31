@@ -27,6 +27,287 @@
   var log = (...args) => console.log("[AVC]", ...args);
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // web/src/lib/sync.ts
+  function asRecord(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+  function asNumber(value, fallback = 0) {
+    return Number.isFinite(Number(value)) ? Number(value) : fallback;
+  }
+  function asString(value, fallback = "") {
+    return typeof value === "string" ? value : fallback;
+  }
+  function asWordState(value, base = "word") {
+    if (value === void 0 || value === null || value === "new") return "new";
+    if (value === "learning" || value === "known" || value === "ignored") return value;
+    throw new Error(`Invalid word state for ${base}.`);
+  }
+  function timeToIso(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return new Date(n).toISOString();
+  }
+  function isoToTime(value) {
+    if (!value) return 0;
+    const time = Date.parse(value);
+    return Number.isFinite(time) ? time : 0;
+  }
+  function normalizeIsoString(value) {
+    if (typeof value !== "string") return null;
+    const time = Date.parse(value);
+    return Number.isFinite(time) ? new Date(time).toISOString() : null;
+  }
+  function asTimestampArray(value) {
+    return Array.isArray(value) ? value.map(Number).filter((n) => Number.isFinite(n) && n > 0) : [];
+  }
+  var MAX_SOURCE_TITLE = 200;
+  var MAX_SOURCE_LINE = 500;
+  function clampOrNull(value, max) {
+    if (typeof value !== "string") return null;
+    const t = value.trim().slice(0, max);
+    return t.length ? t : null;
+  }
+  function asWordSource(value) {
+    if (!value || typeof value !== "object") return null;
+    const s = value;
+    const title = clampOrNull(s.title, MAX_SOURCE_TITLE);
+    const line = clampOrNull(s.line, MAX_SOURCE_LINE);
+    const en = clampOrNull(s.en, MAX_SOURCE_LINE);
+    if (!title && !line && !en) return null;
+    return { title, line, en };
+  }
+  var SECRET_SETTING_KEYS = ["openaiKey", "apiKey"];
+  function stripSecretSettings(settings) {
+    const out = { ...settings };
+    for (const key of SECRET_SETTING_KEYS) delete out[key];
+    return out;
+  }
+  function normalizeAnimeVocabExport(input, now = /* @__PURE__ */ new Date()) {
+    const vocab = asRecord(input.vocab);
+    const stats = input.stats || {};
+    const daily = asRecord(stats.daily);
+    return {
+      schemaVersion: 1,
+      source: "animevocab-extension",
+      importedAt: now.toISOString(),
+      sourceExportedAt: typeof input.exportedAt === "string" ? input.exportedAt : null,
+      settings: stripSecretSettings(asRecord(input.settings)),
+      cardTimestamps: asTimestampArray(stats.cardTimestamps),
+      words: Object.entries(vocab).map(([base, raw]) => {
+        const rec = asRecord(raw);
+        const srs = asRecord(rec.srs);
+        const hasSrs = rec.srs !== null && Object.keys(srs).length > 0;
+        return {
+          base,
+          state: asWordState(rec.state, base),
+          reading: asString(rec.reading),
+          gloss: asString(rec.gloss),
+          level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
+          freqRank: Number.isFinite(Number(rec.freqRank)) ? Number(rec.freqRank) : null,
+          seenCount: asNumber(rec.seenCount),
+          shownCount: asNumber(rec.shownCount),
+          firstSeenAt: timeToIso(rec.firstSeenAt),
+          lastSeenAt: timeToIso(rec.lastSeenAt),
+          review: hasSrs ? {
+            stage: asNumber(srs.stage),
+            dueAt: timeToIso(srs.dueAt),
+            lapses: asNumber(srs.lapses)
+          } : null,
+          source: asWordSource(rec.source)
+        };
+      }).sort((a, b) => a.base.localeCompare(b.base)),
+      daily: Object.entries(daily).map(([day, raw]) => {
+        const rec = asRecord(raw);
+        return {
+          day,
+          met: asNumber(rec.met),
+          judged: asNumber(rec.judged),
+          reviews: asNumber(rec.reviews),
+          watchMin: asNumber(rec.watchMin)
+        };
+      }).sort((a, b) => a.day.localeCompare(b.day))
+    };
+  }
+  function normalizeCloudSyncSnapshot(input, now = /* @__PURE__ */ new Date()) {
+    const raw = asRecord(input);
+    const words = Array.isArray(raw.words) ? raw.words : [];
+    const daily = Array.isArray(raw.daily) ? raw.daily : [];
+    if (raw.schemaVersion !== 1 || raw.source !== "animevocab-extension") {
+      throw new Error("invalid_snapshot");
+    }
+    return {
+      schemaVersion: 1,
+      source: "animevocab-extension",
+      importedAt: normalizeIsoString(raw.importedAt) ?? now.toISOString(),
+      sourceExportedAt: normalizeIsoString(raw.sourceExportedAt),
+      settings: stripSecretSettings(asRecord(raw.settings)),
+      cardTimestamps: asTimestampArray(raw.cardTimestamps),
+      words: words.map((value) => {
+        const rec = asRecord(value);
+        const review = asRecord(rec.review);
+        const hasReview = rec.review !== null && Object.keys(review).length > 0;
+        const base = asString(rec.base);
+        if (!base) throw new Error("invalid_snapshot");
+        return {
+          base,
+          state: asWordState(rec.state, base),
+          reading: asString(rec.reading),
+          gloss: asString(rec.gloss),
+          level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
+          freqRank: Number.isFinite(Number(rec.freqRank)) ? Number(rec.freqRank) : null,
+          seenCount: asNumber(rec.seenCount),
+          shownCount: asNumber(rec.shownCount),
+          firstSeenAt: normalizeIsoString(rec.firstSeenAt),
+          lastSeenAt: normalizeIsoString(rec.lastSeenAt),
+          review: hasReview ? {
+            stage: asNumber(review.stage),
+            dueAt: normalizeIsoString(review.dueAt),
+            lapses: asNumber(review.lapses)
+          } : null,
+          source: asWordSource(rec.source)
+        };
+      }).sort((a, b) => a.base.localeCompare(b.base)),
+      daily: daily.map((value) => {
+        const rec = asRecord(value);
+        const day = asString(rec.day);
+        if (!day) throw new Error("invalid_snapshot");
+        return {
+          day,
+          met: asNumber(rec.met),
+          judged: asNumber(rec.judged),
+          reviews: asNumber(rec.reviews),
+          watchMin: asNumber(rec.watchMin)
+        };
+      }).sort((a, b) => a.day.localeCompare(b.day))
+    };
+  }
+  function cloudSnapshotToAnimeVocabExport(snapshot) {
+    const vocab = {};
+    const daily = {};
+    for (const word of snapshot.words) {
+      const rec = {
+        state: word.state,
+        reading: word.reading,
+        gloss: word.gloss,
+        level: word.level ?? 0,
+        freqRank: word.freqRank ?? 0,
+        seenCount: word.seenCount,
+        shownCount: word.shownCount,
+        firstSeenAt: isoToTime(word.firstSeenAt),
+        lastSeenAt: isoToTime(word.lastSeenAt),
+        srs: word.review ? {
+          stage: word.review.stage,
+          dueAt: isoToTime(word.review.dueAt),
+          lapses: word.review.lapses
+        } : null
+      };
+      if (word.source) rec.source = word.source;
+      vocab[word.base] = rec;
+    }
+    for (const day of snapshot.daily) {
+      daily[day.day] = {
+        met: day.met,
+        judged: day.judged,
+        reviews: day.reviews,
+        watchMin: day.watchMin
+      };
+    }
+    return {
+      settings: snapshot.settings,
+      vocab,
+      stats: { daily, cardTimestamps: snapshot.cardTimestamps },
+      exportedAt: snapshot.sourceExportedAt ?? snapshot.importedAt
+    };
+  }
+  var MAX_MERGED_CARD_TIMESTAMPS = 1e4;
+  function earliestIso(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    return isoToTime(a) <= isoToTime(b) ? a : b;
+  }
+  function mergeWordRecords(server, incoming) {
+    const winner = isoToTime(incoming.lastSeenAt) > isoToTime(server.lastSeenAt) ? incoming : server;
+    return {
+      ...winner,
+      firstSeenAt: earliestIso(server.firstSeenAt, incoming.firstSeenAt),
+      seenCount: Math.max(server.seenCount, incoming.seenCount),
+      shownCount: Math.max(server.shownCount, incoming.shownCount)
+    };
+  }
+  function mergeWords(server, incoming) {
+    const byBase = /* @__PURE__ */ new Map();
+    for (const w of server) byBase.set(w.base, w);
+    for (const w of incoming) {
+      const existing = byBase.get(w.base);
+      byBase.set(w.base, existing ? mergeWordRecords(existing, w) : w);
+    }
+    return [...byBase.values()].sort((a, b) => a.base.localeCompare(b.base));
+  }
+  function mergeDaily(server, incoming) {
+    const byDay = /* @__PURE__ */ new Map();
+    for (const d of server) byDay.set(d.day, d);
+    for (const d of incoming) {
+      const e = byDay.get(d.day);
+      byDay.set(
+        d.day,
+        e ? {
+          day: d.day,
+          met: Math.max(e.met, d.met),
+          judged: Math.max(e.judged, d.judged),
+          reviews: Math.max(e.reviews, d.reviews),
+          watchMin: Math.max(e.watchMin, d.watchMin)
+        } : d
+      );
+    }
+    return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+  }
+  function mergeCardTimestamps(server, incoming) {
+    const set = /* @__PURE__ */ new Set();
+    for (const t of server) set.add(t);
+    for (const t of incoming) set.add(t);
+    const all = [...set].sort((a, b) => a - b);
+    return all.length > MAX_MERGED_CARD_TIMESTAMPS ? all.slice(all.length - MAX_MERGED_CARD_TIMESTAMPS) : all;
+  }
+  function mergeCloudSnapshots(server, incoming) {
+    return {
+      schemaVersion: 1,
+      source: "animevocab-extension",
+      importedAt: incoming.importedAt,
+      sourceExportedAt: incoming.sourceExportedAt ?? server.sourceExportedAt,
+      // Per-key union; the pushing device's values win (settings are push-owned).
+      // Strip secrets defensively in case a legacy stored snapshot still holds one.
+      settings: stripSecretSettings({ ...server.settings, ...incoming.settings }),
+      words: mergeWords(server.words, incoming.words),
+      daily: mergeDaily(server.daily, incoming.daily),
+      cardTimestamps: mergeCardTimestamps(server.cardTimestamps, incoming.cardTimestamps)
+    };
+  }
+
+  // src/lib/account-cache.ts
+  var ACCOUNT_CACHE_CLEARED = "accountCacheClearedAt";
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+  async function restoredAccountCache(token) {
+    const before = await chrome.storage.local.get(ACCOUNT_CACHE_CLEARED);
+    const clearedAt = before[ACCOUNT_CACHE_CLEARED];
+    if (!clearedAt) return {};
+    const res = await fetch(WEB_URL + "/api/sync/snapshot", {
+      headers: { Authorization: "Bearer " + token },
+      signal: AbortSignal.timeout(1e4)
+    });
+    if (!res.ok) throw new Error("Could not restore your words. Please try signing in again.");
+    const data = await res.json();
+    const after = await chrome.storage.local.get(ACCOUNT_CACHE_CLEARED);
+    if (after[ACCOUNT_CACHE_CLEARED] !== clearedAt) throw new Error("Account changed while restoring your words.");
+    const restored = cloudSnapshotToAnimeVocabExport(data.envelope?.snapshot ? normalizeCloudSyncSnapshot(data.envelope.snapshot) : normalizeAnimeVocabExport({}));
+    return {
+      vocab: restored.vocab,
+      stats: restored.stats,
+      settings: restored.settings,
+      webReviewSeq: data.envelope?.webReviewSeq || 0,
+      [ACCOUNT_CACHE_CLEARED]: null
+    };
+  }
+
   // src/lib/locale-direction.ts
   function isJapaneseUiLocale() {
     try {
@@ -132,6 +413,19 @@
   }
 
   // src/lib/feature-events.ts
+  var SIGNIN_FEATURE_EVENTS = [
+    "signin_gate_shown",
+    "signin_started",
+    "signin_completed",
+    "signin_gate_dismissed"
+  ];
+  var SIGNIN_SURFACES = [
+    "content_chip",
+    "popup",
+    "start_page",
+    "install",
+    "startup"
+  ];
   var FEATURE_EVENTS = [
     "card_shown",
     "card_known",
@@ -140,7 +434,8 @@
     "review_done",
     "listening_started",
     "install_first_run",
-    "extension_linked"
+    "extension_linked",
+    ...SIGNIN_FEATURE_EVENTS
   ];
   function isFeatureEvent(v) {
     return typeof v === "string" && FEATURE_EVENTS.includes(v);
@@ -176,6 +471,15 @@
   function isProSurface(v) {
     return typeof v === "string" && PRO_SURFACES.includes(v);
   }
+  var SIGNIN_EVENT_SET = new Set(SIGNIN_FEATURE_EVENTS);
+  var SIGNIN_SURFACE_SET = new Set(SIGNIN_SURFACES);
+  function isSigninEvent(v) {
+    return typeof v === "string" && SIGNIN_EVENT_SET.has(v);
+  }
+  function isSigninSurface(v) {
+    return typeof v === "string" && SIGNIN_SURFACE_SET.has(v);
+  }
+  var TRACK_SIGNIN_MESSAGE = "avc-track-signin";
   var TRACK_PRO_MESSAGE = "avc-track-pro";
   async function postTrack(body) {
     const token = await syncToken();
@@ -198,6 +502,13 @@
   }
   async function sendProBeacon(event, surface) {
     if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
+    try {
+      await postTrack({ kind: "feature", name: event, surface });
+    } catch {
+    }
+  }
+  async function sendSigninBeacon(event, surface) {
+    if (!isSigninEvent(event) || !isSigninSurface(surface)) return;
     try {
       await postTrack({ kind: "feature", name: event, surface });
     } catch {
@@ -353,28 +664,18 @@
       return Number.isFinite(n) && n > 0 ? n : 0;
     });
   }
-  function applyWebReviews(ops) {
+  function applyWebReviews(ops, expectedToken) {
     return enqueue2(async () => {
-      const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq"]);
+      const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq", "syncToken"]);
+      if (expectedToken !== void 0 && r.syncToken !== expectedToken) return { applied: 0, seq: 0 };
       const stored = Number(r.webReviewSeq);
       let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
-      const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
-      if (!fresh.length) return { applied: 0, seq };
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
-      let applied = 0;
-      for (const op of fresh) {
-        seq = op.seq;
-        const rec = vocab[op.base];
-        if (!rec || rec.state !== "learning" || !rec.srs) continue;
-        const parsed = Date.parse(op.at);
-        const at = Number.isFinite(parsed) ? parsed : Date.now();
-        applyReviewResult(rec, op.result === "pass", at);
-        const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
-        daily.reviews += 1;
-        daily.judged += 1;
-        applied++;
-      }
+      const result = replayWebReviews(vocab, stats, seq, ops);
+      if (result.seq === seq) return result;
+      seq = result.seq;
+      const { applied } = result;
       await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
       if (applied) sendBadge(stats);
       return { applied, seq };
@@ -392,9 +693,36 @@
       });
     });
   }
+  function replayWebReviews(vocab, stats, seq, ops) {
+    const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
+    let applied = 0;
+    for (const op of fresh) {
+      seq = op.seq;
+      const rec = vocab[op.base];
+      if (!rec || rec.state !== "learning" || !rec.srs) continue;
+      const parsed = Date.parse(op.at);
+      const at = Number.isFinite(parsed) ? parsed : Date.now();
+      applyReviewResult(rec, op.result === "pass", at);
+      const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
+      daily.reviews++;
+      daily.judged++;
+      applied++;
+    }
+    return { applied, seq };
+  }
   function getSyncToken() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
+      try {
+        chrome.storage.local.get(["syncToken"], (r) => {
+          if (chrome.runtime.lastError) {
+            resolve("");
+            return;
+          }
+          resolve(typeof r?.syncToken === "string" ? r.syncToken : "");
+        });
+      } catch {
+        resolve("");
+      }
     });
   }
   function setSyncToken(token) {
@@ -408,6 +736,60 @@
       } else {
         await chrome.storage.local.set({ syncToken: "", syncProfile: null, syncStatus: { ...EMPTY_SYNC_STATUS } });
       }
+    });
+  }
+  function clearSignedOutCache() {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["syncToken", "settings", "vocab", "stats", "webReviewSeq", "pendingSignoutExports"]);
+      const settings = r.settings || {};
+      const pending = r.pendingSignoutExports || [];
+      if (typeof r.syncToken === "string" && r.syncToken) {
+        const { openaiKey: _key, ...cloudSettings } = settings;
+        pending.push({ id: crypto.randomUUID(), token: r.syncToken, appliedWebReviewSeq: Number(r.webReviewSeq) || 0, export: {
+          settings: cloudSettings,
+          vocab: r.vocab || {},
+          stats: r.stats || emptyStats(),
+          exportedAt: (/* @__PURE__ */ new Date()).toISOString()
+        } });
+      }
+      await chrome.storage.local.set({
+        pendingSignoutExports: pending,
+        syncToken: "",
+        syncProfile: null,
+        relinkNeeded: false,
+        syncAuthFailures: 0,
+        syncStatus: { ...EMPTY_SYNC_STATUS },
+        autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS,
+        [ACCOUNT_CACHE_CLEARED]: Date.now(),
+        vocab: {},
+        stats: emptyStats(),
+        settings: { openaiKey: settings.openaiKey || "" },
+        webReviewSeq: 0
+      });
+    });
+  }
+  function acknowledgeSignoutExport(sent) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get("pendingSignoutExports");
+      const pending = r.pendingSignoutExports || [];
+      await chrome.storage.local.set({ pendingSignoutExports: pending.filter((p) => p.id !== sent.id) });
+    });
+  }
+  function applyRestoredAccountCache(token, clearedAt, patch) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["syncToken", ACCOUNT_CACHE_CLEARED, "settings", "vocab", "stats"]);
+      if (r.syncToken !== token || r[ACCOUNT_CACHE_CLEARED] !== clearedAt) return;
+      const merged = cloudSnapshotToAnimeVocabExport(mergeCloudSnapshots(
+        normalizeAnimeVocabExport(patch),
+        normalizeAnimeVocabExport(r)
+      ));
+      const settings = r.settings || {};
+      await chrome.storage.local.set({
+        ...patch,
+        vocab: merged.vocab,
+        stats: merged.stats,
+        settings: { ...merged.settings, openaiKey: settings.openaiKey || "" }
+      });
     });
   }
   function getSyncAuthFailures() {
@@ -548,9 +930,10 @@
     } catch {
       return null;
     }
+    if (await getSyncToken() !== token) return null;
     const ops = data.envelope?.webReviews;
     if (Array.isArray(ops) && ops.length) {
-      const { applied } = await applyWebReviews(ops);
+      const { applied } = await applyWebReviews(ops, token);
       if (applied) log(`cloud sync: applied ${applied} review(s) from the cloud app`);
     }
     return data.envelope?.revision ?? null;
@@ -596,6 +979,7 @@
     }
   }
   async function pushSnapshotOnce() {
+    await syncPendingSignouts();
     const token = await getSyncToken();
     if (!token) return;
     const startedAt = Date.now();
@@ -603,19 +987,28 @@
     const lastSuccessAt = previousStatus.lastSuccessAt;
     await setSyncStatus({ state: "syncing", lastAttemptAt: startedAt, lastSuccessAt, error: null });
     try {
+      const cache = await chrome.storage.local.get(ACCOUNT_CACHE_CLEARED);
+      if (cache[ACCOUNT_CACHE_CLEARED]) {
+        const patch = await restoredAccountCache(token);
+        await applyRestoredAccountCache(token, cache[ACCOUNT_CACHE_CLEARED], patch);
+        if (await getSyncToken() !== token) return;
+      }
       let conflictRevision = null;
       for (let attempt = 0; attempt < 2; attempt++) {
         const expectedRevision = await pullRevision(token) ?? conflictRevision;
+        if (await getSyncToken() !== token) return;
         const exportData = await exportAll();
         const settingsNoKey = { ...exportData.settings };
         delete settingsNoKey.openaiKey;
         const safeExport = { ...exportData, settings: settingsNoKey };
         const appliedWebReviewSeq = await getWebReviewSeq();
+        if (await getSyncToken() !== token) return;
         const res = await fetch(SNAPSHOT_URL, {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
           body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
         });
+        if (await getSyncToken() !== token) return;
         if (res.status === 409) {
           const data = await res.json().catch(() => ({}));
           conflictRevision = data.conflict?.currentRevision ?? null;
@@ -654,6 +1047,7 @@
         error: "Cloud changed during sync. Retry to save the newest local snapshot."
       });
     } catch (err) {
+      if (await getSyncToken() !== token) return;
       warn("cloud sync error:", err);
       await setSyncStatus({
         state: "error",
@@ -663,11 +1057,40 @@
       });
     }
   }
+  async function syncPendingSignouts() {
+    const r = await chrome.storage.local.get("pendingSignoutExports");
+    for (const pending of r.pendingSignoutExports || []) {
+      try {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const headers = { Authorization: "Bearer " + pending.token, "Content-Type": "application/json" };
+          const current = await fetch(SNAPSHOT_URL, { headers, signal: AbortSignal.timeout(1e4) });
+          if (!current.ok) break;
+          const data = await current.json();
+          const outgoing = structuredClone(pending.export);
+          const { seq } = replayWebReviews(
+            outgoing.vocab,
+            outgoing.stats,
+            pending.appliedWebReviewSeq,
+            data.envelope?.webReviews || []
+          );
+          const response = await fetch(SNAPSHOT_URL, {
+            method: "PUT",
+            headers,
+            signal: AbortSignal.timeout(1e4),
+            body: JSON.stringify({ export: outgoing, expectedRevision: data.envelope?.revision ?? null, appliedWebReviewSeq: seq })
+          });
+          if (response.status === 409) continue;
+          if (response.ok) await acknowledgeSignoutExport(pending);
+          break;
+        }
+      } catch {
+      }
+    }
+  }
 
   // src/lib/account-link.ts
   var TOKEN_URL = WEB_URL + "/api/sync/token";
   var AUTO_LINK_COOLDOWN_MS = 60 * 60 * 1e3;
-  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
   function shouldAttemptAutoLink(input) {
     if (input.hasToken) return false;
     if (input.suppressedUntil != null && input.now < input.suppressedUntil) return false;
@@ -729,6 +1152,10 @@
     if (outcome.status !== "linked") {
       if (outcome.status === "error") warn(`auto-link (${trigger}) failed:`, outcome.detail);
       return { linked: false, outcome: outcome.status };
+    }
+    const suppressionNow = await getAutoLinkSuppressedUntil();
+    if (suppressionNow != null && Date.now() < suppressionNow) {
+      return { linked: false, outcome: "throttled" };
     }
     await setSyncToken(outcome.token);
     await setSyncProfile(outcome.profile);
@@ -988,6 +1415,29 @@
       tiers: raw.tiers || null
     };
   }
+
+  // src/lib/signin-gate.ts
+  var SIGNIN_CHIP_DISMISSED_KEY = "signinChipDismissed";
+  var SIGNIN_UPGRADE_NOTICE_KEY = "signinUpgradeNotice";
+  var SIGNIN_RETURN_TAB_KEY = "signinReturnTab";
+  var SIGNIN_START_TAB_KEY = "signinStartTab";
+  var SIGNIN_SURFACE_KEY = "signinSurface";
+  function isSignedIn(token) {
+    return typeof token === "string" && token.length > 0;
+  }
+  function isBeforeAccountGate(version) {
+    if (!/^\d+(\.\d+){0,3}$/.test(version)) return false;
+    const parts = version.split(".").map((p) => Number(p));
+    if (!parts.length || parts.some((n) => !Number.isInteger(n) || n < 0)) return false;
+    const [major = 0, minor = 0, patch = 0] = parts;
+    if (major !== 0) return false;
+    if (minor !== 7) return minor < 7;
+    return patch < 2;
+  }
+  function signinStartPath(from) {
+    return `/start?from=${encodeURIComponent(from)}`;
+  }
+  var LISTEN_SIGNIN_REQUIRED = "Listening needs a free account. Sign in at animevocab.com/start, then try again.";
 
   // src/lib/course-listening.ts
   var ID = /^[a-z0-9][a-z0-9-]{0,127}$/;
@@ -1261,6 +1711,11 @@
     cancel(tabId) {
       this.pending.delete(tabId);
     }
+    cancelAll() {
+      const tabs = [...this.pending.keys()];
+      this.pending.clear();
+      return tabs;
+    }
     current(tabId, token) {
       return this.pending.get(tabId) === token;
     }
@@ -1340,6 +1795,42 @@
       }
     }));
   }
+  var openingSignin = null;
+  function openSigninFromGate(msg, sender) {
+    if (openingSignin) return openingSignin;
+    openingSignin = runSigninFromGate(msg, sender).finally(() => {
+      openingSignin = null;
+    });
+    return openingSignin;
+  }
+  async function runSigninFromGate(msg, sender) {
+    const surface = msg.from === "popup" ? "popup" : "content_chip";
+    let returnTabId = typeof msg.tabId === "number" ? msg.tabId : sender.tab?.id;
+    if (returnTabId == null) {
+      const [active] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      returnTabId = active?.id;
+    }
+    const remembered = { [SIGNIN_SURFACE_KEY]: surface };
+    if (returnTabId != null) remembered[SIGNIN_RETURN_TAB_KEY] = returnTabId;
+    try {
+      await chrome.storage.session.set(remembered);
+    } catch {
+    }
+    const result = await linkAccount("signin_gate", { force: true });
+    if (result.linked) return { ok: true, linked: true, opened: false };
+    try {
+      const tab = await chrome.tabs.create({ url: WEB_URL + signinStartPath(surface) });
+      if (tab.id != null) {
+        try {
+          await chrome.storage.session.set({ [SIGNIN_START_TAB_KEY]: tab.id });
+        } catch {
+        }
+      }
+      return { ok: true, linked: false, opened: true };
+    } catch (err) {
+      return { ok: false, linked: false, opened: false, error: String(err?.message || err) };
+    }
+  }
   chrome.runtime.onInstalled.addListener((details) => {
     chrome.storage.local.get(["settings"], (result) => {
       const raw = result.settings || {};
@@ -1358,9 +1849,28 @@
     if (details.reason === "install") {
       void stampOnboarding("installedAt");
       void trackFeature("install_first_run");
-      chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }).catch(() => {
+      void (async () => {
+        await chrome.storage.session.remove([SIGNIN_RETURN_TAB_KEY, SIGNIN_START_TAB_KEY]);
+        await chrome.storage.session.set({
+          [SIGNIN_SURFACE_KEY]: "install"
+        });
+        const tab = await chrome.tabs.create({ url: WEB_URL + signinStartPath("install") });
+        if (tab.id != null) await chrome.storage.session.set({ [SIGNIN_START_TAB_KEY]: tab.id });
+        await linkAccount("install");
+      })().catch(() => {
       });
-      void linkAccount("install");
+    }
+    if (details.reason === "update" && isBeforeAccountGate(details.previousVersion || "")) {
+      void (async () => {
+        try {
+          const r = await chrome.storage.local.get(["syncToken", "vocab"]);
+          const words = r.vocab && typeof r.vocab === "object" ? Object.keys(r.vocab).length : 0;
+          if (!isSignedIn(r.syncToken) && words > 0) {
+            await chrome.storage.local.set({ [SIGNIN_UPGRADE_NOTICE_KEY]: true });
+          }
+        } catch {
+        }
+      })();
     }
     void ensureSyncBridgeInOpenTabs();
   });
@@ -1376,6 +1886,7 @@
     }, delayMs);
   }
   chrome.runtime.onStartup.addListener(() => {
+    void chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "startup" });
     syncWithCloud().catch(() => {
     });
     void retryPendingN5();
@@ -1389,13 +1900,80 @@
       void retryPendingN5();
     }
   });
+  async function completeSignin() {
+    let surface = "startup";
+    let returnTabId = null;
+    let startTabId = null;
+    try {
+      const s = await chrome.storage.session.get([
+        SIGNIN_SURFACE_KEY,
+        SIGNIN_RETURN_TAB_KEY,
+        SIGNIN_START_TAB_KEY
+      ]);
+      if (isSigninSurface(s[SIGNIN_SURFACE_KEY])) surface = s[SIGNIN_SURFACE_KEY];
+      if (typeof s[SIGNIN_RETURN_TAB_KEY] === "number") returnTabId = s[SIGNIN_RETURN_TAB_KEY];
+      if (typeof s[SIGNIN_START_TAB_KEY] === "number") startTabId = s[SIGNIN_START_TAB_KEY];
+    } catch {
+    }
+    void sendSigninBeacon("signin_completed", surface);
+    syncWithCloud().catch(() => {
+    });
+    if (returnTabId != null) {
+      try {
+        const tab = await chrome.tabs.get(returnTabId);
+        await chrome.tabs.update(returnTabId, { active: true });
+        if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+      } catch {
+      }
+    }
+    if (surface !== "install" && startTabId != null && startTabId !== returnTabId) {
+      try {
+        await chrome.tabs.remove(startTabId);
+      } catch {
+      }
+    }
+    try {
+      await chrome.storage.session.remove([
+        SIGNIN_SURFACE_KEY,
+        SIGNIN_RETURN_TAB_KEY,
+        SIGNIN_START_TAB_KEY
+      ]);
+    } catch {
+    }
+    await chrome.storage.local.remove(SIGNIN_UPGRADE_NOTICE_KEY);
+  }
+  async function handleSignOut() {
+    const pending = captureStarts.cancelAll();
+    try {
+      const tabs = await getListening();
+      await Promise.all(
+        [.../* @__PURE__ */ new Set([...pending, ...Object.keys(tabs).filter((id) => tabs[Number(id)]).map(Number)])].map((id) => stopListening(id))
+      );
+    } catch {
+    }
+    await chrome.storage.local.remove([SIGNIN_CHIP_DISMISSED_KEY, SIGNIN_UPGRADE_NOTICE_KEY]);
+    try {
+      await chrome.storage.session.remove([
+        SIGNIN_SURFACE_KEY,
+        SIGNIN_RETURN_TAB_KEY,
+        SIGNIN_START_TAB_KEY
+      ]);
+    } catch {
+    }
+  }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.vocab || changes.stats) scheduleSync();
     const token = changes.syncToken;
-    if (token && token.oldValue !== token.newValue) void invalidateN5();
-    if (token && !token.oldValue && typeof token.newValue === "string" && token.newValue) {
+    if (!token || token.oldValue === token.newValue) return;
+    const had = isSignedIn(token.oldValue);
+    const has = isSignedIn(token.newValue);
+    void invalidateN5();
+    if (!had && has) {
       void trackFeature("extension_linked");
+      void completeSignin();
+    } else if (had && !has) {
+      void handleSignOut();
     }
   });
   async function getListening() {
@@ -1494,21 +2072,20 @@
       return null;
     }
   }
-  var NOT_LINKED_MSG = "Sign in at animevocab.com/app, keep that tab open briefly, then try again. Or add your OpenAI key in Settings for local-only Listening Mode.";
   async function startListening(tabId) {
     const generation = captureStarts.begin(tabId);
     const cancelled = () => !captureStarts.current(tabId, generation);
     const cancelledAck = { ok: false, error: "Listening start was cancelled." };
     const r = await chrome.storage.local.get(["settings"]);
     const settings = r.settings || {};
+    const syncToken2 = await getSyncToken();
+    if (!syncToken2) {
+      return { ok: false, error: LISTEN_SIGNIN_REQUIRED };
+    }
     let auth;
     if (settings.openaiKey?.trim()) {
       auth = { kind: "byo", key: settings.openaiKey.trim() };
     } else {
-      const syncToken2 = await getSyncToken();
-      if (!syncToken2) {
-        return { ok: false, error: NOT_LINKED_MSG };
-      }
       auth = { kind: "cloud", syncToken: syncToken2, backendUrl: BACKEND_URL };
     }
     const injected = await ensureContentScript(tabId);
@@ -1564,7 +2141,36 @@
     });
     return { ok: true };
   }
+  var ACCOUNT_REQUESTS = /* @__PURE__ */ new Set([
+    "avc-coach",
+    "avc-coach-chat",
+    "avc-pick-word",
+    "avc-translate-batch",
+    "avc-translate",
+    "avc-extract-words",
+    "avc-anime-context",
+    "avc-tts",
+    "avc-usage"
+  ]);
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (ACCOUNT_REQUESTS.has(msg.type) || msg.type?.startsWith("avc-n5-")) {
+      void getSyncToken().then((token) => {
+        if (!token) sendResponse({ ok: false, error: "Sign in to your free account at animevocab.com/start." });
+        else handleRuntimeMessage(msg, sender, sendResponse);
+      }).catch(() => sendResponse({ ok: false, error: "Sign in to your free account at animevocab.com/start." }));
+      return true;
+    }
+    return handleRuntimeMessage(msg, sender, sendResponse);
+  });
+  function handleRuntimeMessage(msg, sender, sendResponse) {
+    if (msg.type === "avc-sign-out") {
+      void clearSignedOutCache().then(() => {
+        void syncWithCloud().catch(() => {
+        });
+        sendResponse({ ok: true });
+      }, () => sendResponse({ ok: false }));
+      return true;
+    }
     if (typeof msg?.type === "string" && msg.type.startsWith("avc-n5-")) {
       void handleN5(msg, sender, async (tabId) => {
         await stopListening(tabId);
@@ -1584,6 +2190,12 @@
     if (msg.type === TRACK_PRO_MESSAGE) {
       if (isProFunnelEvent(msg.event) && isProSurface(msg.surface)) {
         void sendProBeacon(msg.event, msg.surface);
+      }
+      return;
+    }
+    if (msg.type === TRACK_SIGNIN_MESSAGE) {
+      if (isSigninEvent(msg.event) && isSigninSurface(msg.surface)) {
+        void sendSigninBeacon(msg.event, msg.surface);
       }
       return;
     }
@@ -1627,6 +2239,19 @@
     }
     if (msg.type === "avc-account-link") {
       linkAccount(typeof msg.trigger === "string" ? msg.trigger : "ui", { force: msg.force === true }).then((result) => sendResponse({ ok: true, ...result })).catch(() => sendResponse({ ok: false, linked: false, outcome: "error" }));
+      return true;
+    }
+    if (msg.type === "avc-open-signin") {
+      openSigninFromGate(msg, sender).then(sendResponse).catch((err) => sendResponse({ ok: false, linked: false, opened: false, error: String(err?.message || err) }));
+      return true;
+    }
+    if (msg.type === "avc-signin-surface") {
+      void (async () => {
+        const s = await chrome.storage.session.get(SIGNIN_SURFACE_KEY);
+        if (!isSigninSurface(s[SIGNIN_SURFACE_KEY]) && msg.surface === "start_page") {
+          await chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "start_page" });
+        }
+      })().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
       return true;
     }
     if (msg.type === "avc-pull-settings") {
@@ -1758,11 +2383,15 @@
         console.warn("[AVC] listening error:", msg.code, msg.detail || "");
       });
     }
-  });
+  }
   chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== "avc-chat-stream") return;
     port.onMessage.addListener((msg) => {
       void (async () => {
+        if (!await getSyncToken()) {
+          port.postMessage({ type: "error", error: "Sign in to your free account at animevocab.com/start." });
+          return;
+        }
         let full = "";
         const result = await streamChat(
           msg.message,

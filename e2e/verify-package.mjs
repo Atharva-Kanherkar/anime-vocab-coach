@@ -19,7 +19,7 @@ const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
 const results = [];
 const check = (n, ok, d = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${n}${d ? ` — ${d}` : ""}`); };
 
-check("manifest version is 0.7.1", manifest.version === "0.7.1", manifest.version);
+check("manifest version is 0.7.2", manifest.version === "0.7.2", manifest.version);
 check("manifest v3", manifest.manifest_version === 3);
 check("service worker declared", !!manifest.background?.service_worker, manifest.background?.service_worker);
 

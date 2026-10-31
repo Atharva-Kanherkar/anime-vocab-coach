@@ -1,0 +1,31 @@
+.page { min-height: 100vh; background: var(--bg); color: var(--ink); padding: 28px; }
+.shell { max-width: 1120px; margin: auto; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 64px; }
+.brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; font-weight: 700; }
+.hanko { padding: 7px; border: 1px solid currentColor; color: #db7a5c; border-radius: 4px; }
+.home { color: inherit; font-size: 13px; }
+.layout { display: grid; grid-template-columns: 1.15fr 1fr; gap: 72px; align-items: start; }
+.eyebrow { color: #db7a5c; font-size: 11px; letter-spacing: .12em; font-weight: 700; margin-bottom: 18px; }
+.intro h2 { font: 500 clamp(38px, 5vw, 66px)/1.05 var(--serif); margin: 0 0 24px; }
+.intro > p:not(.eyebrow), .account > p { line-height: 1.7; color: #b9bac4; }
+.demo { margin-top: 30px; border-radius: 12px; background: linear-gradient(145deg, #233a4c, #141826 60%, #423b55); padding: 30px 20px 18px; text-align: center; }
+.scene { display: block; color: #c5d5e2; letter-spacing: .4em; margin: 10px 0 50px; font-size: 14px; }
+.subtitles p { margin: 5px 0; color: #f4f4f6; }
+.subtitles p:first-child { font-size: 24px; }
+.subtitles p:last-child { color: #b9bac4; font-size: 13px; }
+.word { display: inline-block; margin: 24px 0 0; padding: 9px 14px; color: #f4f4f6; border: 1px solid #7b7088; border-radius: 7px; }
+.word span { font-size: 12px; margin-left: 10px; color: #c5c5ce; }
+.caption { font-size: 12px; }
+.account h1 { font-size: 28px; line-height: 1.2; margin: 0 0 16px; }
+.account p { line-height: 1.65; }
+.account > div { margin-top: 24px; }
+.links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; }
+.account a, .links a { color: #e3ba63; }
+.account button { cursor: pointer; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 5px; padding: 6px 10px; }
+@media (max-width: 760px) {
+  .page { padding: 20px; }
+  .header { margin-bottom: 36px; }
+  .home { display: none; }
+  .layout { grid-template-columns: 1fr; gap: 36px; }
+  .account { min-width: 0; }
+}

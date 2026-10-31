@@ -15,6 +15,35 @@ import { WEB_URL } from "../config";
 import { extensionVersion, inServiceWorker } from "./run-context";
 
 /**
+ * The sign-in gate funnel (#206). MIRROR of SIGNIN_FUNNEL_EVENTS in
+ * web/src/lib/signin-funnel.ts; the server drops anything not on its allowlist,
+ * so test/signin-events.test.ts pins the two lists.
+ */
+export const SIGNIN_FEATURE_EVENTS = [
+  "signin_gate_shown",
+  "signin_started",
+  "signin_completed",
+  "signin_gate_dismissed",
+] as const;
+
+export type SigninFeatureEvent = (typeof SIGNIN_FEATURE_EVENTS)[number];
+
+/**
+ * Where a sign-in gate lives. MIRROR of SIGNIN_SURFACES in
+ * web/src/lib/signin-funnel.ts, including the install/startup completion
+ * surfaces for a link the learner did not start from a gate.
+ */
+export const SIGNIN_SURFACES = [
+  "content_chip",
+  "popup",
+  "start_page",
+  "install",
+  "startup",
+] as const;
+
+export type SigninSurface = (typeof SIGNIN_SURFACES)[number];
+
+/**
  * The learning-loop events this extension emits.
  *
  * MIRROR of the learning-loop block in web/src/lib/track-events.ts. The server
@@ -31,6 +60,7 @@ export const FEATURE_EVENTS = [
   "listening_started",
   "install_first_run",
   "extension_linked",
+  ...SIGNIN_FEATURE_EVENTS,
 ] as const;
 
 export type FeatureEvent = (typeof FEATURE_EVENTS)[number];
@@ -97,6 +127,20 @@ export function isProSurface(v: unknown): v is ProSurface {
   return typeof v === "string" && (PRO_SURFACES as readonly string[]).includes(v);
 }
 
+const SIGNIN_EVENT_SET = new Set<string>(SIGNIN_FEATURE_EVENTS);
+const SIGNIN_SURFACE_SET = new Set<string>(SIGNIN_SURFACES);
+
+export function isSigninEvent(v: unknown): v is SigninFeatureEvent {
+  return typeof v === "string" && SIGNIN_EVENT_SET.has(v);
+}
+
+export function isSigninSurface(v: unknown): v is SigninSurface {
+  return typeof v === "string" && SIGNIN_SURFACE_SET.has(v);
+}
+
+/** Message extension pages and content scripts use to hand a sign-in beacon to the worker. */
+export const TRACK_SIGNIN_MESSAGE = "avc-track-signin";
+
 /** Message extension pages and content scripts use to hand a Pro beacon to the worker. */
 export const TRACK_PRO_MESSAGE = "avc-track-pro";
 
@@ -140,6 +184,19 @@ export async function sendProBeacon(event: ProFunnelEvent, surface: ProSurface):
   }
 }
 
+/** The sign-in gate beacon, service worker only. Same transport, plus the surface. */
+export async function sendSigninBeacon(
+  event: SigninFeatureEvent,
+  surface: SigninSurface
+): Promise<void> {
+  if (!isSigninEvent(event) || !isSigninSurface(surface)) return;
+  try {
+    await postTrack({ kind: "feature", name: event, surface });
+  } catch {
+    // swallow
+  }
+}
+
 /**
  * Fire one allowlisted learning-loop event from wherever you are.
  *
@@ -175,6 +232,25 @@ export async function trackPro(event: ProFunnelEvent, surface: ProSurface): Prom
   try {
     void chrome.runtime
       .sendMessage({ type: TRACK_PRO_MESSAGE, event, surface })
+      .catch(() => {});
+  } catch {
+    // swallow
+  }
+}
+
+/** Fire one sign-in gate event from anywhere. Never throws, never awaits a response. */
+export async function trackSignin(
+  event: SigninFeatureEvent,
+  surface: SigninSurface
+): Promise<void> {
+  if (!isSigninEvent(event) || !isSigninSurface(surface)) return;
+  if (inServiceWorker()) {
+    await sendSigninBeacon(event, surface);
+    return;
+  }
+  try {
+    void chrome.runtime
+      .sendMessage({ type: TRACK_SIGNIN_MESSAGE, event, surface })
       .catch(() => {});
   } catch {
     // swallow

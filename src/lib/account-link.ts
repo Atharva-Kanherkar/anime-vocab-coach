@@ -39,7 +39,7 @@ export const AUTO_LINK_COOLDOWN_MS = 60 * 60 * 1000;
  * while. Clerk clears its cookie around the same moment the sign-out bridge
  * fires; a probe that raced it would re-link the browser the user just signed
  * out of, which reads as the extension ignoring them. */
-export const SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1000;
+export { SIGN_OUT_SUPPRESSION_MS } from "./account-cache";
 
 /** Tier label for a linked account. Empty when the account did not report one:
  * guessing "Free" at somebody paying for Max is worse than saying nothing. */
@@ -204,6 +204,13 @@ async function runAutoLink(
   if (outcome.status !== "linked") {
     if (outcome.status === "error") warn(`auto-link (${trigger}) failed:`, outcome.detail);
     return { linked: false, outcome: outcome.status };
+  }
+
+  // A sign-out during the mint invalidates its result too. Otherwise the late
+  // response would immediately reconnect the account the learner just left.
+  const suppressionNow = await getAutoLinkSuppressedUntil();
+  if (suppressionNow != null && Date.now() < suppressionNow) {
+    return { linked: false, outcome: "throttled" };
   }
 
   // setSyncToken clears relinkNeeded and the 401 counter; the profile write is a

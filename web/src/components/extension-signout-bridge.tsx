@@ -2,7 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useRef } from "react";
-import { notifyExtensionLinkSignedIn } from "@/lib/use-extension-link";
+import { notifyExtensionLinkSignedIn, notifyExtensionLinkSignedOut } from "@/lib/use-extension-link";
 
 // When the user signs out on the site, tell the extension's sync-bridge content
 // script to drop its stored sync token immediately (rather than waiting for the
@@ -17,6 +17,7 @@ export function ExtensionSignoutBridge(): null {
       wasSignedIn.current = true;
     } else if (isSignedIn === false && wasSignedIn.current) {
       wasSignedIn.current = false;
+      notifyExtensionLinkSignedOut();
       window.postMessage({ source: "avc-web", type: "avc-sign-out" }, window.location.origin);
     }
   }, [isSignedIn]);

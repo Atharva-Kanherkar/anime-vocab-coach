@@ -9,6 +9,9 @@ import { WEB_URL } from "../config";
 import { type Settings } from "../types";
 import {
   applyWebReviews,
+  replayWebReviews,
+  applyRestoredAccountCache,
+  acknowledgeSignoutExport,
   exportAll,
   getSyncAuthFailures,
   getSyncStatus,
@@ -20,7 +23,9 @@ import {
   setSyncStatus,
   setSyncToken,
   type WebReviewOp,
+  type PendingSignoutExport,
 } from "./storage";
+import { ACCOUNT_CACHE_CLEARED, restoredAccountCache } from "./account-cache";
 import { toastActiveTab } from "./notify";
 import { log, warn } from "./log";
 
@@ -83,9 +88,10 @@ async function pullRevision(token: string): Promise<number | null> {
   } catch {
     return null;
   }
+  if (await getSyncToken() !== token) return null;
   const ops = data.envelope?.webReviews;
   if (Array.isArray(ops) && ops.length) {
-    const { applied } = await applyWebReviews(ops);
+    const { applied } = await applyWebReviews(ops, token);
     if (applied) log(`cloud sync: applied ${applied} review(s) from the cloud app`);
   }
   return data.envelope?.revision ?? null;
@@ -154,6 +160,7 @@ export async function pushSnapshot(): Promise<void> {
 }
 
 async function pushSnapshotOnce(): Promise<void> {
+  await syncPendingSignouts();
   const token = await getSyncToken();
   if (!token) return;
 
@@ -162,12 +169,19 @@ async function pushSnapshotOnce(): Promise<void> {
   const lastSuccessAt = previousStatus.lastSuccessAt;
   await setSyncStatus({ state: "syncing", lastAttemptAt: startedAt, lastSuccessAt, error: null });
   try {
+    const cache = await chrome.storage.local.get(ACCOUNT_CACHE_CLEARED);
+    if (cache[ACCOUNT_CACHE_CLEARED]) {
+      const patch = await restoredAccountCache(token);
+      await applyRestoredAccountCache(token, cache[ACCOUNT_CACHE_CLEARED], patch);
+      if (await getSyncToken() !== token) return;
+    }
     // The revision a 409 reported, for when the read that follows it fails.
     let conflictRevision: number | null = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       // Pull, then export: the export has to include the web's reviews, or the
       // push would carry the pre-review copies of those words.
       const expectedRevision = (await pullRevision(token)) ?? conflictRevision;
+      if (await getSyncToken() !== token) return;
       const exportData = await exportAll();
       // Never upload the user's BYO OpenAI key. The web side strips it too, but
       // stripping here means the plaintext key never leaves the device.
@@ -175,11 +189,14 @@ async function pushSnapshotOnce(): Promise<void> {
       delete settingsNoKey.openaiKey;
       const safeExport = { ...exportData, settings: settingsNoKey };
       const appliedWebReviewSeq = await getWebReviewSeq();
+      if (await getSyncToken() !== token) return;
       const res = await fetch(SNAPSHOT_URL, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
       });
+
+      if (await getSyncToken() !== token) return;
 
       if (res.status === 409) {
         // Something wrote in between, perhaps a review on the web. Run the
@@ -224,6 +241,7 @@ async function pushSnapshotOnce(): Promise<void> {
       error: "Cloud changed during sync. Retry to save the newest local snapshot.",
     });
   } catch (err) {
+    if (await getSyncToken() !== token) return;
     warn("cloud sync error:", err);
     await setSyncStatus({
       state: "error",
@@ -231,5 +249,33 @@ async function pushSnapshotOnce(): Promise<void> {
       lastSuccessAt,
       error: err instanceof Error ? err.message : "Network error while syncing.",
     });
+  }
+}
+
+/** Flush snapshots with their outgoing credential, even after sign-out. Keep
+ * every failed snapshot durable; never send it with the next account's token. */
+export async function syncPendingSignouts(): Promise<void> {
+  const r = await chrome.storage.local.get("pendingSignoutExports");
+  for (const pending of (r.pendingSignoutExports || []) as PendingSignoutExport[]) {
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const headers = { Authorization: "Bearer " + pending.token, "Content-Type": "application/json" };
+        const current = await fetch(SNAPSHOT_URL, { headers, signal: AbortSignal.timeout(10000) });
+        if (!current.ok) break;
+        const data = await current.json() as SnapshotResponse;
+        const outgoing = structuredClone(pending.export);
+        const { seq } = replayWebReviews(outgoing.vocab, outgoing.stats,
+          pending.appliedWebReviewSeq, data.envelope?.webReviews || []);
+        const response = await fetch(SNAPSHOT_URL, {
+          method: "PUT", headers, signal: AbortSignal.timeout(10000),
+          body: JSON.stringify({ export: outgoing, expectedRevision: data.envelope?.revision ?? null, appliedWebReviewSeq: seq }),
+        });
+        if (response.status === 409) continue;
+        if (response.ok) await acknowledgeSignoutExport(pending);
+        break;
+      }
+    } catch {
+      // Offline or rejected: retain the pending export for the next sync.
+    }
   }
 }

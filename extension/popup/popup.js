@@ -17,6 +17,9 @@
   // src/lib/log.ts
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // src/lib/account-cache.ts
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+
   // src/lib/locale-direction.ts
   function isJapaneseUiLocale() {
     try {
@@ -204,6 +207,30 @@
   }
 
   // src/lib/feature-events.ts
+  var SIGNIN_FEATURE_EVENTS = [
+    "signin_gate_shown",
+    "signin_started",
+    "signin_completed",
+    "signin_gate_dismissed"
+  ];
+  var SIGNIN_SURFACES = [
+    "content_chip",
+    "popup",
+    "start_page",
+    "install",
+    "startup"
+  ];
+  var FEATURE_EVENTS = [
+    "card_shown",
+    "card_known",
+    "card_learn",
+    "word_saved",
+    "review_done",
+    "listening_started",
+    "install_first_run",
+    "extension_linked",
+    ...SIGNIN_FEATURE_EVENTS
+  ];
   var TRACK_URL = WEB_URL + "/api/track";
   function syncToken() {
     return new Promise((resolve) => {
@@ -234,6 +261,15 @@
   function isProSurface(v) {
     return typeof v === "string" && PRO_SURFACES.includes(v);
   }
+  var SIGNIN_EVENT_SET = new Set(SIGNIN_FEATURE_EVENTS);
+  var SIGNIN_SURFACE_SET = new Set(SIGNIN_SURFACES);
+  function isSigninEvent(v) {
+    return typeof v === "string" && SIGNIN_EVENT_SET.has(v);
+  }
+  function isSigninSurface(v) {
+    return typeof v === "string" && SIGNIN_SURFACE_SET.has(v);
+  }
+  var TRACK_SIGNIN_MESSAGE = "avc-track-signin";
   var TRACK_PRO_MESSAGE = "avc-track-pro";
   async function postTrack(body) {
     const token = await syncToken();
@@ -254,6 +290,13 @@
     } catch {
     }
   }
+  async function sendSigninBeacon(event, surface) {
+    if (!isSigninEvent(event) || !isSigninSurface(surface)) return;
+    try {
+      await postTrack({ kind: "feature", name: event, surface });
+    } catch {
+    }
+  }
   async function trackPro(event, surface) {
     if (!isProFunnelEvent(event) || !isProSurface(surface)) return;
     if (inServiceWorker()) {
@@ -262,6 +305,18 @@
     }
     try {
       void chrome.runtime.sendMessage({ type: TRACK_PRO_MESSAGE, event, surface }).catch(() => {
+      });
+    } catch {
+    }
+  }
+  async function trackSignin(event, surface) {
+    if (!isSigninEvent(event) || !isSigninSurface(surface)) return;
+    if (inServiceWorker()) {
+      await sendSigninBeacon(event, surface);
+      return;
+    }
+    try {
+      void chrome.runtime.sendMessage({ type: TRACK_SIGNIN_MESSAGE, event, surface }).catch(() => {
       });
     } catch {
     }
@@ -442,7 +497,17 @@
   }
   function getSyncToken() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(["syncToken"], (r) => resolve(r.syncToken || ""));
+      try {
+        chrome.storage.local.get(["syncToken"], (r) => {
+          if (chrome.runtime.lastError) {
+            resolve("");
+            return;
+          }
+          resolve(typeof r?.syncToken === "string" ? r.syncToken : "");
+        });
+      } catch {
+        resolve("");
+      }
     });
   }
   function getRelinkNeeded() {
@@ -652,7 +717,6 @@
   // src/lib/account-link.ts
   var TOKEN_URL = WEB_URL + "/api/sync/token";
   var AUTO_LINK_COOLDOWN_MS = 60 * 60 * 1e3;
-  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
   function planLabel(plan) {
     return plan === "max" ? "Max" : plan === "pro" ? "Pro" : plan === "free" ? "Free" : "";
   }
@@ -674,6 +738,31 @@
     popupNotSignedInNote: "Progress stays on this device only",
     popupExpired: "Sign-in expired",
     popupExpiredNote: "Re-link to resume cloud sync"
+  };
+
+  // src/lib/signin-gate.ts
+  var SIGNIN_UPGRADE_NOTICE_KEY = "signinUpgradeNotice";
+  function isSignedIn(token) {
+    return typeof token === "string" && token.length > 0;
+  }
+  var SIGNIN_GATE_COPY = {
+    chipTitle: "Sign in to start learning with this episode",
+    chipNote: "Free account. Your words, reviews and progress stay with you.",
+    chipCta: "Sign in",
+    chipBusy: "Opening sign-in...",
+    chipDismiss: "Dismiss sign-in reminder",
+    popupEyebrow: "FREE ACCOUNT",
+    popupTitle: "Sign in to start learning",
+    popupNote: "Your words, reviews and progress live in your free AnimeVocab account, on every device.",
+    popupCta: "Sign in",
+    popupFine: "Free forever. No card.",
+    upgradeNote: "Your words now live in your free account. Sign in to keep them.",
+    startTitle: "Start learning with the anime you already watch",
+    startNote: "One free account keeps your words, reviews and progress on every device.",
+    startCta: "Sign in with Google or email",
+    startFine: "Free forever. No card.",
+    signedInTitle: "You're in",
+    signedInNote: "The extension is connected. Open a supported site and start watching."
   };
 
   // src/lib/pro-moment.ts
@@ -789,6 +878,69 @@
     } catch {
       return false;
     }
+  }
+  var signinGateShown = false;
+  var popupBooted = false;
+  async function mountSigninGate() {
+    const gate = byId("signin-gate");
+    document.body.classList.add("av-gated");
+    gate.hidden = false;
+    let upgrade = false;
+    try {
+      const r = await chrome.storage.local.get([SIGNIN_UPGRADE_NOTICE_KEY]);
+      upgrade = r[SIGNIN_UPGRADE_NOTICE_KEY] === true;
+      if (upgrade) await chrome.storage.local.remove(SIGNIN_UPGRADE_NOTICE_KEY);
+    } catch {
+    }
+    gate.innerHTML = `<p class="av-gate-eyebrow">${esc2(SIGNIN_GATE_COPY.popupEyebrow)}</p><p class="av-gate-title">${esc2(SIGNIN_GATE_COPY.popupTitle)}</p><p class="av-gate-note">${esc2(SIGNIN_GATE_COPY.popupNote)}</p>` + (upgrade ? `<p class="av-gate-upgrade">${esc2(SIGNIN_GATE_COPY.upgradeNote)}</p>` : "") + `<div class="av-gate-actions"><button id="gate-signin" class="av-btn av-btn-primary av-btn-block" type="button">${esc2(SIGNIN_GATE_COPY.popupCta)}</button></div><p class="av-gate-fine">${esc2(SIGNIN_GATE_COPY.popupFine)}</p>`;
+    if (!signinGateShown) {
+      signinGateShown = true;
+      void trackSignin("signin_gate_shown", "popup");
+    }
+    const btn = byId("gate-signin");
+    btn.addEventListener("click", () => {
+      void (async () => {
+        btn.disabled = true;
+        btn.textContent = SIGNIN_GATE_COPY.chipBusy;
+        void trackSignin("signin_started", "popup");
+        let opened = false;
+        try {
+          const res = await chrome.runtime.sendMessage({
+            type: "avc-open-signin",
+            from: "popup"
+          });
+          opened = res?.opened === true;
+        } catch {
+        }
+        if (opened) {
+          window.close();
+          return;
+        }
+        btn.disabled = false;
+        btn.textContent = SIGNIN_GATE_COPY.popupCta;
+        await bootPopup();
+      })();
+    });
+  }
+  async function bootPopup() {
+    const token = await getSyncToken();
+    if (!isSignedIn(token)) {
+      await mountSigninGate();
+      return;
+    }
+    document.body.classList.remove("av-gated");
+    byId("signin-gate").hidden = true;
+    if (popupBooted) {
+      void renderAccount();
+      void renderUsage();
+      return;
+    }
+    popupBooted = true;
+    void renderCourse();
+    void render();
+    void renderAccount();
+    void renderUsage();
+    void initModeControls();
   }
   async function renderAccount() {
     const el = byId("account");
@@ -1111,17 +1263,15 @@
   }
   document.addEventListener("DOMContentLoaded", () => {
     initTheme();
-    void renderCourse();
-    void render();
-    void renderAccount();
-    void renderUsage();
-    void initModeControls();
-    void (async () => {
-      if (await getSyncToken()) return;
-      await requestAccountLink(false);
-    })();
+    void bootPopup();
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded || changes.syncStatus)) {
+      if (area !== "local") return;
+      if (changes.syncToken) {
+        void bootPopup();
+        return;
+      }
+      if (document.body.classList.contains("av-gated")) return;
+      if (changes.syncProfile || changes.relinkNeeded || changes.syncStatus) {
         void renderAccount();
         void renderUsage();
       }

@@ -28,6 +28,13 @@ import { cloudAppUrl } from "../config";
 import { lessonUrl, wordsHeard, type CourseLesson } from "../lib/course-listening";
 import { lensPieceDelayMs, splitForLens } from "../lib/lens-lines";
 import { ONBOARDING_STORAGE_KEY, isFirstCardTransition } from "../lib/onboarding";
+import { SIGNIN_CHIP_DISMISSED_KEY, isSignedIn, shouldShowSigninChip } from "../lib/signin-gate";
+import {
+  getSigninChipDismissed,
+  hasPlayableMedia,
+  mountSigninChip,
+  unmountSigninChip,
+} from "../lib/signin-chip";
 import {
   captionNoticeText,
   captionReport,
@@ -79,6 +86,11 @@ declare global {
   let started = false;
   let initialized = false;
   let pipelineDisabled = false;
+  /** null until the token read answers. While null or false nothing may start. */
+  let signedIn: boolean | null = null;
+  let accountGeneration = 0;
+  /** The learner closed the in-page chip on this profile. */
+  let signinChipDismissed = false;
   let settings: Settings | null = null;
   /** The N5 lesson Listening follows for this account, if any (loadCourse). */
   let course: CourseLesson | null = null;
@@ -144,11 +156,20 @@ declare global {
     return a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
   }
 
+  /** The adapter this page would use, without starting it. */
+  function matchAdapter(): SiteAdapter | null {
+    return adapters.find((a) => a.matches()) || null;
+  }
+
   // Adapters can start matching late (e.g. Crunchyroll's player iframe creates
   // its <video> well after document_idle), so keep looking until one matches.
   function pickAdapter(): SiteAdapter | null {
+    // The account gate (#206): unresolved or signed out means no adapter, so
+    // nothing on the page can start the pipeline. The 2 second poll keeps
+    // calling this, and the next call after a token arrives starts it.
+    if (signedIn !== true) return null;
     if (adapter) return adapter;
-    adapter = adapters.find((a) => a.matches()) || null;
+    adapter = matchAdapter();
     if (adapter && !started) {
       started = true;
       log("adapter chosen:", adapter.name);
@@ -156,12 +177,13 @@ declare global {
       // useNetflixTracks), what the subtitle DOM shows is the same lines, late.
       adapter.start(
         (text, context) => {
+          if (signedIn !== true) return;
           lastPageLineAt = Date.now();
           if (episode) { comparePageLine(text); return; }
           subsDiag.source = "page";
           onLine(text, context);
         },
-        () => { if (!episode) clearLensLine(); }
+        () => { if (signedIn === true && !episode) clearLensLine(); }
       );
       // Load kuromoji and the dictionary now, not on the first subtitle line:
       // lazily, the first lines of every episode waited seconds for a cold
@@ -169,6 +191,71 @@ declare global {
       void ensureInit();
     }
     return adapter;
+  }
+
+  /**
+   * Put the chip up or take it down to match the account state.
+   *
+   * Called on boot, on every adapter poll (the player can appear late), and on
+   * settings changes. The chip is top-frame only, so a player iframe cannot
+   * mount a second one.
+   */
+  function syncSigninChip(): void {
+    if (signedIn !== false) { unmountSigninChip(); return; }
+    const siteKey = matchAdapter()?.name || "generic";
+    const enabled = !(settings?.sites && settings.sites[siteKey] === false);
+    const show = shouldShowSigninChip({
+      signedIn: false,
+      dismissed: signinChipDismissed,
+      topFrame: window.top === window,
+      hasPlayer: hasPlayableMedia(),
+      siteEnabled: enabled,
+    });
+    if (show) mountSigninChip();
+    else unmountSigninChip();
+  }
+
+  /** Tear down everything a signed-out page must not keep running. */
+  function stopSignedOutPipeline(): void {
+    unmountSigninChip();
+    listeningActive = false;
+    stopCachePolling();
+    stopPlaybackRelay();
+    stopTimeline();
+    if (watchInterval) clearInterval(watchInterval);
+    watchInterval = null;
+    cancelPacedLens();
+    lensSeq++;
+    hideLens();
+    overlay.hideAgent();
+    pendingLines.length = 0;
+    judgedLensSeqs.clear();
+  }
+
+  /**
+   * Read the token before anything else runs.
+   *
+   * A storage error means signed out. That is the safe direction: a failed
+   * read must never unlock the pipeline.
+   */
+  async function readAccountState(): Promise<void> {
+    const accountAtRead = signedIn;
+    let token = "";
+    try {
+      token = await storage.getSyncToken();
+    } catch {
+      token = "";
+    }
+    try {
+      settings = await storage.getSettings();
+    } catch {
+      // Keep whatever settings we have; the gate itself only needs the token.
+    }
+    // A token transition that arrived while settings were loading is newer
+    // than this read. Never restore the stale sign-in state over it.
+    if (signedIn === accountAtRead) signedIn = isSignedIn(token);
+    signinChipDismissed = signedIn ? false : await getSigninChipDismissed();
+    syncSigninChip();
   }
 
   function ensureInit(): Promise<void> {
@@ -185,7 +272,7 @@ declare global {
       setAdapterDirection(normalizeDirection(settings.learningDirection));
       wordStates = await storage.getVocab();
       initialized = true;
-      startWatchInterval();
+      if (signedIn === true) startWatchInterval();
     } catch (err) {
       pipelineDisabled = true;
       warn("pipeline init failed:", err);
@@ -469,6 +556,7 @@ declare global {
   }
 
   function prefetchAnimeContext(title: string | null): void {
+    if (signedIn !== true) return;
     if (!title || title === lastContextTitle) return;
     lastContextTitle = title;
     void requestAnimeContext(title);
@@ -574,7 +662,7 @@ declare global {
     const cue = context?.cue;
     // A track line whose time is already up (a very short cue) is not drawn late.
     const stale = (): boolean =>
-      seq !== lensSeq || currentSessionId() !== sessionId || (cue !== undefined && cue !== timelineCue);
+      signedIn !== true || seq !== lensSeq || currentSessionId() !== sessionId || (cue !== undefined && cue !== timelineCue);
     const current = settings || (await storage.getSettings());
     if (stale()) return;
     if (!siteEnabled(current) || !lensOn(current)) {
@@ -616,6 +704,7 @@ declare global {
       // The English track says nothing here (a song, a sign): neither do we.
       if (fromEpisode.source === "track") return;
       const ahead = await fromEpisode.whenEnglish(cue);
+      if (stale()) return;
       if (ahead !== null) {
         if (ahead) updateLensLine(line, { en: ahead });
         return;
@@ -628,6 +717,7 @@ declare global {
       // Its chunk failed: this one line on its own.
     }
     const translated = await subs.translate(line, tokens, currentTitle());
+    if (stale()) return;
     updateLensLine(line, translated ?? {});
     if (!translated) explainMissingEnglish();
   }
@@ -688,7 +778,7 @@ declare global {
     context?: LineContext,
     opts: { lens?: boolean; lensSeq?: number } = {}
   ): void {
-    if (pipelineDisabled) return;
+    if (signedIn !== true || pipelineDisabled) return;
     const line = text.replace(/\s+/g, " ").trim();
     if (!line) return;
     void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
@@ -725,6 +815,7 @@ declare global {
     // since this line was spoken, not since the last await.
     const lineSessionId = currentSessionId();
     const staleSession = (): boolean => {
+      if (signedIn !== true) return true;
       if (currentSessionId() === lineSessionId) return false;
       log("dropped line from the previous video:", text.slice(0, 40));
       return true;
@@ -943,12 +1034,14 @@ declare global {
 
   /** The page script may have the tracks already: ask for them. */
   function requestNetflixTracks(): void {
+    if (signedIn !== true) return;
     if (!location.hostname.endsWith("netflix.com")) return;
     const movieId = netflixId();
     if (movieId) window.postMessage({ source: "avc-content", type: "avc-netflix-timedtext-request", movieId }, location.origin);
   }
 
   function useNetflixTracks(data: { movieId?: unknown; ja?: { text?: unknown } | null; en?: { text?: unknown } | null }): void {
+    if (signedIn !== true) return;
     if (typeof data.movieId !== "string" || data.movieId !== netflixId()) return;
     // The same video again: only Netflix's English arriving after the
     // Japanese is news (it replaces the translation).
@@ -1048,7 +1141,9 @@ declare global {
    * Only Japanese learners follow one.
    */
   function loadCourse(refresh = false): Promise<void> {
+    const generation = accountGeneration;
     const run = (async () => {
+      if (signedIn !== true) { course = null; courseLoad = null; return; }
       let next: CourseLesson | null = null;
       try {
         const res = (await chrome.runtime.sendMessage({ type: "avc-n5-lesson", refresh })) as { ok?: boolean; lesson?: CourseLesson | null } | undefined;
@@ -1057,6 +1152,7 @@ declare global {
         next = course; // background asleep or reloading; keep what we had
       }
       const current = settings || (await storage.getSettings());
+      if (signedIn !== true || generation !== accountGeneration) return;
       if (normalizeDirection(current.learningDirection) !== "en-ja") next = null;
       course = next;
       overlay.setCourse(course, course ? courseActions : null);
@@ -1109,6 +1205,21 @@ declare global {
     if (msg.type === "avc-limit-reached") {
       void overlay.reportLimitReached((msg.kind as overlay.LimitKind) || "ai");
       return;
+    }
+    // Signed out (#206): the page must not open the panel, restore Listening,
+    // expose a cache key, or process a transcript. Background messages can
+    // still arrive for a tab that was open when the learner signed out.
+    if (signedIn !== true) {
+      if (msg.type === "avc-get-cache-key") sendResponse({ key: null });
+      else if (msg.type === "avc-agent-show") sendResponse({ ok: false, visible: false });
+      else if (msg.type === "avc-agent-status") sendResponse({ ok: true, visible: false });
+      if (
+        msg.type === "avc-get-cache-key" ||
+        msg.type === "avc-agent-show" ||
+        msg.type === "avc-agent-status" ||
+        msg.type === "avc-listening-state" ||
+        msg.type === "avc-transcript"
+      ) return;
     }
     if (msg.type === "avc-get-cache-key") {
       refreshCacheKey();
@@ -1256,13 +1367,44 @@ declare global {
       }
       overlay.applyPanelSettings(next);
       syncNativeSubs();
+      if (signedIn === false) syncSigninChip();
       if (courseLoad || course) void loadCourse();
     }).catch(() => {});
   });
 
-  // Another account, or signed out: its lesson is not this one's.
+  // The account gate (#206) follows the token live: a sign-in starts the
+  // pipeline without a reload, a sign-out takes the learning UI away and
+  // brings the chip back.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.syncToken && (courseLoad || course)) void loadCourse(true);
+    if (area === "local" && changes[SIGNIN_CHIP_DISMISSED_KEY]) {
+      signinChipDismissed = changes[SIGNIN_CHIP_DISMISSED_KEY].newValue === true;
+      syncSigninChip();
+    }
+    if (area !== "local" || !changes.syncToken) return;
+    const next = isSignedIn(changes.syncToken.newValue);
+    accountGeneration++;
+    signedIn = next;
+    lastContextTitle = "";
+    if (next) {
+      signinChipDismissed = false;
+      unmountSigninChip();
+      log("account gate: signed in, starting pipeline");
+      pickAdapter();
+      requestNetflixTracks();
+      prefetchAnimeContext(currentTitle());
+      if (initialized) startWatchInterval();
+      // Another account, or the first sign-in: its lesson is not the old one's.
+      if (courseLoad || course) void loadCourse(true);
+    } else {
+      log("account gate: signed out, stopping pipeline");
+      stopSignedOutPipeline();
+      void getSigninChipDismissed().then((dismissed) => {
+        signinChipDismissed = dismissed;
+        syncSigninChip();
+      });
+      course = null;
+      courseLoad = null;
+    }
   });
 
   /**
@@ -1298,13 +1440,15 @@ declare global {
    * (issue #126). Ask what this tab was doing and restore both sides.
    */
   async function restoreTabSession(): Promise<void> {
+    if (signedIn !== true) return;
+    const generation = accountGeneration;
     let state: { listening?: boolean; copilot?: boolean } | undefined;
     try {
       state = await chrome.runtime.sendMessage({ type: "avc-session-state" });
     } catch {
       return; // background asleep or extension reloading; nothing to restore
     }
-    if (!state) return;
+    if (!state || signedIn !== true || generation !== accountGeneration) return;
     if (state.copilot || state.listening) void loadCourse();
     if (state.copilot) overlay.openAgent();
     if (state.listening && !listeningActive) {
@@ -1322,13 +1466,30 @@ declare global {
     chrome.runtime.sendMessage({ type: "avc-copilot-state", open }).catch(() => {});
   });
 
-  pickAdapter();
+  // The account gate reads the token before anything else can start. Until it
+  // answers, pickAdapter returns null; after it answers, this block starts the
+  // pipeline exactly as the old synchronous boot did.
+  void (async () => {
+    await readAccountState();
+    const initial = pickAdapter();
+    lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
+    refreshCacheKey();
+    if (signedIn === true) {
+      requestNetflixTracks();
+      prefetchAnimeContext(currentTitle());
+      void restoreTabSession();
+    }
+  })();
+
+  // Keep polling: an adapter can appear late, and after a sign-in the next
+  // tick starts it even if the boot read raced a page that was still loading.
   const pickTimer = setInterval(() => {
     if (pickAdapter()) clearInterval(pickTimer);
   }, 2000);
 
   setInterval(() => {
     pickAdapter();
+    syncSigninChip();
     const sid = currentSessionId();
     if (sid !== lastSessionId) {
       lastSessionId = sid;
@@ -1376,14 +1537,7 @@ declare global {
     if (e.data.type === "avc-netflix-clock") onNetflixClock(e.data);
   });
 
-  refreshCacheKey();
-  const initial = pickAdapter();
-  lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
-
   // Legacy: stop auto-opening the sidebar on every page after an old popup session pinned it.
   void storage.setAgentPinned(false);
 
-  void restoreTabSession();
-  // The player may have read its subtitle tracks before this script loaded.
-  requestNetflixTracks();
 })();

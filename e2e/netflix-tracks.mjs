@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { createServer } from "node:https";
-import { mkdtemp, readFile, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, mkdir, rm, cp, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -141,7 +141,25 @@ const server = createServer({ key: await readFile(join(temp, "key.pem")), cert: 
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const port = server.address().port;
-const ext = resolve("extension");
+let ext = resolve("extension");
+// Force the account-read race without changing the production bundle. All
+// Netflix cases below must still fetch tracks and show their first cue on time.
+const gateDelay = Number(process.env.AVC_E2E_GATE_DELAY_MS || 0);
+if (gateDelay > 0) {
+  const delayed = join(temp, "extension");
+  await cp(ext, delayed, { recursive: true });
+  const content = join(delayed, "content.js");
+  await writeFile(content, `(() => {
+    const get = chrome.storage.local.get.bind(chrome.storage.local);
+    chrome.storage.local.get = (keys, cb) => {
+      if (Array.isArray(keys) && keys.includes('syncToken') && cb) {
+        return get(keys, value => setTimeout(() => cb(value), ${gateDelay}));
+      }
+      return cb ? get(keys, cb) : get(keys);
+    };
+  })();\n` + await readFile(content, "utf8"));
+  ext = delayed;
+}
 const ctx = await chromium.launchPersistentContext("", {
   channel: "chromium", headless: !process.env.AVC_E2E_HEADED, viewport: { width: 1200, height: 760 },
   args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`, `--host-resolver-rules=MAP animevocab.com 127.0.0.1:${port},MAP api.animevocab.com 127.0.0.1:${port},MAP www.netflix.com 127.0.0.1:${port},MAP ipv4-c001.nflxvideo.net 127.0.0.1:${port}`, "--ignore-certificate-errors", "--autoplay-policy=no-user-gesture-required"],

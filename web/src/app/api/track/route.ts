@@ -10,6 +10,7 @@ import {
 import { normalizeAttribution } from "@/lib/funnel-attribution";
 import { requestIdentity } from "@/lib/request-identity";
 import { isProFunnelEvent, normalizeProSurface } from "@/lib/pro-funnel";
+import { isSigninFunnelEvent, normalizeSigninSurface } from "@/lib/signin-funnel";
 
 export const dynamic = "force-dynamic";
 
@@ -97,9 +98,14 @@ export async function POST(req: Request) {
       // that predated every learning-loop event for two months and nothing
       // here could tell; the website sends none, so its rows stay "".
       clientVersion: normalizeClientVersion(body.v),
-      // Only a Pro funnel row has a surface (#162). Taking it from any other
-      // row would let a pageview mint /owner labels.
-      surface: isProFunnelEvent(name) ? normalizeProSurface(body.surface) : "",
+      // Only a funnel row carries a surface. Taking it from any other row
+      // would let a pageview mint /owner labels. The sign-in gate (#206) has
+      // its own allowlist because its metric is per surface too.
+      surface: isProFunnelEvent(name)
+        ? normalizeProSurface(body.surface)
+        : isSigninFunnelEvent(name)
+          ? normalizeSigninSurface(body.surface)
+          : "",
       ...attribution,
     });
   } catch {

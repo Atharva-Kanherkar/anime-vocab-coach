@@ -1,18 +1,12 @@
 // Content script on the hosted web app (animevocab.com). The signed-in page
 // broadcasts a sync token via postMessage; we store it and ask the background
-// to push. Kept dependency-free so it stays a tiny bundle on the site.
+// to restore/sync. Sign-out is serialized by the worker.
 (function initSyncBridge() {
 const bridgeWindow = window as Window & { __avcSyncBridgeLoaded?: boolean };
 if (bridgeWindow.__avcSyncBridgeLoaded) return;
 bridgeWindow.__avcSyncBridgeLoaded = true;
 
 const ALLOWED_ORIGINS = new Set(["https://animevocab.com", "https://www.animevocab.com"]);
-
-// Mirrors SIGN_OUT_SUPPRESSION_MS in lib/account-link. Kept as a literal rather
-// than an import: importing that module would pull lib/storage (and the scoring
-// tables behind it) into a bundle that runs on every animevocab.com page view.
-// test/account-link.test.ts fails if the two drift apart.
-const SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1000;
 
 function pageOrigin(): string {
   return window.location.origin;
@@ -54,12 +48,18 @@ window.addEventListener("message", (event) => {
     source?: string;
     type?: string;
     token?: string;
+    surface?: string;
     profile?: { email?: string | null; name?: string | null; plan?: string | null } | null;
   } | null;
   if (!data || data.source !== "avc-web") return;
 
   if (data.type === "avc-ping-extension") {
     announceExtension();
+    return;
+  }
+
+  if (data.type === "avc-signin-surface") {
+    chrome.runtime.sendMessage({ type: "avc-signin-surface", surface: data.surface }).catch(() => {});
     return;
   }
 
@@ -83,9 +83,13 @@ window.addEventListener("message", (event) => {
     if (syncProfile !== undefined) update.syncProfile = syncProfile;
     update.relinkNeeded = false;
     update.syncAuthFailures = 0;
-    chrome.storage.local.set(update, () => {
+    void (async () => {
+      if (location.pathname === "/start") {
+        await chrome.runtime.sendMessage({ type: "avc-signin-surface", surface: "start_page" }).catch(() => {});
+      }
+      await chrome.storage.local.set(update);
       chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
-    });
+    })().catch(() => {});
     return;
   }
 
@@ -115,14 +119,7 @@ window.addEventListener("message", (event) => {
     // holds the background worker's silent re-link off for a few minutes. Clerk
     // clears its cookie around this same moment, so a probe that raced it would
     // hand the credential straight back and undo the sign-out.
-    chrome.storage.local.set({
-      syncToken: "",
-      syncProfile: null,
-      relinkNeeded: false,
-      syncAuthFailures: 0,
-      syncStatus: { state: "idle", lastAttemptAt: null, lastSuccessAt: null, error: null },
-      autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS,
-    });
+    chrome.runtime.sendMessage({ type: "avc-sign-out" }).catch(() => {});
   }
 });
 

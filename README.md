@@ -6,7 +6,7 @@
 
 **Learn Japanese from the anime you already watch.**
 
-Romaji-first vocabulary cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube. Free, open source, local-first — with an optional cloud app and [Manga Studio](https://animevocab.com/studio) for creating your own manga.
+Romaji-first vocabulary cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube. Free and open source, with a free account for your words, reviews and progress, plus [Manga Studio](https://animevocab.com/studio) for creating your own manga.
 
 [**Website**](https://animevocab.com) · [**Install extension**](https://animevocab.com/app) · [**Manga Studio**](https://animevocab.com/studio) · [**Cloud app**](https://animevocab.com/app)
 
@@ -27,9 +27,9 @@ Most anime learning tools assume you can already read Japanese subtitles. AnimeV
 | **One word per line** | No flashcard flood — one useful candidate per subtitle line |
 | **Spaced repetition** | Built-in review queue; export to Anki anytime |
 | **Listening Mode** | Transcribes tab audio when JP subs are missing (Crunchyroll, etc.) |
-| **Local-first** | Progress in `chrome.storage.local` — no account required |
+| **Free account** | Sign in at [animevocab.com/start](https://animevocab.com/start) to connect the extension and sync your progress |
 | **Manga Studio** | AI-assisted manga maker at [animevocab.com/studio](https://animevocab.com/studio) |
-| **Cloud app** | Optional sync, AI coach, notebooks, streaks at [animevocab.com/app](https://animevocab.com/app) |
+| **Cloud app** | Account sync, AI coach, notebooks, streaks at [animevocab.com/app](https://animevocab.com/app) |
 
 ## Install the Chrome extension
 
@@ -57,7 +57,7 @@ See [`extension/README-INSTALL.md`](extension/README-INSTALL.md) for screenshots
 - **Tokenization** — [kuromoji.js](https://github.com/takuyaa/kuromoji.js) + bundled [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html)-derived dictionary with frequency ranks
 - **Word picking** — scores by frequency, difficulty band, and exposure; one card per line with cooldowns
 - **Listening Mode** — OpenAI Realtime transcription; Pro subscription or your own API key
-- **Privacy** — progress stays on-device unless you opt into cloud sync; aggregate rating-prompt counters only ([PRIVACY.md](PRIVACY.md))
+- **Privacy** — a free account is required; progress syncs automatically, with a local cache cleared on sign-out ([PRIVACY.md](PRIVACY.md))
 
 ## Pro
 

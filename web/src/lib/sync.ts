@@ -13,7 +13,7 @@ export interface CloudUserProfile {
   name: string | null;
   // Subscription tier (free | pro | max), copied from Clerk publicMetadata when
   // the profile/token is minted. Absent on profiles minted before tiers → free.
-  plan?: import("./ai-coach").Plan;
+  plan?: import("./site").PlanId;
   billingInterval?: "monthly" | "yearly" | null;
   /** ISO expiry for gifts; null/absent = no expiry (paid sub). */
   planExpiresAt?: string | null;

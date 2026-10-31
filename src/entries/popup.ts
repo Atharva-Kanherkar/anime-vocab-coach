@@ -5,7 +5,12 @@ import { mountReviewPrompt } from "../lib/review-prompt-ui";
 import { mountOnboarding } from "../lib/onboarding-ui";
 import { ACCOUNT_COPY, planLabel } from "../lib/account-link";
 import { trackExtensionEvent } from "../lib/extension-events";
-import { trackPro, type ProSurface } from "../lib/feature-events";
+import { trackPro, trackSignin, type ProSurface } from "../lib/feature-events";
+import {
+  SIGNIN_GATE_COPY,
+  SIGNIN_UPGRADE_NOTICE_KEY,
+  isSignedIn,
+} from "../lib/signin-gate";
 import {
   MILESTONE_SEEN_KEY,
   keptWordCount,
@@ -127,6 +132,100 @@ async function requestAccountLink(force: boolean): Promise<boolean> {
   } catch {
     return false; // worker asleep or mid-restart — the row just stays unlinked
   }
+}
+
+// --- Account gate (#206) ---------------------------------------------------
+
+/** Track one shown per popup open, not one per repaint. */
+let signinGateShown = false;
+/** The signed-in half of the popup has been mounted once. */
+let popupBooted = false;
+
+/**
+ * The whole popup while signed out: one explanation, one button, no learning
+ * surfaces. The normal sections stay in the DOM and are hidden by the
+ * `av-gated` body class, so a sign-in can reveal them without a reload.
+ */
+async function mountSigninGate(): Promise<void> {
+  const gate = byId("signin-gate");
+  document.body.classList.add("av-gated");
+  gate.hidden = false;
+
+  let upgrade = false;
+  try {
+    const r = await chrome.storage.local.get([SIGNIN_UPGRADE_NOTICE_KEY]);
+    upgrade = r[SIGNIN_UPGRADE_NOTICE_KEY] === true;
+    // Shown once. The learner has now been told where their words went.
+    if (upgrade) await chrome.storage.local.remove(SIGNIN_UPGRADE_NOTICE_KEY);
+  } catch {
+    // Storage unavailable: show the gate without the migration line.
+  }
+
+  gate.innerHTML =
+    `<p class="av-gate-eyebrow">${esc(SIGNIN_GATE_COPY.popupEyebrow)}</p>` +
+    `<p class="av-gate-title">${esc(SIGNIN_GATE_COPY.popupTitle)}</p>` +
+    `<p class="av-gate-note">${esc(SIGNIN_GATE_COPY.popupNote)}</p>` +
+    (upgrade ? `<p class="av-gate-upgrade">${esc(SIGNIN_GATE_COPY.upgradeNote)}</p>` : "") +
+    `<div class="av-gate-actions">` +
+    `<button id="gate-signin" class="av-btn av-btn-primary av-btn-block" type="button">${esc(SIGNIN_GATE_COPY.popupCta)}</button>` +
+    `</div>` +
+    `<p class="av-gate-fine">${esc(SIGNIN_GATE_COPY.popupFine)}</p>`;
+
+  if (!signinGateShown) {
+    signinGateShown = true;
+    void trackSignin("signin_gate_shown", "popup");
+  }
+
+  const btn = byId<HTMLButtonElement>("gate-signin");
+  btn.addEventListener("click", () => {
+    void (async () => {
+      btn.disabled = true;
+      btn.textContent = SIGNIN_GATE_COPY.chipBusy;
+      void trackSignin("signin_started", "popup");
+      let opened = false;
+      try {
+        const res = (await chrome.runtime.sendMessage({
+          type: "avc-open-signin",
+          from: "popup",
+        })) as { ok?: boolean; linked?: boolean; opened?: boolean } | undefined;
+        opened = res?.opened === true;
+      } catch {
+        // Worker asleep or reloading: leave the button usable.
+      }
+      if (opened) {
+        // /start is now in front of the learner; the popup has done its job.
+        window.close();
+        return;
+      }
+      btn.disabled = false;
+      btn.textContent = SIGNIN_GATE_COPY.popupCta;
+      await bootPopup();
+    })();
+  });
+}
+
+/** Show either the gate or the normal popup, based on the stored token. */
+async function bootPopup(): Promise<void> {
+  const token = await storage.getSyncToken();
+  if (!isSignedIn(token)) {
+    await mountSigninGate();
+    return;
+  }
+
+  document.body.classList.remove("av-gated");
+  byId("signin-gate").hidden = true;
+
+  if (popupBooted) {
+    void renderAccount();
+    void renderUsage();
+    return;
+  }
+  popupBooted = true;
+  void renderCourse();
+  void render();
+  void renderAccount();
+  void renderUsage();
+  void initModeControls();
 }
 
 // Account status. The extension never has its own login: it borrows the
@@ -651,25 +750,21 @@ async function initModeControls(): Promise<void> {
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  void renderCourse();
-  void render();
-  void renderAccount();
-  void renderUsage();
-  void initModeControls();
 
-  // Opening the popup is the moment the learner is asking "am I connected?".
-  // If we aren't, try once in the background — the hourly cooldown in
-  // lib/account-link keeps this from becoming a mint on every popup open, and
-  // the storage listener below repaints if it works.
-  void (async () => {
-    if (await storage.getSyncToken()) return;
-    await requestAccountLink(false);
-  })();
+  // The account gate decides which half of the popup mounts (#206). Opening
+  // the popup must not mint a token by itself: only the gate button does.
+  void bootPopup();
 
   // If the user signs in on animevocab.com while this popup is open, the
-  // token lands in storage — flip the account section live.
+  // token lands in storage. The gate gives way to the normal popup live.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && (changes.syncToken || changes.syncProfile || changes.relinkNeeded || changes.syncStatus)) {
+    if (area !== "local") return;
+    if (changes.syncToken) {
+      void bootPopup();
+      return;
+    }
+    if (document.body.classList.contains("av-gated")) return;
+    if (changes.syncProfile || changes.relinkNeeded || changes.syncStatus) {
       void renderAccount();
       void renderUsage();
     }
