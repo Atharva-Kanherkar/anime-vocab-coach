@@ -296,9 +296,7 @@ try {
   );
   assert.ok((await local(["learnOutbox"])).learnOutbox.length > 0);
   offline = false;
-  await popup.evaluate(() =>
-    chrome.runtime.sendMessage({ type: "avc-sync-now" }),
-  );
+  await watch.evaluate(()=>window.dispatchEvent(new Event("online")));
   await until(async () =>
     (
       await (await fetch(base + "/api/sync/snapshot")).json()
