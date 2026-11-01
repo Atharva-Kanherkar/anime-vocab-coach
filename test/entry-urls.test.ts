@@ -30,11 +30,15 @@ describe("review and dashboard links", () => {
     for (const [file, section] of [
       ["entries/popup.ts", "review"],
       ["entries/content.ts", "review"],
-      ["entries/welcome.ts", "progress"],
       ["lib/onboarding-ui.ts", "review"],
     ] as const) {
       expect(readFileSync(join(SRC, file), "utf8"), file).toMatch(new RegExp(`cloudAppUrl\\("${section}"`));
     }
+  });
+
+  it("redirects legacy settings and welcome pages",()=>{
+    expect(readFileSync(join(SRC,"entries/options.ts"),"utf8")).toContain('/app#settings');
+    expect(readFileSync(join(SRC,"entries/welcome.ts"),"utf8")).toContain('/start');
   });
 
   it("point at /app with the section in the hash", () => {

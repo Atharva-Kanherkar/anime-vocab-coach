@@ -1,3 +1,4 @@
+import * as learnerStorage from "../lib/storage";
 import { DEFAULTS } from "../types";
 import { BACKEND_URL, WEB_URL } from "../config";
 import { pullSettingsFromCloud, syncWithCloud } from "../lib/cloud-sync";
@@ -229,8 +230,8 @@ void ensureSyncBridgeInOpenTabs();
 const SYNC_ALARM = "avc-cloud-sync";
 let syncDebounce: ReturnType<typeof setTimeout> | null = null;
 
-function scheduleSync(delayMs = 8000): void {
-  if (syncDebounce) clearTimeout(syncDebounce);
+function scheduleSync(delayMs = 250): void {
+  if (syncDebounce) return;
   syncDebounce = setTimeout(() => {
     syncDebounce = null;
     syncWithCloud().catch(() => {});
@@ -248,7 +249,7 @@ chrome.runtime.onStartup.addListener(() => {
   // once per browser start; the module's own cooldown keeps it cheap.
   void linkAccount("startup");
 });
-chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
+chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 1 }));
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SYNC_ALARM) { syncWithCloud().catch(() => {}); void retryPendingN5(); }
 });
@@ -334,7 +335,8 @@ async function handleSignOut(): Promise<void> {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes.vocab || changes.stats) scheduleSync();
+  const outbox = changes.learnOutbox;
+  if (outbox && (Array.isArray(outbox.newValue) ? outbox.newValue.length : 0) > (Array.isArray(outbox.oldValue) ? outbox.oldValue.length : 0)) scheduleSync();
   // `extension_linked` is watched here rather than fired at the two places
   // that store a token: the sync bridge writes chrome.storage directly (it is
   // deliberately dependency-free), and lib/storage's setSyncToken is the other
@@ -556,6 +558,11 @@ async function stopListening(tabId: number): Promise<Ack> {
 
 interface RuntimeMsg {
   type: string;
+  method?: string;
+  args?: unknown[];
+  token?: string;
+  profile?: learnerStorage.SyncProfile;
+  value?: string;
   count?: number;
   tabId?: number;
   line?: string;
@@ -590,6 +597,50 @@ const ACCOUNT_REQUESTS = new Set([
 ]);
 
 chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => {
+  if (msg.type === "avc-learning-write") {
+    const args = Array.isArray(msg.args) ? msg.args : [];
+    const handlers: Record<string,()=>Promise<unknown>> = {
+      setSettings:()=>learnerStorage.setSettings(args[0] as Partial<Settings>),
+      setWordState:()=>learnerStorage.setWordState(args[0] as string,args[1] as import("../types").WordState),
+      recordSeen:()=>learnerStorage.recordSeen(args[0] as import("../types").Token[],args[1] as import("../types").VocabMap,new Set(args[2] as string[]),args[3] as Settings["learningDirection"],args[4] as Record<string,import("../types").DictEntry>),
+      judgeWord:()=>learnerStorage.judgeWord(args[0] as string,args[1] as import("../types").Judgment,args[2] as import("../types").JudgmentMeta,args[3] as import("../types").WordSource),
+      recordCardShown:()=>learnerStorage.recordCardShown(args[0] as string),
+      recordWatchTick:()=>learnerStorage.recordWatchTick(),
+    };
+    const handler = Object.prototype.hasOwnProperty.call(handlers,msg.method || "") ? handlers[msg.method!] : null;
+    if (!handler) {sendResponse({error:"Unknown learning write."});return;}
+    void handler().then(async value=>{
+      sendResponse({value});
+      if(msg.method === "judgeWord" && (args[1] === "learn" || args[1] === "know") && !await getSyncToken()) {
+        const r = await chrome.storage.local.get("learnSigninPrompted");
+        if(!r.learnSigninPrompted) {
+          await chrome.storage.local.set({learnSigninPrompted:true});
+          void openSigninFromGate({type:"avc-open-signin",from:"content_chip"},sender);
+        }
+      }
+    },error=>sendResponse({error:String(error?.message || error)}));
+    return true;
+  }
+  if(msg.type === "avc-device-key") {
+    const url=sender.url || sender.tab?.url || "";
+    if(!/^https:\/\/(www\.)?animevocab\.com\//.test(url) || typeof msg.value !== "string" || msg.value.length>512) {
+      sendResponse({ok:false});return;
+    }
+    void learnerStorage.setSettings({openaiKey:msg.value.trim()}).then(()=>sendResponse({ok:true}),()=>sendResponse({ok:false}));
+    return true;
+  }
+  if(msg.type === "avc-delete-learning-data") {
+    void learnerStorage.discardDeletedAccountWrites().then(()=>clearSignedOutCache()).then(()=>sendResponse({ok:true}));
+    return true;
+  }
+  if(msg.type === "avc-link-token" && typeof msg.token === "string") {
+    void learnerStorage.setSyncToken(msg.token).then(async()=>{
+      if(msg.profile) await learnerStorage.setSyncProfile(msg.profile);
+      await syncWithCloud();sendResponse({ok:true});
+    }).catch(()=>sendResponse({ok:false}));
+    return true;
+  }
+
   if (ACCOUNT_REQUESTS.has(msg.type) || msg.type?.startsWith("avc-n5-")) {
     void getSyncToken().then(token => {
       if (!token) sendResponse({ ok: false, error: "Sign in to your free account at animevocab.com/start." });
@@ -966,3 +1017,15 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
   await setCopilotTab(tabId, false);
 });
+
+self.addEventListener("online",()=>scheduleSync(0));
+
+// Chrome can reject a removed extension URL before onBeforeNavigate. Handle
+// both paths so bookmarks to the retired stats UI still reach Progress.
+function redirectRetiredPage(details: {frameId:number;url:string;tabId:number}): void {
+  if(details.frameId===0 && details.url===chrome.runtime.getURL(["dashboard","dashboard.html"].join("/"))) {
+    void chrome.tabs.update(details.tabId,{url:WEB_URL+"/app#progress"});
+  }
+}
+chrome.webNavigation.onBeforeNavigate.addListener(redirectRetiredPage);
+chrome.webNavigation.onErrorOccurred.addListener(redirectRetiredPage);

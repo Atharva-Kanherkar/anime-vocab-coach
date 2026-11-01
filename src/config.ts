@@ -77,7 +77,7 @@ export function ownedWebUrl(path: string, campaign: string): string {
  * own dashboard page, a local file that knew nothing of the account: reviews
  * done there never showed up on the web, and the web had no review at all.
  */
-export function cloudAppUrl(section: "review" | "progress", campaign: string): string {
+export function cloudAppUrl(section: "review" | "progress" | "settings" | "backup", campaign: string): string {
   return ownedWebUrl(`/app#${section}`, campaign);
 }
 

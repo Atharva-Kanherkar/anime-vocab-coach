@@ -152,6 +152,7 @@ export async function getSyncTokenProfile(token: string, expectedOwner?: string)
   let record: StoredTokenProfile;
   try { record = JSON.parse(raw); } catch { return null; }
   if (!record || typeof record.id !== "string" || (expectedOwner && record.id !== expectedOwner)) return null;
+  if (await store.get(`learn:deleted:${record.id}`)) return null;
   const { touchedAt, ...profile } = record;
   if (tokenNeedsTouch({ touchedAt }, Date.now())) {
     // Best effort: a failed slide must not turn a valid token into a 401.

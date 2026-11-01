@@ -49,6 +49,8 @@ window.addEventListener("message", (event) => {
     type?: string;
     token?: string;
     surface?: string;
+    requestId?: string;
+    value?: string;
     profile?: { email?: string | null; name?: string | null; plan?: string | null } | null;
   } | null;
   if (!data || data.source !== "avc-web") return;
@@ -79,17 +81,7 @@ window.addEventListener("message", (event) => {
             plan: plan === "free" || plan === "pro" || plan === "max" ? plan : null,
           }
         : undefined;
-    const update: Record<string, unknown> = { syncToken: token };
-    if (syncProfile !== undefined) update.syncProfile = syncProfile;
-    update.relinkNeeded = false;
-    update.syncAuthFailures = 0;
-    void (async () => {
-      if (location.pathname === "/start") {
-        await chrome.runtime.sendMessage({ type: "avc-signin-surface", surface: "start_page" }).catch(() => {});
-      }
-      await chrome.storage.local.set(update);
-      chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {});
-    })().catch(() => {});
+    void chrome.runtime.sendMessage({type:"avc-link-token",token,profile:syncProfile}).catch(()=>{});
     return;
   }
 
@@ -108,6 +100,18 @@ window.addEventListener("message", (event) => {
   // the next push overwrote the save and the site's settings never applied.
   if (data.type === "avc-settings-updated") {
     chrome.runtime.sendMessage({ type: "avc-pull-settings" }).catch(() => {});
+    return;
+  }
+
+  if(data.type === "avc-device-key" && typeof data.requestId === "string" && typeof data.value === "string") {
+    void chrome.runtime.sendMessage({type:"avc-device-key",value:data.value}).then(reply=>{
+      window.postMessage({source:"avc-ext",type:"avc-device-key-saved",requestId:data.requestId,ok:reply?.ok===true},pageOrigin());
+    }).catch(()=>{});
+    return;
+  }
+
+  if(data.type === "avc-delete-learning-data") {
+    void chrome.runtime.sendMessage({type:"avc-delete-learning-data"}).catch(()=>{});
     return;
   }
 

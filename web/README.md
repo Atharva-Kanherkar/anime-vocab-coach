@@ -7,6 +7,7 @@ The public site at **animevocab.com** lives here. The legacy static HTML version
 ```bash
 cd web
 npm install
+npx wrangler d1 migrations apply avc-n5 --local
 npm run dev
 ```
 
@@ -21,6 +22,7 @@ npm run preview
 ## Deploy
 
 ```bash
+npx wrangler d1 migrations apply avc-n5 --remote
 npm run deploy
 ```
 
@@ -43,3 +45,5 @@ NEXT_PUBLIC_API_BASE=https://api.animevocab.com
 ```
 
 Used for live promo pricing from the Pro API.
+
+Learning data protocol, account lifecycle and browser verification: [cloud-learning.md](../docs/cloud-learning.md).

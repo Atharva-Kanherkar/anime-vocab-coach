@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveProfile } from "@/lib/auth";
 import { getNotebookStore } from "@/lib/notebook-store";
 import { getLearnStore } from "@/lib/learn-server";
-import { newLearnOp, type LearnOp } from "../../../../../../shared/learn/model";
+import { newLearnOp, type LearnOp } from "../../../../lib/learn-protocol/model";
 import {
   clampName,
   entryHasContent,

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveProfile } from "@/lib/auth";
 import { getNotebookStore } from "@/lib/notebook-store";
 import { getLearnStore } from "@/lib/learn-server";
-import { newLearnOp } from "../../../../../shared/learn/model";
+import { newLearnOp } from "../../../lib/learn-protocol/model";
 import { clampName, toSummary, MAX_NOTEBOOKS, type Notebook } from "@/lib/notebooks";
 
 export const dynamic = "force-dynamic";

@@ -14,6 +14,211 @@
   }
   var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
+  // web/src/lib/learn-protocol/model.ts
+  var newLearnOp = (kind, payload, op_id = crypto.randomUUID(), client_ts = (/* @__PURE__ */ new Date()).toISOString()) => ({ op_id, kind, payload, client_ts });
+  var intervals = [
+    0,
+    4 * 36e5,
+    24 * 36e5,
+    3 * 864e5,
+    7 * 864e5,
+    21 * 864e5
+  ];
+
+  // web/src/lib/learn-protocol/validate.ts
+  var object = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  var text = (v, max = 200) => typeof v === "string" && v.length > 0 && v.length <= max && !/[\u0000-\u001f]/.test(v) && !["__proto__", "constructor", "prototype"].includes(v);
+  var num = (v, max = 1e9) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max;
+  var PUBLIC_SETTINGS = {
+    pauseMode: (v) => ["copilot", "pause", "off"].includes(v),
+    cooldownSec: (v) => num(v, 120),
+    maxCardsPerHour: (v) => num(v, 60),
+    targetLevel: (v) => num(v, 5) && Number(v) >= 1,
+    autoResumeSec: (v) => num(v, 120),
+    displayScript: (v) => ["romaji", "kana", "kanji", "romaji-kana"].includes(v),
+    learningDirection: (v) => ["en-ja", "ja-en"].includes(v),
+    autoSpeak: (v) => typeof v === "boolean",
+    subLens: (v) => typeof v === "boolean",
+    subLensPeek: (v) => typeof v === "boolean",
+    transcribeModel: (v) => text(v, 100),
+    sites: (v) => object(v) && Object.keys(v).every(
+      (k) => ["youtube", "netflix", "generic"].includes(k)
+    ) && ["youtube", "netflix", "generic"].every((k) => typeof v[k] === "boolean")
+  };
+  function publicSettings(raw) {
+    return Object.fromEntries(
+      Object.entries(raw).filter(
+        ([k, v]) => Object.prototype.hasOwnProperty.call(PUBLIC_SETTINGS, k) && PUBLIC_SETTINGS[k](v)
+      )
+    );
+  }
+
+  // web/src/lib/sync.ts
+  function asRecord(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+  function asNumber(value, fallback = 0) {
+    return Number.isFinite(Number(value)) ? Number(value) : fallback;
+  }
+  function asString(value, fallback = "") {
+    return typeof value === "string" ? value : fallback;
+  }
+  function asWordState(value, base = "word") {
+    if (value === void 0 || value === null || value === "new") return "new";
+    if (value === "learning" || value === "known" || value === "ignored") return value;
+    throw new Error(`Invalid word state for ${base}.`);
+  }
+  function timeToIso(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return new Date(n).toISOString();
+  }
+  function asTimestampArray(value) {
+    return Array.isArray(value) ? value.map(Number).filter((n) => Number.isFinite(n) && n > 0) : [];
+  }
+  var MAX_SOURCE_TITLE = 200;
+  var MAX_SOURCE_LINE = 500;
+  function clampOrNull(value, max) {
+    if (typeof value !== "string") return null;
+    const t = value.trim().slice(0, max);
+    return t.length ? t : null;
+  }
+  function asWordSource(value) {
+    if (!value || typeof value !== "object") return null;
+    const s = value;
+    const title = clampOrNull(s.title, MAX_SOURCE_TITLE);
+    const line = clampOrNull(s.line, MAX_SOURCE_LINE);
+    const en = clampOrNull(s.en, MAX_SOURCE_LINE);
+    if (!title && !line && !en) return null;
+    return { title, line, en };
+  }
+  var SECRET_SETTING_KEYS = ["openaiKey", "apiKey"];
+  function stripSecretSettings(settings) {
+    const out = { ...settings };
+    for (const key of SECRET_SETTING_KEYS) delete out[key];
+    return out;
+  }
+  function normalizeAnimeVocabExport(input, now = /* @__PURE__ */ new Date()) {
+    const vocab = asRecord(input.vocab);
+    const stats = input.stats || {};
+    const daily = asRecord(stats.daily);
+    return {
+      schemaVersion: 1,
+      source: "animevocab-extension",
+      importedAt: now.toISOString(),
+      sourceExportedAt: typeof input.exportedAt === "string" ? input.exportedAt : null,
+      settings: stripSecretSettings(asRecord(input.settings)),
+      cardTimestamps: asTimestampArray(stats.cardTimestamps),
+      words: Object.entries(vocab).map(([base, raw]) => {
+        const rec = asRecord(raw);
+        const srs = asRecord(rec.srs);
+        const hasSrs = rec.srs !== null && Object.keys(srs).length > 0;
+        return {
+          base,
+          state: asWordState(rec.state, base),
+          reading: asString(rec.reading),
+          gloss: asString(rec.gloss),
+          level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
+          freqRank: Number.isFinite(Number(rec.freqRank)) ? Number(rec.freqRank) : null,
+          seenCount: asNumber(rec.seenCount),
+          shownCount: asNumber(rec.shownCount),
+          firstSeenAt: timeToIso(rec.firstSeenAt),
+          lastSeenAt: timeToIso(rec.lastSeenAt),
+          review: hasSrs ? {
+            stage: asNumber(srs.stage),
+            dueAt: timeToIso(srs.dueAt),
+            lapses: asNumber(srs.lapses)
+          } : null,
+          source: asWordSource(rec.source)
+        };
+      }).sort((a, b) => a.base.localeCompare(b.base)),
+      daily: Object.entries(daily).map(([day, raw]) => {
+        const rec = asRecord(raw);
+        return {
+          day,
+          met: asNumber(rec.met),
+          judged: asNumber(rec.judged),
+          reviews: asNumber(rec.reviews),
+          watchMin: asNumber(rec.watchMin)
+        };
+      }).sort((a, b) => a.day.localeCompare(b.day))
+    };
+  }
+
+  // src/lib/learn-cache.ts
+  var LEARN_KEYS = [
+    "learnOutbox",
+    "learnOwner",
+    "learnOwnerToken",
+    "learnCursor",
+    "learnRemote",
+    "learnInitialized",
+    "learnLegacy",
+    "syncToken",
+    "vocab",
+    "stats",
+    "settings"
+  ];
+  async function learningPatch(before, patch, intent = "seen", review) {
+    const stored = await chrome.storage.local.get(LEARN_KEYS);
+    const next = normalizeAnimeVocabExport({ ...before, ...patch });
+    const previous = normalizeAnimeVocabExport(before);
+    const ops = [];
+    if (patch.settings) {
+      const changed = Object.fromEntries(
+        Object.entries(publicSettings(patch.settings)).filter(
+          ([k, v]) => JSON.stringify(v) !== JSON.stringify(previous.settings[k])
+        )
+      );
+      if (Object.keys(changed).length)
+        ops.push(newLearnOp("settings", { settings: changed }));
+    }
+    if (patch.vocab) {
+      const prior = new Map(previous.words.map((w) => [w.base, w]));
+      for (const word of next.words) {
+        const old = prior.get(word.base);
+        if (JSON.stringify(word) === JSON.stringify(old)) continue;
+        if (review?.base === word.base && old) continue;
+        ops.push(
+          newLearnOp("word", {
+            word,
+            intent,
+            seenDelta: Math.max(0, word.seenCount - (old?.seenCount || 0)),
+            shownDelta: Math.max(0, word.shownCount - (old?.shownCount || 0))
+          })
+        );
+      }
+    }
+    if (review) ops.push(newLearnOp("review", review));
+    if (patch.stats) {
+      const prior = new Map(previous.daily.map((d) => [d.day, d]));
+      for (const row of next.daily) {
+        const old = prior.get(row.day);
+        const delta = {};
+        for (const key of ["met", "judged", "reviews", "watchMin"]) {
+          const n = row[key] - (old?.[key] || 0) - (review && review.day === row.day && (key === "judged" || key === "reviews") ? 1 : 0);
+          if (n > 0) delta[key] = n;
+        }
+        if (Object.keys(delta).length)
+          ops.push(newLearnOp("progress", { day: row.day, delta }));
+      }
+    }
+    const pending = stored.learnOutbox || [];
+    const token = String(stored.learnOwnerToken || stored.syncToken || "");
+    const ownerId = typeof stored.learnOwner === "string" ? stored.learnOwner : null;
+    const result = {
+      ...patch,
+      learnOutbox: [...pending, ...ops.map((op) => ({ token, ownerId, op }))]
+    };
+    if (!stored.learnInitialized && !stored.learnLegacy)
+      result.learnLegacy = structuredClone({
+        vocab: before.vocab ?? stored.vocab,
+        stats: before.stats ?? stored.stats,
+        settings: before.settings ?? stored.settings
+      });
+    return result;
+  }
+
   // src/lib/log.ts
   var warn = (...args) => console.warn("[AVC]", ...args);
 
@@ -462,10 +667,12 @@
     });
   }
   function setSettings(partial) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "setSettings", args: [partial] }).then(unwrapLearningReply);
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["settings"]);
+      const before = { ...structuredClone(r), settings: { ...withDefaults(r.settings || {}) } };
       const settings = { ...withDefaults(r.settings || {}), ...partial };
-      await chrome.storage.local.set({ settings });
+      await chrome.storage.local.set(await learningPatch(before, { settings: { ...settings } }));
       return settings;
     });
   }
@@ -480,18 +687,6 @@
         const stats = r.stats || emptyStats();
         stats.cardTimestamps = pruneTimestamps(stats.cardTimestamps);
         resolve(stats);
-      });
-    });
-  }
-  function exportAll() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
-        resolve({
-          settings: withDefaults(r.settings || {}),
-          vocab: r.vocab || {},
-          stats: r.stats || emptyStats(),
-          exportedAt: (/* @__PURE__ */ new Date()).toISOString()
-        });
       });
     });
   }
@@ -574,6 +769,10 @@
       await chrome.storage.local.set({ reviewPrompt: applyShown(prompt, now) });
       return true;
     });
+  }
+  function unwrapLearningReply(reply) {
+    if (!reply || reply.error) throw new Error(reply?.error || "Could not save learning data.");
+    return reply.value;
   }
 
   // src/lib/review.ts
@@ -799,9 +998,6 @@
 
   // src/entries/popup.ts
   var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  function todayKey() {
-    return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
-  }
   function esc2(s) {
     return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   }
@@ -1285,25 +1481,18 @@
     });
     byId("settings-link").addEventListener("click", async (e) => {
       e.preventDefault();
-      chrome.runtime.openOptionsPage();
+      chrome.tabs.create({ url: cloudAppUrl("settings", "popup_settings") });
     });
     byId("subs-diag-copy").addEventListener("click", (e) => {
       e.preventDefault();
-      const text = JSON.stringify({ v: chrome.runtime.getManifest().version, at: (/* @__PURE__ */ new Date()).toISOString(), subs: lastSubsDiag });
-      void navigator.clipboard.writeText(text).then(() => {
+      const text2 = JSON.stringify({ v: chrome.runtime.getManifest().version, at: (/* @__PURE__ */ new Date()).toISOString(), subs: lastSubsDiag });
+      void navigator.clipboard.writeText(text2).then(() => {
         byId("subs-diag-copy").textContent = "Copied";
       });
     });
     byId("export-link").addEventListener("click", async (e) => {
       e.preventDefault();
-      const data = await exportAll();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `animevocab-export-${todayKey()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      chrome.tabs.create({ url: cloudAppUrl("backup", "popup_export") });
     });
   });
 })();

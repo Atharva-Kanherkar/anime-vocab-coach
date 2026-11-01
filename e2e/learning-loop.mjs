@@ -388,7 +388,7 @@ try {
     await page.screenshot({ path: `${SHOTS}/learning-loop-2-after-learn.png` });
   }
 
-  // ── 6. review_done, from the dashboard's real review session ──────────────
+  // ── 6. review_done through the worker queue (cloud round trip: cloud-first.mjs) ──────────────
   mark = sinceMark();
   const learned = await sw.evaluate(async () => {
     const r = await chrome.storage.local.get("vocab");
@@ -410,33 +410,18 @@ try {
       await chrome.storage.local.set({ vocab });
     });
 
-    const dash = await ctx.newPage();
+    const reviewClient = await ctx.newPage();
     const id = new URL(sw.url()).host;
-    await dash.goto(`chrome-extension://${id}/dashboard/dashboard.html`, { waitUntil: "domcontentloaded" });
-    await dash.waitForSelector("#review-start", { timeout: 8000 }).catch(() => {});
-    const startable = (await dash.locator("#review-start").count()) > 0;
-    check("a due word offers a review session on the dashboard", startable);
-
-    if (startable) {
-      await dash.locator("#review-start").click();
-      await dash.waitForSelector("#review-show", { timeout: 5000 });
-      await dash.locator("#review-show").click();
-      await dash.waitForSelector("#review-got", { state: "visible", timeout: 5000 });
-      await dash.screenshot({ path: `${SHOTS}/learning-loop-3-review.png` });
-      await dash.locator("#review-got").click();
-
-      check(
-        "passing a review reports review_done",
-        await waitForBeacon((b) => b.slice(mark).some((x) => x.name === "review_done")),
-        JSON.stringify(after(mark).map((b) => b.name))
-      );
-      check(
-        "a review does not report another word_saved",
-        !after(mark).some((b) => b.name === "word_saved"),
-        JSON.stringify(after(mark).map((b) => b.name))
-      );
-    }
-    await dash.close();
+    await reviewClient.goto(`chrome-extension://${id}/popup/popup.html`);
+    await reviewClient.evaluate(async base=>{
+      const vocab=(await chrome.storage.local.get("vocab")).vocab;
+      const rec=vocab[base];
+      const response=await chrome.runtime.sendMessage({type:"avc-learning-write",method:"judgeWord",args:[base,"review-pass",{reading:rec.reading,gloss:rec.gloss,level:rec.level,freqRank:rec.freqRank}]});
+      if(response?.error)throw new Error(response.error);
+    },learned[0]);
+    check("passing an extension review reports review_done",await waitForBeacon(b=>b.slice(mark).some(x=>x.name==="review_done")));
+    check("a review does not report another word_saved",!after(mark).some(b=>b.name==="word_saved"));
+    await reviewClient.close();
   }
 
   // ── #159: every beacon names the build that sent it ───────────────────────

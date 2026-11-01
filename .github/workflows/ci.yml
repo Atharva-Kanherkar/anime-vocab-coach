@@ -244,6 +244,22 @@ jobs:
       - name: Run e2e core loop
         run: SKIP_AI=1 node e2e/core-loop.mjs
 
+      - name: Install and build extension for cloud-first browser journey
+        working-directory: ${{ github.workspace }}
+        run: npm ci && npm run build
+
+      - name: Extension and phone through real Next routes and D1
+        working-directory: ${{ github.workspace }}
+        run: LEARN_E2E_BASE=http://localhost:3400 npm run test:e2e:cloud-first
+
+      - name: Cloud-first browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-first-browser-evidence
+          path: /tmp/animevocab-cloud-first/
+          if-no-files-found: ignore
+
       - name: Dev server log (on failure)
         if: failure()
         run: cat /tmp/nextdev.log

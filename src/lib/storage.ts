@@ -1,3 +1,5 @@
+import { learningPatch, localImportOps, cacheFromState, mergeLearnChanges, LEARN_KEYS, type PendingLearnOp } from "./learn-cache";
+import { emptyLearnState, type LearnChange, type LearnState } from "../../web/src/lib/learn-protocol/model";
 import { warn } from "./log";
 import { ACCOUNT_CACHE_CLEARED, SIGN_OUT_SUPPRESSION_MS } from "./account-cache";
 import { cloudSnapshotToAnimeVocabExport, mergeCloudSnapshots, normalizeAnimeVocabExport } from "../../web/src/lib/sync";
@@ -86,10 +88,12 @@ export function getSettings(): Promise<Settings> {
 }
 
 export function setSettings(partial: Partial<Settings>): Promise<Settings> {
+  if (typeof document !== "undefined") return chrome.runtime.sendMessage({type:"avc-learning-write",method:"setSettings",args:[partial]}).then(unwrapLearningReply<Settings>);
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["settings"]);
+    const before = {...structuredClone(r),settings:{...withDefaults((r.settings || {}) as Partial<Settings>)}};
     const settings: Settings = { ...withDefaults((r.settings || {}) as Partial<Settings>), ...partial };
-    await chrome.storage.local.set({ settings });
+    await chrome.storage.local.set(await learningPatch(before,{ settings:{...settings} }));
     return settings;
   });
 }
@@ -159,8 +163,10 @@ export function getWord(base: string): Promise<VocabRecord | null> {
 }
 
 export function setWordState(base: string, state: WordState): Promise<void> {
+  if (typeof document !== "undefined") return chrome.runtime.sendMessage({type:"avc-learning-write",method:"setWordState",args:[base, state]}).then(unwrapLearningReply<void>);
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab"]);
+    const before = structuredClone(r);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
     if (!vocab[base]) return;
     vocab[base].state = state;
@@ -169,7 +175,7 @@ export function setWordState(base: string, state: WordState): Promise<void> {
     } else {
       vocab[base].srs = null;
     }
-    await chrome.storage.local.set({ vocab });
+    await chrome.storage.local.set(await learningPatch(before,{ vocab },"state"));
   });
 }
 
@@ -180,8 +186,10 @@ export function recordSeen(
   direction: Settings["learningDirection"] = "en-ja",
   overlay?: Record<string, DictEntry> | null
 ): Promise<void> {
+  if (typeof document !== "undefined") return chrome.runtime.sendMessage({type:"avc-learning-write",method:"recordSeen",args:[tokens, wordStates, [...targetedSet], direction, overlay]}).then(unwrapLearningReply<void>);
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
+    const before = structuredClone(r);
     const vocab: VocabMap = { ...((r.vocab as VocabMap | undefined) || {}) };
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
     const day = todayKey();
@@ -218,7 +226,7 @@ export function recordSeen(
     }
 
     if (changed) {
-      await chrome.storage.local.set({ vocab, stats });
+      await chrome.storage.local.set(await learningPatch(before,{ vocab, stats }));
       // Onboarding step 1: something Japanese is on screen and we can read it.
       // Write-once, so this costs one extra read per line and nothing else.
       void stampOnboarding("watchedAt");
@@ -301,8 +309,10 @@ export function applyWebReviews(ops: WebReviewOp[], expectedToken?: string): Pro
 }
 
 export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, source?: WordSource | null): Promise<VocabRecord> {
+  if (typeof document !== "undefined") return chrome.runtime.sendMessage({type:"avc-learning-write",method:"judgeWord",args:[base, judgment, meta, source]}).then(unwrapLearningReply<VocabRecord>);
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
+    const before = structuredClone(r);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
     const day = todayKey();
@@ -359,7 +369,9 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
       daily.judged += 1;
     }
 
-    await chrome.storage.local.set({ vocab, stats });
+    await chrome.storage.local.set(await learningPatch(before,{ vocab, stats },judgment === "dismiss" ? "seen" : "save",
+      judgment === "review-pass" || judgment === "review-fail" ? {base,result:judgment === "review-pass" ? "pass" : "fail",day} : undefined));
+
     if (judgment === "review-pass" || judgment === "review-fail") {
       await trackExtensionMilestone("first_srs_review");
     }
@@ -385,8 +397,10 @@ export function judgeWord(base: string, judgment: Judgment, meta: JudgmentMeta, 
 }
 
 export function recordCardShown(base: string): Promise<void> {
+  if (typeof document !== "undefined") return chrome.runtime.sendMessage({type:"avc-learning-write",method:"recordCardShown",args:[base]}).then(unwrapLearningReply<void>);
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["vocab", "stats"]);
+    const before = structuredClone(r);
     const vocab: VocabMap = (r.vocab as VocabMap | undefined) || {};
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
     const now = Date.now();
@@ -398,7 +412,7 @@ export function recordCardShown(base: string): Promise<void> {
       vocab[base].shownCount = (vocab[base].shownCount || 0) + 1;
     }
 
-    await chrome.storage.local.set({ vocab, stats });
+    await chrome.storage.local.set(await learningPatch(before,{ vocab, stats }));
     await trackExtensionMilestone("first_card_created");
     // Onboarding step 2: the panel is up and showing a word.
     void stampOnboarding("cardShownAt");
@@ -407,13 +421,15 @@ export function recordCardShown(base: string): Promise<void> {
 }
 
 export function recordWatchTick(): Promise<void> {
+  if (typeof document !== "undefined") return chrome.runtime.sendMessage({type:"avc-learning-write",method:"recordWatchTick",args:[]}).then(unwrapLearningReply<void>);
   return enqueue(async () => {
     const r = await chrome.storage.local.get(["stats"]);
+    const before = structuredClone(r);
     const stats: Stats = (r.stats as Stats | undefined) || emptyStats();
     const day = todayKey();
     const daily = ensureDaily(stats, day);
     daily.watchMin += 1;
-    await chrome.storage.local.set({ stats });
+    await chrome.storage.local.set(await learningPatch(before,{ stats }));
   });
 }
 
@@ -477,7 +493,17 @@ export function setSyncToken(token: string): Promise<void> {
     if (token) {
       // A fresh token (the web app re-linked us) clears any prior "re-link
       // needed" state and resets the consecutive-401 tolerance counter.
+      const r=await chrome.storage.local.get([...LEARN_KEYS,"pendingSignoutExports"]);
+      const patch: Record<string,unknown>={};
+      if(typeof r.syncToken === "string" && r.syncToken && r.syncToken!==token && !r.learnOwner) {
+        const legacy=(r.learnLegacy || {vocab:r.vocab,stats:r.stats,settings:r.settings}) as ExportData;
+        const {openaiKey:_key,...settings}=legacy.settings || {};
+        const pending=(r.pendingSignoutExports || []) as PendingSignoutExport[];
+        pending.push({id:crypto.randomUUID(),token:r.syncToken,appliedWebReviewSeq:0,export:{settings,vocab:legacy.vocab || {},stats:legacy.stats || emptyStats(),exportedAt:new Date().toISOString()}});
+        Object.assign(patch,{pendingSignoutExports:pending,vocab:{},stats:emptyStats(),settings:{openaiKey:(r.settings as Settings)?.openaiKey || ""},learnLegacy:null,learnInitialized:false,learnCursor:0,learnRemote:null,learnOwnerToken:null});
+      }
       await chrome.storage.local.set({
+        ...patch,
         syncToken: token,
         relinkNeeded: false,
         syncAuthFailures: 0,
@@ -494,10 +520,10 @@ export function setSyncToken(token: string): Promise<void> {
  * the previous account's cache after it has been cleared. */
 export function clearSignedOutCache(): Promise<void> {
   return enqueue(async () => {
-    const r = await chrome.storage.local.get(["syncToken", "settings", "vocab", "stats", "webReviewSeq", "pendingSignoutExports"]);
+    const r = await chrome.storage.local.get(["syncToken", "settings", "vocab", "stats", "webReviewSeq", "pendingSignoutExports", "learnInitialized"]);
     const settings = (r.settings || {}) as Partial<Settings>;
     const pending = (r.pendingSignoutExports || []) as PendingSignoutExport[];
-    if (typeof r.syncToken === "string" && r.syncToken) {
+    if (typeof r.syncToken === "string" && r.syncToken && !r.learnInitialized) {
       const { openaiKey: _key, ...cloudSettings } = settings;
       pending.push({ id: crypto.randomUUID(), token: r.syncToken, appliedWebReviewSeq: Number(r.webReviewSeq) || 0, export: {
         settings: cloudSettings, vocab: (r.vocab || {}) as VocabMap,
@@ -508,6 +534,8 @@ export function clearSignedOutCache(): Promise<void> {
     // An offline sign-out can retry later without mixing accounts or losing words.
     await chrome.storage.local.set({
       pendingSignoutExports: pending,
+      learnSigninPrompted:false,
+      learnOwner:null,learnOwnerToken:null,learnCursor:0,learnRemote:null,learnInitialized:false,learnLegacy:null,
       syncToken: "", syncProfile: null, relinkNeeded: false, syncAuthFailures: 0,
       syncStatus: { ...EMPTY_SYNC_STATUS },
       autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS,
@@ -740,5 +768,61 @@ export function resetProgress(): Promise<void> {
     // Rate, and the two-ask cap remain install-lifetime preferences.
     await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
     sendBadge({ daily: {} });
+  });
+}
+
+function unwrapLearningReply<T>(reply: {value?:T;error?:string}): T {
+  if (!reply || reply.error) throw new Error(reply?.error || "Could not save learning data.");
+  return reply.value as T;
+}
+
+export function prepareLearnSync(token: string, ownerId: string): Promise<void> {
+  return enqueue(async()=>{
+    const r = await chrome.storage.local.get(LEARN_KEYS);
+    if (r.syncToken !== token) return;
+    let pending = (r.learnOutbox || []) as PendingLearnOp[];
+    const switched = r.learnOwner && r.learnOwner !== ownerId;
+    const imports = !r.learnInitialized && !switched ? localImportOps((r.learnLegacy || {vocab:r.vocab,stats:r.stats,settings:r.settings}) as Parameters<typeof localImportOps>[0]) : [];
+    const adopted = pending.map(item => !item.token || item.ownerId===ownerId ? {...item,token,ownerId} : item);
+    pending = [...imports.map(op=>({token,ownerId,op})),...adopted];
+    const patch: Record<string,unknown> = {learnOwner:ownerId,learnOwnerToken:token,learnOutbox:pending,learnInitialized:true,learnLegacy:null};
+    if(switched || !r.learnOwner) {
+      patch.learnCursor=0;patch.learnRemote=emptyLearnState();
+      if(switched) Object.assign(patch,cacheFromState(emptyLearnState(),pending,token,{openaiKey:(r.settings as Settings)?.openaiKey || ""}));
+    }
+    await chrome.storage.local.set(patch);
+  });
+}
+export function applyLearnChanges(token: string, changes: LearnChange[], cursor:number): Promise<void> {
+  return enqueue(async()=>{
+    const r = await chrome.storage.local.get(LEARN_KEYS);
+    if(r.syncToken !== token || r.learnOwnerToken !== token) return;
+    const {state,pending} = mergeLearnChanges(r.learnRemote as LearnState, (r.learnOutbox || []) as PendingLearnOp[],token,changes);
+    const cache = cacheFromState(state,pending,token,(r.settings || {}) as Record<string,unknown>);
+    // Keep card pacing timestamps device-local, independent of cloud progress.
+    (cache.stats as Stats).cardTimestamps = ((r.stats as Stats)?.cardTimestamps || []);
+    const patch: Record<string,unknown> = {learnRemote:state,learnCursor:cursor,learnOutbox:pending};
+    for (const [key,value] of Object.entries(cache)) if(JSON.stringify(r[key])!==JSON.stringify(value)) patch[key]=value;
+    await chrome.storage.local.set(patch);
+  });
+}
+export function acknowledgeDetachedLearnOps(token:string, ids:string[]): Promise<void> {
+  return enqueue(async()=>{
+    const r = await chrome.storage.local.get("learnOutbox");
+    const set = new Set(ids);
+    await chrome.storage.local.set({learnOutbox:((r.learnOutbox || []) as PendingLearnOp[]).filter(p=>p.token!==token || !set.has(p.op.op_id))});
+  });
+}
+
+/** A verified site deletion must discard this account's pending data as well. */
+export function discardDeletedAccountWrites(): Promise<void> {
+  return enqueue(async()=>{
+    const r=await chrome.storage.local.get([...LEARN_KEYS,"pendingSignoutExports"]);
+    const pending=(r.learnOutbox || []) as PendingLearnOp[];
+    await chrome.storage.local.set({
+      learnOutbox:pending.filter(p=>p.token!==r.syncToken && (!r.learnOwner || p.ownerId!==r.learnOwner)),
+      pendingSignoutExports:((r.pendingSignoutExports || []) as PendingSignoutExport[]).filter(p=>p.token!==r.syncToken),
+      learnInitialized:true,
+    });
   });
 }
