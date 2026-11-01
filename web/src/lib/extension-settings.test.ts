@@ -53,3 +53,10 @@ describe("parseExtensionSettings — displayScript", () => {
     expect(Object.keys(exhaustive).sort()).toEqual([...DISPLAY_SCRIPTS].sort());
   });
 });
+
+it("round-trips all public options and excludes device secrets",()=>{
+  const parsed = parseExtensionSettings({subLens:false,subLensPeek:false,transcribeModel:"whisper-1",openaiKey:"private"});
+  const record = settingsToRecord(parsed);
+  expect(record).toMatchObject({subLens:false,subLensPeek:false,transcribeModel:"whisper-1"});
+  expect(record).not.toHaveProperty("openaiKey");
+});

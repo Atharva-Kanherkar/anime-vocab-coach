@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { resolveProfile } from "@/lib/auth";
-import { getNotebookStore, putNotebookStore } from "@/lib/notebook-store";
+import { getNotebookStore } from "@/lib/notebook-store";
+import { getLearnStore } from "@/lib/learn-server";
+import { newLearnOp, type LearnOp } from "../../../../../../shared/learn/model";
 import {
   clampName,
   entryHasContent,
@@ -54,9 +56,11 @@ export async function PATCH(req: Request, { params }: Params) {
     const notebook = find(store, id);
     if (!notebook) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
+    let op: LearnOp;
     switch (body.op) {
       case "rename":
         notebook.name = clampName(body.name);
+        op = newLearnOp("notebook",{notebook:{...notebook,entries:[]}});
         break;
       case "addEntry": {
         if (notebook.entries.length >= MAX_ENTRIES_PER_NOTEBOOK) {
@@ -66,7 +70,7 @@ export async function PATCH(req: Request, { params }: Params) {
         if (!entryHasContent(entry)) {
           return NextResponse.json({ error: "empty_entry" }, { status: 400 });
         }
-        notebook.entries.unshift(entry);
+        op = newLearnOp("notebook_item",{id,entry});
         break;
       }
       case "removeEntry": {
@@ -75,6 +79,7 @@ export async function PATCH(req: Request, { params }: Params) {
         if (notebook.entries.length === before) {
           return NextResponse.json({ error: "entry_not_found" }, { status: 404 });
         }
+        op = newLearnOp("notebook_item_delete",{id,entryId:body.entryId});
         break;
       }
       default:
@@ -82,8 +87,9 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     notebook.updatedAt = new Date().toISOString();
-    await putNotebookStore(profile.id, store);
-    return NextResponse.json({ notebook });
+    await (await getLearnStore(profile.id)).apply([op]);
+    const fresh = await getNotebookStore(profile.id);
+    return NextResponse.json({ notebook:find(fresh,id) });
   } catch (err) {
     return NextResponse.json({ error: msg(err) }, { status: 503 });
   }
@@ -101,7 +107,7 @@ export async function DELETE(req: Request, { params }: Params) {
     if (store.notebooks.length === before) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
-    await putNotebookStore(profile.id, store);
+    await (await getLearnStore(profile.id)).apply([newLearnOp("notebook_delete",{id})]);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: msg(err) }, { status: 503 });

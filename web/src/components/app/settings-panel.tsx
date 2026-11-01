@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useCloudSnapshot, persistCloudEnvelope, useCloudSyncMeta } from "@/lib/cloud-snapshot-store";
+import { useCloudSnapshot } from "@/lib/cloud-snapshot-store";
 import {
   EXTENSION_SETTINGS_DEFAULTS,
   parseExtensionSettings,
@@ -12,22 +12,12 @@ import {
 } from "@/lib/extension-settings";
 import { directionLabel, type LearningDirection } from "@/lib/direction";
 import { useSiteLocale } from "@/components/locale-provider";
-import type { CloudSyncEnvelope } from "@/lib/sync";
-
-/** Ask the extension to pull the settings just saved. Not `avc-sync-now`: that
- * makes the extension push its own copy, which overwrote this save. */
-function notifyExtensionSync(): void {
-  try {
-    window.postMessage({ source: "avc-web", type: "avc-settings-updated" }, window.location.origin);
-  } catch {
-    /* ignore */
-  }
-}
+import { saveLearningSettings } from "@/lib/learn-client";
 
 export function SettingsPanel() {
   const { locale } = useSiteLocale();
   const snapshot = useCloudSnapshot();
-  const meta = useCloudSyncMeta();
+  const storedSettings = JSON.stringify(snapshot.settings);
   const [settings, setSettings] = useState<ExtensionSettings>(EXTENSION_SETTINGS_DEFAULTS);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -36,8 +26,8 @@ export function SettingsPanel() {
     // Re-seed the local draft whenever the cloud snapshot changes; the form is
     // intentionally an editable copy, so this sync setState is deliberate.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSettings(parseExtensionSettings(snapshot.settings, locale));
-  }, [snapshot.settings, locale]);
+    setSettings(parseExtensionSettings(JSON.parse(storedSettings), locale));
+  }, [storedSettings, locale]);
 
   const patch = useCallback((partial: Partial<ExtensionSettings>) => {
     setSettings((prev) => ({ ...prev, ...partial }));
@@ -47,24 +37,8 @@ export function SettingsPanel() {
     setSaving(true);
     setMessage(null);
     try {
-      const nextSnapshot = {
-        ...snapshot,
-        settings: settingsToRecord(settings),
-      };
-      const res = await fetch("/api/sync/snapshot", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ snapshot: nextSnapshot, expectedRevision: meta.revision }),
-      });
-      const data = (await res.json()) as { envelope?: CloudSyncEnvelope; error?: string };
-      if (res.status === 409) {
-        setMessage("Your backup changed on another device. Reload the page and try again.");
-        return;
-      }
-      if (!res.ok || !data.envelope) throw new Error(data.error || `Save failed (${res.status}).`);
-      persistCloudEnvelope(data.envelope);
-      setMessage("Saved — your extension applies this right away.");
-      notifyExtensionSync();
+      await saveLearningSettings(settingsToRecord(settings));
+      setMessage("Saved. Your extension applies this within one sync.");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Couldn't save settings.");
     } finally {
@@ -192,6 +166,17 @@ export function SettingsPanel() {
             className="accent-accent"
           />
           Speak the word aloud when a card opens
+        </label>
+
+        {([ ["subLens", "Dual subtitles and interactive Subtitle Lens"], ["subLensPeek", "Pause while a word lookup is open"] ] as const).map(([key,label]) => (
+          <label key={key} className="flex cursor-pointer items-center gap-2 text-sm text-ink2">
+            <input type="checkbox" checked={settings[key]} onChange={e=>patch({[key]:e.target.checked})} className="accent-accent" />
+            {label}
+          </label>
+        ))}
+        <label className="grid gap-1.5 text-sm text-ink2">
+          Transcription model
+          <input className="av-input" maxLength={100} value={settings.transcribeModel} onChange={e=>patch({transcribeModel:e.target.value})} />
         </label>
 
         <fieldset className="grid gap-2 border-0 p-0">

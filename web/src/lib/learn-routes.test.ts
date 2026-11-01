@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(()=>({profile:vi.fn(),apply:vi.fn(),changes:vi.fn(),export:vi.fn(),delete:vi.fn()}));
 vi.mock("./auth",()=>({resolveProfile:mock.profile}));
-vi.mock("./learn-server",()=>({getLearnStore:vi.fn(async()=>mock)}));
+vi.mock("./learn-server",()=>({getLearnStore:vi.fn(async()=>mock),getLearnEnvelope:vi.fn(async()=>({snapshot:{words:[],daily:[],settings:{},cardTimestamps:[],importedAt:"2026-11-01T00:00:00Z"}}))}));
 import { POST } from "../app/api/learn/ops/route";
 import { GET } from "../app/api/learn/changes/route";
 import { GET as exportData } from "../app/api/learn/export/route";

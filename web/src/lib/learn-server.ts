@@ -37,6 +37,6 @@ export async function getLearnEnvelope(profile: CloudUserProfile): Promise<Cloud
   const store = await getLearnStore(profile.id);
   const { state,revision } = await store.read();
   return {schemaVersion:1,profile,revision,lastSyncedAt:new Date().toISOString(),snapshot:{
-    ...normalizeAnimeVocabExport({}), words:Object.values(state.words),daily:Object.values(state.daily),settings:state.settings,
+    ...normalizeAnimeVocabExport({},new Date(0)), words:Object.values(state.words),daily:Object.values(state.daily),settings:state.settings,
   }};
 }

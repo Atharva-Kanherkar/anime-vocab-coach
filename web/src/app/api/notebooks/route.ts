@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { resolveProfile } from "@/lib/auth";
-import { getNotebookStore, putNotebookStore } from "@/lib/notebook-store";
+import { getNotebookStore } from "@/lib/notebook-store";
+import { getLearnStore } from "@/lib/learn-server";
+import { newLearnOp } from "../../../../../shared/learn/model";
 import { clampName, toSummary, MAX_NOTEBOOKS, type Notebook } from "@/lib/notebooks";
 
 export const dynamic = "force-dynamic";
@@ -42,8 +44,7 @@ export async function POST(req: Request) {
       updatedAt: now,
       entries: [],
     };
-    store.notebooks.unshift(notebook);
-    await putNotebookStore(profile.id, store);
+    await (await getLearnStore(profile.id)).apply([newLearnOp("notebook",{notebook})]);
     return NextResponse.json({ notebook: toSummary(notebook) }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: msg(err) }, { status: 503 });

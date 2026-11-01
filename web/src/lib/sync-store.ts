@@ -209,5 +209,8 @@ export async function refreshSyncTokenProfile(
   return true;
 }
 
-/** Legacy read retained while clients migrate to the learner operation API. */
-export const getCloudSyncEnvelope = getLegacyCloudSyncEnvelope;
+/** Dashboard compatibility view, projected from the D1 authority. */
+export async function getCloudSyncEnvelope(userId: string): Promise<CloudSyncEnvelope | null> {
+  const { getLearnEnvelope } = await import("./learn-server");
+  return getLearnEnvelope({ id:userId, email:null, name:null });
+}

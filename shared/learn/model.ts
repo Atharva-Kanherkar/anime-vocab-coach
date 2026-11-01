@@ -73,7 +73,7 @@ export function projectLearnOp(state: LearnState, op: LearnOp): LearnDelta {
   } else if (op.kind === "notebook") {
     const notebook = p.notebook as Notebook;
     // Metadata writes cannot replace entries added on another device.
-    const next = { ...structuredClone(notebook), entries: state.notebooks[notebook.id]?.entries || [] };
+    const next = { ...structuredClone(notebook), updatedAt:op.client_ts, entries: state.notebooks[notebook.id]?.entries || [] };
     state.notebooks[next.id] = next;
     delta.notebooks = { [next.id]: next };
   } else if (op.kind === "notebook_delete") {

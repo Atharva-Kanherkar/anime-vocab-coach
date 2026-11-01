@@ -156,7 +156,7 @@ export function useAutoCloudSync(): void {
 
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void refreshCloudFromServer();
-    }, 120_000);
+    }, 3_000);
 
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;

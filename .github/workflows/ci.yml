@@ -226,6 +226,9 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Migrate local learner D1
+        run: npx wrangler d1 migrations apply avc-n5 --local
+
       - name: Start dev server (Clerk bypass)
         run: |
           NEXT_PUBLIC_AVC_DEV_NO_CLERK=1 PORT=3400 npm run dev > /tmp/nextdev.log 2>&1 &

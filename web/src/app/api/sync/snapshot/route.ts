@@ -1,125 +1,38 @@
 import { NextResponse } from "next/server";
-import { claimOnce, getCloudSyncEnvelope, putCloudSyncEnvelope } from "@/lib/sync-store";
+import { claimOnce } from "@/lib/sync-store";
 import { resolveProfile } from "@/lib/auth";
+import { getLearnStore, getLearnEnvelope, snapshotImportOps } from "@/lib/learn-server";
+import { learnBody, learnFailure } from "@/lib/learn-http";
 import { getPrefs, upsertEntry } from "@/lib/leaderboard-store";
 import { computeStreak, currentWeekId, weeklyMetrics } from "@/lib/gamification";
 import { latestActiveDay, newlyUnlockedCards, startedNewStreakDay } from "@/lib/learning-events";
 import { authKindOf, recordUserEvent, requestFacts } from "@/lib/telemetry";
-import { pruneWebReviews } from "@/lib/web-review";
-import {
-  applyCloudSyncUpdate,
-  normalizeAnimeVocabExport,
-  normalizeCloudSyncSnapshot,
-  type AnimeVocabExport,
-  type CloudSyncSnapshot,
-  type CloudUserProfile,
-} from "@/lib/sync";
-
+import { normalizeAnimeVocabExport, normalizeCloudSyncSnapshot, type CloudSyncSnapshot, type CloudUserProfile } from "@/lib/sync";
 export const dynamic = "force-dynamic";
-
-const MAX_SYNC_BODY_BYTES = 1_000_000;
-const MAX_SYNC_WORDS = 20_000;
-const MAX_SYNC_DAILY_ROWS = 5_000;
-const MAX_SYNC_CARD_TIMESTAMPS = 10_000;
-
 export async function GET(req: Request) {
   const profile = await resolveProfile(req);
-  if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  try {
-    const envelope = await getCloudSyncEnvelope(profile.id);
-    return NextResponse.json({ envelope, profile });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "sync_store_unavailable" },
-      { status: 503 }
-    );
-  }
+  if (!profile) return NextResponse.json({error:"unauthorized"},{status:401});
+  try { return NextResponse.json({envelope:await getLearnEnvelope(profile),profile},{headers:{"Cache-Control":"private, no-store"}}); }
+  catch(err) { return learnFailure(err); }
 }
-
+/** Legacy uploads are insert-only imports. They can never replace cloud SRS or settings. */
 export async function PUT(req: Request) {
   const profile = await resolveProfile(req);
-  if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  let body: {
-    // Web import sends a pre-normalized cloud snapshot; the extension sends its
-    // raw export (settings/vocab/stats) and we normalize it here so both paths
-    // share one shape.
-    snapshot?: CloudSyncSnapshot;
-    export?: AnimeVocabExport;
-    expectedRevision?: number | null;
-    // The extension's highest replayed web-review seq. Present only once it has
-    // applied the log, so a push from an older build (or the web import) never
-    // retires ops nobody replayed.
-    appliedWebReviewSeq?: number;
-  };
-  let snapshot: CloudSyncSnapshot;
-
+  if (!profile) return NextResponse.json({error:"unauthorized"},{status:401});
   try {
-    const raw = await req.text();
-    if (raw.length > MAX_SYNC_BODY_BYTES) {
-      return NextResponse.json({ error: "snapshot_too_large" }, { status: 413 });
-    }
-    body = JSON.parse(raw) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
-  }
-
-  try {
-    snapshot = body.export
-      ? normalizeAnimeVocabExport(body.export)
-      : normalizeCloudSyncSnapshot(body.snapshot);
-  } catch {
-    return NextResponse.json({ error: "invalid_snapshot" }, { status: 400 });
-  }
-
-  if (
-    snapshot.words.length > MAX_SYNC_WORDS ||
-    snapshot.daily.length > MAX_SYNC_DAILY_ROWS ||
-    snapshot.cardTimestamps.length > MAX_SYNC_CARD_TIMESTAMPS
-  ) {
-    return NextResponse.json({ error: "snapshot_too_large" }, { status: 413 });
-  }
-
-  try {
-    const current = await getCloudSyncEnvelope(profile.id);
-    const next = applyCloudSyncUpdate(
-      current,
-      profile,
-      snapshot,
-      body.expectedRevision ?? null
-    );
-
-    if ("type" in next) {
-      return NextResponse.json({ error: next.type, conflict: next }, { status: 409 });
-    }
-
-    const applied = typeof body.appliedWebReviewSeq === "number" ? body.appliedWebReviewSeq : null;
-    const stored = applied === null ? next : pruneWebReviews(next, applied);
-    await putCloudSyncEnvelope(profile.id, stored);
-    // Update the weekly leaderboard from the just-validated snapshot (metrics
-    // are computed server-side, so scores can't be forged). Best-effort — a
-    // leaderboard hiccup must never fail the sync itself.
-    await updateLeaderboard(profile, snapshot).catch((err) =>
-      console.error("[leaderboard] update failed", err)
-    );
-    // Derived learning-loop events (#111), from the diff between what was
-    // stored and what is stored NOW — `next.snapshot`, not the incoming body.
-    // applyCloudSyncUpdate unions the two, so a second device pushing its own
-    // half can carry the union across a level gate that neither snapshot
-    // crosses alone; reading the request would miss exactly those unlocks.
-    // Same best-effort contract as the leaderboard: a sync must never fail
-    // because a beacon did.
-    await recordProgressEvents(req, profile, current?.snapshot ?? null, stored.snapshot).catch((err) =>
-      console.error("[telemetry] snapshot progress failed", err)
-    );
-    return NextResponse.json({ envelope: stored });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "sync_store_unavailable" },
-      { status: 503 }
-    );
-  }
+    const body = await learnBody(req,1_000_000);
+    if (!body.export && !body.snapshot) return NextResponse.json({error:"invalid_snapshot"},{status:400});
+    const snapshot = body.export ? normalizeAnimeVocabExport(body.export) : normalizeCloudSyncSnapshot(body.snapshot);
+    if (snapshot.words.length>20000 || snapshot.daily.length>5000) return NextResponse.json({error:"snapshot_too_large"},{status:413});
+    const store = await getLearnStore(profile.id);
+    const before = await getLearnEnvelope(profile);
+    const ops = snapshotImportOps(snapshot,crypto.randomUUID());
+    for (let i=0;i<ops.length;i+=50) await store.apply(ops.slice(i,i+50));
+    const envelope = await getLearnEnvelope(profile);
+    await updateLeaderboard(profile,envelope.snapshot).catch(err=>console.error("[learn] leaderboard",err));
+    await recordProgressEvents(req,profile,before.snapshot,envelope.snapshot).catch(err=>console.error("[learn] progress",err));
+    return NextResponse.json({envelope});
+  } catch(err) { return learnFailure(err); }
 }
 
 /** A streak marker only has to outlive the day it names. */
