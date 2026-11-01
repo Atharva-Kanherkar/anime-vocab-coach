@@ -24,6 +24,10 @@ const owner = (token: string) =>
 const meta = { reading: "neko", gloss: "cat", level: 5, freqRank: 5 };
 let offline = false;
 let status = 200;
+const epochs = new Map<string, number>();
+/** Ops the fake server refuses for good, as the real one does for a missing word. */
+const refused = new Set<string>();
+const urls: string[] = [];
 let onPost: (() => Promise<void>) | undefined;
 function serverOp(token: string, op: LearnOp) {
   const user = owner(token);
@@ -43,6 +47,9 @@ beforeEach(() => {
   states.clear();
   logs.clear();
   posted.length = 0;
+  epochs.clear();
+  refused.clear();
+  urls.length = 0;
   offline = false;
   status = 200;
   onPost = undefined;
@@ -85,6 +92,7 @@ beforeEach(() => {
       if (!url.includes("/api/learn/"))
         return new Response(null, { status: 204 });
       if (offline) throw new Error("offline");
+      urls.push(url);
       if (status !== 200) return new Response("{}", { status });
       const token =
         (init?.headers as Record<string, string>).Authorization?.replace(
@@ -93,8 +101,12 @@ beforeEach(() => {
         ) || "";
       const user = owner(token);
       if (init?.method === "POST") {
-        const { ops } = JSON.parse(String(init.body));
+        const { ops, epoch } = JSON.parse(String(init.body));
         posted.push({ token, ops: structuredClone(ops) });
+        if (epoch !== undefined && epoch !== (epochs.get(user) || 0))
+          return Response.json({ error: "epoch_changed" }, { status: 409 });
+        if (ops.some((o: LearnOp) => refused.has(o.op_id)))
+          return Response.json({ error: "word_not_found" }, { status: 404 });
         const hook = onPost;
         onPost = undefined;
         if (hook) await hook();
@@ -103,11 +115,13 @@ beforeEach(() => {
           acknowledged: ops.map((o: LearnOp) => o.op_id),
         });
       }
-      const since = Number(new URL(url).searchParams.get("since"));
+      const params = new URL(url).searchParams;
+      const since = Number(params.get("since"));
       const all = (logs.get(user) || []).filter((c) => c.cursor > since);
-      const page = all.slice(0, 2);
+      const page = all.slice(0, Number(params.get("limit") ?? 2));
       return Response.json({
         userId: user,
+        epoch: epochs.get(user) || 0,
         changes: page,
         cursor: page.at(-1)?.cursor || since,
         hasMore: all.length > 2,
@@ -116,6 +130,64 @@ beforeEach(() => {
   );
 });
 describe("durable operation sync", () => {
+  it("probes identity without downloading history", async () => {
+    await judgeWord("猫", "learn", meta);
+    await syncWithCloud();
+    await syncWithCloud();
+    const probes = urls.filter((u) => u.includes("since=0&limit=0"));
+    expect(probes).toHaveLength(2);
+  });
+
+  it("sets aside a permanently rejected op and keeps syncing the rest", async () => {
+    await judgeWord("猫", "learn", meta);
+    const bad = newLearnOp("review", { base: "犬", result: "pass", day: "2026-11-01" });
+    refused.add(bad.op_id);
+    local.learnOutbox.push({ token: "token-a", ownerId: null, op: bad });
+    await judgeWord("鳥", "learn", { ...meta, reading: "tori", gloss: "bird" });
+    await syncWithCloud();
+    expect(states.get("user-a")?.words.猫).toBeTruthy();
+    expect(states.get("user-a")?.words.鳥).toBeTruthy();
+    expect(local.learnOutbox).toEqual([]);
+    expect(local.learnRejected).toMatchObject([{ op: { op_id: bad.op_id }, reason: "word_not_found" }]);
+    expect(local.syncStatus.state).toBe("ok");
+    // Later writes are not blocked by the rejected one.
+    await judgeWord("魚", "learn", { ...meta, reading: "sakana", gloss: "fish" });
+    await syncWithCloud();
+    expect(states.get("user-a")?.words.魚).toBeTruthy();
+  });
+
+  it("keeps the outbox on transient conflicts", async () => {
+    await judgeWord("猫", "learn", meta);
+    status = 409;
+    await syncWithCloud();
+    expect(local.learnOutbox.length).toBeGreaterThan(0);
+    expect(local.learnRejected).toBeUndefined();
+    status = 200;
+    await syncWithCloud();
+    expect(local.learnOutbox).toEqual([]);
+  });
+
+  it("drops the erased epoch's cache and unsent writes after a data reset elsewhere", async () => {
+    await judgeWord("猫", "learn", meta);
+    await syncWithCloud();
+    expect(local.learnEpoch).toBe(0);
+    expect(local.vocab.猫).toBeTruthy();
+    // The learner deletes their data on the site from another device.
+    states.delete("user-a");
+    logs.delete("user-a");
+    epochs.set("user-a", 1);
+    await judgeWord("犬", "learn", { ...meta, reading: "inu", gloss: "dog" });
+    await syncWithCloud();
+    expect(states.get("user-a")?.words || {}).toEqual({});
+    expect(local.vocab).toEqual({});
+    expect(local.learnOutbox).toEqual([]);
+    expect(local.learnEpoch).toBe(1);
+    expect(local.syncToken).toBe("token-a");
+    await judgeWord("鳥", "learn", { ...meta, reading: "tori", gloss: "bird" });
+    await syncWithCloud();
+    expect(Object.keys(states.get("user-a")?.words || {})).toEqual(["鳥"]);
+  });
+
   it("does not import an uninitialized previous account's cache into a different account",async()=>{
     local.vocab={猫:{state:"known",...meta,seenCount:1,shownCount:0,firstSeenAt:Date.now(),lastSeenAt:Date.now(),srs:null}};
     await setSyncToken("other-b");await syncWithCloud();

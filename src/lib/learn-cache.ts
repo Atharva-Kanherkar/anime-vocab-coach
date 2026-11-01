@@ -26,6 +26,7 @@ export const LEARN_KEYS = [
   "learnRemote",
   "learnInitialized",
   "learnLegacy",
+  "learnEpoch",
   "syncToken",
   "vocab",
   "stats",

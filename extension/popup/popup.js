@@ -27,7 +27,8 @@
 
   // web/src/lib/learn-protocol/validate.ts
   var object = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-  var text = (v, max = 200) => typeof v === "string" && v.length > 0 && v.length <= max && !/[\u0000-\u001f]/.test(v) && !["__proto__", "constructor", "prototype"].includes(v);
+  var plain = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max && !/[\u0000-\u001f]/.test(v);
+  var text = (v, max = 200) => plain(v, max) && !["__proto__", "constructor", "prototype"].includes(v);
   var num = (v, max = 1e9) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max;
   var PUBLIC_SETTINGS = {
     pauseMode: (v) => ["copilot", "pause", "off"].includes(v),
@@ -154,6 +155,7 @@
     "learnRemote",
     "learnInitialized",
     "learnLegacy",
+    "learnEpoch",
     "syncToken",
     "vocab",
     "stats",

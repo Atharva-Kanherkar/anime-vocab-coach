@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveProfile } from "@/lib/auth";
 import { getNotebookStore } from "@/lib/notebook-store";
 import { getLearnStore } from "@/lib/learn-server";
+import { LearnError } from "@/lib/learn-store";
 import { newLearnOp, type LearnOp } from "../../../../lib/learn-protocol/model";
 import {
   clampName,
@@ -31,7 +32,7 @@ export async function GET(req: Request, { params }: Params) {
     if (!notebook) return NextResponse.json({ error: "not_found" }, { status: 404 });
     return NextResponse.json({ notebook });
   } catch (err) {
-    return NextResponse.json({ error: msg(err) }, { status: 503 });
+    return fail(err);
   }
 }
 
@@ -91,7 +92,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const fresh = await getNotebookStore(profile.id);
     return NextResponse.json({ notebook:find(fresh,id) });
   } catch (err) {
-    return NextResponse.json({ error: msg(err) }, { status: 503 });
+    return fail(err);
   }
 }
 
@@ -110,8 +111,17 @@ export async function DELETE(req: Request, { params }: Params) {
     await (await getLearnStore(profile.id)).apply([newLearnOp("notebook_delete",{id})]);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: msg(err) }, { status: 503 });
+    return fail(err);
   }
+}
+
+// Rejections keep their status; only unexpected failures read as unavailable.
+function fail(err: unknown) {
+  if (err instanceof LearnError && err.status < 500)
+    return NextResponse.json({ error: err.message }, { status: err.status });
+  if (err instanceof Error && /^invalid_/.test(err.message))
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  return NextResponse.json({ error: msg(err) }, { status: 503 });
 }
 
 // Never leak raw internal error text (e.g. KV binding messages) to clients.

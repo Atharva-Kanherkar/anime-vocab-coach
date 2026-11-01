@@ -6,11 +6,17 @@ export async function GET(req: Request) {
   const profile = await resolveProfile(req);
   if (!profile) return learnJson({ error: "unauthorized" }, 401);
   try {
-    const since = new URL(req.url).searchParams.get("since") || "0";
-    if (!/^\d+$/.test(since))
+    const params = new URL(req.url).searchParams;
+    const since = params.get("since") || "0";
+    // limit=0 is the cheap identity probe: user and epoch, no history.
+    const limit = params.get("limit") ?? "100";
+    if (!/^\d+$/.test(since) || !/^\d+$/.test(limit) || Number(limit) > 100)
       return learnJson({ error: "invalid_cursor" }, 400);
     return learnJson({
-      ...(await (await getLearnStore(profile.id)).changes(Number(since))),
+      ...(await (await getLearnStore(profile.id)).changes(
+        Number(since),
+        Number(limit),
+      )),
       userId: profile.id,
     });
   } catch (err) {

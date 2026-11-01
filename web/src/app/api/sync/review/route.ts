@@ -1,5 +1,5 @@
 import { resolveProfile } from "@/lib/auth";
-import { getLearnStore, getLearnEnvelope } from "@/lib/learn-server";
+import { getLearnStore, envelopeFromState } from "@/lib/learn-server";
 import { learnBody, learnFailure, learnJson } from "@/lib/learn-http";
 import { newLearnOp } from "../../../../lib/learn-protocol/model";
 export const dynamic = "force-dynamic";
@@ -14,8 +14,10 @@ export async function POST(req: Request) {
       typeof body.op_id === "string" ? body.op_id : undefined,
       typeof body.client_ts === "string" ? body.client_ts : undefined,
     );
-    await (await getLearnStore(profile.id)).apply([op]);
-    const envelope = await getLearnEnvelope(profile);
+    const { after, revision } = await (
+      await getLearnStore(profile.id)
+    ).apply([op], { snapshots: true });
+    const envelope = envelopeFromState(profile, after!, revision);
     return learnJson({
       envelope,
       word: envelope.snapshot.words.find((w) => w.base === body.base),

@@ -556,6 +556,14 @@ async function stopListening(tabId: number): Promise<Ack> {
   return { ok: true };
 }
 
+/** Keep the chip/popup/install attribution when /start is its next step. */
+async function noteStartPageSurface(): Promise<void> {
+  const s = await chrome.storage.session.get(SIGNIN_SURFACE_KEY);
+  if (!isSigninSurface(s[SIGNIN_SURFACE_KEY])) {
+    await chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "start_page" });
+  }
+}
+
 interface RuntimeMsg {
   type: string;
   method?: string;
@@ -630,11 +638,13 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMsg, sender, sendResponse) => 
     return true;
   }
   if(msg.type === "avc-delete-learning-data") {
-    void learnerStorage.discardDeletedAccountWrites().then(()=>clearSignedOutCache()).then(()=>sendResponse({ok:true}));
+    // The account stays linked: drop this device's copy and sync the new epoch.
+    void learnerStorage.discardDeletedAccountWrites().then(()=>syncWithCloud().catch(()=>{})).then(()=>sendResponse({ok:true}));
     return true;
   }
   if(msg.type === "avc-link-token" && typeof msg.token === "string") {
-    void learnerStorage.setSyncToken(msg.token).then(async()=>{
+    // Record /start before the token lands so completion reports its surface (#206).
+    void (msg.surface === "start_page" ? noteStartPageSurface() : Promise.resolve()).then(()=>learnerStorage.setSyncToken(msg.token!)).then(async()=>{
       if(msg.profile) await learnerStorage.setSyncProfile(msg.profile);
       await syncWithCloud();sendResponse({ok:true});
     }).catch(()=>sendResponse({ok:false}));
@@ -774,13 +784,8 @@ function handleRuntimeMessage(msg: RuntimeMsg, sender: chrome.runtime.MessageSen
   // /start names itself before it mints, so the completion event carries the
   // surface the learner actually started from (#206).
   if (msg.type === "avc-signin-surface") {
-    void (async () => {
-      const s = await chrome.storage.session.get(SIGNIN_SURFACE_KEY);
-      // Keep the chip/popup/install attribution when /start is its next step.
-      if (!isSigninSurface(s[SIGNIN_SURFACE_KEY]) && msg.surface === "start_page") {
-        await chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "start_page" });
-      }
-    })().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
+    void (msg.surface === "start_page" ? noteStartPageSurface() : Promise.resolve())
+      .then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
     return true;
   }
 

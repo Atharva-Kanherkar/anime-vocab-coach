@@ -1,5 +1,5 @@
 import { learningPatch, localImportOps, cacheFromState, mergeLearnChanges, LEARN_KEYS, type PendingLearnOp } from "./learn-cache";
-import { emptyLearnState, type LearnChange, type LearnState } from "../../web/src/lib/learn-protocol/model";
+import { emptyLearnState, type LearnChange, type LearnOp, type LearnState } from "../../web/src/lib/learn-protocol/model";
 import { warn } from "./log";
 import { ACCOUNT_CACHE_CLEARED, SIGN_OUT_SUPPRESSION_MS } from "./account-cache";
 import { cloudSnapshotToAnimeVocabExport, mergeCloudSnapshots, normalizeAnimeVocabExport } from "../../web/src/lib/sync";
@@ -535,7 +535,7 @@ export function clearSignedOutCache(): Promise<void> {
     await chrome.storage.local.set({
       pendingSignoutExports: pending,
       learnSigninPrompted:false,
-      learnOwner:null,learnOwnerToken:null,learnCursor:0,learnRemote:null,learnInitialized:false,learnLegacy:null,
+      learnOwner:null,learnOwnerToken:null,learnCursor:0,learnRemote:null,learnInitialized:false,learnLegacy:null,learnEpoch:null,
       syncToken: "", syncProfile: null, relinkNeeded: false, syncAuthFailures: 0,
       syncStatus: { ...EMPTY_SYNC_STATUS },
       autoLinkSuppressedUntil: Date.now() + SIGN_OUT_SUPPRESSION_MS,
@@ -776,21 +776,39 @@ function unwrapLearningReply<T>(reply: {value?:T;error?:string}): T {
   return reply.value as T;
 }
 
-export function prepareLearnSync(token: string, ownerId: string): Promise<void> {
+export function prepareLearnSync(token: string, ownerId: string, epoch?: number): Promise<void> {
   return enqueue(async()=>{
     const r = await chrome.storage.local.get(LEARN_KEYS);
     if (r.syncToken !== token) return;
     let pending = (r.learnOutbox || []) as PendingLearnOp[];
     const switched = r.learnOwner && r.learnOwner !== ownerId;
+    // The learner deleted their data elsewhere: this copy and its unsent writes
+    // belong to the erased epoch and must not be pushed back.
+    const reset = !switched && !!r.learnOwner && typeof epoch === "number" && typeof r.learnEpoch === "number" && r.learnEpoch !== epoch;
     const imports = !r.learnInitialized && !switched ? localImportOps((r.learnLegacy || {vocab:r.vocab,stats:r.stats,settings:r.settings}) as Parameters<typeof localImportOps>[0]) : [];
     const adopted = pending.map(item => !item.token || item.ownerId===ownerId ? {...item,token,ownerId} : item);
     pending = [...imports.map(op=>({token,ownerId,op})),...adopted];
+    if(reset) pending = pending.filter(item=>item.token!==token);
     const patch: Record<string,unknown> = {learnOwner:ownerId,learnOwnerToken:token,learnOutbox:pending,learnInitialized:true,learnLegacy:null};
-    if(switched || !r.learnOwner) {
+    if(typeof epoch === "number") patch.learnEpoch=epoch;
+    if(switched || reset || !r.learnOwner) {
       patch.learnCursor=0;patch.learnRemote=emptyLearnState();
-      if(switched) Object.assign(patch,cacheFromState(emptyLearnState(),pending,token,{openaiKey:(r.settings as Settings)?.openaiKey || ""}));
+      if(switched || reset) Object.assign(patch,cacheFromState(emptyLearnState(),pending,token,{openaiKey:(r.settings as Settings)?.openaiKey || ""}));
     }
     await chrome.storage.local.set(patch);
+  });
+}
+/** Set aside operations the server refused for good, keeping a short record
+ * for diagnostics, so the rest of the outbox keeps flowing. */
+export function rejectLearnOps(token: string, rejected: {op:LearnOp;reason:string}[]): Promise<void> {
+  return enqueue(async()=>{
+    const r = await chrome.storage.local.get(["learnOutbox","learnRejected"]);
+    const ids = new Set(rejected.map(x=>x.op.op_id));
+    warn("cloud rejected learning operations:", rejected.map(x=>`${x.op.kind}:${x.reason}`).join(", "));
+    await chrome.storage.local.set({
+      learnOutbox:((r.learnOutbox || []) as PendingLearnOp[]).filter(p=>p.token!==token || !ids.has(p.op.op_id)),
+      learnRejected:[...((r.learnRejected || []) as unknown[]),...rejected.map(x=>({...x,at:new Date().toISOString()}))].slice(-50),
+    });
   });
 }
 export function applyLearnChanges(token: string, changes: LearnChange[], cursor:number): Promise<void> {
@@ -814,15 +832,21 @@ export function acknowledgeDetachedLearnOps(token:string, ids:string[]): Promise
   });
 }
 
-/** A verified site deletion must discard this account's pending data as well. */
+/** A verified site deletion must discard this account's pending data and
+ * cached copy as well. The account stays linked and syncs into the new epoch. */
 export function discardDeletedAccountWrites(): Promise<void> {
   return enqueue(async()=>{
     const r=await chrome.storage.local.get([...LEARN_KEYS,"pendingSignoutExports"]);
-    const pending=(r.learnOutbox || []) as PendingLearnOp[];
+    const pending=((r.learnOutbox || []) as PendingLearnOp[]).filter(p=>p.token!==r.syncToken && (!r.learnOwner || p.ownerId!==r.learnOwner));
+    const cache = cacheFromState(emptyLearnState(),[],"",{openaiKey:(r.settings as Settings)?.openaiKey || ""});
     await chrome.storage.local.set({
-      learnOutbox:pending.filter(p=>p.token!==r.syncToken && (!r.learnOwner || p.ownerId!==r.learnOwner)),
+      learnOutbox:pending,
       pendingSignoutExports:((r.pendingSignoutExports || []) as PendingSignoutExport[]).filter(p=>p.token!==r.syncToken),
-      learnInitialized:true,
+      learnInitialized:true,learnLegacy:null,
+      learnCursor:0,learnRemote:emptyLearnState(),learnEpoch:null,
+      ...cache,
+      stats:{...(cache.stats as Stats),cardTimestamps:[]},
     });
+    sendBadge({ daily: {} });
   });
 }

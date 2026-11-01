@@ -99,7 +99,7 @@
         entries: state.notebooks[notebook.id]?.entries || []
       };
       state.notebooks[next.id] = next;
-      delta.notebooks = { [next.id]: next };
+      delta.notebooks = { [next.id]: { ...next, entries: [] } };
     } else if (op.kind === "notebook_delete") {
       delete state.notebooks[p.id];
       delta.notebooks = { [p.id]: null };
@@ -115,10 +115,13 @@
           structuredClone(entry),
           ...notebook.entries.filter((e) => e.id !== entry.id)
         ];
-      } else
+        delta.entries = [{ notebookId: id, entry: structuredClone(entry) }];
+      } else {
         notebook.entries = notebook.entries.filter((e) => e.id !== p.entryId);
+        delta.entries = [{ notebookId: id, removed: p.entryId }];
+      }
       notebook.updatedAt = op.client_ts;
-      delta.notebooks = { [id]: structuredClone(notebook) };
+      delta.notebooks = { [id]: { ...structuredClone(notebook), entries: [] } };
     }
     return delta;
   }
@@ -140,14 +143,22 @@
     Object.assign(state.daily, delta.daily);
     Object.assign(state.settings, delta.settings);
     for (const [id, nb] of Object.entries(delta.notebooks || {})) {
-      if (nb) state.notebooks[id] = nb;
+      if (nb) state.notebooks[id] = { ...nb, entries: state.notebooks[id]?.entries || [] };
       else delete state.notebooks[id];
+    }
+    for (const change of delta.entries || []) {
+      const notebook = state.notebooks[change.notebookId];
+      if (!notebook) continue;
+      const id = change.entry?.id ?? change.removed;
+      notebook.entries = notebook.entries.filter((e) => e.id !== id);
+      if (change.entry) notebook.entries.unshift(change.entry);
     }
   }
 
   // web/src/lib/learn-protocol/validate.ts
   var object = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-  var text = (v, max = 200) => typeof v === "string" && v.length > 0 && v.length <= max && !/[\u0000-\u001f]/.test(v) && !["__proto__", "constructor", "prototype"].includes(v);
+  var plain = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max && !/[\u0000-\u001f]/.test(v);
+  var text = (v, max = 200) => plain(v, max) && !["__proto__", "constructor", "prototype"].includes(v);
   var num = (v, max = 1e9) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max;
   var PUBLIC_SETTINGS = {
     pauseMode: (v) => ["copilot", "pause", "off"].includes(v),
@@ -317,6 +328,7 @@
     "learnRemote",
     "learnInitialized",
     "learnLegacy",
+    "learnEpoch",
     "syncToken",
     "vocab",
     "stats",
@@ -1258,6 +1270,7 @@
         learnRemote: null,
         learnInitialized: false,
         learnLegacy: null,
+        learnEpoch: null,
         syncToken: "",
         syncProfile: null,
         relinkNeeded: false,
@@ -1376,22 +1389,36 @@
     if (!reply || reply.error) throw new Error(reply?.error || "Could not save learning data.");
     return reply.value;
   }
-  function prepareLearnSync(token, ownerId) {
+  function prepareLearnSync(token, ownerId, epoch) {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(LEARN_KEYS);
       if (r.syncToken !== token) return;
       let pending = r.learnOutbox || [];
       const switched = r.learnOwner && r.learnOwner !== ownerId;
+      const reset = !switched && !!r.learnOwner && typeof epoch === "number" && typeof r.learnEpoch === "number" && r.learnEpoch !== epoch;
       const imports = !r.learnInitialized && !switched ? localImportOps(r.learnLegacy || { vocab: r.vocab, stats: r.stats, settings: r.settings }) : [];
       const adopted = pending.map((item) => !item.token || item.ownerId === ownerId ? { ...item, token, ownerId } : item);
       pending = [...imports.map((op) => ({ token, ownerId, op })), ...adopted];
+      if (reset) pending = pending.filter((item) => item.token !== token);
       const patch = { learnOwner: ownerId, learnOwnerToken: token, learnOutbox: pending, learnInitialized: true, learnLegacy: null };
-      if (switched || !r.learnOwner) {
+      if (typeof epoch === "number") patch.learnEpoch = epoch;
+      if (switched || reset || !r.learnOwner) {
         patch.learnCursor = 0;
         patch.learnRemote = emptyLearnState();
-        if (switched) Object.assign(patch, cacheFromState(emptyLearnState(), pending, token, { openaiKey: r.settings?.openaiKey || "" }));
+        if (switched || reset) Object.assign(patch, cacheFromState(emptyLearnState(), pending, token, { openaiKey: r.settings?.openaiKey || "" }));
       }
       await chrome.storage.local.set(patch);
+    });
+  }
+  function rejectLearnOps(token, rejected) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["learnOutbox", "learnRejected"]);
+      const ids = new Set(rejected.map((x) => x.op.op_id));
+      warn("cloud rejected learning operations:", rejected.map((x) => `${x.op.kind}:${x.reason}`).join(", "));
+      await chrome.storage.local.set({
+        learnOutbox: (r.learnOutbox || []).filter((p) => p.token !== token || !ids.has(p.op.op_id)),
+        learnRejected: [...r.learnRejected || [], ...rejected.map((x) => ({ ...x, at: (/* @__PURE__ */ new Date()).toISOString() }))].slice(-50)
+      });
     });
   }
   function applyLearnChanges(token, changes, cursor) {
@@ -1416,31 +1443,47 @@
   function discardDeletedAccountWrites() {
     return enqueue2(async () => {
       const r = await chrome.storage.local.get([...LEARN_KEYS, "pendingSignoutExports"]);
-      const pending = r.learnOutbox || [];
+      const pending = (r.learnOutbox || []).filter((p) => p.token !== r.syncToken && (!r.learnOwner || p.ownerId !== r.learnOwner));
+      const cache = cacheFromState(emptyLearnState(), [], "", { openaiKey: r.settings?.openaiKey || "" });
       await chrome.storage.local.set({
-        learnOutbox: pending.filter((p) => p.token !== r.syncToken && (!r.learnOwner || p.ownerId !== r.learnOwner)),
+        learnOutbox: pending,
         pendingSignoutExports: (r.pendingSignoutExports || []).filter((p) => p.token !== r.syncToken),
-        learnInitialized: true
+        learnInitialized: true,
+        learnLegacy: null,
+        learnCursor: 0,
+        learnRemote: emptyLearnState(),
+        learnEpoch: null,
+        ...cache,
+        stats: { ...cache.stats, cardTimestamps: [] }
       });
+      sendBadge({ daily: {} });
     });
   }
 
   // src/lib/cloud-sync.ts
+  var Rejected = class extends Error {
+  };
   var running = null;
   var queued = false;
-  async function request(token, path, ops) {
+  async function request(token, path, body) {
     return fetch(WEB_URL + "/api/learn/" + path, {
-      method: ops ? "POST" : "GET",
+      method: body ? "POST" : "GET",
       headers: {
         Authorization: "Bearer " + token,
-        ...ops ? { "Content-Type": "application/json" } : {}
+        ...body ? { "Content-Type": "application/json" } : {}
       },
-      ...ops ? { body: JSON.stringify({ ops }) } : {},
+      ...body ? { body: JSON.stringify(body) } : {},
       signal: AbortSignal.timeout(1e4)
     });
   }
-  async function checked(token, path, ops) {
-    const res = await request(token, path, ops);
+  async function permanentRejection(res) {
+    if (![400, 404, 409, 413].includes(res.status)) return null;
+    const error = (await res.json().catch(() => null))?.error;
+    if (res.status === 409 && error !== "operation_id_reused") return null;
+    return typeof error === "string" ? error : `HTTP ${res.status}`;
+  }
+  async function checked(token, path, body) {
+    const res = await request(token, path, body);
     if (res.status === 401 && await getSyncToken() === token) {
       const n = await getSyncAuthFailures() + 1;
       await setSyncAuthFailures(n);
@@ -1449,8 +1492,24 @@
         await setRelinkNeeded(true);
       }
     }
-    if (!res.ok) throw new Error(`Cloud returned HTTP ${res.status}.`);
+    if (!res.ok) {
+      const reason = body && await permanentRejection(res);
+      if (reason) throw new Rejected(reason);
+      throw new Error(`Cloud returned HTTP ${res.status}.`);
+    }
     return res;
+  }
+  async function sendOps(token, ops, epoch) {
+    try {
+      await checked(token, "ops", { ops, epoch });
+      return [];
+    } catch (err) {
+      if (!(err instanceof Rejected)) throw err;
+      if (ops.length === 1) return [{ op: ops[0], reason: err.message }];
+      const rejected = [];
+      for (const op of ops) rejected.push(...await sendOps(token, [op], epoch));
+      return rejected;
+    }
   }
   function syncWithCloud() {
     if (running) {
@@ -1484,8 +1543,8 @@
       error: null
     });
     try {
-      const identity2 = await (await checked(token, "changes?since=0")).json();
-      await prepareLearnSync(token, identity2.userId);
+      const identity2 = await (await checked(token, "changes?since=0&limit=0")).json();
+      await prepareLearnSync(token, identity2.userId, identity2.epoch);
       if (await getSyncToken() !== token) return;
       const captured = await chrome.storage.local.get("learnOutbox");
       const pending = (captured.learnOutbox || []).filter(
@@ -1493,11 +1552,12 @@
       );
       for (let i = 0; i < pending.length; i += 50) {
         if (await getSyncToken() !== token) return;
-        await checked(
+        const rejected = await sendOps(
           token,
-          "ops",
-          pending.slice(i, i + 50).map((p) => p.op)
+          pending.slice(i, i + 50).map((p) => p.op),
+          identity2.epoch
         );
+        if (rejected.length) await rejectLearnOps(token, rejected);
       }
       let more = true;
       while (more) {
@@ -1550,8 +1610,8 @@
       try {
         for (let i = 0; i < items.length; i += 50) {
           const batch = items.slice(i, i + 50).map((p) => p.op);
-          const res = await request(token, "ops", batch);
-          if (!res.ok) break;
+          const rejected = await sendOps(token, batch);
+          if (rejected.length) await rejectLearnOps(token, rejected);
           await acknowledgeDetachedLearnOps(
             token,
             batch.map((o) => o.op_id)
@@ -1563,13 +1623,9 @@
     for (const pending of r.pendingSignoutExports || []) {
       try {
         const ops = localImportOps(pending.export);
-        let ok = true;
         for (let i = 0; i < ops.length; i += 50)
-          if (!(await request(pending.token, "ops", ops.slice(i, i + 50))).ok) {
-            ok = false;
-            break;
-          }
-        if (ok) await acknowledgeSignoutExport(pending);
+          await sendOps(pending.token, ops.slice(i, i + 50));
+        await acknowledgeSignoutExport(pending);
       } catch {
       }
     }
@@ -2635,6 +2691,12 @@
     });
     return { ok: true };
   }
+  async function noteStartPageSurface() {
+    const s = await chrome.storage.session.get(SIGNIN_SURFACE_KEY);
+    if (!isSigninSurface(s[SIGNIN_SURFACE_KEY])) {
+      await chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "start_page" });
+    }
+  }
   var ACCOUNT_REQUESTS = /* @__PURE__ */ new Set([
     "avc-coach",
     "avc-coach-chat",
@@ -2684,11 +2746,12 @@
       return true;
     }
     if (msg.type === "avc-delete-learning-data") {
-      void discardDeletedAccountWrites().then(() => clearSignedOutCache()).then(() => sendResponse({ ok: true }));
+      void discardDeletedAccountWrites().then(() => syncWithCloud().catch(() => {
+      })).then(() => sendResponse({ ok: true }));
       return true;
     }
     if (msg.type === "avc-link-token" && typeof msg.token === "string") {
-      void setSyncToken(msg.token).then(async () => {
+      void (msg.surface === "start_page" ? noteStartPageSurface() : Promise.resolve()).then(() => setSyncToken(msg.token)).then(async () => {
         if (msg.profile) await setSyncProfile(msg.profile);
         await syncWithCloud();
         sendResponse({ ok: true });
@@ -2788,12 +2851,7 @@
       return true;
     }
     if (msg.type === "avc-signin-surface") {
-      void (async () => {
-        const s = await chrome.storage.session.get(SIGNIN_SURFACE_KEY);
-        if (!isSigninSurface(s[SIGNIN_SURFACE_KEY]) && msg.surface === "start_page") {
-          await chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "start_page" });
-        }
-      })().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
+      void (msg.surface === "start_page" ? noteStartPageSurface() : Promise.resolve()).then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
       return true;
     }
     if (msg.type === "avc-pull-settings") {

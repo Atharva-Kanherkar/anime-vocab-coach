@@ -1,5 +1,5 @@
 import { resolveProfile } from "@/lib/auth";
-import { deleteLearnerAccount } from "@/lib/learn-lifecycle";
+import { resetLearnerAccount } from "@/lib/learn-lifecycle";
 import { learnBody, learnFailure, learnJson } from "@/lib/learn-http";
 export const dynamic = "force-dynamic";
 export async function DELETE(req: Request) {
@@ -8,7 +8,8 @@ export async function DELETE(req: Request) {
   try {
     if ((await learnBody(req, 100)).confirm !== "DELETE")
       return learnJson({ error: "confirmation_required" }, 400);
-    await deleteLearnerAccount(profile.id);
+    // The learner keeps their account; only identity deletion tombstones it.
+    await resetLearnerAccount(profile.id);
     return learnJson({ ok: true });
   } catch (err) {
     return learnFailure(err);

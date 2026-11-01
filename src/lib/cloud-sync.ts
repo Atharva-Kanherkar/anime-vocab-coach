@@ -13,6 +13,7 @@ import {
   applyLearnChanges,
   acknowledgeDetachedLearnOps,
   acknowledgeSignoutExport,
+  rejectLearnOps,
   type PendingSignoutExport,
 } from "./storage";
 import { localImportOps, type PendingLearnOp } from "./learn-cache";
@@ -22,29 +23,43 @@ import type {
 } from "../../web/src/lib/learn-protocol/model";
 interface Changes {
   userId: string;
+  epoch?: number;
   changes: LearnChange[];
   cursor: number;
   hasMore: boolean;
 }
+/** The server refused these operations for good; retrying cannot succeed. */
+class Rejected extends Error {}
 let running: Promise<void> | null = null;
 let queued = false;
 async function request(
   token: string,
   path: string,
-  ops?: LearnOp[],
+  body?: { ops: LearnOp[]; epoch?: number },
 ): Promise<Response> {
   return fetch(WEB_URL + "/api/learn/" + path, {
-    method: ops ? "POST" : "GET",
+    method: body ? "POST" : "GET",
     headers: {
       Authorization: "Bearer " + token,
-      ...(ops ? { "Content-Type": "application/json" } : {}),
+      ...(body ? { "Content-Type": "application/json" } : {}),
     },
-    ...(ops ? { body: JSON.stringify({ ops }) } : {}),
+    ...(body ? { body: JSON.stringify(body) } : {}),
     signal: AbortSignal.timeout(10000),
   });
 }
-async function checked(token: string, path: string, ops?: LearnOp[]) {
-  const res = await request(token, path, ops);
+async function permanentRejection(res: Response): Promise<string | null> {
+  if (![400, 404, 409, 413].includes(res.status)) return null;
+  const error = ((await res.json().catch(() => null)) as { error?: unknown } | null)?.error;
+  // Other conflicts (a concurrent writer, a data reset) succeed on a later sync.
+  if (res.status === 409 && error !== "operation_id_reused") return null;
+  return typeof error === "string" ? error : `HTTP ${res.status}`;
+}
+async function checked(
+  token: string,
+  path: string,
+  body?: { ops: LearnOp[]; epoch?: number },
+) {
+  const res = await request(token, path, body);
   if (res.status === 401 && (await getSyncToken()) === token) {
     const n = (await getSyncAuthFailures()) + 1;
     await setSyncAuthFailures(n);
@@ -53,8 +68,33 @@ async function checked(token: string, path: string, ops?: LearnOp[]) {
       await setRelinkNeeded(true);
     }
   }
-  if (!res.ok) throw new Error(`Cloud returned HTTP ${res.status}.`);
+  if (!res.ok) {
+    const reason = body && (await permanentRejection(res));
+    if (reason) throw new Rejected(reason);
+    throw new Error(`Cloud returned HTTP ${res.status}.`);
+  }
   return res;
+}
+/**
+ * Send operations in order. A permanently rejected batch is retried one op at
+ * a time so a single bad op is set aside instead of blocking every later write
+ * and every pull. Transient failures still throw and keep the outbox intact.
+ */
+async function sendOps(
+  token: string,
+  ops: LearnOp[],
+  epoch?: number,
+): Promise<{ op: LearnOp; reason: string }[]> {
+  try {
+    await checked(token, "ops", { ops, epoch });
+    return [];
+  } catch (err) {
+    if (!(err instanceof Rejected)) throw err;
+    if (ops.length === 1) return [{ op: ops[0], reason: err.message }];
+    const rejected: { op: LearnOp; reason: string }[] = [];
+    for (const op of ops) rejected.push(...(await sendOps(token, [op], epoch)));
+    return rejected;
+  }
 }
 export function syncWithCloud(): Promise<void> {
   if (running) {
@@ -90,9 +130,9 @@ async function syncOnce() {
   });
   try {
     const identity = (await (
-      await checked(token, "changes?since=0")
+      await checked(token, "changes?since=0&limit=0")
     ).json()) as Changes;
-    await prepareLearnSync(token, identity.userId);
+    await prepareLearnSync(token, identity.userId, identity.epoch);
     if ((await getSyncToken()) !== token) return;
     const captured = await chrome.storage.local.get("learnOutbox");
     const pending = ((captured.learnOutbox || []) as PendingLearnOp[]).filter(
@@ -100,11 +140,12 @@ async function syncOnce() {
     );
     for (let i = 0; i < pending.length; i += 50) {
       if ((await getSyncToken()) !== token) return;
-      await checked(
+      const rejected = await sendOps(
         token,
-        "ops",
         pending.slice(i, i + 50).map((p) => p.op),
+        identity.epoch,
       );
+      if (rejected.length) await rejectLearnOps(token, rejected);
     }
     let more = true;
     while (more) {
@@ -162,8 +203,8 @@ async function flushDetached(): Promise<void> {
     try {
       for (let i = 0; i < items.length; i += 50) {
         const batch = items.slice(i, i + 50).map((p) => p.op);
-        const res = await request(token, "ops", batch);
-        if (!res.ok) break;
+        const rejected = await sendOps(token, batch);
+        if (rejected.length) await rejectLearnOps(token, rejected);
         await acknowledgeDetachedLearnOps(
           token,
           batch.map((o) => o.op_id),
@@ -178,13 +219,10 @@ async function flushDetached(): Promise<void> {
     try {
       // Legacy detached snapshots predate the op outbox. Imports are insert-only.
       const ops = localImportOps(pending.export);
-      let ok = true;
+      // Throws on a transient failure; a rejected record is simply not imported.
       for (let i = 0; i < ops.length; i += 50)
-        if (!(await request(pending.token, "ops", ops.slice(i, i + 50))).ok) {
-          ok = false;
-          break;
-        }
-      if (ok) await acknowledgeSignoutExport(pending);
+        await sendOps(pending.token, ops.slice(i, i + 50));
+      await acknowledgeSignoutExport(pending);
     } catch {
       /* Retain legacy data for a later retry. */
     }

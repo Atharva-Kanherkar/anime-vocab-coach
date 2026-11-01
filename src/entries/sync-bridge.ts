@@ -81,7 +81,8 @@ window.addEventListener("message", (event) => {
             plan: plan === "free" || plan === "pro" || plan === "max" ? plan : null,
           }
         : undefined;
-    void chrome.runtime.sendMessage({type:"avc-link-token",token,profile:syncProfile}).catch(()=>{});
+    const surface = location.pathname === "/start" ? "start_page" : undefined;
+    void chrome.runtime.sendMessage({type:"avc-link-token",token,profile:syncProfile,surface}).catch(()=>{});
     return;
   }
 

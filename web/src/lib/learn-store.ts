@@ -6,7 +6,6 @@ import {
   type LearnDelta,
 } from "./learn-protocol/model";
 import { validateLearnOps } from "./learn-protocol/validate";
-import type { Notebook } from "./notebooks";
 
 // Structural D1 types keep the domain independent of the Cloudflare runtime.
 interface Statement {
@@ -29,12 +28,28 @@ export class LearnError extends Error {
     super(message);
   }
 }
+export interface LearnAccount {
+  revision: number;
+  migrated: boolean;
+  epoch: number;
+}
+export interface LearnApplyResult {
+  acknowledged: string[];
+  changed: boolean;
+  revision: number;
+  epoch: number;
+  /** Present only when requested: the state before and after this batch. */
+  before?: LearnState;
+  after?: LearnState;
+}
 const tables = {
   words: "learn_words",
   daily: "learn_daily",
   settings: "learn_settings",
   notebooks: "learn_notebooks",
 } as const;
+const ACCOUNT_SQL =
+  "SELECT revision,migrated,deleted,epoch FROM learn_accounts WHERE user_id=?";
 export class LearnStore {
   constructor(
     private db: LearnDB,
@@ -49,47 +64,97 @@ export class LearnStore {
       this.userId,
     ).run();
   }
-  async read(): Promise<{
-    state: LearnState;
-    revision: number;
-    migrated: boolean;
-  }> {
-    await this.ensure();
-    const rows = await this.db.batch([
+  private account_(row: Record<string, unknown>): LearnAccount {
+    if (row.deleted) throw new LearnError("account_deleted", 410);
+    return {
+      revision: Number(row.revision),
+      migrated: !!row.migrated,
+      epoch: Number(row.epoch || 0),
+    };
+  }
+  /** One-row check for the tombstone, migration marker and change revision. */
+  async account(): Promise<LearnAccount> {
+    let row = await this.q(ACCOUNT_SQL, this.userId).first();
+    if (!row) {
+      await this.ensure();
+      row = await this.q(ACCOUNT_SQL, this.userId).first();
+    }
+    return this.account_(row || {});
+  }
+  /** Notebook rows are the bulk of an account, so callers that never touch
+   * notebooks skip them. */
+  async read(options: { notebooks?: boolean } = {}): Promise<
+    LearnAccount & { state: LearnState }
+  > {
+    const withNotebooks = options.notebooks !== false;
+    const keys = Object.keys(tables).filter(
+      (k) => withNotebooks || k !== "notebooks",
+    ) as (keyof typeof tables)[];
+    for (let attempt = 0; ; attempt++) {
+      const rows = await this.db.batch([
+        this.q(ACCOUNT_SQL, this.userId),
+        ...keys.map((key) =>
+          this.q(`SELECT id,data FROM ${tables[key]} WHERE user_id=?`, this.userId),
+        ),
+        ...(withNotebooks
+          ? [
+              this.q(
+                "SELECT notebook_id,id,data FROM learn_notebook_items WHERE user_id=? ORDER BY json_extract(data,'$.createdAt') DESC,id",
+                this.userId,
+              ),
+            ]
+          : []),
+      ]);
+      const row = rows[0].results[0];
+      if (!row) {
+        if (attempt) throw new LearnError("learner_store_unavailable", 503);
+        await this.ensure();
+        continue;
+      }
+      const account = this.account_(row);
+      const state = emptyLearnState();
+      keys.forEach((key, i) => {
+        const target = state[key] as Record<string, unknown>;
+        for (const r of rows[i + 1].results)
+          target[String(r.id)] = JSON.parse(String(r.data));
+      });
+      if (withNotebooks)
+        for (const r of rows[keys.length + 1].results) {
+          const notebook = state.notebooks[String(r.notebook_id)];
+          if (notebook) notebook.entries.push(JSON.parse(String(r.data)));
+        }
+      return { ...account, state };
+    }
+  }
+  async readNotebooks(): Promise<LearnState["notebooks"]> {
+    await this.account();
+    const [notebooks, items] = await this.db.batch([
+      this.q("SELECT id,data FROM learn_notebooks WHERE user_id=?", this.userId),
       this.q(
-        "SELECT revision,migrated,deleted FROM learn_accounts WHERE user_id=?",
-        this.userId,
-      ),
-      ...Object.values(tables).map((table) =>
-        this.q(`SELECT id,data FROM ${table} WHERE user_id=?`, this.userId),
-      ),
-      this.q(
-        "SELECT notebook_id,id,data FROM learn_notebook_items WHERE user_id=? ORDER BY id",
+        "SELECT notebook_id,id,data FROM learn_notebook_items WHERE user_id=? ORDER BY json_extract(data,'$.createdAt') DESC,id",
         this.userId,
       ),
     ]);
-    const account = rows[0].results[0];
-    if (account.deleted) throw new LearnError("account_deleted", 410);
     const state = emptyLearnState();
-    Object.keys(tables).forEach((key, i) => {
-      const target = state[key as keyof LearnState] as Record<string, unknown>;
-      for (const row of rows[i + 1].results)
-        target[String(row.id)] = JSON.parse(String(row.data));
-    });
-    for (const row of rows[5].results) {
-      const notebook = state.notebooks[String(row.notebook_id)];
-      if (notebook) notebook.entries.push(JSON.parse(String(row.data)));
-    }
-    return {
-      state,
-      revision: Number(account.revision),
-      migrated: !!account.migrated,
-    };
+    for (const r of notebooks.results)
+      state.notebooks[String(r.id)] = JSON.parse(String(r.data));
+    for (const r of items.results)
+      state.notebooks[String(r.notebook_id)]?.entries.push(
+        JSON.parse(String(r.data)),
+      );
+    return state.notebooks;
   }
-  async apply(input: LearnOp[], options: { migrated?: boolean } = {}) {
+  async apply(
+    input: LearnOp[],
+    options: { migrated?: boolean; epoch?: number; snapshots?: boolean } = {},
+  ): Promise<LearnApplyResult> {
     const ops = validateLearnOps(input);
+    const notebooks = ops.some((op) => op.kind.startsWith("notebook"));
     for (let attempt = 0; attempt < 8; attempt++) {
-      const { state, revision } = await this.read();
+      const { state, revision, epoch } = await this.read({ notebooks });
+      // A device that has not seen a data reset must not write into the new epoch.
+      if (options.epoch !== undefined && options.epoch !== epoch)
+        throw new LearnError("epoch_changed", 409);
       const existing: { results: Record<string, unknown>[] } = { results: [] };
       // D1 allows at most 100 bound parameters per statement.
       for (let i = 0; i < ops.length; i += 50) {
@@ -113,8 +178,15 @@ export class LearnStore {
           throw new LearnError("operation_id_reused", 409);
         return !prior;
       });
-      if (!fresh.length && !options.migrated)
-        return { acknowledged: ops.map((o) => o.op_id) };
+      const result = (changed: boolean, before?: LearnState) => ({
+        acknowledged: ops.map((o) => o.op_id),
+        changed,
+        revision: changed ? revision + 1 : revision,
+        epoch,
+        ...(options.snapshots ? { before: before || state, after: state } : {}),
+      });
+      if (!fresh.length && !options.migrated) return result(false);
+      const before = options.snapshots ? structuredClone(state) : undefined;
       // A mismatched revision deliberately violates the CHECK, rolling back
       // every statement. No review or ack can survive half a transaction.
       const writes = [
@@ -166,27 +238,25 @@ export class LearnStore {
                 JSON.stringify({ ...nb, entries: [] }),
               ),
             );
-            if (op.kind === "notebook_item") {
-              const entry = op.payload.entry as Notebook["entries"][number];
-              writes.push(
-                this.q(
+          }
+        }
+        for (const change of delta.entries || []) {
+          writes.push(
+            change.entry
+              ? this.q(
                   "INSERT INTO learn_notebook_items(user_id,notebook_id,id,data) VALUES(?,?,?,?) ON CONFLICT(user_id,notebook_id,id) DO UPDATE SET data=excluded.data",
                   this.userId,
-                  id,
-                  entry.id,
-                  JSON.stringify(entry),
-                ),
-              );
-            } else if (op.kind === "notebook_item_delete")
-              writes.push(
-                this.q(
+                  change.notebookId,
+                  change.entry.id,
+                  JSON.stringify(change.entry),
+                )
+              : this.q(
                   "DELETE FROM learn_notebook_items WHERE user_id=? AND notebook_id=? AND id=?",
                   this.userId,
-                  id,
-                  op.payload.entryId,
+                  change.notebookId,
+                  change.removed,
                 ),
-              );
-          }
+          );
         }
         if (op.kind === "review" || op.kind === "review_history")
           writes.push(
@@ -214,7 +284,7 @@ export class LearnStore {
       }
       try {
         await this.db.batch(writes);
-        return { acknowledged: ops.map((o) => o.op_id) };
+        return result(true, before);
       } catch (err) {
         if (
           !String(err).includes("CHECK constraint failed") &&
@@ -229,7 +299,7 @@ export class LearnStore {
     if (!Number.isSafeInteger(since) || since < 0)
       throw new LearnError("invalid_cursor");
     // Check tombstones before returning any cached data.
-    await this.read();
+    const { epoch } = await this.account();
     const { results } = await this.q(
       "SELECT cursor,op_id,delta FROM learn_ops WHERE user_id=? AND cursor>? ORDER BY cursor LIMIT ?",
       this.userId,
@@ -245,6 +315,7 @@ export class LearnStore {
       })),
       cursor: page.length ? Number(page[page.length - 1].cursor) : since,
       hasMore: results.length > limit,
+      epoch,
     };
   }
   async export() {
@@ -267,6 +338,27 @@ export class LearnStore {
       })),
     };
   }
+  private wipe() {
+    return [
+      ...Object.values(tables),
+      "learn_notebook_items",
+      "learn_review_log",
+      "learn_ops",
+    ].map((t) => this.q(`DELETE FROM ${t} WHERE user_id=?`, this.userId));
+  }
+  /** Self-serve deletion: the account stays usable and starts a new epoch.
+   * `migrated` stays set so legacy data is never imported again. */
+  async reset() {
+    await this.account();
+    await this.db.batch([
+      this.q(
+        "UPDATE learn_accounts SET revision=revision+1,epoch=epoch+1,migrated=1 WHERE user_id=? AND deleted=0",
+        this.userId,
+      ),
+      ...this.wipe(),
+    ]);
+  }
+  /** Identity deletion (Clerk `user.deleted`): a permanent tombstone. */
   async delete() {
     await this.ensure();
     await this.db.batch([
@@ -274,12 +366,7 @@ export class LearnStore {
         "UPDATE learn_accounts SET deleted=1,revision=revision+1,migrated=1 WHERE user_id=?",
         this.userId,
       ),
-      ...[
-        ...Object.values(tables),
-        "learn_notebook_items",
-        "learn_review_log",
-        "learn_ops",
-      ].map((t) => this.q(`DELETE FROM ${t} WHERE user_id=?`, this.userId)),
+      ...this.wipe(),
     ]);
   }
 }

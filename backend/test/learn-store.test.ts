@@ -6,6 +6,7 @@ import {
   newLearnOp,
   emptyLearnState,
   projectLearnOp,
+  applyLearnDelta,
 } from "../../web/src/lib/learn-protocol/model";
 import { validateLearnOps } from "../../web/src/lib/learn-protocol/validate";
 import type { CloudWordRecord } from "../../web/src/lib/sync";
@@ -33,10 +34,13 @@ beforeAll(async () => {
     d1Databases: ["DB"],
   });
   db = (await mf.getD1Database("DB")) as unknown as LearnDB;
-  const sql = await readFile(
-    new URL("../migrations/0005_learner_store.sql", import.meta.url),
-    "utf8",
-  );
+  const sql = (
+    await Promise.all(
+      ["0005_learner_store.sql", "0006_learner_epoch.sql"].map((f) =>
+        readFile(new URL(`../migrations/${f}`, import.meta.url), "utf8"),
+      ),
+    )
+  ).join(";\n");
   await db.batch(
     sql
       .split(";")
@@ -180,6 +184,52 @@ describe("D1 learner operation transactions", () => {
       ).toEqual({ n: 0 });
     }
   });
+  it("logs one notebook entry per item operation, not the whole notebook", async () => {
+    const store = new LearnStore(db, "entry-deltas");
+    const nb = {
+      id: "nb",
+      name: "prototype",
+      entries: [],
+      createdAt: word.firstSeenAt,
+      updatedAt: word.firstSeenAt,
+    };
+    const entry = (id: string, createdAt: string) => ({
+      id,
+      kind: "note",
+      note: id,
+      word: null,
+      reading: null,
+      gloss: null,
+      line: null,
+      title: null,
+      tags: ["prototype"],
+      level: null,
+      createdAt,
+    });
+    await store.apply([newLearnOp("notebook", { notebook: nb })]);
+    for (let i = 0; i < 5; i++)
+      await store.apply([
+        newLearnOp("notebook_item", {
+          id: "nb",
+          entry: entry(`e${i}`, `2026-01-0${i + 1}T00:00:00.000Z`),
+        }),
+      ]);
+    await store.apply([
+      newLearnOp("notebook_item_delete", { id: "nb", entryId: "e1" }),
+    ]);
+    const { changes } = await store.changes(0);
+    for (const change of changes) {
+      expect(change.delta.notebooks?.nb?.entries ?? []).toEqual([]);
+      expect((change.delta.entries ?? []).length).toBeLessThanOrEqual(1);
+    }
+    // Replaying the log gives the stored notebook, newest entry first.
+    const replay = emptyLearnState();
+    for (const change of changes) applyLearnDelta(replay, change.delta);
+    const stored = (await store.read()).state.notebooks.nb;
+    expect(replay.notebooks.nb).toEqual(stored);
+    expect(stored.entries.map((e) => e.id)).toEqual(["e4", "e3", "e2", "e0"]);
+    expect(await store.readNotebooks()).toEqual({ nb: stored });
+  });
   it("deletes individual items and notebooks", async () => {
     const store = new LearnStore(db, "notebooks");
     const nb = {
@@ -245,6 +295,42 @@ it("does not resurrect data when account deletion races a write", async () => {
       .bind("delete-race")
       .first(),
   ).toEqual({ n: 0 });
+});
+it("resets self-serve deletions into a new, usable epoch", async () => {
+  const store = new LearnStore(db, "reset");
+  await store.apply([importWord()]);
+  const before = await store.account();
+  await store.reset();
+  const after = await store.account();
+  expect(after.epoch).toBe(before.epoch + 1);
+  expect(after.revision).toBeGreaterThan(before.revision);
+  expect(after.migrated).toBe(true);
+  expect((await store.read()).state.words).toEqual({});
+  expect(await store.changes(0)).toMatchObject({ changes: [], epoch: after.epoch });
+  // A device still on the old epoch cannot write into the new one.
+  await expect(
+    store.apply([importWord()], { epoch: before.epoch }),
+  ).rejects.toThrow("epoch_changed");
+  expect((await store.read()).state.words).toEqual({});
+  const result = await store.apply([importWord()], { epoch: after.epoch });
+  expect(result).toMatchObject({ changed: true, epoch: after.epoch });
+  expect((await store.read()).state.words["猫"]).toBeTruthy();
+});
+it("returns before/after state and the new revision without a reread", async () => {
+  const store = new LearnStore(db, "snapshots");
+  const op = importWord();
+  const first = await store.apply([op], { snapshots: true });
+  expect(first.before?.words).toEqual({});
+  expect(first.after?.words["猫"]).toBeTruthy();
+  expect(first.revision).toBe((await store.account()).revision);
+  const again = await store.apply([op], { snapshots: true });
+  expect(again).toMatchObject({ changed: false, revision: first.revision });
+});
+it("checks the tombstone with one account row and supports an identity probe", async () => {
+  const store = new LearnStore(db, "probe");
+  await store.apply([importWord()]);
+  const probe = await store.changes(0, 0);
+  expect(probe).toMatchObject({ changes: [], hasMore: true, cursor: 0 });
 });
 describe("operation boundary", () => {
   it.each([

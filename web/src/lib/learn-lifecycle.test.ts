@@ -3,6 +3,7 @@ import { beforeEach, describe, it, expect, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   verify: vi.fn(),
   delete: vi.fn(),
+  reset: vi.fn(),
   put: vi.fn(),
   store: vi.fn(),
 }));
@@ -12,10 +13,10 @@ vi.mock("./sync-store", () => ({
   resolveStore: async () => ({ put: mocks.put }),
 }));
 import { POST } from "../app/api/webhooks/clerk/route";
-import { deleteLearnerAccount } from "./learn-lifecycle";
+import { deleteLearnerAccount, resetLearnerAccount } from "./learn-lifecycle";
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.store.mockResolvedValue({ delete: mocks.delete });
+  mocks.store.mockResolvedValue({ delete: mocks.delete, reset: mocks.reset });
 });
 describe("learner account lifecycle", () => {
   it("tombstones D1 before revoking tokens and erasing legacy KV data", async () => {
@@ -29,6 +30,15 @@ describe("learner account lifecycle", () => {
     expect(mocks.delete.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.put.mock.invocationCallOrder[0],
     );
+  });
+  it("self-serve deletion resets data without tombstoning the account", async () => {
+    await resetLearnerAccount("a");
+    expect(mocks.reset).toHaveBeenCalledOnce();
+    expect(mocks.delete).not.toHaveBeenCalled();
+    expect(mocks.put.mock.calls).toEqual([
+      ["sync:user:a:snapshot:v1", "null"],
+      ["notebooks:user:a:v1", "{}"],
+    ]);
   });
   it("ignores unsigned deletion events", async () => {
     mocks.verify.mockRejectedValue(new Error("bad signature"));

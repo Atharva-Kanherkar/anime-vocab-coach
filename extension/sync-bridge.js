@@ -47,7 +47,8 @@
           name: typeof p.name === "string" ? p.name : null,
           plan: plan === "free" || plan === "pro" || plan === "max" ? plan : null
         } : void 0;
-        void chrome.runtime.sendMessage({ type: "avc-link-token", token, profile: syncProfile }).catch(() => {
+        const surface = location.pathname === "/start" ? "start_page" : void 0;
+        void chrome.runtime.sendMessage({ type: "avc-link-token", token, profile: syncProfile, surface }).catch(() => {
         });
         return;
       }

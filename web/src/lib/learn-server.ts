@@ -2,8 +2,12 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { LearnStore, LearnError, type LearnDB } from "./learn-store";
 import { getLegacyCloudSyncEnvelope, resolveStore } from "./sync-store";
 import { normalizeNotebookStore } from "./notebooks";
-import { newLearnOp, type LearnOp } from "./learn-protocol/model";
-import { publicSettings } from "./learn-protocol/validate";
+import {
+  newLearnOp,
+  type LearnOp,
+  type LearnState,
+} from "./learn-protocol/model";
+import { publicSettings, validateLearnOps } from "./learn-protocol/validate";
 import {
   normalizeAnimeVocabExport,
   type CloudSyncEnvelope,
@@ -31,6 +35,60 @@ export function snapshotImportOps(
     ),
   ];
 }
+/**
+ * Only the imports that add something. Legacy clients re-upload their whole
+ * deck on every sync; without this each upload appended a no-op operation per
+ * word to the change log every device replays.
+ */
+export function newImportOps(state: LearnState, ops: LearnOp[]): LearnOp[] {
+  return ops.flatMap((op) => {
+    const p = op.payload;
+    const word = p.word as { base: string } | undefined;
+    const daily = p.daily as { day: string } | undefined;
+    if (word) return state.words[word.base] ? [] : [op];
+    if (daily) return state.daily[daily.day] ? [] : [op];
+    const settings = Object.fromEntries(
+      Object.entries((p.settings as Record<string, unknown>) || {}).filter(
+        ([k]) => !(k in state.settings),
+      ),
+    );
+    return Object.keys(settings).length
+      ? [{ ...op, payload: { settings } }]
+      : [];
+  });
+}
+const skippable = (err: unknown) =>
+  err instanceof LearnError
+    ? err.status === 404 || err.message === "operation_id_reused"
+    : err instanceof Error && /^invalid_/.test(err.message);
+/** One malformed legacy record must not block the rest of the account. */
+async function importLegacy(store: LearnStore, ops: LearnOp[]) {
+  const valid = ops.filter((op) => {
+    try {
+      validateLearnOps([op]);
+      return true;
+    } catch {
+      console.warn("[learn] skipped invalid legacy record", op.op_id);
+      return false;
+    }
+  });
+  for (let i = 0; i < valid.length; i += 50) {
+    const page = valid.slice(i, i + 50);
+    try {
+      await store.apply(page);
+    } catch (err) {
+      if (!skippable(err)) throw err;
+      for (const op of page) {
+        try {
+          await store.apply([op]);
+        } catch (e) {
+          if (!skippable(e)) throw e;
+          console.warn("[learn] skipped legacy record", op.op_id, (e as Error).message);
+        }
+      }
+    }
+  }
+}
 export async function getLearnStore(
   userId: string,
   options: { skipMigration?: boolean } = {},
@@ -40,7 +98,7 @@ export async function getLearnStore(
   if (!db) throw new LearnError("learner_store_unavailable", 503);
   const store = new LearnStore(db, userId);
   if (options.skipMigration) return store;
-  if ((await store.read()).migrated) return store;
+  if ((await store.account()).migrated) return store;
   const kv = await resolveStore();
   const legacy = await getLegacyCloudSyncEnvelope(userId);
   const notebooks = normalizeNotebookStore(
@@ -80,8 +138,7 @@ export async function getLearnStore(
         ),
       );
   }
-  for (let i = 0; i < ops.length; i += 50)
-    await store.apply(ops.slice(i, i + 50));
+  await importLegacy(store, ops);
   // An empty store still gets a durable migration marker.
   await store.apply(
     [
@@ -96,21 +153,33 @@ export async function getLearnStore(
   );
   return store;
 }
-export async function getLearnEnvelope(
+export function snapshotFromState(state: LearnState): CloudSyncSnapshot {
+  return {
+    ...normalizeAnimeVocabExport({}, new Date(0)),
+    words: Object.values(state.words),
+    daily: Object.values(state.daily),
+    settings: state.settings,
+  };
+}
+export function envelopeFromState(
   profile: CloudUserProfile,
-): Promise<CloudSyncEnvelope> {
-  const store = await getLearnStore(profile.id);
-  const { state, revision } = await store.read();
+  state: LearnState,
+  revision: number,
+): CloudSyncEnvelope {
   return {
     schemaVersion: 1,
     profile,
     revision,
     lastSyncedAt: new Date().toISOString(),
-    snapshot: {
-      ...normalizeAnimeVocabExport({}, new Date(0)),
-      words: Object.values(state.words),
-      daily: Object.values(state.daily),
-      settings: state.settings,
-    },
+    snapshot: snapshotFromState(state),
   };
+}
+export async function getLearnEnvelope(
+  profile: CloudUserProfile,
+  store?: LearnStore,
+): Promise<CloudSyncEnvelope> {
+  const { state, revision } = await (
+    store || (await getLearnStore(profile.id))
+  ).read({ notebooks: false });
+  return envelopeFromState(profile, state, revision);
 }

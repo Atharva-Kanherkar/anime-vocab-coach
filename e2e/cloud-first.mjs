@@ -459,9 +459,18 @@ try {
     body: JSON.stringify({ confirm: "DELETE" }),
   });
   assert.equal(deletion.status, 200);
-  assert.equal((await fetch(base + "/api/learn/changes?since=0")).status, 410);
+  // Self-serve deletion empties the store but leaves the account usable.
+  const afterDeletion = await fetch(base + "/api/learn/changes?since=0");
+  assert.equal(afterDeletion.status, 200);
+  const reset = await afterDeletion.json();
+  assert.equal(reset.changes.length, 0);
+  assert.ok(reset.epoch >= 1);
+  assert.deepEqual(
+    (await (await fetch(base + "/api/learn/export")).json()).vocab,
+    {},
+  );
   pass(
-    "account export includes reviews and deletion prevents legacy resurrection",
+    "account export includes reviews and deletion resets learner data without locking the account",
   );
   await mkdir(artifacts, { recursive: true });
   await import("node:fs/promises").then((fs) =>

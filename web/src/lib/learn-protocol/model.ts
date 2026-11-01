@@ -24,11 +24,20 @@ export interface LearnState {
   settings: Record<string, unknown>;
   notebooks: Record<string, Notebook>;
 }
+/** One notebook entry written or removed. Deltas never carry a whole
+ * notebook's entries, so the op log grows with the change, not the notebook. */
+export interface LearnEntryChange {
+  notebookId: string;
+  entry?: Notebook["entries"][number];
+  removed?: string;
+}
 export interface LearnDelta {
   words?: Record<string, CloudWordRecord>;
   daily?: Record<string, CloudDailyStats>;
   settings?: Record<string, unknown>;
+  /** Notebook metadata. `entries` is always empty; see `entries` below. */
   notebooks?: Record<string, Notebook | null>;
+  entries?: LearnEntryChange[];
 }
 export interface LearnChange {
   cursor: number;
@@ -150,7 +159,7 @@ export function projectLearnOp(state: LearnState, op: LearnOp): LearnDelta {
       entries: state.notebooks[notebook.id]?.entries || [],
     };
     state.notebooks[next.id] = next;
-    delta.notebooks = { [next.id]: next };
+    delta.notebooks = { [next.id]: { ...next, entries: [] } };
   } else if (op.kind === "notebook_delete") {
     delete state.notebooks[p.id as string];
     delta.notebooks = { [p.id as string]: null };
@@ -169,10 +178,13 @@ export function projectLearnOp(state: LearnState, op: LearnOp): LearnDelta {
         structuredClone(entry),
         ...notebook.entries.filter((e) => e.id !== entry.id),
       ];
-    } else
+      delta.entries = [{ notebookId: id, entry: structuredClone(entry) }];
+    } else {
       notebook.entries = notebook.entries.filter((e) => e.id !== p.entryId);
+      delta.entries = [{ notebookId: id, removed: p.entryId as string }];
+    }
     notebook.updatedAt = op.client_ts;
-    delta.notebooks = { [id]: structuredClone(notebook) };
+    delta.notebooks = { [id]: { ...structuredClone(notebook), entries: [] } };
   }
   return delta;
 }
@@ -198,7 +210,14 @@ export function applyLearnDelta(state: LearnState, delta: LearnDelta): void {
   Object.assign(state.daily, delta.daily);
   Object.assign(state.settings, delta.settings);
   for (const [id, nb] of Object.entries(delta.notebooks || {})) {
-    if (nb) state.notebooks[id] = nb;
+    if (nb) state.notebooks[id] = { ...nb, entries: state.notebooks[id]?.entries || [] };
     else delete state.notebooks[id];
+  }
+  for (const change of delta.entries || []) {
+    const notebook = state.notebooks[change.notebookId];
+    if (!notebook) continue;
+    const id = change.entry?.id ?? change.removed;
+    notebook.entries = notebook.entries.filter((e) => e.id !== id);
+    if (change.entry) notebook.entries.unshift(change.entry);
   }
 }

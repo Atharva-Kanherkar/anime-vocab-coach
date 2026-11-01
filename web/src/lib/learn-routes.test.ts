@@ -8,11 +8,12 @@ const mock = vi.hoisted(() => ({
   delete: vi.fn(),
 }));
 vi.mock("./learn-lifecycle", () => ({
-  deleteLearnerAccount: async () => mock.delete(),
+  resetLearnerAccount: async () => mock.delete(),
 }));
 vi.mock("./auth", () => ({ resolveProfile: mock.profile }));
 vi.mock("./learn-server", () => ({
   getLearnStore: vi.fn(async () => mock),
+  snapshotFromState: vi.fn(() => ({ words: [], daily: [] })),
   getLearnEnvelope: vi.fn(async () => ({
     snapshot: {
       words: [],
@@ -67,7 +68,16 @@ describe("learner API boundaries", () => {
   it("validates the batch before writing and never trusts user_id", async () => {
     const op = newLearnOp("settings", { settings: { subLens: false } });
     expect((await POST(request({ ops: [op] }))).status).toBe(200);
-    expect(mock.apply).toHaveBeenCalledWith([op]);
+    expect(mock.apply).toHaveBeenCalledWith([op], {
+      epoch: undefined,
+      snapshots: true,
+    });
+    mock.apply.mockClear();
+    expect((await POST(request({ ops: [op], epoch: 3 }))).status).toBe(200);
+    expect(mock.apply).toHaveBeenCalledWith([op], {
+      epoch: 3,
+      snapshots: true,
+    });
     mock.apply.mockClear();
     expect(
       (await POST(request({ ops: [{ ...op, user_id: "b" }] }))).status,
@@ -108,7 +118,14 @@ describe("learner API boundaries", () => {
     const res = await GET(new Request("http://localhost/?since=12"));
     expect(await res.json()).toMatchObject({ userId: "user-a" });
     expect(res.headers.get("cache-control")).toContain("no-store");
-    expect(mock.changes).toHaveBeenCalledWith(12);
+    expect(mock.changes).toHaveBeenCalledWith(12, 100);
+    await GET(new Request("http://localhost/?since=0&limit=0"));
+    expect(mock.changes).toHaveBeenLastCalledWith(0, 0);
+    for (const limit of ["101", "-1", "x"])
+      expect(
+        (await GET(new Request(`http://localhost/?since=0&limit=${limit}`)))
+          .status,
+      ).toBe(400);
   });
   it("requires explicit deletion confirmation and exposes account export", async () => {
     expect((await DELETE(request({}))).status).toBe(400);

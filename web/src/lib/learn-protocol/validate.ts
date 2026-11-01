@@ -1,12 +1,15 @@
 import type { LearnOp } from "./model";
 const object = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === "object" && !Array.isArray(v);
-const text = (v: unknown, max = 200): v is string =>
+const plain = (v: unknown, max: number): v is string =>
   typeof v === "string" &&
   v.length > 0 &&
   v.length <= max &&
-  !/[\u0000-\u001f]/.test(v) &&
-  !["__proto__", "constructor", "prototype"].includes(v);
+  !/[\u0000-\u001f]/.test(v);
+/** Values used as object keys (ids, word bases) also exclude prototype names.
+ * Free text such as tags and notebook names may legitimately be "prototype". */
+const text = (v: unknown, max = 200): v is string =>
+  plain(v, max) && !["__proto__", "constructor", "prototype"].includes(v);
 const num = (v: unknown, max = 1e9) =>
   typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max;
 const iso = (v: unknown) =>
@@ -121,7 +124,7 @@ function notebookEntry(v: unknown): boolean {
   if (
     !Array.isArray(v.tags) ||
     v.tags.length > 12 ||
-    !v.tags.every((t) => text(t, 30))
+    !v.tags.every((t) => plain(t, 30))
   )
     return false;
   if (v.level !== null && (!num(v.level, 5) || Number(v.level) < 1))
@@ -186,7 +189,7 @@ export function validateLearnOps(raw: unknown): LearnOp[] {
         valid =
           object(p.notebook) &&
           text(p.notebook.id) &&
-          text(p.notebook.name, 80) &&
+          plain(p.notebook.name, 80) &&
           iso(p.notebook.createdAt) &&
           iso(p.notebook.updatedAt) &&
           Array.isArray(p.notebook.entries) &&
