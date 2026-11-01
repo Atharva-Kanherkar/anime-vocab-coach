@@ -39,7 +39,7 @@ export async function resolveStore(): Promise<SyncKV> {
   throw new Error("AVC_SYNC_KV binding is required for cloud sync.");
 }
 
-export async function getCloudSyncEnvelope(userId: string): Promise<CloudSyncEnvelope | null> {
+export async function getLegacyCloudSyncEnvelope(userId: string): Promise<CloudSyncEnvelope | null> {
   const key = syncKey(userId);
   const store = await resolveStore();
   const raw = await store.get(key);
@@ -208,3 +208,6 @@ export async function refreshSyncTokenProfile(
   await putTokenRecord(store, token, { ...profile, id: userId });
   return true;
 }
+
+/** Legacy read retained while clients migrate to the learner operation API. */
+export const getCloudSyncEnvelope = getLegacyCloudSyncEnvelope;

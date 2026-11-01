@@ -1,3 +1,4 @@
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
@@ -52,6 +53,9 @@ const config = (phase: string) => {
     }
   }
 
+  if (phase !== PHASE_PRODUCTION_BUILD && process.env.NODE_ENV !== "production") {
+    void initOpenNextCloudflareForDev();
+  }
   return nextConfig;
 };
 
