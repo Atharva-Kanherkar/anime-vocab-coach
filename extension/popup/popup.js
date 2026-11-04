@@ -229,6 +229,9 @@
     "listening_started",
     "install_first_run",
     "extension_linked",
+    "quiz_offered",
+    "quiz_started",
+    "quiz_completed",
     ...SIGNIN_FEATURE_EVENTS
   ];
   var TRACK_URL = WEB_URL + "/api/track";
@@ -253,7 +256,8 @@
     "ext_popup",
     "ext_milestone",
     "ext_popup_limit",
-    "ext_limit_sheet"
+    "ext_limit_sheet",
+    "ext_episode_quiz"
   ];
   function isProFunnelEvent(v) {
     return typeof v === "string" && PRO_FUNNEL_EVENTS.includes(v);

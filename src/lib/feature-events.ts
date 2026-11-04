@@ -60,6 +60,9 @@ export const FEATURE_EVENTS = [
   "listening_started",
   "install_first_run",
   "extension_linked",
+  "quiz_offered",
+  "quiz_started",
+  "quiz_completed",
   ...SIGNIN_FEATURE_EVENTS,
 ] as const;
 
@@ -115,6 +118,7 @@ export const PRO_SURFACES = [
   "ext_milestone",
   "ext_popup_limit",
   "ext_limit_sheet",
+  "ext_episode_quiz",
 ] as const;
 
 export type ProSurface = (typeof PRO_SURFACES)[number];

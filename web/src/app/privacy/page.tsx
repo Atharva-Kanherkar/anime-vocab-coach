@@ -87,8 +87,9 @@ export default function PrivacyPage() {
             </li>
             <li>
               <b>Learning-activity counters.</b> The extension also reports when a card was
-              shown, kept, or reviewed, when Listening Mode started, when it was first
-              installed, and when it was linked to an account — as a bare event name such as{" "}
+              shown, kept, or reviewed, when Listening Mode started, when an end-of-episode
+              quiz was offered, started, or finished, when it was first installed, and when it
+              was linked to an account — as a bare event name such as{" "}
               <code>card_shown</code>, and nothing else. <b>The word, the subtitle line, the
               show you are watching, and the page URL are never sent with these.</b> They exist
               so we can tell &quot;nobody is getting cards&quot; apart from &quot;nobody has
@@ -121,7 +122,9 @@ export default function PrivacyPage() {
               chat, and so on), token counts, cost, latency, and whether it succeeded. This is
               how we keep the service affordable and catch failures. Your prompts, the
               subtitle lines you look up, and the AI&apos;s replies are <b>not</b> stored in
-              analytics.
+              analytics. When you start an end-of-episode quiz, the dialogue lines the extension
+              saw during that episode and the show&apos;s title are sent to the AI to write it,
+              and are not kept afterwards.
             </li>
             <li>
               We store no analytics cookie and no advertising identifier, we do not store your

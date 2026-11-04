@@ -25,6 +25,7 @@
     "test:e2e:youtube:lens": "node e2e/youtube-lens-pot.mjs",
     "test:e2e:youtube:followups": "node e2e/youtube-followups.mjs",
     "test:e2e:learning-loop": "node e2e/learning-loop.mjs",
+    "test:e2e:episode-quiz": "node e2e/episode-quiz.mjs",
     "test:e2e:pro-popup": "node e2e/pro-popup.mjs",
     "verify:package": "node e2e/verify-package.mjs",
     "build-dict": "node scripts/build-dictionary.mjs",

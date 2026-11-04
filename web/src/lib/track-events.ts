@@ -29,6 +29,9 @@ export const LEARNING_LOOP_EVENTS = [
   "card_unlocked",
   "install_first_run",
   "extension_linked",
+  "quiz_offered",
+  "quiz_started",
+  "quiz_completed",
   ...SIGNIN_FUNNEL_EVENTS,
 ] as const;
 

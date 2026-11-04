@@ -210,6 +210,9 @@
     "listening_started",
     "install_first_run",
     "extension_linked",
+    "quiz_offered",
+    "quiz_started",
+    "quiz_completed",
     ...SIGNIN_FEATURE_EVENTS
   ];
   function isFeatureEvent(v) {
