@@ -24,6 +24,7 @@ import { requestExtractWords, overlayFromExtract } from "../lib/extract-words-cl
 import { deriveCacheKey, sessionIdentity, type PlatformId } from "../lib/cache-key";
 import { lookupTranscript } from "../lib/transcript-client";
 import { CueLedger } from "../lib/cue-ledger";
+import { createEpisodeQuiz } from "../lib/episode-quiz-controller";
 import { cloudAppUrl } from "../config";
 import { lessonUrl, wordsHeard, type CourseLesson } from "../lib/course-listening";
 import { lensPieceDelayMs, splitForLens } from "../lib/lens-lines";
@@ -144,6 +145,17 @@ declare global {
   let playbackRelayTimer: ReturnType<typeof setInterval> | null = null;
   /** One "no captions on this video" notice per video, not per caption report. */
   let captionNoticeShown = false;
+  /** The end-of-episode quiz: fed every line onLine takes, offered once per episode. */
+  const episodeQuiz = createEpisodeQuiz({
+    getVideo: () => adapter?.getVideo() ?? null,
+    sessionId: currentSessionId,
+    title: currentTitle,
+    active: () => signedIn === true && !pipelineDisabled && (!settings || siteEnabled(settings)),
+    inCourse: () => !!course,
+    direction: () => normalizeDirection(settings?.learningDirection),
+    onOpen: () => overlay.hideAgent(),
+  });
+
   /** The video the page is on right now, read live rather than from the 2s
    * session watcher. A line is processed across several awaits (word
    * extraction, target pick, stats) and the video can change under it; that
@@ -228,6 +240,7 @@ declare global {
     lensSeq++;
     hideLens();
     overlay.hideAgent();
+    episodeQuiz.stop();
     pendingLines.length = 0;
     judgedLensSeqs.clear();
   }
@@ -781,6 +794,7 @@ declare global {
     if (signedIn !== true || pipelineDisabled) return;
     const line = text.replace(/\s+/g, " ").trim();
     if (!line) return;
+    episodeQuiz.noteLine(line, context?.en);
     void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
     let seq = opts.lensSeq ?? -1;
     if (opts.lens !== false) {
