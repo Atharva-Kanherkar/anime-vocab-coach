@@ -39,7 +39,7 @@ export async function resolveStore(): Promise<SyncKV> {
   throw new Error("AVC_SYNC_KV binding is required for cloud sync.");
 }
 
-export async function getLegacyCloudSyncEnvelope(userId: string): Promise<CloudSyncEnvelope | null> {
+export async function getCloudSyncEnvelope(userId: string): Promise<CloudSyncEnvelope | null> {
   const key = syncKey(userId);
   const store = await resolveStore();
   const raw = await store.get(key);
@@ -152,7 +152,6 @@ export async function getSyncTokenProfile(token: string, expectedOwner?: string)
   let record: StoredTokenProfile;
   try { record = JSON.parse(raw); } catch { return null; }
   if (!record || typeof record.id !== "string" || (expectedOwner && record.id !== expectedOwner)) return null;
-  if (await store.get(`learn:deleted:${record.id}`)) return null;
   const { touchedAt, ...profile } = record;
   if (tokenNeedsTouch({ touchedAt }, Date.now())) {
     // Best effort: a failed slide must not turn a valid token into a 401.
@@ -208,10 +207,4 @@ export async function refreshSyncTokenProfile(
   if (!token) return false;
   await putTokenRecord(store, token, { ...profile, id: userId });
   return true;
-}
-
-/** Dashboard compatibility view, projected from the D1 authority. */
-export async function getCloudSyncEnvelope(userId: string): Promise<CloudSyncEnvelope | null> {
-  const { getLearnEnvelope } = await import("./learn-server");
-  return getLearnEnvelope({ id:userId, email:null, name:null });
 }

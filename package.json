@@ -1,7 +1,7 @@
 {
   "name": "anime-vocab-coach",
   "version": "1.0.0",
-  "description": "Learn Japanese from anime \u2014 Chrome extension with romaji-first SRS, Listening Mode, and cloud-owned learning data. Site: animevocab.com",
+  "description": "Learn Japanese from anime \u2014 Chrome extension with romaji-first SRS, Listening Mode, and optional cloud sync. Site: animevocab.com",
   "homepage": "https://animevocab.com",
   "repository": {
     "type": "git",
@@ -37,8 +37,7 @@
     "test:e2e:dual-subs": "node e2e/dual-subs.mjs",
     "test:e2e:netflix-tracks": "node e2e/netflix-tracks.mjs",
     "test:n5:fuzz": "vitest run --config vitest.n5-fuzz.config.ts",
-    "test:n5:mutation": "stryker run stryker.n5.config.json",
-    "test:e2e:cloud-first": "node e2e/cloud-first.mjs"
+    "test:n5:mutation": "stryker run stryker.n5.config.json"
   },
   "keywords": [
     "japanese",

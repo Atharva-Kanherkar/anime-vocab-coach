@@ -101,17 +101,11 @@ describe("server-side credential reuse", () => {
   });
 });
 
-it("checks account revocation while reusing credentials and rejects malformed records", async () => {
+it("reuses credentials with exactly two reads and rejects malformed records", async () => {
   const token = await getOrCreateSyncToken("user_1", profile); reads.length = 0;
   expect(await getExistingSyncToken("user_1")).toBe(token);
-  expect(reads).toEqual(["synctoken:user:user_1:v1", `synctoken:${token}:v1`,"learn:deleted:user_1"]);
+  expect(reads).toEqual(["synctoken:user:user_1:v1", `synctoken:${token}:v1`]);
   for (const raw of ["{", "null", "[]", "{}", '\"bad\"']) {
     data.set(`synctoken:${token}:v1`, raw); expect(await getExistingSyncToken("user_1")).toBeNull();
   }
-});
-
-it("revokes existing credentials when the account is deleted",async()=>{
-  const token=await getOrCreateSyncToken("user_1",profile);
-  data.set("learn:deleted:user_1","1");
-  expect(await getSyncTokenProfile(token)).toBeNull();
 });

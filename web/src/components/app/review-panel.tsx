@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCloudSnapshot, persistCloudEnvelope, refreshCloudFromServer } from "@/lib/cloud-snapshot-store";
 import { GettingStarted } from "@/components/app/getting-started";
 import { pickDueReviews, type CloudSyncEnvelope, type CloudWordRecord } from "@/lib/sync";
@@ -22,8 +22,6 @@ interface Round {
 type SubmitState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; result: WebReviewResult; message: string };
 
 export function ReviewPanel({ active, onGo }: { active: boolean; onGo: (section: string) => void }) {
-  const submitting = useRef(false);
-  const pendingReview = useRef<{base:string;result:WebReviewResult;day:string;op_id:string;client_ts:string}|null>(null);
   const snapshot = useCloudSnapshot();
   const [round, setRound] = useState<Round | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -61,20 +59,20 @@ export function ReviewPanel({ active, onGo }: { active: boolean; onGo: (section:
 
   const answer = useCallback(
     async (result: WebReviewResult) => {
-      if (!card || submitting.current) return;
-      submitting.current = true;
+      if (!card || submit.kind === "saving") return;
       const current = begin();
-      if (!pendingReview.current || pendingReview.current.base !== card.base || pendingReview.current.result !== result) pendingReview.current = {base:card.base,result,day:localDayKey(new Date()),op_id:crypto.randomUUID(),client_ts:new Date().toISOString()};
       setSubmit({ kind: "saving" });
       setNotice(null);
       try {
         const res = await fetch("/api/sync/review", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(pendingReview.current),
+          body: JSON.stringify({ base: card.base, result, day: localDayKey(new Date()) }),
         });
-        if (res.status === 404) {
-          // A removed card cannot be reviewed; refresh without blocking the round.
+        if (res.status === 404 || res.status === 409) {
+          // The word is no longer due on the server: most often the extension
+          // reviewed it a moment ago. Retrying could never succeed, so move on
+          // and pull the fresh state instead of stranding the learner here.
           setNotice(`${card.base} was already reviewed on another device, so it was skipped.`);
           advance(current, { skipped: current.skipped + 1 });
           void refreshCloudFromServer();
@@ -90,7 +88,6 @@ export function ReviewPanel({ active, onGo }: { active: boolean; onGo: (section:
         } catch {
           /* no bridge on this page, the next sync picks it up */
         }
-        pendingReview.current = null;
         advance(current, result === "pass" ? { passed: current.passed + 1 } : { failed: current.failed + 1 });
       } catch {
         setSubmit({
@@ -98,9 +95,9 @@ export function ReviewPanel({ active, onGo }: { active: boolean; onGo: (section:
           result,
           message: "Couldn't save that answer. Check your connection and try again.",
         });
-      } finally { submitting.current = false; }
+      }
     },
-    [card, begin, advance]
+    [card, submit.kind, begin, advance]
   );
 
   useEffect(() => {

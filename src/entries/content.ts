@@ -164,9 +164,10 @@ declare global {
   // Adapters can start matching late (e.g. Crunchyroll's player iframe creates
   // its <video> well after document_idle), so keep looking until one matches.
   function pickAdapter(): SiteAdapter | null {
-    // Native dual subtitles remain available before sign-in. Only the card
-    // and progress pipeline requires an account.
-    if (signedIn === null) return null;
+    // The account gate (#206): unresolved or signed out means no adapter, so
+    // nothing on the page can start the pipeline. The 2 second poll keeps
+    // calling this, and the next call after a token arrives starts it.
+    if (signedIn !== true) return null;
     if (adapter) return adapter;
     adapter = matchAdapter();
     if (adapter && !started) {
@@ -176,13 +177,13 @@ declare global {
       // useNetflixTracks), what the subtitle DOM shows is the same lines, late.
       adapter.start(
         (text, context) => {
-          if (signedIn === null) return;
+          if (signedIn !== true) return;
           lastPageLineAt = Date.now();
           if (episode) { comparePageLine(text); return; }
           subsDiag.source = "page";
           onLine(text, context);
         },
-        () => { if (signedIn !== null && !episode) clearLensLine(); }
+        () => { if (signedIn === true && !episode) clearLensLine(); }
       );
       // Load kuromoji and the dictionary now, not on the first subtitle line:
       // lazily, the first lines of every episode waited seconds for a cold
@@ -661,7 +662,7 @@ declare global {
     const cue = context?.cue;
     // A track line whose time is already up (a very short cue) is not drawn late.
     const stale = (): boolean =>
-      signedIn === null || seq !== lensSeq || currentSessionId() !== sessionId || (cue !== undefined && cue !== timelineCue);
+      signedIn !== true || seq !== lensSeq || currentSessionId() !== sessionId || (cue !== undefined && cue !== timelineCue);
     const current = settings || (await storage.getSettings());
     if (stale()) return;
     if (!siteEnabled(current) || !lensOn(current)) {
@@ -777,17 +778,16 @@ declare global {
     context?: LineContext,
     opts: { lens?: boolean; lensSeq?: number } = {}
   ): void {
-    if (signedIn === null || pipelineDisabled) return;
+    if (signedIn !== true || pipelineDisabled) return;
     const line = text.replace(/\s+/g, " ").trim();
     if (!line) return;
-    if (signedIn === true) void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
+    void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
     let seq = opts.lensSeq ?? -1;
     if (opts.lens !== false) {
       cancelPacedLens();
       renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
       seq = lensSeq; // renderLens claims its sequence number synchronously
     }
-    if (signedIn !== true) return;
     pendingLines.push({ text: line, context, lensSeq: seq });
     // Bounded: a card can hold the pipeline for most of a minute.
     if (pendingLines.length > MAX_PENDING_LINES) pendingLines.splice(0, pendingLines.length - MAX_PENDING_LINES);
@@ -1034,14 +1034,14 @@ declare global {
 
   /** The page script may have the tracks already: ask for them. */
   function requestNetflixTracks(): void {
-    if (signedIn === null) return;
+    if (signedIn !== true) return;
     if (!location.hostname.endsWith("netflix.com")) return;
     const movieId = netflixId();
     if (movieId) window.postMessage({ source: "avc-content", type: "avc-netflix-timedtext-request", movieId }, location.origin);
   }
 
   function useNetflixTracks(data: { movieId?: unknown; ja?: { text?: unknown } | null; en?: { text?: unknown } | null }): void {
-    if (signedIn === null) return;
+    if (signedIn !== true) return;
     if (typeof data.movieId !== "string" || data.movieId !== netflixId()) return;
     // The same video again: only Netflix's English arriving after the
     // Japanese is news (it replaces the translation).
@@ -1474,8 +1474,8 @@ declare global {
     const initial = pickAdapter();
     lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
     refreshCacheKey();
-    requestNetflixTracks();
     if (signedIn === true) {
+      requestNetflixTracks();
       prefetchAnimeContext(currentTitle());
       void restoreTabSession();
     }
@@ -1541,5 +1541,3 @@ declare global {
   void storage.setAgentPinned(false);
 
 })();
-
-window.addEventListener("online",()=>{void chrome.runtime.sendMessage({type:"avc-sync-now"}).catch(()=>{});});
