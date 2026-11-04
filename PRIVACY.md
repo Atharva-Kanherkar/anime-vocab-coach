@@ -49,8 +49,8 @@ endpoint rate-limits by IP and only accepts requests that present as our Chrome
 extension (a public id in a header, not a secret credential).
 
 **Learning-activity counters.** The extension also reports when a card was
-shown, kept, or reviewed, when Listening Mode started, when it was first
-installed, and when it was linked to an account — as a bare event name such as
+shown, kept, or reviewed, when Listening Mode started, when an end-of-episode
+quiz was offered, started, or finished, when it was first installed, and when it was linked to an account — as a bare event name such as
 `card_shown`, plus the extension's version number so we can tell which release
 sent it. **The word, the subtitle line, the show you are
 watching, and the page URL are never sent with these.** They exist so we can
@@ -79,6 +79,9 @@ For every AI request we also record the model, the operation (explain, hooks,
 chat, and so on), token counts, cost, latency, and whether it succeeded — this is
 how the service is kept affordable and failures get caught. Your prompts, the
 subtitle lines you look up, and the AI's replies are **not** stored in analytics.
+When you start an end-of-episode quiz, the dialogue lines the extension saw during
+that episode and the show's title are sent to the AI to write it, and are not kept
+afterwards.
 
 There is no analytics cookie and no advertising identifier, raw IP addresses are
 not stored in analytics, and the data is retained for about 90 days. It is
