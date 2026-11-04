@@ -25,14 +25,32 @@ The parent issue said 242 words. That counted repeated vocabulary rows inside th
 - Licence: CC BY-SA 4.0. The dataset is derived from JMdict/JMnedict and Tatoeba;
   see the repository's NOTICE and LICENSE.
 - Fields used: `reading` (kana), `meanings[0]` (English), `pos` (JMdict tags).
-- Transformations: katakana readings are kept as-is; hiragana readings are kept;
-  readings already present in the curriculum are skipped; duplicate readings are
-  collapsed; particles (`prt`) are excluded because they belong in `grammar.json`.
-- 511 entries were added after deduplication.
+- Transformations: katakana and hiragana readings are kept; readings already present
+  in the curriculum merge their senses into the seeded entry instead of being
+  dropped; duplicate readings are collapsed; particles (`prt`) are excluded because
+  they belong in `grammar.json`.
+- 511 entries were added after merging.
 
-Parts of speech are mapped from JMdict tags to:
-`noun`, `verb`, `i-adjective`, `na-adjective`, `adjective`, `adverb`, `pronoun`,
-`numeral`, `counter`, `conjunction`, `expression`.
+Parts of speech for imported words come from the JMdict tags. Seeded words use
+`backend/src/n5/syllabus/seed-pos.json`, a reviewed map from `src` to part of
+speech. Topic tags are derived separately and never decide the part of speech.
+
+Two source glosses are wrong for the intended sense and are corrected explicitly:
+
+| reading | source gloss | corrected |
+|---|---|---|
+| はんぶん | half minute | half |
+| せっけん | economy | soap |
+
+Readings with more than one lexical item merge their meanings, for example
+あつい = kind; hot; hot to the touch, きる = to cut; to wear, いる = to be; to need,
+かぜ = a cold; wind.
+
+The lexical word は (tooth) uses the `'` marker in `text.ts` so it reads ha, not the
+topic particle wa. Its id is `ha`.
+
+Grammar explanations are copied from `curriculum.ts` in full. They are not
+truncated at a period, because patterns contain `...`.
 
 ## 3. Curated greetings
 

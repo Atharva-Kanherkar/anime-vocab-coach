@@ -36,6 +36,18 @@ describe("N5 unit plan", () => {
     }
   });
 
+  it("introduces grammar bands in order and never regresses", () => {
+    const band = new Map(GRAMMAR.map((point) => [point.id, point.band]));
+    let previous = 0;
+    for (let unit = 1; unit <= UNIT_COUNT; unit++) {
+      const bands = unitTargets(unit).grammar.map((id) => band.get(id)!);
+      for (const current of bands) {
+        expect(current, `unit ${unit}`).toBeGreaterThanOrEqual(previous);
+        previous = current;
+      }
+    }
+  });
+
   it("is deterministic and gives units 1 and 24 disjoint words", () => {
     expect(unitTargets(1)).toEqual(unitTargets(1));
     expect(unitTargets(24)).toEqual(unitTargets(24));

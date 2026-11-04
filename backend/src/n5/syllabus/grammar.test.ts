@@ -41,3 +41,19 @@ describe("N5 syllabus grammar", () => {
     }
   });
 });
+
+describe("seeded grammar explanations", () => {
+  it("keeps every reviewed explanation intact, including ellipses", () => {
+    for (const unit of UNITS) {
+      unit.grammar.forEach((point, index) => {
+        const id = `u${String(unit.unit).padStart(2, "0")}-g${index + 1}`;
+        expect(GRAMMAR.find((entry) => entry.id === id)?.explanation, id).toBe(point.explanation);
+      });
+    }
+  });
+
+  it("does not truncate patterns that contain ...", () => {
+    expect(GRAMMAR.find((point) => point.id === "u12-g2")?.explanation).toContain("... です");
+    expect(GRAMMAR.find((point) => point.id === "u20-g2")?.explanation).toContain("... ですか");
+  });
+});

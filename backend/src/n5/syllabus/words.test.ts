@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { UNITS } from "../curriculum";
 import { render } from "../text";
+import seedPos from "./seed-pos.json";
 import { WORDS } from "./plan";
 
 const slug = (text: string) =>
@@ -12,6 +13,11 @@ describe("N5 syllabus words", () => {
     expect(WORDS.length).toBeLessThanOrEqual(850);
     expect(WORDS.filter((word) => !word.reserve)).toHaveLength(600);
     expect(WORDS.filter((word) => word.reserve)).toHaveLength(151);
+  });
+
+  it("has reviewed POS metadata for every seeded word and no extras", () => {
+    const seeded = new Set(UNITS.flatMap((unit) => unit.vocabulary.map(([src]) => src)));
+    expect(Object.keys(seedPos).sort()).toEqual([...seeded].sort());
   });
 
   it("keeps every seeded curriculum word under its current id", () => {
@@ -56,5 +62,38 @@ describe("N5 syllabus words", () => {
     for (const word of WORDS) {
       expect(Boolean(word.reserve), word.id).toBe(word.tags.includes("reserve"));
     }
+  });
+});
+
+describe("syllabus metadata corrections", () => {
+  const byId = new Map(WORDS.map((word) => [word.id, word]));
+  const bySrc = new Map(WORDS.map((word) => [word.src, word]));
+
+  it("stores grammatical POS, not the topic tag", () => {
+    for (const id of ["tabemasu", "nomimasu", "oshiemasu", "hikimasu"]) {
+      expect(byId.get(id)?.pos, id).toBe("verb");
+    }
+    expect(byId.get("piano")?.pos).toBe("noun");
+    expect(byId.get("piano")?.tags.length).toBeGreaterThan(0);
+  });
+
+  it("fixes glosses the source takes from the wrong sense", () => {
+    expect(bySrc.get("はんぶん")?.meaning).toBe("half");
+    expect(bySrc.get("せっけん")?.meaning).toBe("soap");
+  });
+
+  it("merges senses that share a reading", () => {
+    expect(bySrc.get("あつい")?.meaning).toContain("hot");
+    expect(bySrc.get("きる")?.meaning).toContain("wear");
+    expect(bySrc.get("いる")?.meaning).toContain("need");
+    expect(bySrc.get("かぜ")?.meaning).toContain("wind");
+  });
+
+  it("keeps a lexical は as ha, not the topic particle wa", () => {
+    const tooth = bySrc.get("'は");
+    expect(tooth?.id).toBe("ha");
+    expect(tooth?.meaning).toBe("tooth");
+    expect(render("'は")).toEqual({ romaji: "ha", kana: "は" });
+    expect(render("は")).toEqual({ romaji: "wa", kana: "は" });
   });
 });

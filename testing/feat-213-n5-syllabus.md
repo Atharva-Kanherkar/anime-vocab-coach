@@ -7,9 +7,12 @@ Source of truth for #213. Written before implementation; locked for the life of 
 - `backend/src/n5/syllabus/words.json` holds the N5 vocabulary pool.
   - 750-850 entries.
   - Entry shape: `{ id, src, meaning, pos, band, tags }`, `band` 1-4, `tags` a non-empty string array.
-  - `src` uses the `text.ts` notation (kana with `_` between words, `^` only for names, katakana for loanwords) and must pass `render()`.
+  - `src` uses the `text.ts` notation (kana with `_` between words, `^` only for names, a leading `'` for a lexical word that looks like a particle, katakana for loanwords) and must pass `render()`.
   - `id` is `slug(render(src).romaji)`.
   - Existing curriculum vocabulary keeps its current id. The real count is 230 unique ids, not 242 (242 counted repeated vocabulary rows inside units).
+  - Seeded words take their part of speech from the reviewed `seed-pos.json`, not from a topic keyword.
+  - Entries that share a reading merge their senses instead of dropping all but the first.
+  - Two source glosses are corrected explicitly: はんぶん = half, せっけん = soap.
 - `backend/src/n5/syllabus/grammar.json` holds the N5 grammar pool.
   - 70-90 entries.
   - Entry shape: `{ id, title, pattern, explanation, prerequisites, band }`.
@@ -36,11 +39,12 @@ Source of truth for #213. Written before implementation; locked for the life of 
 - `grammar.test.ts`
   - `ids are unique`.
   - `prerequisites exist and come from an earlier band`.
-  - `keeps the seeded ids`: the 48 current ids are present with unchanged titles.
+  - `keeps the seeded ids`: the 48 current ids are present with unchanged titles and unchanged explanations, including `...` patterns.
 - `plan.test.ts`
   - `covers every course word exactly once`: 600 assignments, no repeats.
   - `every unit has 25 words`.
   - `covers every grammar point exactly once`, 3-4 per unit.
+  - `grammar bands never regress across units`.
   - `is deterministic`: two calls return deep-equal results.
   - `reserve words are never assigned`.
   - `syllabusBlock is stable`: same hash on two calls and across a fresh module import.

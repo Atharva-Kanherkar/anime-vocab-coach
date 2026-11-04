@@ -3,7 +3,7 @@
     "id": "u01-g1",
     "title": "X は Y です — X is Y",
     "pattern": "X は Y です",
-    "explanation": "は[k: (as a particle it sounds like わ)] marks the topic.",
+    "explanation": "は[k: (as a particle it sounds like わ)] marks the topic. です ends a polite sentence, a bit like 'is' or 'am'.",
     "prerequisites": [],
     "band": 1
   },
@@ -11,7 +11,7 @@
     "id": "u01-g2",
     "title": "さん — polite name suffix",
     "pattern": "さん",
-    "explanation": "Add さん after someone else's name to be polite.",
+    "explanation": "Add さん after someone else's name to be polite. Never use it for your own name.",
     "prerequisites": [],
     "band": 1
   },
@@ -19,7 +19,7 @@
     "id": "u02-g1",
     "title": "～ですか — polite questions",
     "pattern": "～ですか",
-    "explanation": "Add か to the end of a polite sentence to make a question.",
+    "explanation": "Add か to the end of a polite sentence to make a question. No question mark is needed, though you will see one in casual writing.",
     "prerequisites": [],
     "band": 1
   },
@@ -51,7 +51,7 @@
     "id": "u04-g1",
     "title": "これ / それ / あれ は なんですか",
     "pattern": "これ / それ / あれ は なんですか",
-    "explanation": "これ is near the speaker, それ near the listener, あれ far from both.",
+    "explanation": "これ is near the speaker, それ near the listener, あれ far from both. なんですか asks 'what is it?'.",
     "prerequisites": [],
     "band": 1
   },
@@ -67,7 +67,7 @@
     "id": "u05-g1",
     "title": "N は place に います / あります",
     "pattern": "N は place に います / あります",
-    "explanation": "Use います for people and animals and あります for things.",
+    "explanation": "Use います for people and animals and あります for things. に marks the place where something is.",
     "prerequisites": [],
     "band": 1
   },
@@ -83,7 +83,7 @@
     "id": "u06-g1",
     "title": "いま なんじですか — telling the time",
     "pattern": "いま なんじですか",
-    "explanation": "Number + じ is the hour; add はん for half past.",
+    "explanation": "Number + じ is the hour; add はん for half past. Watch the special readings: よじ (4:00), しちじ (7:00) and くじ (9:00).",
     "prerequisites": [],
     "band": 1
   },
@@ -99,7 +99,7 @@
     "id": "u07-g1",
     "title": "～ます / ～ません",
     "pattern": "～ます / ～ません",
-    "explanation": "Polite verbs end in ます (do / will do).",
+    "explanation": "Polite verbs end in ます (do / will do). Change ます to ません for the negative. を marks the object.",
     "prerequisites": [],
     "band": 2
   },
@@ -107,7 +107,7 @@
     "id": "u07-g2",
     "title": "time に — at a time",
     "pattern": "time に",
-    "explanation": "Put に after a clock time to say when something happens.",
+    "explanation": "Put に after a clock time to say when something happens. Words like まいにち and あした don't take に.",
     "prerequisites": [],
     "band": 2
   },
@@ -131,7 +131,7 @@
     "id": "u09-g1",
     "title": "place に/へ いきます, vehicle で",
     "pattern": "place に/へ いきます, vehicle で",
-    "explanation": "に or へ[k: (as a particle it sounds like え)] marks a destination.",
+    "explanation": "に or へ[k: (as a particle it sounds like え)] marks a destination. で marks how you travel. あるいて (on foot) needs no particle.",
     "prerequisites": [],
     "band": 2
   },
@@ -139,7 +139,7 @@
     "id": "u09-g2",
     "title": "person と — with someone",
     "pattern": "person と",
-    "explanation": "と after a person means 'with'.",
+    "explanation": "と after a person means 'with'. Add いっしょに for 'together'.",
     "prerequisites": [],
     "band": 2
   },
@@ -147,7 +147,7 @@
     "id": "u10-g1",
     "title": "N を ください",
     "pattern": "N を ください",
-    "explanation": "Name the thing, then を ください, to ask for it.",
+    "explanation": "Name the thing, then を ください, to ask for it. A count word like ふたつ goes just before ください.",
     "prerequisites": [],
     "band": 2
   },
@@ -155,7 +155,7 @@
     "id": "u10-g2",
     "title": "いくらですか — prices",
     "pattern": "いくらですか",
-    "explanation": "Ask a price with いくらですか.",
+    "explanation": "Ask a price with いくらですか. Answer with a number plus えん. Watch the sound changes: さんびゃく (300), はっぴゃく (800), さんぜん (3,000).",
     "prerequisites": [],
     "band": 2
   },
@@ -163,7 +163,7 @@
     "id": "u11-g1",
     "title": "い-adjectives",
     "pattern": "い-adjectives",
-    "explanation": "い-adjectives end in い.",
+    "explanation": "い-adjectives end in い. Negative: drop い and add くない (たかくない). Past: drop い and add かった (たかかった). Add です to be polite.",
     "prerequisites": [],
     "band": 2
   },
@@ -171,7 +171,7 @@
     "id": "u11-g2",
     "title": "な-adjectives",
     "pattern": "な-adjectives",
-    "explanation": "な-adjectives (きれい, しずか, げんき) work like nouns: しずかです, しずかじゃ ありません.",
+    "explanation": "な-adjectives (きれい, しずか, げんき) work like nouns: しずかです, しずかじゃ ありません. Before a noun, add な: しずか_な ホール.",
     "prerequisites": [],
     "band": 2
   },
@@ -179,7 +179,7 @@
     "id": "u12-g1",
     "title": "N が すきです / きらいです",
     "pattern": "N が すきです / きらいです",
-    "explanation": "Use が (not を) with すき and きらい.",
+    "explanation": "Use が (not を) with すき and きらい. For 'not much', use あまり + negative.",
     "prerequisites": [],
     "band": 2
   },
@@ -187,7 +187,7 @@
     "id": "u12-g2",
     "title": "しゅみ_は ... です — my hobby is ...",
     "pattern": "しゅみ_は ... です",
-    "explanation": "Say your hobby as a noun with しゅみ_は .",
+    "explanation": "Say your hobby as a noun with しゅみ_は ... です. も means 'also'.",
     "prerequisites": [],
     "band": 2
   },
@@ -195,7 +195,7 @@
     "id": "u13-g1",
     "title": "～ませんか — won't you ...?",
     "pattern": "～ませんか",
-    "explanation": "Turn ます into ませんか for a polite invitation.",
+    "explanation": "Turn ます into ませんか for a polite invitation. It sounds softer than asking directly.",
     "prerequisites": [],
     "band": 3
   },
@@ -203,7 +203,7 @@
     "id": "u13-g2",
     "title": "～ましょう — let's",
     "pattern": "～ましょう",
-    "explanation": "Turn ます into ましょう to say 'let's'.",
+    "explanation": "Turn ます into ましょう to say 'let's'. To decline softly, say ちょっと ... and give a reason.",
     "prerequisites": [],
     "band": 3
   },
@@ -219,7 +219,7 @@
     "id": "u14-g2",
     "title": "Making the て-form",
     "pattern": "Making the て-form",
-    "explanation": "～きます → ～いて (かいて), ～みます → ～んで (よんで), ～ちます/～います → ～って (まって, いって), ～します → ～して.",
+    "explanation": "～きます → ～いて (かいて), ～みます → ～んで (よんで), ～ちます/～います → ～って (まって, いって), ～します → ～して. いきます is special: いって.",
     "prerequisites": [],
     "band": 3
   },
@@ -235,7 +235,7 @@
     "id": "u15-g2",
     "title": "なに_を して いますか",
     "pattern": "なに_を して いますか",
-    "explanation": "して います is the progressive of します.",
+    "explanation": "して います is the progressive of します. で marks where an action happens.",
     "prerequisites": [],
     "band": 3
   },
@@ -243,7 +243,7 @@
     "id": "u16-g1",
     "title": "～ても いいですか — may I?",
     "pattern": "～ても いいですか",
-    "explanation": "て-form + も いいですか asks permission.",
+    "explanation": "て-form + も いいですか asks permission. Answer はい、どうぞ (yes, go ahead).",
     "prerequisites": [],
     "band": 3
   },
@@ -251,7 +251,7 @@
     "id": "u16-g2",
     "title": "～て_は いけません — must not",
     "pattern": "～て_は いけません",
-    "explanation": "て-form + は いけません states a rule: you must not.",
+    "explanation": "て-form + は いけません states a rule: you must not. In casual speech you'll hear だめ.",
     "prerequisites": [],
     "band": 3
   },
@@ -259,7 +259,7 @@
     "id": "u17-g1",
     "title": "N が ほしいです / ～たいです",
     "pattern": "N が ほしいです / ～たいです",
-    "explanation": "N が ほしいです = I want N.",
+    "explanation": "N が ほしいです = I want N. For actions, change ます to たい: たべます → たべたいです (I want to eat).",
     "prerequisites": [],
     "band": 3
   },
@@ -275,7 +275,7 @@
     "id": "u18-g1",
     "title": "N が できます / ～こと が できます",
     "pattern": "N が できます / ～こと が できます",
-    "explanation": "N が できます = can do N.",
+    "explanation": "N が できます = can do N. For a verb, use the dictionary form + こと が できます.",
     "prerequisites": [],
     "band": 3
   },
@@ -283,7 +283,7 @@
     "id": "u18-g2",
     "title": "N が じょうず / へた です",
     "pattern": "N が じょうず / へた です",
-    "explanation": "Say what someone is good or bad at with が.",
+    "explanation": "Say what someone is good or bad at with が. Don't use じょうず about yourself; say まだ へたです (still bad) to be modest.",
     "prerequisites": [],
     "band": 3
   },
@@ -291,7 +291,7 @@
     "id": "u19-g1",
     "title": "Dictionary form = casual present",
     "pattern": "Dictionary form = casual present",
-    "explanation": "Friends drop ます: いきます → いく, たべます → たべる, します → する.",
+    "explanation": "Friends drop ます: いきます → いく, たべます → たべる, します → する. Questions often just rise in tone. Use polite forms with people you don't know well.",
     "prerequisites": [],
     "band": 4
   },
@@ -299,7 +299,7 @@
     "id": "u19-g2",
     "title": "Casual past and negative",
     "pattern": "Casual past and negative",
-    "explanation": "Casual past ends in た (みた, いった).",
+    "explanation": "Casual past ends in た (みた, いった). Casual negative ends in ない (たべない, いかない). いこう means 'let's go'.",
     "prerequisites": [],
     "band": 4
   },
@@ -315,7 +315,7 @@
     "id": "u20-g2",
     "title": "どちら_が ... ですか / ～の ほう_が",
     "pattern": "どちら_が ... ですか / ～の ほう_が",
-    "explanation": "Ask which of two with A と B と どちら_が .",
+    "explanation": "Ask which of two with A と B と どちら_が ... ですか. Answer with A の ほう_が ... です. For three or more, use いちばん.",
     "prerequisites": [],
     "band": 4
   },
@@ -331,7 +331,7 @@
     "id": "u21-g2",
     "title": "どうしてですか / ～からです",
     "pattern": "どうしてですか / ～からです",
-    "explanation": "Ask why with どうして.",
+    "explanation": "Ask why with どうして. Answer with the reason + から (です). だから starts a new sentence: 'so ...'.",
     "prerequisites": [],
     "band": 4
   },
@@ -347,7 +347,7 @@
     "id": "u22-g2",
     "title": "ね and よ in short messages",
     "pattern": "ね and よ in short messages",
-    "explanation": "ね seeks agreement ('isn't it?').",
+    "explanation": "ね seeks agreement ('isn't it?'). よ tells the listener something new ('you know').",
     "prerequisites": [],
     "band": 4
   },
@@ -355,7 +355,7 @@
     "id": "u23-g1",
     "title": "Asking for clarification",
     "pattern": "Asking for clarification",
-    "explanation": "Say すみません、よく わかりません when you're lost.",
+    "explanation": "Say すみません、よく わかりません when you're lost. Ask えいご_で なん_ですか for a translation, or ～は どういう いみ_ですか for a meaning.",
     "prerequisites": [],
     "band": 4
   },
@@ -379,7 +379,7 @@
     "id": "u24-g2",
     "title": "Linking ideas",
     "pattern": "Linking ideas",
-    "explanation": "て-form links steps and makes requests.",
+    "explanation": "て-form links steps and makes requests. から gives a reason. より compares.",
     "prerequisites": [],
     "band": 4
   },

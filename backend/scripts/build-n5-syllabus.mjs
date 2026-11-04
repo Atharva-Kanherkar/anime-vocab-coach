@@ -45,6 +45,8 @@ const length = (s) => [...s].length;
 
 const POS = (tags) => {
   const t = Array.isArray(tags) ? tags : [tags];
+  // A suru-noun is a noun first (せっけん is n + vs, not a verb).
+  if (t.includes("n") || t.includes("n-suf") || t.includes("n-pref")) return "noun";
   if (t.some((p) => p.startsWith("v"))) return "verb";
   if (t.includes("adj-i") || t.includes("adj-ix")) return "i-adjective";
   if (t.includes("adj-na")) return "na-adjective";
@@ -82,7 +84,10 @@ const RULES = [
 ];
 
 function tagOf(meaning, pos) {
-  for (const [tag, re] of RULES) if (re.test(meaning)) return tag;
+  for (const [tag, re] of RULES) {
+    if (tag === "greeting" && pos !== "expression") continue;
+    if (re.test(meaning)) return tag;
+  }
   if (pos === "verb") return "verb";
   if (pos === "i-adjective" || pos === "na-adjective" || pos === "adjective") return "adjective";
   if (pos === "adverb") return "adverb";
@@ -91,14 +96,6 @@ function tagOf(meaning, pos) {
   if (pos === "expression") return "greeting";
   return "noun";
 }
-
-const POS_BY_TAG = {
-  greeting: "expression", time: "noun", family: "noun", number: "numeral",
-  food: "noun", transport: "noun", place: "noun", school: "noun", body: "noun",
-  weather: "noun", clothing: "noun", house: "noun", animal: "noun", color: "noun",
-  nature: "noun", occupation: "noun", country: "noun", noun: "noun",
-  verb: "verb", adjective: "adjective", adverb: "adverb", pronoun: "pronoun",
-};
 
 const RANK = {
   greeting: 1, pronoun: 1, number: 1, time: 1, family: 1,
@@ -110,28 +107,50 @@ const RANK = {
 
 // ---------------------------------------------------------------- vocabulary
 
-const seeded = [];
+const SEED_POS = JSON.parse(fs.readFileSync(path.join(OUT, "seed-pos.json"), "utf8"));
+const GLOSS_FIXES = {
+  // The pinned source glosses these two from the wrong JMdict sense.
+  "はんぶん": "half",
+  "せっけん": "soap",
+  "きる": "to cut; to wear",
+};
+const LEXICAL = new Set(["は", "へ", "を"]);
+/** A lexical word that looks like a particle needs the `'` marker to keep its reading. */
+const lexicalSrc = (src) => (LEXICAL.has(src) ? `'${src}` : src);
+
+const groups = new Map();
+const seededGroups = [];
 const seen = new Set();
 for (const unit of UNITS) {
   for (const [src, meaning] of unit.vocabulary) {
     if (seen.has(src)) continue;
     seen.add(src);
-    seeded.push({ src, meaning, seed: true });
+    const pos = SEED_POS[src];
+    if (!pos) throw new Error(`Missing POS for seeded word ${src}`);
+    const group = { src, meanings: [meaning], pos, seed: true, curated: false };
+    groups.set(norm(src), group);
+    seededGroups.push(group);
   }
 }
 
 const source = await (await fetch(OPENJLPT_URL)).json();
-const known = new Set(seeded.map((w) => norm(w.src)));
-const addedByReading = new Map();
 for (const w of source) {
-  if (known.has(norm(w.reading))) continue;
   if ((Array.isArray(w.pos) ? w.pos : [w.pos]).includes("prt")) continue;
-  if (addedByReading.has(norm(w.reading))) continue;
-  const pos = POS(w.pos);
+  const key = norm(w.reading);
   const meaning = String(w.meanings[0]).replace(/\s+/g, " ").trim();
-  addedByReading.set(norm(w.reading), { src: w.reading, meaning, pos, tag: tagOf(meaning, pos), seed: false });
+  const existing = groups.get(key);
+  if (existing) {
+    existing.meanings.push(meaning);
+    continue;
+  }
+  groups.set(key, {
+    src: lexicalSrc(w.reading),
+    meanings: [meaning],
+    pos: POS(w.pos),
+    seed: false,
+    curated: false,
+  });
 }
-const added = [...addedByReading.values()];
 
 // Fixed expressions the external list does not carry. All are N5 greetings.
 const CURATED = [
@@ -147,14 +166,34 @@ const CURATED = [
   ["がんばって", "do your best"],
   ["いらっしゃいませ", "welcome (said by shop staff)"],
 ];
-const curated = CURATED.filter(([src]) => !known.has(norm(src)) && !addedByReading.has(norm(src)))
-  .map(([src, meaning]) => ({ src, meaning, pos: "expression", tag: "greeting", seed: false }));
-
-for (const w of seeded) {
-  const pos = POS_BY_TAG[tagOf(w.meaning, "noun")] ?? "noun";
-  w.pos = pos;
-  w.tag = tagOf(w.meaning, pos);
+const curatedGroups = [];
+for (const [src, meaning] of CURATED) {
+  if (groups.has(norm(src))) continue;
+  const group = { src, meanings: [meaning], pos: "expression", seed: false, curated: true };
+  groups.set(norm(src), group);
+  curatedGroups.push(group);
 }
+
+function mergedMeaning(group) {
+  const fixed = GLOSS_FIXES[norm(group.src)];
+  if (fixed) return fixed;
+  const out = [];
+  for (const raw of group.meanings) {
+    const meaning = String(raw).replace(/\s+/g, " ").trim();
+    if (!meaning) continue;
+    if (!out.some((seen) => seen.toLowerCase() === meaning.toLowerCase())) out.push(meaning);
+  }
+  return out.join("; ");
+}
+
+const finalise = (group) => {
+  const meaning = mergedMeaning(group);
+  return { src: group.src, meaning, pos: group.pos, tag: tagOf(meaning, group.pos), seed: group.seed };
+};
+
+const seeded = seededGroups.map(finalise);
+const added = [...groups.values()].filter((group) => !group.seed && !group.curated).map(finalise);
+const curated = curatedGroups.map(finalise);
 
 const RESERVE = 151;
 // Common nouns stay in the course even when they are long compounds. The reserve is
@@ -204,7 +243,7 @@ for (const w of [...ordered, ...added.filter((x) => reserved.has(x.src))]) {
 
 if (total < 750 || total > 850) throw new Error(`Word pool is ${total}, expected 750-850`);
 if (words.filter((w) => !w.reserve).length !== 600) throw new Error("Course must have exactly 600 words");
-if (ids.size !== words.length) throw new Error("Duplicate word ids");
+if (ids.size !== words.length) throw new Error("Duplicate word ids");;
 
 // ---------------------------------------------------------------- grammar
 
@@ -216,7 +255,7 @@ for (const unit of UNITS) {
       id: `u${String(unit.unit).padStart(2, "0")}-g${i + 1}`,
       title: g.title,
       pattern,
-      explanation: g.explanation.split(".")[0] + ".",
+      explanation: g.explanation,
       prerequisites: [],
       band: unit.unit <= 6 ? 1 : unit.unit <= 12 ? 2 : unit.unit <= 18 ? 3 : 4,
     });

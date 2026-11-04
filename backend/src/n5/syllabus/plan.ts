@@ -26,6 +26,14 @@ export const GRAMMAR = grammarJson as SyllabusGrammar[];
 export const UNIT_COUNT = 24;
 export const WORDS_PER_UNIT = 25;
 
+/**
+ * File order is not teaching order: the seeded points come first, then the
+ * additions. Sort by band before allocating, so a unit never introduces a later
+ * band before an earlier one. The sort is stable, so points inside a band keep
+ * their authored order.
+ */
+const PLANNED_GRAMMAR = [...GRAMMAR].sort((a, b) => a.band - b.band);
+
 const COURSE_WORDS = WORDS.filter((word) => !word.reserve);
 
 /**
@@ -61,13 +69,14 @@ export function unitTargets(unit: number): UnitTargets {
   const grammarEnd = GRAMMAR_STARTS[unit];
   return {
     words: COURSE_WORDS.slice(wordStart, wordStart + WORDS_PER_UNIT).map((word) => word.id),
-    grammar: GRAMMAR.slice(grammarStart, grammarEnd).map((point) => point.id),
+    grammar: PLANNED_GRAMMAR.slice(grammarStart, grammarEnd).map((point) => point.id),
   };
 }
 
 const NOTATION = [
   "Words inside one phrase are joined with _, and a space separates phrases.",
   "^ marks a name. Particles and the copula are written as their own words.",
+  "A leading ' marks an ordinary word that looks like a particle, for example 'は (tooth), so it reads ha rather than wa.",
   "Katakana is used for loanwords. Every Japanese string must render as kana and romaji.",
 ].join(" ");
 
