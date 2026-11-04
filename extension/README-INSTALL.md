@@ -1,6 +1,6 @@
 # Install AnimeVocab in Chrome
 
-**Easiest path:** create your free account at [animevocab.com/start](https://animevocab.com/start), then install the extension. A free account is required for subtitles, cards and Listening. No card or GitHub account is needed.
+**Easiest path:** create your free account at [animevocab.com/start](https://animevocab.com/start), then install the extension. Native dual subtitles work before sign-in. A free account keeps saved words and enables hosted translation, cards and Listening. No card or GitHub account is needed.
 
 **Direct download:** [animevocab-chrome-extension.zip](https://animevocab.com/downloads/animevocab-chrome-extension.zip)
 
@@ -24,8 +24,9 @@ Open YouTube → play any anime clip → turn on **Japanese** captions (CC menu)
 ## Popup & settings
 
 - Click the toolbar icon for stats, streak, and recent words.
-- **Settings** (popup footer): cooldown, difficulty, export, reset.
-- **Pause mode** (default) for interactive cards; switch to Notify or Off in the popup.
+- **Settings** (popup footer) opens [animevocab.com/app#settings](https://animevocab.com/app#settings): subtitle Lens, peek pause, pacing, difficulty, script, sites and the optional device API key.
+- JSON and Anki export are available from the site's Backup section.
+- Ambient is the default card mode. Choose Focus to pause for cards, or Off to keep only subtitles.
 
 ## Supported sites
 
