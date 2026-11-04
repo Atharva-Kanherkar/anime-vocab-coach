@@ -1,0 +1,7814 @@
+[
+  {
+    "id": "oyasumi",
+    "src": "おやすみ",
+    "meaning": "good night (casual)",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "oyasuminasai",
+    "src": "おやすみなさい",
+    "meaning": "good night (polite)",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "okaerinasai",
+    "src": "おかえりなさい",
+    "meaning": "welcome home",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "ittekimasu",
+    "src": "いってきます",
+    "meaning": "I'm off (I'll go and come back)",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "itterasshai",
+    "src": "いってらっしゃい",
+    "meaning": "take care (said to someone leaving)",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "tadaima",
+    "src": "ただいま",
+    "meaning": "I'm home",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "ogenki-desu-ka",
+    "src": "おげんきですか",
+    "meaning": "how are you?",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "omedetou",
+    "src": "おめでとう",
+    "meaning": "congratulations",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "ganbatte",
+    "src": "がんばって",
+    "meaning": "do your best",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "irasshaimase",
+    "src": "いらっしゃいませ",
+    "meaning": "welcome (said by shop staff)",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "hajimemashite",
+    "src": "はじめまして",
+    "meaning": "Nice to meet you",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "yoroshiku-onegaishimasu",
+    "src": "よろしく_おねがいします",
+    "meaning": "Pleased to meet you / please treat me well",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "ohayou-gozaimasu",
+    "src": "おはよう_ございます",
+    "meaning": "Good morning (polite)",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "konnichiwa",
+    "src": "こんにちは",
+    "meaning": "Hello / good afternoon",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "watashi",
+    "src": "わたし",
+    "meaning": "I / me",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "namae",
+    "src": "なまえ",
+    "meaning": "name",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "gakusei",
+    "src": "がくせい",
+    "meaning": "student",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "chuugakusei",
+    "src": "ちゅうがくせい",
+    "meaning": "junior high school student",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "tomodachi",
+    "src": "ともだち",
+    "meaning": "friend",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "piano",
+    "src": "ピアノ",
+    "meaning": "piano",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "dare",
+    "src": "だれ",
+    "meaning": "who",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hito",
+    "src": "ひと",
+    "meaning": "person",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "ano",
+    "src": "あの",
+    "meaning": "that ... (over there)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "sensei",
+    "src": "せんせい",
+    "meaning": "teacher",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "otokonoko",
+    "src": "おとこのこ",
+    "meaning": "boy",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "onnanoko",
+    "src": "おんなのこ",
+    "meaning": "girl",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "baiorin",
+    "src": "バイオリン",
+    "meaning": "violin",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hai",
+    "src": "はい",
+    "meaning": "yes",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "iie",
+    "src": "いいえ",
+    "meaning": "no",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "sou-desu",
+    "src": "そう_です",
+    "meaning": "that's right",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "kazoku",
+    "src": "かぞく",
+    "meaning": "family",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "haha",
+    "src": "はは",
+    "meaning": "my mother",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "chichi",
+    "src": "ちち",
+    "meaning": "my father",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "okaasan",
+    "src": "おかあさん",
+    "meaning": "mother (someone's, or calling your own)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "ane",
+    "src": "あね",
+    "meaning": "my older sister",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "otouto",
+    "src": "おとうと",
+    "meaning": "my younger brother",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "imouto",
+    "src": "いもうと",
+    "meaning": "my younger sister",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "kaban",
+    "src": "かばん",
+    "meaning": "bag",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "clothing"
+    ]
+  },
+  {
+    "id": "hon",
+    "src": "ほん",
+    "meaning": "book",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "kasa",
+    "src": "かさ",
+    "meaning": "umbrella",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kore",
+    "src": "これ",
+    "meaning": "this (near me)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "sore",
+    "src": "それ",
+    "meaning": "that (near you)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "are",
+    "src": "あれ",
+    "meaning": "that (over there)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "kono",
+    "src": "この",
+    "meaning": "this ... (+ noun)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "nan",
+    "src": "なん",
+    "meaning": "what",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "nooto",
+    "src": "ノート",
+    "meaning": "notebook",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "enpitsu",
+    "src": "えんぴつ",
+    "meaning": "pencil",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "tokei",
+    "src": "とけい",
+    "meaning": "clock / watch",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "clothing"
+    ]
+  },
+  {
+    "id": "kutsu",
+    "src": "くつ",
+    "meaning": "shoes",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "clothing"
+    ]
+  },
+  {
+    "id": "mizu",
+    "src": "みず",
+    "meaning": "water",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "doko",
+    "src": "どこ",
+    "meaning": "where",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "koko",
+    "src": "ここ",
+    "meaning": "here",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "asoko",
+    "src": "あそこ",
+    "meaning": "over there",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "byouin",
+    "src": "びょういん",
+    "meaning": "hospital",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "gakkou",
+    "src": "がっこう",
+    "meaning": "school",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "uchi",
+    "src": "うち",
+    "meaning": "home",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "kyoushitsu",
+    "src": "きょうしつ",
+    "meaning": "classroom",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "tsukue",
+    "src": "つくえ",
+    "meaning": "desk",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "arimasu",
+    "src": "あります",
+    "meaning": "there is (things)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "imasu",
+    "src": "います",
+    "meaning": "there is (people, animals)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "ima",
+    "src": "いま",
+    "meaning": "now",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "nanji",
+    "src": "なんじ",
+    "meaning": "what time",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "gozen",
+    "src": "ごぜん",
+    "meaning": "a.m. / morning",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "gogo",
+    "src": "ごご",
+    "meaning": "p.m. / afternoon",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "han",
+    "src": "はん",
+    "meaning": "half past",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kyou",
+    "src": "きょう",
+    "meaning": "today",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "ashita",
+    "src": "あした",
+    "meaning": "tomorrow",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "kinou",
+    "src": "きのう",
+    "meaning": "yesterday",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "nan-youbi",
+    "src": "なんようび",
+    "meaning": "what day of the week",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "nichiyoubi",
+    "src": "にちようび",
+    "meaning": "Sunday",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "okimasu",
+    "src": "おきます",
+    "meaning": "to get up",
+    "pos": "verb",
+    "band": 1,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "nemasu",
+    "src": "ねます",
+    "meaning": "to go to bed / sleep",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "tabemasu",
+    "src": "たべます",
+    "meaning": "to eat",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "nomimasu",
+    "src": "のみます",
+    "meaning": "to drink",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "benkyoushimasu",
+    "src": "べんきょうします",
+    "meaning": "to study",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "hikimasu",
+    "src": "ひきます",
+    "meaning": "to play (piano, violin)",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "mainichi",
+    "src": "まいにち",
+    "meaning": "every day",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "asa",
+    "src": "あさ",
+    "meaning": "morning",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "ban",
+    "src": "ばん",
+    "meaning": "evening",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "gohan",
+    "src": "ごはん",
+    "meaning": "meal / cooked rice",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "senshuu",
+    "src": "せんしゅう",
+    "meaning": "last week",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "kikimasu",
+    "src": "ききます",
+    "meaning": "to listen / hear",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "mimasu",
+    "src": "みます",
+    "meaning": "to watch / see",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "clothing"
+    ]
+  },
+  {
+    "id": "ikimasu",
+    "src": "いきます",
+    "meaning": "to go",
+    "pos": "verb",
+    "band": 1,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kaerimasu",
+    "src": "かえります",
+    "meaning": "to go home / return",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "ongaku",
+    "src": "おんがく",
+    "meaning": "music",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "konsaato",
+    "src": "コンサート",
+    "meaning": "concert",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "eiga",
+    "src": "えいが",
+    "meaning": "movie",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "jouzu",
+    "src": "じょうず",
+    "meaning": "skilful / good at",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kimasu",
+    "src": "きます",
+    "meaning": "to come",
+    "pos": "verb",
+    "band": 1,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "densha",
+    "src": "でんしゃ",
+    "meaning": "train",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "basu",
+    "src": "バス",
+    "meaning": "bus",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "jitensha",
+    "src": "じてんしゃ",
+    "meaning": "bicycle",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "aruite",
+    "src": "あるいて",
+    "meaning": "on foot",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "eki",
+    "src": "えき",
+    "meaning": "station",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "toshokan",
+    "src": "としょかん",
+    "meaning": "library",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "isshoni",
+    "src": "いっしょに",
+    "meaning": "together",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hitori-de",
+    "src": "ひとり_で",
+    "meaning": "alone",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "shuumatsu",
+    "src": "しゅうまつ",
+    "meaning": "weekend",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "ikura",
+    "src": "いくら",
+    "meaning": "how much",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kudasai",
+    "src": "ください",
+    "meaning": "please give me",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "hitotsu",
+    "src": "ひとつ",
+    "meaning": "one (thing)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "futatsu",
+    "src": "ふたつ",
+    "meaning": "two (things)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "mittsu",
+    "src": "みっつ",
+    "meaning": "three (things)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hyaku",
+    "src": "ひゃく",
+    "meaning": "hundred",
+    "pos": "numeral",
+    "band": 1,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "sen",
+    "src": "せん",
+    "meaning": "thousand",
+    "pos": "numeral",
+    "band": 1,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "en",
+    "src": "えん",
+    "meaning": "yen",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "pan",
+    "src": "パン",
+    "meaning": "bread",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "juusu",
+    "src": "ジュース",
+    "meaning": "juice",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "ookii",
+    "src": "おおきい",
+    "meaning": "big",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "chiisai",
+    "src": "ちいさい",
+    "meaning": "small",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "takai",
+    "src": "たかい",
+    "meaning": "tall / expensive",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "yasui",
+    "src": "やすい",
+    "meaning": "cheap",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "atarashii",
+    "src": "あたらしい",
+    "meaning": "new",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "furui",
+    "src": "ふるい",
+    "meaning": "old (things)",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "yasashii",
+    "src": "やさしい",
+    "meaning": "kind / gentle",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "kirei",
+    "src": "きれい",
+    "meaning": "pretty / clean",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "shizuka",
+    "src": "しずか",
+    "meaning": "quiet",
+    "pos": "adjective",
+    "band": 1,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "genki",
+    "src": "げんき",
+    "meaning": "healthy / energetic",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "suki",
+    "src": "すき",
+    "meaning": "like",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kirai",
+    "src": "きらい",
+    "meaning": "dislike",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "daisuki",
+    "src": "だいすき",
+    "meaning": "love / really like",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "shumi",
+    "src": "しゅみ",
+    "meaning": "hobby",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "supootsu",
+    "src": "スポーツ",
+    "meaning": "sports",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "uta",
+    "src": "うた",
+    "meaning": "song",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "neko",
+    "src": "ねこ",
+    "meaning": "cat",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "animal"
+    ]
+  },
+  {
+    "id": "inu",
+    "src": "いぬ",
+    "meaning": "dog",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "animal"
+    ]
+  },
+  {
+    "id": "ryouri",
+    "src": "りょうり",
+    "meaning": "cooking",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "amari",
+    "src": "あまり",
+    "meaning": "not very (with a negative)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hima",
+    "src": "ひま",
+    "meaning": "free (not busy)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "isogashii",
+    "src": "いそがしい",
+    "meaning": "busy",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "doyoubi",
+    "src": "どようび",
+    "meaning": "Saturday",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "kouen",
+    "src": "こうえん",
+    "meaning": "park",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "ii-desu-ne",
+    "src": "いい_です_ね",
+    "meaning": "sounds good",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "chotto",
+    "src": "ちょっと",
+    "meaning": "a little / it's a bit ... (soft refusal)",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "daijoubu",
+    "src": "だいじょうぶ",
+    "meaning": "OK / fine",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "zehi",
+    "src": "ぜひ",
+    "meaning": "by all means",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "sumimasen",
+    "src": "すみません",
+    "meaning": "excuse me / sorry",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "mata",
+    "src": "また",
+    "meaning": "again",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "yukkuri",
+    "src": "ゆっくり",
+    "meaning": "slowly",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "mouichido",
+    "src": "もういちど",
+    "meaning": "once more",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "machimasu",
+    "src": "まちます",
+    "meaning": "to wait",
+    "pos": "verb",
+    "band": 1,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kakimasu",
+    "src": "かきます",
+    "meaning": "to write",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "yomimasu",
+    "src": "よみます",
+    "meaning": "to read",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "iimasu",
+    "src": "いいます",
+    "meaning": "to say",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "hanashimasu",
+    "src": "はなします",
+    "meaning": "to speak / talk",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "wakarimashita",
+    "src": "わかりました",
+    "meaning": "understood / got it",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "douzo",
+    "src": "どうぞ",
+    "meaning": "please (offering) / go ahead",
+    "pos": "expression",
+    "band": 1,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "oto",
+    "src": "おと",
+    "meaning": "sound",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "byouki",
+    "src": "びょうき",
+    "meaning": "illness / sick",
+    "pos": "noun",
+    "band": 1,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "kusuri",
+    "src": "くすり",
+    "meaning": "medicine",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "denwa",
+    "src": "でんわ",
+    "meaning": "telephone",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "tegami",
+    "src": "てがみ",
+    "meaning": "letter",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "soto",
+    "src": "そと",
+    "meaning": "outside",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "ame",
+    "src": "あめ",
+    "meaning": "rain",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "furimasu",
+    "src": "ふります",
+    "meaning": "to fall (rain, snow)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "yasumimasu",
+    "src": "やすみます",
+    "meaning": "to rest / take time off",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "moshimoshi",
+    "src": "もしもし",
+    "meaning": "hello (on the phone)",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "aimasu",
+    "src": "あいます",
+    "meaning": "to meet",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "shashin",
+    "src": "しゃしん",
+    "meaning": "photo",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "torimasu",
+    "src": "とります",
+    "meaning": "to take (a photo)",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "hairimasu",
+    "src": "はいります",
+    "meaning": "to enter",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tsukaimasu",
+    "src": "つかいます",
+    "meaning": "to use",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "suwarimasu",
+    "src": "すわります",
+    "meaning": "to sit",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "akemasu",
+    "src": "あけます",
+    "meaning": "to open",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "shimemasu",
+    "src": "しめます",
+    "meaning": "to close",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "mado",
+    "src": "まど",
+    "meaning": "window",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "heya",
+    "src": "へや",
+    "meaning": "room",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "dame",
+    "src": "だめ",
+    "meaning": "no good / not allowed",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "hoshii",
+    "src": "ほしい",
+    "meaning": "want (a thing)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kaimono",
+    "src": "かいもの",
+    "meaning": "shopping",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "kaimasu",
+    "src": "かいます",
+    "meaning": "to buy",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "fuku",
+    "src": "ふく",
+    "meaning": "clothes",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "clothing"
+    ]
+  },
+  {
+    "id": "keeki",
+    "src": "ケーキ",
+    "meaning": "cake",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "nanika",
+    "src": "なにか",
+    "meaning": "something",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "depaato",
+    "src": "デパート",
+    "meaning": "department store",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "mise",
+    "src": "みせ",
+    "meaning": "shop",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "oshiemasu",
+    "src": "おしえます",
+    "meaning": "to teach",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "jaa",
+    "src": "じゃあ",
+    "meaning": "well then",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "dekimasu",
+    "src": "できます",
+    "meaning": "can do",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "heta",
+    "src": "へた",
+    "meaning": "bad at",
+    "pos": "adjective",
+    "band": 2,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "sukoshi",
+    "src": "すこし",
+    "meaning": "a little",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "zenzen",
+    "src": "ぜんぜん",
+    "meaning": "not at all (with a negative)",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "mada",
+    "src": "まだ",
+    "meaning": "still / not yet",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "utaimasu",
+    "src": "うたいます",
+    "meaning": "to sing",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "oyogimasu",
+    "src": "およぎます",
+    "meaning": "to swim",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "nihongo",
+    "src": "にほんご",
+    "meaning": "Japanese (language)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "wakarimasu",
+    "src": "わかります",
+    "meaning": "to understand",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "totemo",
+    "src": "とても",
+    "meaning": "very",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "iku",
+    "src": "いく",
+    "meaning": "go (casual)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "taberu",
+    "src": "たべる",
+    "meaning": "eat (casual)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "miru",
+    "src": "みる",
+    "meaning": "watch (casual)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "clothing"
+    ]
+  },
+  {
+    "id": "suru",
+    "src": "する",
+    "meaning": "do (casual)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kuru",
+    "src": "くる",
+    "meaning": "come (casual)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "un",
+    "src": "うん",
+    "meaning": "yeah (casual yes)",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "uun",
+    "src": "ううん",
+    "meaning": "nope (casual no)",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "hontou",
+    "src": "ほんとう",
+    "meaning": "really / true",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "nee",
+    "src": "ねえ",
+    "meaning": "hey",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "bunkasai",
+    "src": "ぶんかさい",
+    "meaning": "school festival",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "yori",
+    "src": "より",
+    "meaning": "than",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hou",
+    "src": "ほう",
+    "meaning": "side / (the one that is) more",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "ichiban",
+    "src": "いちばん",
+    "meaning": "the most / number one",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "dochira",
+    "src": "どちら",
+    "meaning": "which (of two)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "dore",
+    "src": "どれ",
+    "meaning": "which (of three or more)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hayai",
+    "src": "はやい",
+    "meaning": "fast / early",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "osoi",
+    "src": "おそい",
+    "meaning": "slow / late",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "nagai",
+    "src": "ながい",
+    "meaning": "long",
+    "pos": "adjective",
+    "band": 2,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "mijikai",
+    "src": "みじかい",
+    "meaning": "short",
+    "pos": "adjective",
+    "band": 2,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "muzukashii",
+    "src": "むずかしい",
+    "meaning": "difficult",
+    "pos": "adjective",
+    "band": 2,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "doushite",
+    "src": "どうして",
+    "meaning": "why",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kara",
+    "src": "から",
+    "meaning": "because (after a reason)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "dakara",
+    "src": "だから",
+    "meaning": "so / that's why",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "tsukaremashita",
+    "src": "つかれました",
+    "meaning": "got tired",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "nemui",
+    "src": "ねむい",
+    "meaning": "sleepy",
+    "pos": "adjective",
+    "band": 2,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "itai",
+    "src": "いたい",
+    "meaning": "painful / it hurts",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "atama",
+    "src": "あたま",
+    "meaning": "head",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "onaka",
+    "src": "おなか",
+    "meaning": "stomach",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "kaze",
+    "src": "かぜ",
+    "meaning": "a cold",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "netsu",
+    "src": "ねつ",
+    "meaning": "fever",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "yuki",
+    "src": "ゆき",
+    "meaning": "snow",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "samui",
+    "src": "さむい",
+    "meaning": "cold (weather)",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "tenki",
+    "src": "てんき",
+    "meaning": "weather",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "yasumi",
+    "src": "やすみ",
+    "meaning": "day off / closed",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "jugyou",
+    "src": "じゅぎょう",
+    "meaning": "class / lesson",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "made",
+    "src": "まで",
+    "meaning": "until / to",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "gomennasai",
+    "src": "ごめんなさい",
+    "meaning": "I'm sorry",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "hayaku",
+    "src": "はやく",
+    "meaning": "early / quickly",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "messeeji",
+    "src": "メッセージ",
+    "meaning": "message",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "wakarimasen",
+    "src": "わかりません",
+    "meaning": "I don't understand",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "imi",
+    "src": "いみ",
+    "meaning": "meaning",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "eigo",
+    "src": "えいご",
+    "meaning": "English",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "michi",
+    "src": "みち",
+    "meaning": "road / way",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "chikaku",
+    "src": "ちかく",
+    "meaning": "nearby",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "massugu",
+    "src": "まっすぐ",
+    "meaning": "straight ahead",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "migi",
+    "src": "みぎ",
+    "meaning": "right",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "hidari",
+    "src": "ひだり",
+    "meaning": "left",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "magarimasu",
+    "src": "まがります",
+    "meaning": "to turn",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "soshite",
+    "src": "そして",
+    "meaning": "and then",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "yasai",
+    "src": "やさい",
+    "meaning": "vegetables",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "ringo",
+    "src": "りんご",
+    "meaning": "apple",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "asatte",
+    "src": "あさって",
+    "meaning": "day after tomorrow",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "anata",
+    "src": "あなた",
+    "meaning": "you",
+    "pos": "pronoun",
+    "band": 2,
+    "tags": [
+      "pronoun"
+    ]
+  },
+  {
+    "id": "ani",
+    "src": "あに",
+    "meaning": "(humble) older brother",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "arigatou",
+    "src": "ありがとう",
+    "meaning": "Thank you",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "ikutsu",
+    "src": "いくつ",
+    "meaning": "how many?",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "ichi",
+    "src": "いち",
+    "meaning": "one",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "itsu",
+    "src": "いつ",
+    "meaning": "when",
+    "pos": "pronoun",
+    "band": 2,
+    "tags": [
+      "pronoun"
+    ]
+  },
+  {
+    "id": "itsutsu",
+    "src": "いつつ",
+    "meaning": "five",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "itsumo",
+    "src": "いつも",
+    "meaning": "always",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "ee",
+    "src": "ええ",
+    "meaning": "yes",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "ototoi",
+    "src": "おととい",
+    "meaning": "day before yesterday",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "ototoshi",
+    "src": "おととし",
+    "meaning": "year before last",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "onegaishimasu",
+    "src": "おねがいします",
+    "meaning": "please",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "ohayou",
+    "src": "おはよう",
+    "meaning": "(abbreviation) Good morning",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "kakaru",
+    "src": "かかる",
+    "meaning": "to take time or money",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "kata",
+    "src": "かた",
+    "meaning": "person",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "kayoubi",
+    "src": "かようび",
+    "meaning": "Tuesday",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "kyuu",
+    "src": "きゅう",
+    "meaning": "nine",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "kyonen",
+    "src": "きょねん",
+    "meaning": "last year",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "kin-youbi",
+    "src": "きんようび",
+    "meaning": "Friday",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "kuni",
+    "src": "くに",
+    "meaning": "country",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "kesa",
+    "src": "けさ",
+    "meaning": "this morning",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "getsuyoubi",
+    "src": "げつようび",
+    "meaning": "Monday",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "go",
+    "src": "ご",
+    "meaning": "five",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "kokonotsu",
+    "src": "ここのつ",
+    "meaning": "nine",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "gochisousama",
+    "src": "ごちそうさま",
+    "meaning": "feast",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "kochira",
+    "src": "こちら",
+    "meaning": "this person or way",
+    "pos": "pronoun",
+    "band": 2,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "kotchi",
+    "src": "こっち",
+    "meaning": "this person or way",
+    "pos": "pronoun",
+    "band": 2,
+    "tags": [
+      "family"
+    ]
+  },
+  {
+    "id": "kotoshi",
+    "src": "ことし",
+    "meaning": "this year",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "kongetsu",
+    "src": "こんげつ",
+    "meaning": "this month",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "konshuu",
+    "src": "こんしゅう",
+    "meaning": "this week",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "konban",
+    "src": "こんばん",
+    "meaning": "this evening",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "konbanwa",
+    "src": "こんばんは",
+    "meaning": "good evening",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "saa",
+    "src": "さあ",
+    "meaning": "well…",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "sarainen",
+    "src": "さらいねん",
+    "meaning": "year after next",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "san",
+    "src": "さん",
+    "meaning": "three",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "shi",
+    "src": "し",
+    "meaning": "four",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "jikan",
+    "src": "じかん",
+    "meaning": "time",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "shichi",
+    "src": "しち",
+    "meaning": "seven",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "jibun",
+    "src": "じぶん",
+    "meaning": "oneself",
+    "pos": "pronoun",
+    "band": 2,
+    "tags": [
+      "pronoun"
+    ]
+  },
+  {
+    "id": "ja",
+    "src": "じゃ",
+    "meaning": "well then…",
+    "pos": "conjunction",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "juu",
+    "src": "じゅう",
+    "meaning": "ten",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "shiru",
+    "src": "しる",
+    "meaning": "to know",
+    "pos": "verb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "suiyoubi",
+    "src": "すいようび",
+    "meaning": "Wednesday",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "sengetsu",
+    "src": "せんげつ",
+    "meaning": "last month",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "sorekara",
+    "src": "それから",
+    "meaning": "after that",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "soredeha",
+    "src": "それでは",
+    "meaning": "in that situation",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "tsugi",
+    "src": "つぎ",
+    "meaning": "next",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "tsumetai",
+    "src": "つめたい",
+    "meaning": "cold to the touch",
+    "pos": "i-adjective",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "deha",
+    "src": "では",
+    "meaning": "with that...",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "douzoyoroshiku",
+    "src": "どうぞよろしく",
+    "meaning": "pleased to meet you",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "doumo",
+    "src": "どうも",
+    "meaning": "thanks",
+    "pos": "expression",
+    "band": 2,
+    "tags": [
+      "greeting"
+    ]
+  },
+  {
+    "id": "tokidoki",
+    "src": "ときどき",
+    "meaning": "sometimes",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "toshi",
+    "src": "とし",
+    "meaning": "year",
+    "pos": "noun",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "dotchi",
+    "src": "どっち",
+    "meaning": "which",
+    "pos": "pronoun",
+    "band": 2,
+    "tags": [
+      "pronoun"
+    ]
+  },
+  {
+    "id": "donata",
+    "src": "どなた",
+    "meaning": "who",
+    "pos": "pronoun",
+    "band": 2,
+    "tags": [
+      "pronoun"
+    ]
+  },
+  {
+    "id": "nanatsu",
+    "src": "ななつ",
+    "meaning": "seven",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "ni",
+    "src": "に",
+    "meaning": "two",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "hajimete",
+    "src": "はじめて",
+    "meaning": "for the first time",
+    "pos": "adverb",
+    "band": 2,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "hachi",
+    "src": "はち",
+    "meaning": "eight",
+    "pos": "numeral",
+    "band": 2,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "bangou",
+    "src": "ばんごう",
+    "meaning": "number",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "bangohan",
+    "src": "ばんごはん",
+    "meaning": "evening meal",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "hanbun",
+    "src": "はんぶん",
+    "meaning": "half minute",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "furu",
+    "src": "ふる",
+    "meaning": "to fall (e.g. rain or snow)",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "maiasa",
+    "src": "まいあさ",
+    "meaning": "every morning",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "maigetsu",
+    "src": "まいげつ",
+    "meaning": "every month",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "maishuu",
+    "src": "まいしゅう",
+    "meaning": "every week",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "mainen",
+    "src": "まいねん",
+    "meaning": "every year",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "maiban",
+    "src": "まいばん",
+    "meaning": "every night",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "man",
+    "src": "まん",
+    "meaning": "ten thousand",
+    "pos": "numeral",
+    "band": 3,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "minna",
+    "src": "みんな",
+    "meaning": "everyone",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "muika",
+    "src": "むいか",
+    "meaning": "six days",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "muttsu",
+    "src": "むっつ",
+    "meaning": "six",
+    "pos": "numeral",
+    "band": 3,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "mokuyoubi",
+    "src": "もくようび",
+    "meaning": "Thursday",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "yattsu",
+    "src": "やっつ",
+    "meaning": "eight",
+    "pos": "numeral",
+    "band": 3,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "yuugata",
+    "src": "ゆうがた",
+    "meaning": "evening",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "yuube",
+    "src": "ゆうべ",
+    "meaning": "last night",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "youka",
+    "src": "ようか",
+    "meaning": "eight days",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "yoku",
+    "src": "よく",
+    "meaning": "often",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "yokka",
+    "src": "よっか",
+    "meaning": "four days",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "yottsu",
+    "src": "よっつ",
+    "meaning": "four",
+    "pos": "numeral",
+    "band": 3,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "yoru",
+    "src": "よる",
+    "meaning": "evening",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "raigetsu",
+    "src": "らいげつ",
+    "meaning": "next month",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "raishuu",
+    "src": "らいしゅう",
+    "meaning": "next week",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "rainen",
+    "src": "らいねん",
+    "meaning": "next year",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "time"
+    ]
+  },
+  {
+    "id": "roku",
+    "src": "ろく",
+    "meaning": "six",
+    "pos": "numeral",
+    "band": 3,
+    "tags": [
+      "number"
+    ]
+  },
+  {
+    "id": "watakushi",
+    "src": "わたくし",
+    "meaning": "(humble) I",
+    "pos": "pronoun",
+    "band": 3,
+    "tags": [
+      "pronoun"
+    ]
+  },
+  {
+    "id": "au",
+    "src": "あう",
+    "meaning": "to meet",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "ao",
+    "src": "あお",
+    "meaning": "blue",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "aoi",
+    "src": "あおい",
+    "meaning": "blue",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "aka",
+    "src": "あか",
+    "meaning": "red",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "akai",
+    "src": "あかい",
+    "meaning": "red",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "akarui",
+    "src": "あかるい",
+    "meaning": "bright",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "aki",
+    "src": "あき",
+    "meaning": "autumn",
+    "pos": "adverb",
+    "band": 3,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "aku",
+    "src": "あく",
+    "meaning": "to open",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "akeru",
+    "src": "あける",
+    "meaning": "to open",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "ageru",
+    "src": "あげる",
+    "meaning": "to give",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "asagohan",
+    "src": "あさごはん",
+    "meaning": "breakfast",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "ashi",
+    "src": "あし",
+    "meaning": "foot",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "asobu",
+    "src": "あそぶ",
+    "meaning": "to play",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "atatakai",
+    "src": "あたたかい",
+    "meaning": "warm",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "achira",
+    "src": "あちら",
+    "meaning": "there",
+    "pos": "pronoun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "atsui",
+    "src": "あつい",
+    "meaning": "kind",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "atchi",
+    "src": "あっち",
+    "meaning": "over there",
+    "pos": "pronoun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "abiru",
+    "src": "あびる",
+    "meaning": "to bathe",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "abunai",
+    "src": "あぶない",
+    "meaning": "dangerous",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "amai",
+    "src": "あまい",
+    "meaning": "sweet",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "arau",
+    "src": "あらう",
+    "meaning": "to wash",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "aru",
+    "src": "ある",
+    "meaning": "to be",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "aruku",
+    "src": "あるく",
+    "meaning": "to walk",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "ii",
+    "src": "いい",
+    "meaning": "good",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "iu",
+    "src": "いう",
+    "meaning": "to say",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "ie",
+    "src": "いえ",
+    "meaning": "house",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "isu",
+    "src": "いす",
+    "meaning": "chair",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "itadakimasu",
+    "src": "いただきます",
+    "meaning": "expression of gratitude before meals",
+    "pos": "expression",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "iya",
+    "src": "いや",
+    "meaning": "unpleasant",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "iru",
+    "src": "いる",
+    "meaning": "to be",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "ireru",
+    "src": "いれる",
+    "meaning": "to put in",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "iro",
+    "src": "いろ",
+    "meaning": "colour",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "iroiro",
+    "src": "いろいろ",
+    "meaning": "various",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "ue",
+    "src": "うえ",
+    "meaning": "on top of",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "usui",
+    "src": "うすい",
+    "meaning": "thin",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "utau",
+    "src": "うたう",
+    "meaning": "to sing",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "umareru",
+    "src": "うまれる",
+    "meaning": "to be born",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "uru",
+    "src": "うる",
+    "meaning": "to sell",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "urusai",
+    "src": "うるさい",
+    "meaning": "noisy",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "oishii",
+    "src": "おいしい",
+    "meaning": "delicious",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "ooi",
+    "src": "おおい",
+    "meaning": "many",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "ookina",
+    "src": "おおきな",
+    "meaning": "big",
+    "pos": "adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "okiru",
+    "src": "おきる",
+    "meaning": "to get up",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "oku",
+    "src": "おく",
+    "meaning": "to put",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "oshieru",
+    "src": "おしえる",
+    "meaning": "to teach",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "osu",
+    "src": "おす",
+    "meaning": "to push",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "otona",
+    "src": "おとな",
+    "meaning": "adult",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "onaji",
+    "src": "おなじ",
+    "meaning": "same",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "oboeru",
+    "src": "おぼえる",
+    "meaning": "to remember",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "omoi",
+    "src": "おもい",
+    "meaning": "heavy",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "omoshiroi",
+    "src": "おもしろい",
+    "meaning": "interesting",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "oyogu",
+    "src": "およぐ",
+    "meaning": "to swim",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "oriru",
+    "src": "おりる",
+    "meaning": "to get off",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "owaru",
+    "src": "おわる",
+    "meaning": "to finish",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kau",
+    "src": "かう",
+    "meaning": "to buy",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kaesu",
+    "src": "かえす",
+    "meaning": "to return something",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kaeru",
+    "src": "かえる",
+    "meaning": "to go back",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "kagi",
+    "src": "かぎ",
+    "meaning": "key",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "kaku",
+    "src": "かく",
+    "meaning": "to write",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "kakeru",
+    "src": "かける",
+    "meaning": "to call by phone",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "kasu",
+    "src": "かす",
+    "meaning": "to lend",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kado",
+    "src": "かど",
+    "meaning": "a corner",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "kami",
+    "src": "かみ",
+    "meaning": "paper",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "karai",
+    "src": "からい",
+    "meaning": "spicy",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "kariru",
+    "src": "かりる",
+    "meaning": "to borrow",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "karui",
+    "src": "かるい",
+    "meaning": "light",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "kawaii",
+    "src": "かわいい",
+    "meaning": "cute",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "kiiro",
+    "src": "きいろ",
+    "meaning": "yellow",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "kiiroi",
+    "src": "きいろい",
+    "meaning": "yellow",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "kieru",
+    "src": "きえる",
+    "meaning": "to disappear",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "kiku",
+    "src": "きく",
+    "meaning": "to hear",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "kitanai",
+    "src": "きたない",
+    "meaning": "dirty",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "kippu",
+    "src": "きっぷ",
+    "meaning": "ticket",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "kiru",
+    "src": "きる",
+    "meaning": "to cut",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kudamono",
+    "src": "くだもの",
+    "meaning": "fruit",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "kuchi",
+    "src": "くち",
+    "meaning": "mouth",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "kumoru",
+    "src": "くもる",
+    "meaning": "to become cloudy",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "kurai",
+    "src": "くらい",
+    "meaning": "gloomy",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "kuruma",
+    "src": "くるま",
+    "meaning": "car",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "kuro",
+    "src": "くろ",
+    "meaning": "black",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "kuroi",
+    "src": "くろい",
+    "meaning": "black",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "kesu",
+    "src": "けす",
+    "meaning": "to erase",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kekkou",
+    "src": "けっこう",
+    "meaning": "splendid",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "kekkon",
+    "src": "けっこん",
+    "meaning": "marriage",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "kotaeru",
+    "src": "こたえる",
+    "meaning": "to answer",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "kotoba",
+    "src": "ことば",
+    "meaning": "word",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "kopiisuru",
+    "src": "コピーする",
+    "meaning": "to copy",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "komaru",
+    "src": "こまる",
+    "meaning": "to be worried",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "konna",
+    "src": "こんな",
+    "meaning": "such",
+    "pos": "adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "sakana",
+    "src": "さかな",
+    "meaning": "fish",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "saku",
+    "src": "さく",
+    "meaning": "to bloom",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "sakubun",
+    "src": "さくぶん",
+    "meaning": "composition",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "sasu",
+    "src": "さす",
+    "meaning": "to stretch out hands",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "sayounara",
+    "src": "さようなら",
+    "meaning": "good-bye",
+    "pos": "expression",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "sanpo",
+    "src": "さんぽ",
+    "meaning": "to stroll",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "shio",
+    "src": "しお",
+    "meaning": "salt",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "shita",
+    "src": "した",
+    "meaning": "below",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "shitsumon",
+    "src": "しつもん",
+    "meaning": "question",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "shinu",
+    "src": "しぬ",
+    "meaning": "to die",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "shimaru",
+    "src": "しまる",
+    "meaning": "to close",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "shimeru",
+    "src": "しめる",
+    "meaning": "to tie",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "joubu",
+    "src": "じょうぶ",
+    "meaning": "strong",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "shiro",
+    "src": "しろ",
+    "meaning": "white",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "shiroi",
+    "src": "しろい",
+    "meaning": "white",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "color"
+    ]
+  },
+  {
+    "id": "suu",
+    "src": "すう",
+    "meaning": "to smoke",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "sukunai",
+    "src": "すくない",
+    "meaning": "a few",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "suzushii",
+    "src": "すずしい",
+    "meaning": "refreshing",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "sumu",
+    "src": "すむ",
+    "meaning": "to live in",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "suwaru",
+    "src": "すわる",
+    "meaning": "to sit",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "sekken",
+    "src": "せっけん",
+    "meaning": "economy",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "semai",
+    "src": "せまい",
+    "meaning": "narrow",
+    "pos": "i-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "sentaku",
+    "src": "せんたく",
+    "meaning": "washing",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "souji",
+    "src": "そうじ",
+    "meaning": "to clean",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "soko",
+    "src": "そこ",
+    "meaning": "that place",
+    "pos": "pronoun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "sochira",
+    "src": "そちら",
+    "meaning": "over there",
+    "pos": "pronoun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "sotchi",
+    "src": "そっち",
+    "meaning": "over there",
+    "pos": "pronoun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "sono",
+    "src": "その",
+    "meaning": "that",
+    "pos": "adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "soba",
+    "src": "そば",
+    "meaning": "near",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "sora",
+    "src": "そら",
+    "meaning": "sky",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "taisetsu",
+    "src": "たいせつ",
+    "meaning": "important",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "daidokoro",
+    "src": "だいどころ",
+    "meaning": "kitchen",
+    "pos": "noun",
+    "band": 3,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "takusan",
+    "src": "たくさん",
+    "meaning": "many",
+    "pos": "na-adjective",
+    "band": 3,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "dasu",
+    "src": "だす",
+    "meaning": "to put out",
+    "pos": "verb",
+    "band": 3,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tatsu",
+    "src": "たつ",
+    "meaning": "to stand",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tanoshii",
+    "src": "たのしい",
+    "meaning": "enjoyable",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "tanomu",
+    "src": "たのむ",
+    "meaning": "to ask",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "tamago",
+    "src": "たまご",
+    "meaning": "egg",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "chiisana",
+    "src": "ちいさな",
+    "meaning": "little",
+    "pos": "adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "chikai",
+    "src": "ちかい",
+    "meaning": "near",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "chigau",
+    "src": "ちがう",
+    "meaning": "to differ",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "chikatetsu",
+    "src": "ちかてつ",
+    "meaning": "underground train",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "chawan",
+    "src": "ちゃわん",
+    "meaning": "rice bowl",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "tsukau",
+    "src": "つかう",
+    "meaning": "to use",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tsukareru",
+    "src": "つかれる",
+    "meaning": "to get tired",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tsuku",
+    "src": "つく",
+    "meaning": "to arrive at",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tsukuru",
+    "src": "つくる",
+    "meaning": "to make",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tsukeru",
+    "src": "つける",
+    "meaning": "to turn on",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tsutomeru",
+    "src": "つとめる",
+    "meaning": "to work for someone",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tsumaranai",
+    "src": "つまらない",
+    "meaning": "boring",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "tsuyoi",
+    "src": "つよい",
+    "meaning": "powerful",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "te",
+    "src": "て",
+    "meaning": "hand",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "dekakeru",
+    "src": "でかける",
+    "meaning": "to go out",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "dekiru",
+    "src": "できる",
+    "meaning": "to be able to",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tesuto",
+    "src": "テスト",
+    "meaning": "test",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "deru",
+    "src": "でる",
+    "meaning": "to appear",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "to",
+    "src": "と",
+    "meaning": "Japanese style door",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "doa",
+    "src": "ドア",
+    "meaning": "Western style door",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "tooi",
+    "src": "とおい",
+    "meaning": "far",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "tokoro",
+    "src": "ところ",
+    "meaning": "place",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "dono",
+    "src": "どの",
+    "meaning": "which",
+    "pos": "adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "tobu",
+    "src": "とぶ",
+    "meaning": "to fly",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "tomaru",
+    "src": "とまる",
+    "meaning": "to come to a halt",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "toru",
+    "src": "とる",
+    "meaning": "to take a photo or record a film",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "naka",
+    "src": "なか",
+    "meaning": "middle",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "nakusu",
+    "src": "なくす",
+    "meaning": "to lose something",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "natsu",
+    "src": "なつ",
+    "meaning": "summer",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "narau",
+    "src": "ならう",
+    "meaning": "to learn",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "narabu",
+    "src": "ならぶ",
+    "meaning": "to line up",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "naraberu",
+    "src": "ならべる",
+    "meaning": "to line up",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "naru",
+    "src": "なる",
+    "meaning": "to become",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "nigiyaka",
+    "src": "にぎやか",
+    "meaning": "bustling",
+    "pos": "na-adjective",
+    "band": 4,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "niku",
+    "src": "にく",
+    "meaning": "meat",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "niwa",
+    "src": "にわ",
+    "meaning": "garden",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "nugu",
+    "src": "ぬぐ",
+    "meaning": "to take off clothes",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "clothing"
+    ]
+  },
+  {
+    "id": "nurui",
+    "src": "ぬるい",
+    "meaning": "luke warm",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "neru",
+    "src": "ねる",
+    "meaning": "to go to bed",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "noboru",
+    "src": "のぼる",
+    "meaning": "to climb",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "nomu",
+    "src": "のむ",
+    "meaning": "to drink",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "noru",
+    "src": "のる",
+    "meaning": "to get on",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "wa",
+    "src": "は",
+    "meaning": "tooth",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "hairu",
+    "src": "はいる",
+    "meaning": "to enter",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "haku",
+    "src": "はく",
+    "meaning": "to wear",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "hajimaru",
+    "src": "はじまる",
+    "meaning": "to begin",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "hashiru",
+    "src": "はしる",
+    "meaning": "to run",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "hataraku",
+    "src": "はたらく",
+    "meaning": "to work",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "hanasu",
+    "src": "はなす",
+    "meaning": "to speak",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "haru",
+    "src": "はる",
+    "meaning": "spring",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "hare",
+    "src": "はれ",
+    "meaning": "clear weather",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "hareru",
+    "src": "はれる",
+    "meaning": "to be sunny",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "hiku",
+    "src": "ひく",
+    "meaning": "to pull",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "hikui",
+    "src": "ひくい",
+    "meaning": "short",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "hiroi",
+    "src": "ひろい",
+    "meaning": "spacious",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "butaniku",
+    "src": "ぶたにく",
+    "meaning": "pork",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "futoi",
+    "src": "ふとい",
+    "meaning": "fat",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "fuyu",
+    "src": "ふゆ",
+    "meaning": "winter",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "weather"
+    ]
+  },
+  {
+    "id": "pen",
+    "src": "ペン",
+    "meaning": "pen",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "benkyou",
+    "src": "べんきょう",
+    "meaning": "to study",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "benri",
+    "src": "べんり",
+    "meaning": "useful",
+    "pos": "na-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "hosoi",
+    "src": "ほそい",
+    "meaning": "thin",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "magaru",
+    "src": "まがる",
+    "meaning": "to turn",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "mazui",
+    "src": "まずい",
+    "meaning": "unpleasant",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "machi",
+    "src": "まち",
+    "meaning": "town",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "matsu",
+    "src": "まつ",
+    "meaning": "to wait",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "marui",
+    "src": "まるい",
+    "meaning": "round",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "migaku",
+    "src": "みがく",
+    "meaning": "to brush teeth",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "miseru",
+    "src": "みせる",
+    "meaning": "to show",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "mimi",
+    "src": "みみ",
+    "meaning": "ear",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "mukou",
+    "src": "むこう",
+    "meaning": "over there",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "mura",
+    "src": "むら",
+    "meaning": "village",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place"
+    ]
+  },
+  {
+    "id": "me",
+    "src": "め",
+    "meaning": "eye",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "megane",
+    "src": "めがね",
+    "meaning": "glasses",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing"
+    ]
+  },
+  {
+    "id": "motsu",
+    "src": "もつ",
+    "meaning": "to hold",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "yasumu",
+    "src": "やすむ",
+    "meaning": "to rest",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "yaru",
+    "src": "やる",
+    "meaning": "to do",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "yuumei",
+    "src": "ゆうめい",
+    "meaning": "famous",
+    "pos": "na-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "yukkurito",
+    "src": "ゆっくりと",
+    "meaning": "slowly",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "yobu",
+    "src": "よぶ",
+    "meaning": "to call out",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "yomu",
+    "src": "よむ",
+    "meaning": "to read",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "yowai",
+    "src": "よわい",
+    "meaning": "weak",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "rajio",
+    "src": "ラジオ",
+    "meaning": "radio",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house"
+    ]
+  },
+  {
+    "id": "rippa",
+    "src": "りっぱ",
+    "meaning": "splendid",
+    "pos": "na-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "ryokou",
+    "src": "りょこう",
+    "meaning": "travel",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "transport"
+    ]
+  },
+  {
+    "id": "renshuu",
+    "src": "れんしゅう",
+    "meaning": "to practice",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "wakai",
+    "src": "わかい",
+    "meaning": "young",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "wakaru",
+    "src": "わかる",
+    "meaning": "to be understood",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "wasureru",
+    "src": "わすれる",
+    "meaning": "to forget",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "school"
+    ]
+  },
+  {
+    "id": "watasu",
+    "src": "わたす",
+    "meaning": "to hand over",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "body"
+    ]
+  },
+  {
+    "id": "wataru",
+    "src": "わたる",
+    "meaning": "to go across",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "verb"
+    ]
+  },
+  {
+    "id": "warui",
+    "src": "わるい",
+    "meaning": "bad",
+    "pos": "i-adjective",
+    "band": 4,
+    "tags": [
+      "adjective"
+    ]
+  },
+  {
+    "id": "ato",
+    "src": "あと",
+    "meaning": "afterwards",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "ikaga",
+    "src": "いかが",
+    "meaning": "how",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "e",
+    "src": "え",
+    "meaning": "picture",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "okane",
+    "src": "おかね",
+    "meaning": "money",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kita",
+    "src": "きた",
+    "meaning": "north",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "kiro",
+    "src": "キロ",
+    "meaning": "kilometre",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "koe",
+    "src": "こえ",
+    "meaning": "voice",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "saki",
+    "src": "さき",
+    "meaning": "the future",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "shikashi",
+    "src": "しかし",
+    "meaning": "however",
+    "pos": "conjunction",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "sugu",
+    "src": "すぐ",
+    "meaning": "immediately",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "suguni",
+    "src": "すぐに",
+    "meaning": "instantly",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "se",
+    "src": "せ",
+    "meaning": "height",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "zero",
+    "src": "ゼロ",
+    "meaning": "zero",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "zenbu",
+    "src": "ぜんぶ",
+    "meaning": "all",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "soushite",
+    "src": "そうして",
+    "meaning": "and",
+    "pos": "conjunction",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "taihen",
+    "src": "たいへん",
+    "meaning": "very",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "tate",
+    "src": "たて",
+    "meaning": "length",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "tabun",
+    "src": "たぶん",
+    "meaning": "probably",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "dandan",
+    "src": "だんだん",
+    "meaning": "gradually",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "chizu",
+    "src": "ちず",
+    "meaning": "map",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "choudo",
+    "src": "ちょうど",
+    "meaning": "exactly",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "demo",
+    "src": "でも",
+    "meaning": "but",
+    "pos": "conjunction",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "dou",
+    "src": "どう",
+    "meaning": "how",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "tori",
+    "src": "とり",
+    "meaning": "bird",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "animal"
+    ]
+  },
+  {
+    "id": "naku",
+    "src": "なく",
+    "meaning": "to make a sound (of an animal)",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "animal"
+    ]
+  },
+  {
+    "id": "naze",
+    "src": "なぜ",
+    "meaning": "why",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "nishi",
+    "src": "にし",
+    "meaning": "west",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "nyuusu",
+    "src": "ニュース",
+    "meaning": "news",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "paatii",
+    "src": "パーティー",
+    "meaning": "party",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hako",
+    "src": "はこ",
+    "meaning": "box",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hashi",
+    "src": "はし",
+    "meaning": "chopsticks",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hajime",
+    "src": "はじめ",
+    "meaning": "beginning",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "hiru",
+    "src": "ひる",
+    "meaning": "noon",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "furo",
+    "src": "ふろ",
+    "meaning": "bath",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "peeji",
+    "src": "ページ",
+    "meaning": "page",
+    "pos": "counter",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hen",
+    "src": "へん",
+    "meaning": "area",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "hoka",
+    "src": "ほか",
+    "meaning": "other",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "mae",
+    "src": "まえ",
+    "meaning": "before",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "minami",
+    "src": "みなみ",
+    "meaning": "south",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "mou",
+    "src": "もう",
+    "meaning": "already",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "motto",
+    "src": "もっと",
+    "meaning": "more",
+    "pos": "adverb",
+    "band": 4,
+    "tags": [
+      "adverb"
+    ]
+  },
+  {
+    "id": "mono",
+    "src": "もの",
+    "meaning": "thing",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "mon",
+    "src": "もん",
+    "meaning": "gate",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "yaoya",
+    "src": "やおや",
+    "meaning": "greengrocer",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "yoko",
+    "src": "よこ",
+    "meaning": "beside",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "rei",
+    "src": "れい",
+    "meaning": "zero",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "rouka",
+    "src": "ろうか",
+    "meaning": "corridor",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun"
+    ]
+  },
+  {
+    "id": "ike",
+    "src": "いけ",
+    "meaning": "pond",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "nature"
+    ]
+  },
+  {
+    "id": "umi",
+    "src": "うみ",
+    "meaning": "sea",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "nature"
+    ]
+  },
+  {
+    "id": "kawa",
+    "src": "かわ",
+    "meaning": "river",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "nature"
+    ]
+  },
+  {
+    "id": "ki",
+    "src": "き",
+    "meaning": "tree",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "nature"
+    ]
+  },
+  {
+    "id": "shigoto",
+    "src": "しごと",
+    "meaning": "job",
+    "pos": "verb",
+    "band": 4,
+    "tags": [
+      "occupation"
+    ]
+  },
+  {
+    "id": "hana",
+    "src": "はな",
+    "meaning": "flower",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "nature"
+    ]
+  },
+  {
+    "id": "yama",
+    "src": "やま",
+    "meaning": "mountain",
+    "pos": "counter",
+    "band": 4,
+    "tags": [
+      "nature"
+    ]
+  },
+  {
+    "id": "apaato",
+    "src": "アパート",
+    "meaning": "apartment",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "isha",
+    "src": "いしゃ",
+    "meaning": "medical doctor",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "body",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "ichinichi",
+    "src": "いちにち",
+    "meaning": "one day",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "itsuka",
+    "src": "いつか",
+    "meaning": "five days",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "issho",
+    "src": "いっしょ",
+    "meaning": "together",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "iriguchi",
+    "src": "いりぐち",
+    "meaning": "entrance",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "ushiro",
+    "src": "うしろ",
+    "meaning": "behind",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "uwagi",
+    "src": "うわぎ",
+    "meaning": "jacket",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "eigakan",
+    "src": "えいがかん",
+    "meaning": "cinema",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "erebeetaa",
+    "src": "エレベーター",
+    "meaning": "elevator",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "oozei",
+    "src": "おおぜい",
+    "meaning": "great number of people",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "number",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "okashi",
+    "src": "おかし",
+    "meaning": "sweets",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "okusan",
+    "src": "おくさん",
+    "meaning": "(honorable) wife",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "osake",
+    "src": "おさけ",
+    "meaning": "alcohol",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "osara",
+    "src": "おさら",
+    "meaning": "plate",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "ojiisan",
+    "src": "おじいさん",
+    "meaning": "grandfather",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "ocha",
+    "src": "おちゃ",
+    "meaning": "green tea",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "otearai",
+    "src": "おてあらい",
+    "meaning": "bathroom",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "otousan",
+    "src": "おとうさん",
+    "meaning": "(honorable) father",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "otoko",
+    "src": "おとこ",
+    "meaning": "man",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "oniisan",
+    "src": "おにいさん",
+    "meaning": "(honorable) older brother",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "oneesan",
+    "src": "おねえさん",
+    "meaning": "(honorable) older sister",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "obaasan",
+    "src": "おばあさん",
+    "meaning": "grandmother",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "obasan",
+    "src": "おばさん",
+    "meaning": "aunt",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "ofuro",
+    "src": "おふろ",
+    "meaning": "bath",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "obentou",
+    "src": "おべんとう",
+    "meaning": "boxed lunch",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "omawarisan",
+    "src": "おまわりさん",
+    "meaning": "friendly term for policeman",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "onna",
+    "src": "おんな",
+    "meaning": "woman",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "gaikoku",
+    "src": "がいこく",
+    "meaning": "foreign country",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "number",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "gaikokujin",
+    "src": "がいこくじん",
+    "meaning": "foreigner",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kaisha",
+    "src": "かいしゃ",
+    "meaning": "company",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "occupation",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kaidan",
+    "src": "かいだん",
+    "meaning": "stairs",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kappu",
+    "src": "カップ",
+    "meaning": "cup",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "katei",
+    "src": "かてい",
+    "meaning": "household",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kabin",
+    "src": "かびん",
+    "meaning": "a vase",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kamera",
+    "src": "カメラ",
+    "meaning": "camera",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "karada",
+    "src": "からだ",
+    "meaning": "body",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "body",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "karee",
+    "src": "カレー",
+    "meaning": "curry",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "karendaa",
+    "src": "カレンダー",
+    "meaning": "calendar",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kanji",
+    "src": "かんじ",
+    "meaning": "Chinese character",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "gitaa",
+    "src": "ギター",
+    "meaning": "guitar",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kissaten",
+    "src": "きっさてん",
+    "meaning": "coffee lounge",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kitte",
+    "src": "きって",
+    "meaning": "postage stamp",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "gyuuniku",
+    "src": "ぎゅうにく",
+    "meaning": "beef",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "gyuunyuu",
+    "src": "ぎゅうにゅう",
+    "meaning": "milk",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kyoudai",
+    "src": "きょうだい",
+    "meaning": "(humble) siblings",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "ginkou",
+    "src": "ぎんこう",
+    "meaning": "bank",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kutsushita",
+    "src": "くつした",
+    "meaning": "socks",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kumori",
+    "src": "くもり",
+    "meaning": "cloudy weather",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kurasu",
+    "src": "クラス",
+    "meaning": "class",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "guramu",
+    "src": "グラム",
+    "meaning": "gram",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "keikan",
+    "src": "けいかん",
+    "meaning": "policeman",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "genkan",
+    "src": "げんかん",
+    "meaning": "entry hall",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kousaten",
+    "src": "こうさてん",
+    "meaning": "intersection",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "koucha",
+    "src": "こうちゃ",
+    "meaning": "black tea",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kouban",
+    "src": "こうばん",
+    "meaning": "police box",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kooto",
+    "src": "コート",
+    "meaning": "coat",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "koohii",
+    "src": "コーヒー",
+    "meaning": "coffee",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kokonoka",
+    "src": "ここのか",
+    "meaning": "nine days",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "koppu",
+    "src": "コップ",
+    "meaning": "a glass",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "kodomo",
+    "src": "こども",
+    "meaning": "child",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "saifu",
+    "src": "さいふ",
+    "meaning": "wallet",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "zasshi",
+    "src": "ざっし",
+    "meaning": "magazine",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "satou",
+    "src": "さとう",
+    "meaning": "sugar",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "jisho",
+    "src": "じしょ",
+    "meaning": "dictionary",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "jidousha",
+    "src": "じどうしゃ",
+    "meaning": "automobile",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "jibiki",
+    "src": "じびき",
+    "meaning": "dictionary",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "shatsu",
+    "src": "シャツ",
+    "meaning": "shirt",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "shawaa",
+    "src": "シャワー",
+    "meaning": "shower",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "shukudai",
+    "src": "しゅくだい",
+    "meaning": "homework",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "shouyu",
+    "src": "しょうゆ",
+    "meaning": "soy sauce",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "shokudou",
+    "src": "しょくどう",
+    "meaning": "dining hall",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "shinbun",
+    "src": "しんぶん",
+    "meaning": "newspaper",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "sukaato",
+    "src": "スカート",
+    "meaning": "skirt",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "sutoobu",
+    "src": "ストーブ",
+    "meaning": "heater",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "supuun",
+    "src": "スプーン",
+    "meaning": "spoon",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "zubon",
+    "src": "ズボン",
+    "meaning": "trousers",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "surippa",
+    "src": "スリッパ",
+    "meaning": "slippers",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "seito",
+    "src": "せいと",
+    "meaning": "pupil",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "seetaa",
+    "src": "セーター",
+    "meaning": "sweater",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "sebiro",
+    "src": "せびろ",
+    "meaning": "business suit",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "transport",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "daigaku",
+    "src": "だいがく",
+    "meaning": "university",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "taishikan",
+    "src": "たいしかん",
+    "meaning": "embassy",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "takushii",
+    "src": "タクシー",
+    "meaning": "taxi",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "transport",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "tatemono",
+    "src": "たてもの",
+    "meaning": "building",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "tabako",
+    "src": "たばこ",
+    "meaning": "tobacco",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "tabemono",
+    "src": "たべもの",
+    "meaning": "food",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "tanjoubi",
+    "src": "たんじょうび",
+    "meaning": "birthday",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "chairo",
+    "src": "ちゃいろ",
+    "meaning": "brown",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "color",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "teepu",
+    "src": "テープ",
+    "meaning": "tape",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "teeburu",
+    "src": "テーブル",
+    "meaning": "table",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "teepurekoodaa",
+    "src": "テープレコーダー",
+    "meaning": "tape recorder",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "deguchi",
+    "src": "でぐち",
+    "meaning": "exit",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "terebi",
+    "src": "テレビ",
+    "meaning": "television",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "denki",
+    "src": "でんき",
+    "meaning": "electricity",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "toire",
+    "src": "トイレ",
+    "meaning": "toilet",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "doubutsu",
+    "src": "どうぶつ",
+    "meaning": "animal",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "animal",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "tooka",
+    "src": "とおか",
+    "meaning": "ten days",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "tonari",
+    "src": "となり",
+    "meaning": "next door to",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "toriniku",
+    "src": "とりにく",
+    "meaning": "chicken meat",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "naifu",
+    "src": "ナイフ",
+    "meaning": "knife",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "natsuyasumi",
+    "src": "なつやすみ",
+    "meaning": "summer holiday",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "nanoka",
+    "src": "なのか",
+    "meaning": "seven days",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "nimotsu",
+    "src": "にもつ",
+    "meaning": "luggage",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "nekutai",
+    "src": "ネクタイ",
+    "meaning": "tie",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "nomimono",
+    "src": "のみもの",
+    "meaning": "a drink",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "haizara",
+    "src": "はいざら",
+    "meaning": "ashtray",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hagaki",
+    "src": "はがき",
+    "meaning": "postcard",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "bataa",
+    "src": "バター",
+    "meaning": "butter",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hatachi",
+    "src": "はたち",
+    "meaning": "20 years old",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hatsuka",
+    "src": "はつか",
+    "meaning": "twenty days",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hanashi",
+    "src": "はなし",
+    "meaning": "talk",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hankachi",
+    "src": "ハンカチ",
+    "meaning": "handkerchief",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "body",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "higashi",
+    "src": "ひがし",
+    "meaning": "east",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hikouki",
+    "src": "ひこうき",
+    "meaning": "aeroplane",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "transport",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hitotsuki",
+    "src": "ひとつき",
+    "meaning": "one month",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hitori",
+    "src": "ひとり",
+    "meaning": "one person",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hirugohan",
+    "src": "ひるごはん",
+    "meaning": "midday meal",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "firumu",
+    "src": "フィルム",
+    "meaning": "roll of film",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "fuutou",
+    "src": "ふうとう",
+    "meaning": "envelope",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "puuru",
+    "src": "プール",
+    "meaning": "swimming pool",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "fooku",
+    "src": "フォーク",
+    "meaning": "fork",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "futari",
+    "src": "ふたり",
+    "meaning": "two people",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "futsuka",
+    "src": "ふつか",
+    "meaning": "two days",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "bunshou",
+    "src": "ぶんしょう",
+    "meaning": "sentence",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "beddo",
+    "src": "ベッド",
+    "meaning": "bed",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "petto",
+    "src": "ペット",
+    "meaning": "pet",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "animal",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "boushi",
+    "src": "ぼうし",
+    "meaning": "hat",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "boorupen",
+    "src": "ボールペン",
+    "meaning": "ball-point pen",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "poketto",
+    "src": "ポケット",
+    "meaning": "pocket",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "posuto",
+    "src": "ポスト",
+    "meaning": "post",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "botan",
+    "src": "ボタン",
+    "meaning": "button",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hoteru",
+    "src": "ホテル",
+    "meaning": "hotel",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "hondana",
+    "src": "ほんだな",
+    "meaning": "bookshelves",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "matchi",
+    "src": "マッチ",
+    "meaning": "match",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "mannenhitsu",
+    "src": "まんねんひつ",
+    "meaning": "fountain pen",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "mikka",
+    "src": "みっか",
+    "meaning": "three days",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "midori",
+    "src": "みどり",
+    "meaning": "green",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "color",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "minasan",
+    "src": "みなさん",
+    "meaning": "everyone",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "time",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "meetoru",
+    "src": "メートル",
+    "meaning": "metre",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "mondai",
+    "src": "もんだい",
+    "meaning": "problem",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "yuuhan",
+    "src": "ゆうはん",
+    "meaning": "dinner",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "food",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "yuubinkyoku",
+    "src": "ゆうびんきょく",
+    "meaning": "post office",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "youfuku",
+    "src": "ようふく",
+    "meaning": "western-style clothes",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "clothing",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "rajikase",
+    "src": "ラジカセ",
+    "meaning": "radio cassette player",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "ryuugakusei",
+    "src": "りゅうがくせい",
+    "meaning": "overseas student",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "school",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "ryoushin",
+    "src": "りょうしん",
+    "meaning": "both parents",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "family",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "reizouko",
+    "src": "れいぞうこ",
+    "meaning": "refrigerator",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "house",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "rekoodo",
+    "src": "レコード",
+    "meaning": "record",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "noun",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "resutoran",
+    "src": "レストラン",
+    "meaning": "restaurant",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "place",
+      "reserve"
+    ],
+    "reserve": true
+  },
+  {
+    "id": "waishatsu",
+    "src": "ワイシャツ",
+    "meaning": "business shirt",
+    "pos": "noun",
+    "band": 4,
+    "tags": [
+      "transport",
+      "reserve"
+    ],
+    "reserve": true
+  }
+]
