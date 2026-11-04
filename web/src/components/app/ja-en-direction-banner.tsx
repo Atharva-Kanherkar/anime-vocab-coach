@@ -12,25 +12,15 @@ import { useSiteLocale } from "@/components/locale-provider";
 import {
   EXTENSION_SETTINGS_DEFAULTS,
   parseExtensionSettings,
-  settingsToRecord,
   type ExtensionSettings,
 } from "@/lib/extension-settings";
-import { useCloudSnapshot, persistCloudEnvelope, useCloudSyncMeta } from "@/lib/cloud-snapshot-store";
-import type { CloudSyncEnvelope } from "@/lib/sync";
-
-/** Ask the extension to pull the settings just saved. Not `avc-sync-now`: that
- * makes the extension push its own copy, which overwrote this save. */
-function notifyExtensionSync(): void {
-  try {
-    window.postMessage({ source: "avc-web", type: "avc-settings-updated" }, window.location.origin);
-  } catch {
-    /* ignore */
-  }
-}
+import { useCloudSnapshot, useCloudSyncMeta } from "@/lib/cloud-snapshot-store";
+import { saveLearningSettings } from "@/lib/learn-client";
 
 export function JaEnDirectionBanner() {
   const { locale } = useSiteLocale();
   const snapshot = useCloudSnapshot();
+  const storedSettings = JSON.stringify(snapshot.settings);
   const meta = useCloudSyncMeta();
   const [dismissed, setDismissed] = useState(true);
   const [settings, setSettings] = useState<ExtensionSettings>(EXTENSION_SETTINGS_DEFAULTS);
@@ -40,33 +30,20 @@ export function JaEnDirectionBanner() {
     // mount (SSR renders the dismissed state) is intentional.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDismissed(localStorage.getItem(JA_EN_PROMPT_DISMISSED_KEY) === "1");
-    setSettings(parseExtensionSettings(snapshot.settings, locale));
-  }, [snapshot.settings, locale]);
+    setSettings(parseExtensionSettings(JSON.parse(storedSettings), locale));
+  }, [storedSettings, locale]);
 
   const applyDirection = useCallback(
     async (direction: LearningDirection) => {
       const nextSettings = { ...settings, learningDirection: direction };
       setSettings(nextSettings);
       try {
-        const nextSnapshot = {
-          ...snapshot,
-          settings: settingsToRecord(nextSettings),
-        };
-        const res = await fetch("/api/sync/snapshot", {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ snapshot: nextSnapshot, expectedRevision: meta.revision }),
-        });
-        const data = (await res.json()) as { envelope?: CloudSyncEnvelope };
-        if (res.ok && data.envelope) {
-          persistCloudEnvelope(data.envelope);
-          notifyExtensionSync();
-        }
+        await saveLearningSettings({learningDirection:direction});
       } catch {
         /* soft fail */
       }
     },
-    [meta.revision, settings, snapshot]
+    [settings]
   );
 
   // ?direction= deep link: apply exactly once, only after the initial cloud

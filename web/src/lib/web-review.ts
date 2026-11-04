@@ -1,8 +1,5 @@
-// Reviews done in the cloud app (F6). The web has no copy of the extension's
-// storage, so a web review is applied to the stored envelope here AND logged
-// as an op. The extension replays the op log on its next sync, which is how a
-// review done on the web reaches the vocab the extension actually schedules.
-// Pure: the route owns I/O, this owns the SRS and the log.
+// Legacy snapshot SRS helpers retained for format compatibility and unit tests.
+// Live reviews use shared/learn/model.ts and the transactional D1 operation store.
 
 import type { CloudDailyStats, CloudSyncEnvelope, CloudWordRecord, WebReviewOp } from "./sync";
 

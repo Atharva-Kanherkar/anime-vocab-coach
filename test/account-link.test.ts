@@ -158,4 +158,11 @@ describe("sign-out suppression", () => {
     const bridge = readFileSync(new URL("../src/entries/sync-bridge.ts", import.meta.url), "utf8");
     expect(bridge).toContain('sendMessage({ type: "avc-sign-out" })');
   });
+  it("attributes a link made on /start before the token lands (#206)", () => {
+    const bridge = readFileSync(new URL("../src/entries/sync-bridge.ts", import.meta.url), "utf8");
+    expect(bridge).toContain('location.pathname === "/start" ? "start_page"');
+    expect(bridge).toMatch(/type:"avc-link-token",token,profile:syncProfile,surface/);
+    const background = readFileSync(new URL("../src/entries/background.ts", import.meta.url), "utf8");
+    expect(background).toMatch(/msg\.surface === "start_page" \? noteStartPageSurface\(\)[^\n]*\.then\(\(\)=>learnerStorage\.setSyncToken/);
+  });
 });

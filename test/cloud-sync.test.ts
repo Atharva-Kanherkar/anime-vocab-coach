@@ -1,210 +1,366 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { pushSnapshot, syncPendingSignouts } from "../src/lib/cloud-sync";
-import { clearSignedOutCache, setSyncToken, setSettings } from "../src/lib/storage";
-import { normalizeAnimeVocabExport } from "../web/src/lib/sync";
-import type { VocabMap } from "../src/types";
-
-/**
- * The sync round against a scripted server: what it reads, what it applies,
- * and what it sends back. In-memory chrome.storage, real storage.ts.
- */
-const local: Record<string, unknown> = {};
-const HOUR = 3600e3;
-const T0 = Date.parse("2026-09-25T10:00:00Z");
-
-type Call = { method: string; body?: Record<string, unknown> };
-let calls: Call[] = [];
-
-function learningWord(stage: number) {
-  return {
-    state: "learning" as const, reading: "たべる", gloss: "to eat", level: 2, freqRank: 300,
-    seenCount: 1, shownCount: 1, firstSeenAt: T0 - 48 * HOUR, lastSeenAt: T0 - 24 * HOUR,
-    srs: { stage, dueAt: T0 - HOUR, lapses: 0 },
-  };
+import { syncWithCloud, syncPendingSignouts } from "../src/lib/cloud-sync";
+import {
+  clearSignedOutCache,
+  setSyncToken,
+  setSettings,
+  judgeWord,
+} from "../src/lib/storage";
+import {
+  emptyLearnState,
+  newLearnOp,
+  projectLearnOp,
+  type LearnState,
+  type LearnChange,
+  type LearnOp,
+} from "../web/src/lib/learn-protocol/model";
+import type { PendingLearnOp } from "../src/lib/learn-cache";
+const local: Record<string, any> = {};
+const states = new Map<string, LearnState>();
+const logs = new Map<string, LearnChange[]>();
+const posted: { token: string; ops: LearnOp[] }[] = [];
+const owner = (token: string) =>
+  token.startsWith("other") ? "user-b" : "user-a";
+const meta = { reading: "neko", gloss: "cat", level: 5, freqRank: 5 };
+let offline = false;
+let status = 200;
+const epochs = new Map<string, number>();
+/** Ops the fake server refuses for good, as the real one does for a missing word. */
+const refused = new Set<string>();
+const urls: string[] = [];
+let onPost: (() => Promise<void>) | undefined;
+function serverOp(token: string, op: LearnOp) {
+  const user = owner(token);
+  const state = states.get(user) || emptyLearnState();
+  const log = logs.get(user) || [];
+  if (!log.some((c) => c.op_id === op.op_id))
+    log.push({
+      cursor: log.length + 1,
+      op_id: op.op_id,
+      delta: projectLearnOp(state, op),
+    });
+  states.set(user, state);
+  logs.set(user, log);
 }
-
-function stubServer(script: { get: () => unknown; put: (body: Record<string, unknown>) => { status: number; body: unknown } }) {
-  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-    const method = init?.method || "GET";
-    if (!String(url).includes("/api/sync/snapshot")) return new Response(null, { status: 204 });
-    if (method === "GET") {
-      calls.push({ method });
-      return new Response(JSON.stringify(script.get()), { status: 200 });
-    }
-    const body = JSON.parse(String(init?.body));
-    calls.push({ method, body });
-    const out = script.put(body);
-    return new Response(JSON.stringify(out.body), { status: out.status });
-  }));
-}
-
 beforeEach(() => {
-  for (const key of Object.keys(local)) delete local[key];
-  calls = [];
-  local.syncToken = "tok";
+  for (const k of Object.keys(local)) delete local[k];
+  states.clear();
+  logs.clear();
+  posted.length = 0;
+  epochs.clear();
+  refused.clear();
+  urls.length = 0;
+  offline = false;
+  status = 200;
+  onPost = undefined;
+  local.syncToken = "token-a";
   vi.stubGlobal("chrome", {
-    runtime: { id: "test", sendMessage: vi.fn(async () => undefined) },
-    tabs: { query: vi.fn(async () => []), sendMessage: vi.fn(async () => undefined) },
+    runtime: {
+      id: "test",
+      sendMessage: vi.fn(async () => ({ value: undefined })),
+    },
+    tabs: { query: vi.fn(async () => []) },
     storage: {
       local: {
-        // Both call shapes: storage.ts uses the promise form and exportAll the
-        // callback form.
-        get: vi.fn((keys: string[] | string, cb?: (r: Record<string, unknown>) => void) => {
-          const list = Array.isArray(keys) ? keys : [keys];
-          const out = Object.fromEntries(list.map((k) => [k, structuredClone(local[k])]).filter(([, v]) => v !== undefined));
-          if (cb) { cb(out); return undefined; }
-          return Promise.resolve(out);
+        get: vi.fn((keys: string[] | string, cb?: Function) => {
+          const values = Object.fromEntries(
+            (Array.isArray(keys) ? keys : [keys]).map((k) => [
+              k,
+              structuredClone(local[k]),
+            ]),
+          );
+          if (cb) {
+            cb(values);
+            return;
+          }
+          return Promise.resolve(values);
         }),
-        set: vi.fn((value: Record<string, unknown>, cb?: () => void) => {
-          Object.assign(local, structuredClone(value));
-          if (cb) { cb(); return undefined; }
+        set: vi.fn((patch: Record<string, unknown>, cb?: Function) => {
+          Object.assign(local, structuredClone(patch));
+          if (cb) {
+            cb();
+            return;
+          }
           return Promise.resolve();
         }),
       },
     },
   });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (!url.includes("/api/learn/"))
+        return new Response(null, { status: 204 });
+      if (offline) throw new Error("offline");
+      urls.push(url);
+      if (status !== 200) return new Response("{}", { status });
+      const token =
+        (init?.headers as Record<string, string>).Authorization?.replace(
+          "Bearer ",
+          "",
+        ) || "";
+      const user = owner(token);
+      if (init?.method === "POST") {
+        const { ops, epoch } = JSON.parse(String(init.body));
+        posted.push({ token, ops: structuredClone(ops) });
+        if (epoch !== undefined && epoch !== (epochs.get(user) || 0))
+          return Response.json({ error: "epoch_changed" }, { status: 409 });
+        if (ops.some((o: LearnOp) => refused.has(o.op_id)))
+          return Response.json({ error: "word_not_found" }, { status: 404 });
+        const hook = onPost;
+        onPost = undefined;
+        if (hook) await hook();
+        for (const op of ops) serverOp(token, op);
+        return Response.json({
+          acknowledged: ops.map((o: LearnOp) => o.op_id),
+        });
+      }
+      const params = new URL(url).searchParams;
+      const since = Number(params.get("since"));
+      const all = (logs.get(user) || []).filter((c) => c.cursor > since);
+      const page = all.slice(0, Number(params.get("limit") ?? 2));
+      return Response.json({
+        userId: user,
+        epoch: epochs.get(user) || 0,
+        changes: page,
+        cursor: page.at(-1)?.cursor || since,
+        hasMore: all.length > 2,
+      });
+    }),
+  );
 });
-
-describe("cloud sync round", () => {
-  it("backs up unsynced words and preserves the device key at sign-out, retrying with the outgoing token", async () => {
-    local.vocab = { 犬: learningWord(3) };
-    local.settings = { openaiKey: "device-only-key", cooldownSec: 7 };
-    await clearSignedOutCache();
-    expect(local.syncToken).toBe("");
-    expect(local.vocab).toEqual({});
-    expect(local.settings).toEqual({ openaiKey: "device-only-key" });
-    const pending = structuredClone(local.pendingSignoutExports);
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
-    await syncPendingSignouts();
-    expect(local.pendingSignoutExports).toEqual(pending);
-    local.syncToken = "other-account";
-    stubServer({ get: () => ({ envelope: { revision: 4 } }), put: () => ({ status: 200, body: {} }) });
-    await syncPendingSignouts();
-    const put = calls.find(c => c.method === "PUT")!;
-    expect((put.body!.export as { vocab: VocabMap }).vocab).toEqual({ 犬: learningWord(3) });
-    const fetches = vi.mocked(fetch).mock.calls;
-    expect(fetches.every(([, init]) => (init?.headers as Record<string, string>).Authorization === "Bearer tok")).toBe(true);
-    expect(JSON.stringify(put.body)).not.toContain("device-only-key");
-    expect(local.pendingSignoutExports).toEqual([]);
-    expect(local.syncToken).toBe("other-account");
+describe("durable operation sync", () => {
+  it("probes identity without downloading history", async () => {
+    await judgeWord("猫", "learn", meta);
+    await syncWithCloud();
+    await syncWithCloud();
+    const probes = urls.filter((u) => u.includes("since=0&limit=0"));
+    expect(probes).toHaveLength(2);
   });
 
-  it("replays cloud reviews into an outgoing export without modifying the signed-out active cache", async () => {
-    local.vocab = { 食べる: learningWord(2) };
-    local.webReviewSeq = 3;
-    await clearSignedOutCache();
-    stubServer({ get: () => ({ envelope: { revision: 4, webReviews: [
-      { seq: 3, base: "食べる", result: "fail", at: new Date(T0).toISOString() },
-      { seq: 4, base: "食べる", result: "pass", at: new Date(T0).toISOString() },
-    ] } }), put: () => ({ status: 200, body: {} }) });
-    await syncPendingSignouts();
-    const body = calls.find(c => c.method === "PUT")!.body!;
-    expect((body.export as { vocab: VocabMap }).vocab['食べる'].srs?.stage).toBe(3);
-    expect(body.appliedWebReviewSeq).toBe(4);
-    expect(local.vocab).toEqual({});
-    expect(local.webReviewSeq).toBe(0);
+  it("sets aside a permanently rejected op and keeps syncing the rest", async () => {
+    await judgeWord("猫", "learn", meta);
+    const bad = newLearnOp("review", { base: "犬", result: "pass", day: "2026-11-01" });
+    refused.add(bad.op_id);
+    local.learnOutbox.push({ token: "token-a", ownerId: null, op: bad });
+    await judgeWord("鳥", "learn", { ...meta, reading: "tori", gloss: "bird" });
+    await syncWithCloud();
+    expect(states.get("user-a")?.words.猫).toBeTruthy();
+    expect(states.get("user-a")?.words.鳥).toBeTruthy();
+    expect(local.learnOutbox).toEqual([]);
+    expect(local.learnRejected).toMatchObject([{ op: { op_id: bad.op_id }, reason: "word_not_found" }]);
+    expect(local.syncStatus.state).toBe("ok");
+    // Later writes are not blocked by the rejected one.
+    await judgeWord("魚", "learn", { ...meta, reading: "sakana", gloss: "fish" });
+    await syncWithCloud();
+    expect(states.get("user-a")?.words.魚).toBeTruthy();
   });
 
-  it("accepts a token even when restore fails, reports the error, and retries without losing new words or the device key", async () => {
-    local.syncToken = "";
-    local.accountCacheClearedAt = 123;
+  it("keeps the outbox on transient conflicts", async () => {
+    await judgeWord("猫", "learn", meta);
+    status = 409;
+    await syncWithCloud();
+    expect(local.learnOutbox.length).toBeGreaterThan(0);
+    expect(local.learnRejected).toBeUndefined();
+    status = 200;
+    await syncWithCloud();
+    expect(local.learnOutbox).toEqual([]);
+  });
+
+  it("drops the erased epoch's cache and unsent writes after a data reset elsewhere", async () => {
+    await judgeWord("猫", "learn", meta);
+    await syncWithCloud();
+    expect(local.learnEpoch).toBe(0);
+    expect(local.vocab.猫).toBeTruthy();
+    // The learner deletes their data on the site from another device.
+    states.delete("user-a");
+    logs.delete("user-a");
+    epochs.set("user-a", 1);
+    await judgeWord("犬", "learn", { ...meta, reading: "inu", gloss: "dog" });
+    await syncWithCloud();
+    expect(states.get("user-a")?.words || {}).toEqual({});
+    expect(local.vocab).toEqual({});
+    expect(local.learnOutbox).toEqual([]);
+    expect(local.learnEpoch).toBe(1);
+    expect(local.syncToken).toBe("token-a");
+    await judgeWord("鳥", "learn", { ...meta, reading: "tori", gloss: "bird" });
+    await syncWithCloud();
+    expect(Object.keys(states.get("user-a")?.words || {})).toEqual(["鳥"]);
+  });
+
+  it("does not import an uninitialized previous account's cache into a different account",async()=>{
+    local.vocab={猫:{state:"known",...meta,seenCount:1,shownCount:0,firstSeenAt:Date.now(),lastSeenAt:Date.now(),srs:null}};
+    await setSyncToken("other-b");await syncWithCloud();
+    expect(states.get("user-a")?.words.猫).toBeTruthy();
+    expect(states.get("user-b")?.words || {}).toEqual({});
+    expect(local.vocab).toEqual({});
+  });
+
+  it("persists a word and its outbox atomically before uploading", async () => {
+    await judgeWord("猫", "learn", meta);
+    expect(local.vocab.猫.state).toBe("learning");
+    expect(local.learnOutbox.length).toBeGreaterThan(0);
+    const writes = vi.mocked(chrome.storage.local.set).mock.calls;
+    expect(writes.some(([p]) => p.vocab && p.learnOutbox)).toBe(true);
+    await syncWithCloud();
+    expect(states.get("user-a")?.words.猫.state).toBe("learning");
+    expect(local.learnOutbox).toEqual([]);
+    expect(local.syncStatus.state).toBe("ok");
+  });
+  it("retries the same operation IDs after offline failure and excludes the device key", async () => {
     local.settings = { openaiKey: "device-only-key" };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response('{}', { status: 503 })));
-    await setSyncToken("relinked");
-    expect(fetch).not.toHaveBeenCalled();
-    await pushSnapshot();
-    expect(local.syncToken).toBe("relinked");
-    expect(local.accountCacheClearedAt).toBe(123);
-    expect(local.syncStatus).toMatchObject({ state: "error", error: expect.stringContaining("restore") });
-    local.vocab = { 犬: learningWord(2) };
-    const snapshot = normalizeAnimeVocabExport({ vocab: { 食べる: learningWord(3) }, settings: { pauseMode: "off" } });
-    stubServer({ get: () => ({ envelope: { revision: 8, snapshot } }), put: () => ({ status: 200, body: {} }) });
-    await pushSnapshot();
-    expect(local.accountCacheClearedAt).toBeNull();
-    expect(Object.keys(local.vocab as object).sort()).toEqual(["犬", "食べる"].sort());
-    expect(local.settings).toMatchObject({ openaiKey: "device-only-key", pauseMode: "off" });
-    expect(local.syncStatus).toMatchObject({ state: "ok" });
+    await judgeWord("猫", "learn", meta);
+    const ids = local.learnOutbox.map((p: PendingLearnOp) => p.op.op_id);
+    offline = true;
+    await syncWithCloud();
+    expect(local.learnOutbox.map((p: PendingLearnOp) => p.op.op_id)).toEqual(
+      ids,
+    );
+    offline = false;
+    await syncWithCloud();
+    expect(posted.flatMap((p) => p.ops.map((o) => o.op_id))).toEqual(
+      expect.arrayContaining(ids),
+    );
+    expect(JSON.stringify(posted)).not.toContain("device-only-key");
+    expect(local.settings.openaiKey).toBe("device-only-key");
   });
-
-  it("does not block queued settings writes while a restore request is pending", async () => {
-    local.accountCacheClearedAt = 123;
-    let finish!: (res: Response) => void;
-    let started!: () => void;
-    const began = new Promise<void>(resolve => { started = resolve; });
-    vi.stubGlobal("fetch", vi.fn(() => { started(); return new Promise<Response>(resolve => { finish = resolve; }); }));
-    const sync = pushSnapshot();
-    await began;
-    await setSettings({ cooldownSec: 9 });
-    expect(local.settings).toMatchObject({ cooldownSec: 9 });
-    finish(new Response('{}', { status: 503 }));
-    await sync;
-  });
-
-  it("discards a response from before sign-out without applying reviews or uploading an empty deck", async () => {
-    stubServer({
-      get: () => {
-        local.syncToken = "";
-        local.vocab = {};
-        local.webReviewSeq = 0;
-        return { envelope: { revision: 3, webReviews: [{ seq: 12, base: "食べる", result: "pass", at: new Date(T0).toISOString() }] } };
+  it("does not import an already-applied local review and then apply it again", async () => {
+    local.vocab = {
+      猫: {
+        state: "learning",
+        ...meta,
+        seenCount: 1,
+        shownCount: 1,
+        firstSeenAt: Date.now() - 100000,
+        lastSeenAt: Date.now() - 10000,
+        srs: { stage: 1, dueAt: Date.now() - 1, lapses: 0 },
       },
-      put: () => ({ status: 200, body: {} }),
+    };
+    await judgeWord("猫", "review-pass", meta);
+    expect(local.vocab.猫.srs.stage).toBe(2);
+    await syncWithCloud();
+    expect(states.get("user-a")?.words.猫.review?.stage).toBe(2);
+    expect(local.vocab.猫.srs.stage).toBe(2);
+    expect(
+      (logs.get("user-a") || []).filter(
+        (c) =>
+          c.delta.daily?.[new Date().toLocaleDateString("sv")]?.reviews === 1,
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+  it("keeps phone and extension reviews and does not replay acknowledged intent twice", async () => {
+    await judgeWord("猫", "learn", meta);
+    await syncWithCloud();
+    serverOp(
+      "token-a",
+      newLearnOp("review", {
+        base: "猫",
+        result: "pass",
+        day: new Date().toLocaleDateString("sv"),
+      }),
+    );
+    await judgeWord("猫", "review-pass", meta);
+    await syncWithCloud();
+    expect(states.get("user-a")?.words.猫.review?.stage).toBe(3);
+    expect(local.vocab.猫.srs.stage).toBe(3);
+    expect(Object.values(states.get("user-a")!.daily)[0].reviews).toBe(2);
+    await syncWithCloud();
+    expect(local.vocab.猫.srs.stage).toBe(3);
+  });
+  it("retains writes added while a batch is in flight", async () => {
+    await judgeWord("猫", "learn", meta);
+    onPost = async () => {
+      await judgeWord("犬", "learn", { ...meta, gloss: "dog" });
+      void syncWithCloud();
+    };
+    await syncWithCloud();
+    expect(Object.keys(states.get("user-a")!.words).sort()).toEqual(
+      ["犬", "猫"].sort(),
+    );
+    expect(local.learnOutbox).toEqual([]);
+  });
+  it("pulls site settings while preserving a newer pending local setting", async () => {
+    await syncWithCloud();
+    serverOp(
+      "token-a",
+      newLearnOp("settings", {
+        settings: { subLens: false, subLensPeek: false },
+      }),
+    );
+    await setSettings({ cooldownSec: 7 });
+    await syncWithCloud();
+    expect(local.settings).toMatchObject({
+      subLens: false,
+      subLensPeek: false,
+      cooldownSec: 7,
     });
-    await pushSnapshot();
-    expect(calls.map(c => c.method)).toEqual(["GET"]);
-    expect(local.webReviewSeq).toBe(0);
+  });
+  it("keeps a signed-out save until linking, then imports only once", async () => {
+    local.syncToken = "";
+    await judgeWord("猫", "learn", meta);
+    expect(local.learnOutbox.every((p: PendingLearnOp) => p.token === "")).toBe(
+      true,
+    );
+    await setSyncToken("token-a");
+    await syncWithCloud();
+    const count = logs.get("user-a")!.length;
+    await setSyncToken("token-a");
+    await syncWithCloud();
+    expect(logs.get("user-a")!.length).toBe(count);
+    expect(Object.keys(states.get("user-a")!.words)).toEqual(["猫"]);
+  });
+  it("isolates pending writes across sign-out and account switching", async () => {
+    await judgeWord("猫", "learn", meta);
+    await syncWithCloud();
+    await judgeWord("犬", "learn", { ...meta, gloss: "dog" });
+    offline = true;
+    await clearSignedOutCache();
     expect(local.vocab).toEqual({});
+    await setSyncToken("other-b");
+    await syncWithCloud();
+    expect(
+      local.learnOutbox.some((p: PendingLearnOp) => p.token === "token-a"),
+    ).toBe(true);
+    offline = false;
+    await syncWithCloud();
+    expect(Object.keys(states.get("user-a")!.words).sort()).toEqual(
+      ["犬", "猫"].sort(),
+    );
+    expect(states.get("user-b")?.words || {}).toEqual({});
+    expect(local.vocab).toEqual({});
+    expect(
+      posted
+        .filter((p) => p.token === "other-b")
+        .flatMap((p) => p.ops)
+        .some((o) => (o.payload.word as any)?.base === "犬"),
+    ).toBe(false);
   });
-  it("applies the cloud app's reviews before exporting, and says how far it got", async () => {
-    local.vocab = { 食べる: learningWord(2) } satisfies VocabMap;
-    stubServer({
-      get: () => ({ envelope: { revision: 7, webReviews: [{ seq: 3, base: "食べる", result: "pass", at: new Date(T0).toISOString() }] } }),
-      put: () => ({ status: 200, body: { envelope: { revision: 8 } } }),
-    });
-    await pushSnapshot();
-    const put = calls.find((c) => c.method === "PUT")!;
-    expect(put.body!.expectedRevision).toBe(7);
-    expect(put.body!.appliedWebReviewSeq).toBe(3);
-    const exported = (put.body!.export as { vocab: VocabMap }).vocab["食べる"];
-    expect(exported.srs?.stage).toBe(3);
-    expect((local.syncStatus as { state: string }).state).toBe("ok");
-  });
-
-  it("reruns the whole round on a 409 instead of re-sending a stale export", async () => {
-    local.vocab = { 食べる: learningWord(2) } satisfies VocabMap;
-    let gets = 0;
-    let puts = 0;
-    stubServer({
-      // A review lands on the web between the first read and the first write.
-      get: () => {
-        gets++;
-        return gets === 1
-          ? { envelope: { revision: 1, webReviews: [] } }
-          : { envelope: { revision: 2, webReviews: [{ seq: 1, base: "食べる", result: "fail", at: new Date(T0).toISOString() }] } };
+  it("uploads legacy detached snapshots with their outgoing credential", async () => {
+    local.vocab = {
+      猫: {
+        state: "known",
+        ...meta,
+        seenCount: 1,
+        shownCount: 0,
+        firstSeenAt: Date.now(),
+        lastSeenAt: Date.now(),
+        srs: null,
       },
-      put: () => {
-        puts++;
-        return puts === 1
-          ? { status: 409, body: { error: "revision-conflict", conflict: { currentRevision: 2 } } }
-          : { status: 200, body: { envelope: { revision: 3 } } };
-      },
-    });
-    await pushSnapshot();
-    expect(calls.map((c) => c.method)).toEqual(["GET", "PUT", "GET", "PUT"]);
-    const second = calls[3].body!;
-    expect(second.expectedRevision).toBe(2);
-    expect(second.appliedWebReviewSeq).toBe(1);
-    const exported = (second.export as { vocab: VocabMap }).vocab["食べる"];
-    expect(exported.srs).toMatchObject({ stage: 1, lapses: 1 });
+    };
+    await clearSignedOutCache();
+    local.syncToken = "other-b";
+    await syncPendingSignouts();
+    expect(local.pendingSignoutExports).toEqual([]);
+    expect(states.get("user-a")?.words.猫).toBeTruthy();
+    expect(states.get("user-b")).toBeUndefined();
   });
-
-  it("never sends the BYO key", async () => {
-    local.settings = { openaiKey: "sk-secret" };
-    stubServer({ get: () => ({ envelope: null }), put: () => ({ status: 200, body: {} }) });
-    await pushSnapshot();
-    const put = calls.find((c) => c.method === "PUT")!;
-    expect(JSON.stringify(put.body)).not.toContain("sk-secret");
-    expect(put.body!.expectedRevision).toBeNull();
-    expect(put.body!.appliedWebReviewSeq).toBe(0);
+  it("keeps a token on a transient 401 and requests relinking after three", async () => {
+    status = 401;
+    await syncWithCloud();
+    expect(local.syncToken).toBe("token-a");
+    await syncWithCloud();
+    await syncWithCloud();
+    expect(local.syncToken).toBe("");
+    expect(local.relinkNeeded).toBe(true);
   });
 });

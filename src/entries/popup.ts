@@ -24,9 +24,7 @@ type Theme = "dark" | "light";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function todayKey(): string {
-  return new Date().toLocaleDateString("sv");
-}
+
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
@@ -781,11 +779,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   byId("settings-link").addEventListener("click", async (e) => {
     e.preventDefault();
-    // Always the extension's own settings. Signed-in learners used to be sent
-    // to the web app, whose form covers only some settings (not the Subtitle
-    // Lens) and whose saves the extension never pulled back down — its next
-    // sync pushed the old values over them.
-    chrome.runtime.openOptionsPage();
+    chrome.tabs.create({url:cloudAppUrl("settings","popup_settings")});
   });
 
   byId("subs-diag-copy").addEventListener("click", (e) => {
@@ -796,13 +790,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   byId("export-link").addEventListener("click", async (e) => {
     e.preventDefault();
-    const data = await storage.exportAll();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `animevocab-export-${todayKey()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    chrome.tabs.create({url:cloudAppUrl("backup","popup_export")});
   });
 });
