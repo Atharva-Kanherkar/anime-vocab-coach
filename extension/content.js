@@ -476,6 +476,9 @@
     "listening_started",
     "install_first_run",
     "extension_linked",
+    "quiz_offered",
+    "quiz_started",
+    "quiz_completed",
     ...SIGNIN_FEATURE_EVENTS
   ];
   function isFeatureEvent(v) {
@@ -504,7 +507,8 @@
     "ext_popup",
     "ext_milestone",
     "ext_popup_limit",
-    "ext_limit_sheet"
+    "ext_limit_sheet",
+    "ext_episode_quiz"
   ];
   function isProFunnelEvent(v) {
     return typeof v === "string" && PRO_FUNNEL_EVENTS.includes(v);
@@ -922,6 +926,19 @@
       } catch {
         resolve("");
       }
+    });
+  }
+  function normalizeSyncPlan(value) {
+    return value === "free" || value === "pro" || value === "max" ? value : null;
+  }
+  function getSyncProfile() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["syncProfile"], (r) => {
+        const p = r.syncProfile;
+        resolve(
+          p && typeof p === "object" ? { email: p.email ?? null, name: p.name ?? null, plan: normalizeSyncPlan(p.plan) } : null
+        );
+      });
     });
   }
 
@@ -1765,10 +1782,10 @@
     return path.length ? path[0] : e.target;
   }
   function isEditableTarget(node) {
-    const el = node;
-    if (!el || typeof el.tagName !== "string") return false;
-    const tag = el.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
+    const el2 = node;
+    if (!el2 || typeof el2.tagName !== "string") return false;
+    const tag = el2.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el2.isContentEditable === true;
   }
   function isTypingEvent(e) {
     if (isEditableTarget(originalTarget(e))) return true;
@@ -1778,10 +1795,10 @@
   }
   function keepFocusOnMouseClick(root2) {
     root2.addEventListener("mousedown", (e) => {
-      const el = e.composedPath()[0];
-      if (!el || typeof el.closest !== "function") return;
-      if (el.closest("input, textarea, select, [contenteditable]")) return;
-      if (el.closest("button, [role='button']")) e.preventDefault();
+      const el2 = e.composedPath()[0];
+      if (!el2 || typeof el2.closest !== "function") return;
+      if (el2.closest("input, textarea, select, [contenteditable]")) return;
+      if (el2.closest("button, [role='button']")) e.preventDefault();
     });
   }
   function relay(e) {
@@ -2670,12 +2687,12 @@
     return line;
   }
   function buildSentence(sentence, tokens, targetIndex, surface, displayScript, direction = "en-ja") {
-    const el = document.createElement("div");
-    el.className = "avc-agent-sentence";
+    const el2 = document.createElement("div");
+    el2.className = "avc-agent-sentence";
     const label = document.createElement("span");
     label.className = "avc-agent-label";
     label.textContent = tokens?.length ? "In this line" : "Line";
-    el.appendChild(label);
+    el2.appendChild(label);
     if (tokens?.length) {
       const romajiSentence = displayScript === "romaji" || displayScript === "romaji-kana";
       if (normalizeDirection(direction) === "en-ja" && romajiSentence) {
@@ -2692,25 +2709,25 @@
           }
           if (idx < pieces.length - 1) romajiLine.appendChild(document.createTextNode(" "));
         });
-        el.appendChild(romajiLine);
+        el2.appendChild(romajiLine);
       }
       const lookupOut = document.createElement("div");
       lookupOut.className = "avc-agent-lookup";
       lookupOut.style.display = "none";
-      el.appendChild(buildTappableJa(tokens, targetIndex, lookupOut));
-      el.appendChild(lookupOut);
-      return el;
+      el2.appendChild(buildTappableJa(tokens, targetIndex, lookupOut));
+      el2.appendChild(lookupOut);
+      return el2;
     }
     const parts = sentence.split(surface);
     parts.forEach((part, idx) => {
-      el.appendChild(document.createTextNode(part));
+      el2.appendChild(document.createTextNode(part));
       if (idx < parts.length - 1) {
         const mark = document.createElement("mark");
         mark.textContent = surface;
-        el.appendChild(mark);
+        el2.appendChild(mark);
       }
     });
-    return el;
+    return el2;
   }
   function limitKindFromError(error) {
     if (error === "quota_exceeded" || error === "ai_quota_exhausted") return "ai";
@@ -3485,11 +3502,11 @@
       paywallKeyHandler = null;
       paywallRoot = null;
     }
-    const el = paywallEl;
-    if (!el) return;
+    const el2 = paywallEl;
+    if (!el2) return;
     paywallEl = null;
-    el.classList.remove("avc-visible");
-    setTimeout(() => el.remove(), 220);
+    el2.classList.remove("avc-visible");
+    setTimeout(() => el2.remove(), 220);
   }
   function showLimitSheet(kind, usage) {
     const root2 = mountHost();
@@ -3651,17 +3668,17 @@
     shell.wordIdle.innerHTML = course ? "Listening along with your lesson.<br>Unit words light up when they're spoken. <strong>Ask anything</strong> below." : "Watching. New words appear here.<br><strong>Ask anything</strong> in the chat below.";
     if (!course) return;
     const lesson = course;
-    const el = (tag2, cls, text) => {
+    const el2 = (tag2, cls, text) => {
       const node = document.createElement(tag2);
       node.className = cls;
       if (text !== void 0) node.textContent = text;
       return node;
     };
     const ja = lesson.script === "kana" ? "ja" : "";
-    const top = el("div", "avc-course-top");
+    const top = el2("div", "avc-course-top");
     const tag = [lesson.unit ? `N5 \xB7 Unit ${lesson.unit}` : "N5 course", lesson.episode ? `Episode ${lesson.episode.number}` : ""].filter(Boolean).join(" \xB7 ");
-    top.appendChild(el("span", "avc-course-tag", tag));
-    const link = el("button", "avc-course-link", "Lesson \u2197");
+    top.appendChild(el2("span", "avc-course-tag", tag));
+    const link = el2("button", "avc-course-link", "Lesson \u2197");
     link.type = "button";
     link.title = "Open this lesson on animevocab.com";
     link.addEventListener("click", (e) => {
@@ -3670,35 +3687,35 @@
     });
     top.appendChild(link);
     box.appendChild(top);
-    box.appendChild(el("div", "avc-course-goal", lesson.canDo));
-    const words = el("div", "avc-course-words");
+    box.appendChild(el2("div", "avc-course-goal", lesson.canDo));
+    const words = el2("div", "avc-course-words");
     for (const w of lesson.words) {
       const heard = lesson.heard.includes(w.id);
-      const chip = el("span", "avc-course-word" + (heard ? " avc-heard" : "") + (courseMoment?.wordIds.includes(w.id) ? " avc-just" : ""), (heard ? "\u2713 " : "") + w.reading);
+      const chip = el2("span", "avc-course-word" + (heard ? " avc-heard" : "") + (courseMoment?.wordIds.includes(w.id) ? " avc-just" : ""), (heard ? "\u2713 " : "") + w.reading);
       if (ja) chip.lang = ja;
       chip.title = w.meaning;
       words.appendChild(chip);
     }
     box.appendChild(words);
     const count = lesson.words.filter((w) => lesson.heard.includes(w.id)).length;
-    box.appendChild(el("div", "avc-course-count", `Heard ${count} of ${lesson.words.length} unit words \xB7 saved to your account`));
+    box.appendChild(el2("div", "avc-course-count", `Heard ${count} of ${lesson.words.length} unit words \xB7 saved to your account`));
     if (courseMoment) {
-      const moment = el("div", "avc-course-moment");
+      const moment = el2("div", "avc-course-moment");
       moment.setAttribute("aria-live", "polite");
       const heardWords = lesson.words.filter((w) => courseMoment.wordIds.includes(w.id));
-      const said = el("div", "");
+      const said = el2("div", "");
       said.append("Heard ");
       heardWords.forEach((w, i) => {
         if (i) said.append(", ");
-        const b = el("strong", "", w.reading);
+        const b = el2("strong", "", w.reading);
         if (ja) b.lang = ja;
         said.append(b, ` (${w.meaning})`);
       });
       moment.appendChild(said);
-      const q = el("q", "", courseMoment.line);
+      const q = el2("q", "", courseMoment.line);
       q.lang = "ja";
       moment.appendChild(q);
-      const explain = el("button", "avc-course-btn", "Explain this line");
+      const explain = el2("button", "avc-course-btn", "Explain this line");
       explain.type = "button";
       const line = courseMoment.line;
       explain.addEventListener("click", (e) => {
@@ -3717,9 +3734,9 @@
       box.appendChild(moment);
     }
     if (lesson.episode) {
-      const finish = el("button", "avc-course-btn avc-course-finish", `Finish episode ${lesson.episode.number} \xB7 practise`);
+      const finish = el2("button", "avc-course-btn avc-course-finish", `Finish episode ${lesson.episode.number} \xB7 practise`);
       finish.type = "button";
-      const status = el("div", "avc-course-status");
+      const status = el2("div", "avc-course-status");
       status.setAttribute("aria-live", "polite");
       finish.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -5773,6 +5790,767 @@
     }
   };
 
+  // src/lib/episode-quiz.ts
+  var MAX_LOG_LINES = 400;
+  var MAX_SENT_LINES = 120;
+  var MIN_QUIZ_LINES = 20;
+  var MIN_PLAYBACK_SEC = 8 * 60;
+  var MIN_EPISODE_SEC = 8 * 60;
+  var END_WINDOW_SEC = 150;
+  var END_WINDOW_FRACTION = 0.1;
+  var MAX_ASKED_KEYS = 50;
+  var QUIZ_OFF_KEY = "avcEpisodeQuizOff";
+  var QUIZ_ASKED_KEY = "avcEpisodeQuizAsked";
+  var EpisodeLog = class {
+    constructor() {
+      this.key = "";
+      this.lines = [];
+      this.seen = /* @__PURE__ */ new Set();
+      this.playedSec = 0;
+    }
+    /** Start over when the session (the video) changed. */
+    use(key) {
+      if (key === this.key) return;
+      this.key = key;
+      this.lines = [];
+      this.seen.clear();
+      this.playedSec = 0;
+    }
+    get session() {
+      return this.key;
+    }
+    add(text, en = "") {
+      const ja = text.replace(/\s+/g, " ").trim();
+      if (!ja || this.seen.has(ja)) return;
+      this.seen.add(ja);
+      this.lines.push({ ja, en: en.replace(/\s+/g, " ").trim() });
+      if (this.lines.length > MAX_LOG_LINES) {
+        const gone = this.lines.shift();
+        if (gone) this.seen.delete(gone.ja);
+      }
+    }
+    get size() {
+      return this.lines.length;
+    }
+    /** Up to `max` lines, evenly spread from the first to the last, in order. */
+    sample(max = MAX_SENT_LINES) {
+      const n = this.lines.length;
+      if (n <= max) return this.lines.slice();
+      const out = [];
+      for (let i = 0; i < max; i++) out.push(this.lines[Math.floor(i * (n - 1) / (max - 1))]);
+      return out;
+    }
+  };
+  function isEpisodeEnding(v) {
+    if (v.ended) return true;
+    const d = v.duration;
+    if (!Number.isFinite(d) || d < MIN_EPISODE_SEC) return false;
+    return d - v.currentTime <= Math.min(END_WINDOW_SEC, d * END_WINDOW_FRACTION);
+  }
+  function shouldOfferQuiz(i) {
+    return !i.optedOut && !i.asked && !i.inCourse && i.ending && i.lines >= MIN_QUIZ_LINES && i.playedSec >= MIN_PLAYBACK_SEC;
+  }
+  function isCorrect(q, a) {
+    if (a === null) return false;
+    if (q.kind === "build") {
+      return Array.isArray(a) && !!q.tiles && a.length === q.tiles.length && a.every((t, i) => t === q.tiles[i]);
+    }
+    return typeof a === "number" && a === q.answer;
+  }
+  function scoreQuiz(questions, answers) {
+    return questions.reduce((n, q, i) => n + (isCorrect(q, answers[i] ?? null) ? 1 : 0), 0);
+  }
+  function verdictFor(score, total) {
+    const r = total ? score / total : 0;
+    if (r >= 0.9) return "Sharp";
+    if (r >= 0.7) return "Solid";
+    if (r >= 0.4) return "Getting there";
+    return "Rewatch-worthy";
+  }
+  function missedWords(questions, answers, vocab) {
+    const out = [];
+    questions.forEach((q, i) => {
+      if (q.kind !== "meaning" || !q.word || isCorrect(q, answers[i] ?? null)) return;
+      const rec = vocab[q.word.word];
+      if (rec && (rec.state === "learning" || rec.state === "known")) return;
+      if (out.some((w) => w.word === q.word.word)) return;
+      out.push({ ...q.word, line: q.quote || "" });
+    });
+    return out;
+  }
+  function knownWordsIn(lines, vocab, max = 40) {
+    const text = lines.map((l) => l.ja).join("\n");
+    const out = [];
+    for (const [word, rec] of Object.entries(vocab)) {
+      if (rec.state !== "known" && rec.state !== "learning") continue;
+      if (word.length < 1 || !text.includes(word)) continue;
+      out.push(word);
+      if (out.length >= max) break;
+    }
+    return out;
+  }
+  function practiceWords(questions, answers, max = 2) {
+    const words = questions.filter((q) => q.kind === "meaning" && q.word);
+    const missed = questions.filter((q, i) => q.kind === "meaning" && q.word && !isCorrect(q, answers[i] ?? null));
+    const out = [];
+    for (const q of [...missed, ...words]) {
+      if (!out.includes(q.word.word)) out.push(q.word.word);
+      if (out.length >= max) break;
+    }
+    return out;
+  }
+  function rememberAsked(asked, key) {
+    const next = asked.filter((k) => k !== key);
+    next.push(key);
+    return next.slice(-MAX_ASKED_KEYS);
+  }
+  function shuffled(items, rand = Math.random) {
+    const out = items.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    if (out.length > 1 && out.every((t, i) => t === items[i])) out.push(out.shift());
+    return out;
+  }
+  async function getQuizPrefs() {
+    try {
+      const r = await chrome.storage.local.get([QUIZ_OFF_KEY, QUIZ_ASKED_KEY]);
+      const asked = Array.isArray(r[QUIZ_ASKED_KEY]) ? r[QUIZ_ASKED_KEY].filter((k) => typeof k === "string") : [];
+      return { off: r[QUIZ_OFF_KEY] === true, asked };
+    } catch {
+      return { off: true, asked: [] };
+    }
+  }
+  async function markQuizAsked(key) {
+    try {
+      const { asked } = await getQuizPrefs();
+      await chrome.storage.local.set({ [QUIZ_ASKED_KEY]: rememberAsked(asked, key) });
+    } catch {
+    }
+  }
+  async function setQuizOff() {
+    try {
+      await chrome.storage.local.set({ [QUIZ_OFF_KEY]: true });
+    } catch {
+    }
+  }
+
+  // src/lib/episode-quiz-client.ts
+  var EPISODE_QUIZ_MESSAGE = "avc-episode-quiz";
+
+  // src/lib/episode-quiz-ui.ts
+  var STYLES3 = `
+  :host { all: initial; }
+  * { box-sizing: border-box; }
+  .nudge, .card {
+    color: #f4f4f6;
+    background: #16171d;
+    border: 1px solid rgba(255,255,255,.14);
+    box-shadow: 0 12px 36px rgba(0,0,0,.45);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  .nudge { position: fixed; right: 20px; bottom: 84px; z-index: 2147483000; width: 312px; padding: 14px 16px 12px; border-radius: 14px; }
+  .backdrop { position: fixed; inset: 0; z-index: 2147483001; display: grid; place-items: center; background: rgba(6,7,10,.72); }
+  .card { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 20px 22px; border-radius: 16px; }
+  .top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; color: #b9bac4; font-size: 12px; }
+  .top .grow { flex: 1; }
+  .bar { height: 4px; border-radius: 4px; background: rgba(255,255,255,.1); overflow: hidden; margin-bottom: 16px; }
+  .bar i { display: block; height: 100%; background: #8ab4ff; transition: width .2s; }
+  h2 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
+  .note { margin: 0 0 12px; color: #b9bac4; font-size: 12px; }
+  .kind { display: inline-block; margin-bottom: 8px; padding: 2px 8px; border-radius: 99px; background: rgba(138,180,255,.15); color: #b8d0ff; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .prompt { margin: 0 0 10px; font-size: 16px; font-weight: 600; }
+  .quote { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.06); font-size: 18px; }
+  .quote span { flex: 1; }
+  .choices { display: grid; gap: 8px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .choice { text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: transparent; }
+  .choice:hover:not([disabled]) { background: rgba(255,255,255,.06); }
+  .choice.right { border-color: #4ade80; background: rgba(74,222,128,.14); }
+  .choice.wrong { border-color: #f87171; background: rgba(248,113,113,.14); }
+  .choice[disabled] { cursor: default; }
+  .tiles { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; padding: 8px; border-radius: 10px; border: 1px dashed rgba(255,255,255,.2); margin-bottom: 10px; font-size: 17px; }
+  .tile { padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.06); }
+  .tile[disabled] { opacity: .3; cursor: default; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  .row .grow { flex: 1; }
+  .cta { min-height: 38px; padding: 0 16px; border: 0; border-radius: 9px; background: #f4f4f6; color: #16171d; font-weight: 650; }
+  .cta:hover:not([disabled]) { background: #fff; }
+  .cta[disabled] { opacity: .5; cursor: default; }
+  .ghost { min-height: 38px; padding: 0 14px; border-radius: 9px; border: 1px solid rgba(255,255,255,.18); background: transparent; }
+  .quiet { min-height: 32px; padding: 0 8px; border: 0; background: transparent; color: #9a9ba6; font-size: 12px; }
+  .icon { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #9a9ba6; font-size: 18px; line-height: 1; }
+  .icon:hover, .quiet:hover { color: #f4f4f6; background: rgba(255,255,255,.08); }
+  .feedback { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.05); font-size: 13px; }
+  .feedback b { display: block; margin-bottom: 2px; }
+  .ok b { color: #4ade80; } .no b { color: #f87171; }
+  .score { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 6px; }
+  .score strong { font-size: 44px; font-weight: 700; letter-spacing: -.02em; }
+  .score span { color: #b9bac4; font-size: 18px; }
+  .missed { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; }
+  .missed li { padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.04); }
+  .missed em { font-style: normal; color: #4ade80; }
+  .section { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.1); }
+  .haru { display: flex; gap: 10px; align-items: flex-start; }
+  .orb { flex: none; width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #b8d0ff, #6b8cff 60%, #3a4fb8); }
+  textarea { width: 100%; min-height: 64px; margin-top: 8px; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.04); color: inherit; font: inherit; font-size: 16px; resize: vertical; }
+  .lock { color: #b9bac4; font-size: 13px; }
+  .pill { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 99px; background: rgba(255,214,102,.16); color: #ffd666; font-size: 11px; font-weight: 600; }
+  :focus-visible { outline: 2px solid #8ab4ff; outline-offset: 2px; }
+  .spin { width: 22px; height: 22px; border: 2px solid rgba(255,255,255,.2); border-top-color: #8ab4ff; border-radius: 50%; animation: s 0.8s linear infinite; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .nudge, .card { animation: rise 160ms ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+  }
+`;
+  var KIND_LABEL = {
+    meaning: "Word",
+    line: "Line",
+    story: "Story",
+    build: "Build a sentence"
+  };
+  var ERROR_COPY = {
+    not_linked: "Sign in to AnimeVocab to take the quiz.",
+    unauthorized: "Your sign-in expired. Open AnimeVocab to sign in again.",
+    ai_quota_exhausted: "You've used this month's AI allowance, so there's no quiz this time.",
+    too_few_lines: "Not enough of this episode's dialogue came through to write a quiz.",
+    network: "Couldn't reach AnimeVocab. Check your connection and try again."
+  };
+  var NEXT_EPISODE_SELECTORS = [
+    '[data-uia="next-episode-seamless-button"]',
+    '[data-uia="next-episode-seamless-button-draining"]',
+    '[data-uia="control-next"]',
+    '[data-testid="vilos-next_episode_button"]',
+    '[data-t="next-episode"] a',
+    ".ytp-next-button"
+  ];
+  function el(tag, cls = "", text = "") {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text) node.textContent = text;
+    return node;
+  }
+  function button(cls, text, onClick) {
+    const b = el("button", cls, text);
+    b.type = "button";
+    b.addEventListener("click", onClick);
+    return b;
+  }
+  function shadowHost(attr2) {
+    const host3 = document.createElement("div");
+    host3.setAttribute(attr2, "");
+    host3.setAttribute(UI_HOST_ATTR, "");
+    const root2 = host3.attachShadow({ mode: "open" });
+    const style = document.createElement("style");
+    style.textContent = STYLES3;
+    root2.appendChild(style);
+    keepFocusOnMouseClick(root2);
+    return { host: host3, root: root2 };
+  }
+  function playerParent() {
+    return document.fullscreenElement || document.body;
+  }
+  function followFullscreen(host3) {
+    const move = () => {
+      const parent = playerParent();
+      if (parent && host3.parentElement !== parent) parent.appendChild(host3);
+    };
+    document.addEventListener("fullscreenchange", move);
+    return () => document.removeEventListener("fullscreenchange", move);
+  }
+  var nudgeHost = null;
+  var nudgeUnfollow = null;
+  function isQuizNudgeUp() {
+    return !!nudgeHost;
+  }
+  function showQuizNudge(h) {
+    if (nudgeHost) return;
+    const parent = playerParent();
+    if (!parent) return;
+    const { host: host3, root: root2 } = shadowHost("data-avc-quiz-nudge");
+    const card = el("div", "nudge");
+    card.setAttribute("role", "region");
+    card.setAttribute("aria-label", "Episode quiz");
+    const head = el("div", "row");
+    head.style.marginTop = "0";
+    head.appendChild(el("h2", "grow", "Episode done! Quick quiz on what you just watched?"));
+    head.appendChild(button("icon", "\xD7", () => {
+      hideQuizNudge();
+      h.onLater();
+    }));
+    head.lastElementChild?.setAttribute("aria-label", "Not now");
+    card.appendChild(head);
+    card.appendChild(el("p", "note", "About 12 questions, 3 minutes. A nudge, not a test."));
+    const row = el("div", "row");
+    row.appendChild(button("cta grow", "Start quiz", () => {
+      hideQuizNudge();
+      h.onStart();
+    }));
+    row.appendChild(button("ghost", "Not now", () => {
+      hideQuizNudge();
+      h.onLater();
+    }));
+    card.appendChild(row);
+    card.appendChild(button("quiet", "Don't ask after episodes", () => {
+      hideQuizNudge();
+      h.onOff();
+    }));
+    root2.appendChild(card);
+    parent.appendChild(host3);
+    nudgeHost = host3;
+    nudgeUnfollow = followFullscreen(host3);
+  }
+  function hideQuizNudge() {
+    nudgeUnfollow?.();
+    nudgeUnfollow = null;
+    nudgeHost?.remove();
+    nudgeHost = null;
+  }
+  var quizHost = null;
+  var quizUnfollow = null;
+  function isQuizOpen() {
+    return !!quizHost;
+  }
+  function closeQuiz() {
+    quizUnfollow?.();
+    quizUnfollow = null;
+    quizHost?.remove();
+    quizHost = null;
+  }
+  async function ask(payload) {
+    try {
+      const res = await chrome.runtime.sendMessage({ type: EPISODE_QUIZ_MESSAGE, payload });
+      return res || { ok: false, error: "network" };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
+  function continueWatching(video, doc = document) {
+    for (const sel of NEXT_EPISODE_SELECTORS) {
+      const next = doc.querySelector(sel);
+      if (next) {
+        next.click();
+        return true;
+      }
+    }
+    if (video && !video.ended) {
+      void video.play().catch(() => {
+      });
+      return true;
+    }
+    return false;
+  }
+  function openQuiz(opts2) {
+    if (quizHost) return;
+    const parent = playerParent();
+    if (!parent) return;
+    const { host: host3, root: root2 } = shadowHost("data-avc-episode-quiz");
+    const backdrop = el("div", "backdrop");
+    const card = el("div", "card");
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-label", "Episode quiz");
+    backdrop.appendChild(card);
+    root2.appendChild(backdrop);
+    parent.appendChild(host3);
+    quizHost = host3;
+    quizUnfollow = followFullscreen(host3);
+    const paid = opts2.plan === "pro" || opts2.plan === "max";
+    const close = () => {
+      closeQuiz();
+      opts2.onClose?.();
+    };
+    backdrop.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") close();
+    });
+    const top = (label) => {
+      const t = el("div", "top");
+      t.appendChild(el("span", "grow", label));
+      const x = button("icon", "\xD7", close);
+      x.setAttribute("aria-label", "Close quiz");
+      t.appendChild(x);
+      return t;
+    };
+    const message = (text) => {
+      card.replaceChildren(top(opts2.title || "Episode check"), el("p", "", text));
+      const row = el("div", "row");
+      row.appendChild(button("cta", "Close", close));
+      card.appendChild(row);
+    };
+    const loading = el("div", "row");
+    loading.appendChild(el("div", "spin"));
+    loading.appendChild(el("span", "", "Writing a quiz from this episode's lines\u2026"));
+    card.replaceChildren(top(opts2.title || "Episode check"), loading);
+    void trackFeature("quiz_started");
+    void ask({ mode: "generate", title: opts2.title || "", direction: opts2.direction, lines: opts2.lines, known: opts2.known }).then((res) => {
+      if (!quizHost) return;
+      const questions = res.ok && Array.isArray(res.data?.questions) ? res.data.questions : [];
+      if (!res.ok || !questions.length) {
+        message(ERROR_COPY[res.error || ""] || "Couldn't write a quiz for this episode. Try again after the next one.");
+        return;
+      }
+      runQuestions(questions);
+    });
+    function speakButton(text) {
+      const b = button("icon", "\u{1F50A}", () => void speakText(text));
+      b.setAttribute("aria-label", "Haru reads it aloud");
+      b.title = "Haru reads it aloud";
+      return b;
+    }
+    function runQuestions(questions) {
+      const answers = questions.map(() => null);
+      let i = 0;
+      const render = () => {
+        const q = questions[i];
+        const bar = el("div", "bar");
+        const fill = el("i");
+        fill.style.width = `${i / questions.length * 100}%`;
+        bar.appendChild(fill);
+        card.replaceChildren(top(`${opts2.title || "Episode check"} \xB7 ${i + 1} / ${questions.length}`), bar);
+        card.appendChild(el("span", "kind", KIND_LABEL[q.kind]));
+        card.appendChild(el("p", "prompt", q.prompt));
+        if (q.quote && q.kind !== "build") {
+          const quote = el("div", "quote");
+          const span = el("span", "", q.quote);
+          span.lang = opts2.direction === "ja-en" ? "en" : "ja";
+          quote.appendChild(span);
+          if (paid) quote.appendChild(speakButton(q.quote));
+          card.appendChild(quote);
+        }
+        const feedback = el("div");
+        const next = button("cta", i + 1 < questions.length ? "Next" : "See my score", () => {
+          i++;
+          if (i < questions.length) render();
+          else results(questions, answers);
+        });
+        const after = () => {
+          const right = isCorrect(q, answers[i]);
+          feedback.className = `feedback ${right ? "ok" : "no"}`;
+          feedback.replaceChildren(el("b", "", right ? "Right!" : "Not quite."));
+          if (!right && q.kind === "build" && q.tiles) {
+            const correct = el("div", "", q.quote || q.tiles.join(""));
+            correct.lang = opts2.direction === "ja-en" ? "en" : "ja";
+            feedback.appendChild(correct);
+          }
+          if (q.explain) feedback.appendChild(el("div", "", q.explain));
+          if (q.kind === "build" && paid && q.quote) feedback.appendChild(speakButton(q.quote));
+          const row = el("div", "row");
+          row.appendChild(el("span", "grow"));
+          row.appendChild(next);
+          card.append(feedback, row);
+          next.focus();
+        };
+        if (q.kind === "build" && q.tiles) {
+          const picked = [];
+          const answer = el("div", "tiles");
+          answer.setAttribute("aria-label", "Your sentence");
+          const pool = el("div", "tiles");
+          const check = button("cta", "Check", () => {
+            answers[i] = picked.slice();
+            pool.querySelectorAll("button").forEach((b) => b.disabled = true);
+            controls.remove();
+            after();
+          });
+          const sync = () => {
+            answer.replaceChildren(...picked.map((t) => el("span", "tile", t)));
+            check.disabled = picked.length !== q.tiles.length;
+          };
+          const poolButtons = shuffled(q.tiles.map((t, idx) => ({ t, idx }))).map(({ t }) => {
+            const b = button("tile", t, () => {
+              picked.push(t);
+              b.disabled = true;
+              sync();
+            });
+            return b;
+          });
+          pool.append(...poolButtons);
+          const controls = el("div", "row");
+          controls.appendChild(
+            button("ghost", "Undo", () => {
+              const last = picked.pop();
+              if (last === void 0) return;
+              const b = poolButtons.find((p) => p.disabled && p.textContent === last);
+              if (b) b.disabled = false;
+              sync();
+            })
+          );
+          controls.appendChild(
+            button("ghost", "Clear", () => {
+              picked.length = 0;
+              poolButtons.forEach((b) => b.disabled = false);
+              sync();
+            })
+          );
+          controls.appendChild(el("span", "grow"));
+          controls.appendChild(check);
+          sync();
+          card.append(answer, pool, controls);
+          poolButtons[0]?.focus();
+          return;
+        }
+        const list = el("div", "choices");
+        const buttons = (q.choices || []).map(
+          (c, idx) => button("choice", c, () => {
+            answers[i] = idx;
+            buttons.forEach((b, j) => {
+              b.disabled = true;
+              if (j === q.answer) b.classList.add("right");
+              else if (j === idx) b.classList.add("wrong");
+            });
+            after();
+          })
+        );
+        list.append(...buttons);
+        card.appendChild(list);
+        buttons[0]?.focus();
+      };
+      render();
+    }
+    function results(questions, answers) {
+      const total = questions.length;
+      const score = scoreQuiz(questions, answers);
+      void trackFeature("quiz_completed");
+      card.replaceChildren(top(opts2.title || "Episode check"));
+      const s = el("div", "score");
+      s.append(el("strong", "", `${score} / ${total}`), el("span", "", verdictFor(score, total)));
+      card.appendChild(s);
+      card.appendChild(
+        el("p", "note", score === total ? "Every question right. You followed that episode." : "Here's what slipped past:")
+      );
+      const missed = el("ul", "missed");
+      questions.forEach((q, idx) => {
+        if (isCorrect(q, answers[idx])) return;
+        const li = el("li");
+        li.appendChild(el("div", "", q.prompt));
+        const right = q.kind === "build" ? q.quote || (q.tiles || []).join("") : (q.choices || [])[q.answer ?? 0];
+        li.appendChild(el("em", "", right || ""));
+        missed.appendChild(li);
+      });
+      if (missed.childElementCount) card.appendChild(missed);
+      const flash = el("div", "section");
+      flash.hidden = true;
+      const cardsRow = el("div", "row");
+      cardsRow.style.marginTop = "0";
+      const addBtn = button("ghost", "", () => void addMissed());
+      cardsRow.appendChild(addBtn);
+      flash.appendChild(cardsRow);
+      let toAdd = [];
+      void getVocab().then((vocab) => {
+        toAdd = missedWords(questions, answers, vocab);
+        if (!toAdd.length) {
+          flash.remove();
+          return;
+        }
+        addBtn.textContent = `Add ${toAdd.length} missed word${toAdd.length === 1 ? "" : "s"} to your reviews`;
+        flash.hidden = false;
+      });
+      async function addMissed() {
+        if (!toAdd.length) return;
+        addBtn.disabled = true;
+        for (const w of toAdd) {
+          const entry = lookup(w.word);
+          await judgeWord(
+            w.word,
+            "learn",
+            {
+              reading: w.reading || entry?.reading || "",
+              gloss: w.gloss || entry?.glosses?.[0] || "",
+              level: entry?.level ?? 0,
+              freqRank: entry?.freqRank ?? 0
+            },
+            { title: opts2.title, line: w.line || null, en: null }
+          ).catch(() => {
+          });
+        }
+        addBtn.textContent = `Added ${toAdd.length} to your reviews`;
+      }
+      card.appendChild(flash);
+      card.appendChild(haruSection(questions, answers, score, total));
+      const row = el("div", "row");
+      row.appendChild(button("ghost", "Close", close));
+      row.appendChild(el("span", "grow"));
+      row.appendChild(
+        button("cta", "Next episode", () => {
+          const video = opts2.getVideo();
+          close();
+          continueWatching(video);
+        })
+      );
+      card.appendChild(row);
+    }
+    function haruSection(questions, answers, score, total) {
+      const sec = el("div", "section");
+      const words = practiceWords(questions, answers);
+      const head = el("div", "haru");
+      head.appendChild(el("div", "orb"));
+      const body = el("div");
+      body.style.flex = "1";
+      head.appendChild(body);
+      sec.appendChild(head);
+      const title = el("h2", "", "Make it yours with Haru");
+      if (!paid) title.appendChild(el("span", "pill", "Pro"));
+      body.appendChild(title);
+      const prompt = words.length ? `Write your own sentence with ${words.map((w) => `\u300C${w}\u300D`).join(" or ")}.` : "Write your own sentence with a word from this episode.";
+      if (!paid) {
+        body.appendChild(
+          el("p", "lock", `${prompt} Haru, your tutor, judges it, fixes it, and says how you did out loud. Included with Pro and Max.`)
+        );
+        body.appendChild(
+          button("ghost", "See Pro", () => {
+            void trackPro("pro_prompt_clicked", "ext_episode_quiz");
+            chrome.runtime.sendMessage({ type: "avc-open-url", url: `${WEB_URL}/pricing?from=ext_episode_quiz` }).catch(() => {
+            });
+          })
+        );
+        void trackPro("pro_prompt_shown", "ext_episode_quiz");
+        return sec;
+      }
+      body.appendChild(el("p", "note", prompt));
+      const input = el("textarea");
+      input.maxLength = 200;
+      input.lang = opts2.direction === "ja-en" ? "en" : "ja";
+      input.placeholder = opts2.direction === "ja-en" ? "Your sentence\u2026" : "\u3042\u306A\u305F\u306E\u6587\u2026";
+      body.appendChild(input);
+      const out = el("div");
+      const send = button("cta", "Ask Haru", () => void judge());
+      const row = el("div", "row");
+      row.appendChild(send);
+      body.append(row, out);
+      async function judge() {
+        const sentence = input.value.trim();
+        if (!sentence) return;
+        send.disabled = true;
+        send.textContent = "Haru is reading\u2026";
+        const res = await ask({ mode: "haru", title: opts2.title || "", direction: opts2.direction, sentence, words, score, total });
+        send.disabled = false;
+        send.textContent = "Try another";
+        const haru = res.ok ? res.data?.haru : void 0;
+        if (!haru?.verdict) {
+          out.className = "feedback no";
+          out.replaceChildren(el("div", "", res.error === "pro_required" ? "Haru is part of Pro and Max." : ERROR_COPY[res.error || ""] || "Haru couldn't answer just now."));
+          return;
+        }
+        out.className = `feedback ${haru.ok ? "ok" : "no"}`;
+        out.replaceChildren(el("b", "", haru.verdict));
+        if (haru.corrected && haru.corrected !== sentence) {
+          const fixed = el("div", "quote");
+          const span = el("span", "", haru.corrected);
+          span.lang = input.lang;
+          fixed.append(span, speakButton(haru.corrected));
+          out.appendChild(fixed);
+        }
+        if (haru.note) out.appendChild(el("div", "", haru.note));
+        if (haru.say) {
+          const say = el("div", "", `Haru: ${haru.say}`);
+          say.lang = input.lang;
+          out.appendChild(say);
+          void speakText(haru.say);
+        }
+      }
+      return sec;
+    }
+  }
+
+  // src/lib/episode-quiz-controller.ts
+  var TICK_MS = 1e3;
+  var MAX_TICK_SEC = 2;
+  function createEpisodeQuiz(deps) {
+    const episode = new EpisodeLog();
+    let timer = null;
+    let lastTick = 0;
+    let prefs = null;
+    let prefsLoading = false;
+    const offered = /* @__PURE__ */ new Set();
+    function loadPrefs() {
+      if (prefs || prefsLoading) return;
+      prefsLoading = true;
+      void getQuizPrefs().then((p) => {
+        prefs = p;
+        prefsLoading = false;
+      });
+    }
+    function follow() {
+      const key = deps.sessionId();
+      if (key !== episode.session) {
+        episode.use(key);
+        if (isQuizNudgeUp()) hideQuizNudge();
+      }
+    }
+    function tick() {
+      const now = Date.now();
+      const elapsed = lastTick ? Math.min(MAX_TICK_SEC, (now - lastTick) / 1e3) : 0;
+      lastTick = now;
+      if (!deps.active()) return;
+      const video = deps.getVideo();
+      if (!video) return;
+      follow();
+      if (!video.paused && !video.ended) episode.playedSec += elapsed;
+      if (!prefs || isQuizOpen() || isQuizNudgeUp()) return;
+      const key = episode.session;
+      const offer = shouldOfferQuiz({
+        optedOut: prefs.off,
+        asked: offered.has(key) || prefs.asked.includes(key),
+        inCourse: deps.inCourse(),
+        lines: episode.size,
+        playedSec: episode.playedSec,
+        ending: isEpisodeEnding(video)
+      });
+      if (!offer) return;
+      offered.add(key);
+      void markQuizAsked(key);
+      void trackFeature("quiz_offered");
+      log("episode quiz offered:", key, episode.size, "lines");
+      showQuizNudge({
+        onStart: () => void start(),
+        onLater: () => {
+        },
+        onOff: () => {
+          if (prefs) prefs.off = true;
+          void setQuizOff();
+        }
+      });
+    }
+    async function start() {
+      const video = deps.getVideo();
+      video?.pause();
+      deps.onOpen();
+      const lines = episode.sample();
+      const [profile, vocab] = await Promise.all([
+        getSyncProfile().catch(() => null),
+        getVocab().catch(() => ({}))
+      ]);
+      openQuiz({
+        title: deps.title(),
+        direction: deps.direction(),
+        lines,
+        known: knownWordsIn(lines, vocab),
+        plan: profile?.plan === "pro" || profile?.plan === "max" ? profile.plan : "free",
+        getVideo: deps.getVideo
+      });
+    }
+    return {
+      noteLine(text, en = "") {
+        if (!deps.active()) return;
+        loadPrefs();
+        follow();
+        episode.add(text, en);
+        if (!timer) {
+          lastTick = Date.now();
+          timer = setInterval(tick, TICK_MS);
+        }
+      },
+      stop() {
+        if (timer) clearInterval(timer);
+        timer = null;
+        lastTick = 0;
+        hideQuizNudge();
+        closeQuiz();
+      }
+    };
+  }
+
   // src/lib/lens-lines.ts
   var SENTENCE = { ja: /(?<=[。！？!?…])/, en: /(?<=[.!?…])\s+/ };
   var SOFT_BREAK = { ja: /[、,，」』）)\s]/, en: /\s/ };
@@ -5835,7 +6613,7 @@
   var OPEN_SIGNIN_MESSAGE = "avc-open-signin";
   var BUSY_TIMEOUT_MS = 15e3;
   var MIN_PLAYER_IFRAME = 320;
-  var STYLES3 = `
+  var STYLES4 = `
   :host { all: initial; }
   .chip {
     position: fixed;
@@ -5951,7 +6729,7 @@
     host2.setAttribute(UI_HOST_ATTR, "");
     const root2 = host2.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = STYLES3;
+    style.textContent = STYLES4;
     root2.appendChild(style);
     const chip = document.createElement("div");
     chip.className = "chip";
@@ -6047,6 +6825,15 @@
     let cachePollGeneration = 0;
     let playbackRelayTimer = null;
     let captionNoticeShown = false;
+    const episodeQuiz = createEpisodeQuiz({
+      getVideo: () => adapter?.getVideo() ?? null,
+      sessionId: currentSessionId,
+      title: currentTitle,
+      active: () => signedIn === true && !pipelineDisabled && (!settings || siteEnabled(settings)),
+      inCourse: () => !!course2,
+      direction: () => normalizeDirection(settings?.learningDirection),
+      onOpen: () => hideAgent()
+    });
     function currentSessionId() {
       const a = adapter;
       return a ? sessionIdentity(platformForAdapter(a), studyLang()) : location.pathname;
@@ -6109,6 +6896,7 @@
       lensSeq++;
       hideLens();
       hideAgent();
+      episodeQuiz.stop();
       pendingLines.length = 0;
       judgedLensSeqs.clear();
     }
@@ -6497,6 +7285,7 @@
       if (signedIn !== true || pipelineDisabled) return;
       const line = text.replace(/\s+/g, " ").trim();
       if (!line) return;
+      episodeQuiz.noteLine(line, context?.en);
       void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
       let seq = opts2.lensSeq ?? -1;
       if (opts2.lens !== false) {
