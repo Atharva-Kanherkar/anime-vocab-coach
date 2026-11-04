@@ -19,12 +19,13 @@ const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
 const results = [];
 const check = (n, ok, d = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${n}${d ? ` — ${d}` : ""}`); };
 
-check("manifest version is 0.7.2", manifest.version === "0.7.2", manifest.version);
+check("manifest version is 0.7.3", manifest.version === "0.7.3", manifest.version);
 check("manifest v3", manifest.manifest_version === 3);
 check("service worker declared", !!manifest.background?.service_worker, manifest.background?.service_worker);
 
 const ctx = await chromium.launchPersistentContext("", {
-  headless: false,
+  channel: "chromium",
+  headless: true,
   args: [
     `--disable-extensions-except=${dir}`, `--load-extension=${dir}`,
     // Black-hole the real host: this version fires install_first_run on install and
@@ -32,6 +33,7 @@ const ctx = await chromium.launchPersistentContext("", {
     "--host-resolver-rules=MAP animevocab.com 127.0.0.1:1,MAP api.animevocab.com 127.0.0.1:1",
   ],
 });
+await ctx.route("https://animevocab.com/**",route=>route.fulfill({contentType:"text/html",body:"<!doctype html><title>Hosted AnimeVocab fixture</title>"}));
 try {
   const sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 20000 }));
   check("service worker boots from the packaged build", !!sw);
@@ -61,9 +63,12 @@ try {
   welcome.on("pageerror", (e) => errs.push(String(e)));
   welcome.on("console", (m) => m.type() === "error" && errs.push(m.text()));
   await welcome.goto(`chrome-extension://${id}/welcome/welcome.html`, { waitUntil: "domcontentloaded" });
-  await welcome.waitForSelector("#steps .step", { timeout: 8000 });
-  const steps = await welcome.locator("#steps .step h2").allInnerTexts();
-  check("welcome page renders its three steps", steps.length === 3, JSON.stringify(steps));
+  await welcome.waitForURL("https://animevocab.com/start");
+  check("legacy welcome redirects to the hosted start page",true);
+  const options=await ctx.newPage();
+  await options.goto(`chrome-extension://${id}/options/options.html`).catch(()=>{});
+  await options.waitForURL("https://animevocab.com/app#settings");
+  check("Chrome extension options redirects to hosted settings",true);
 
   const popup = await ctx.newPage();
   popup.on("pageerror", (e) => errs.push(String(e)));
@@ -74,9 +79,9 @@ try {
 
   const dash = await ctx.newPage();
   dash.on("pageerror", (e) => errs.push(String(e)));
-  await dash.goto(`chrome-extension://${id}/dashboard/dashboard.html`, { waitUntil: "domcontentloaded" });
-  await dash.waitForTimeout(1200);
-  check("dashboard renders", (await dash.locator("body").innerText()).length > 20);
+  await dash.goto(`chrome-extension://${id}/dashboard/dashboard.html`).catch(()=>{});
+  await dash.waitForURL("https://animevocab.com/app#progress");
+  check("removed dashboard redirects to Progress",true);
 
   // Network failures to the black-holed host are expected; real page errors are not.
   const real = errs.filter((e) => !/Failed to (load resource|fetch)|ERR_|net::/i.test(e));

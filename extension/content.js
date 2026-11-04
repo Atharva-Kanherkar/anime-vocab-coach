@@ -4,6 +4,213 @@
   var log = (...args) => console.log("[AVC]", ...args);
   var warn = (...args) => console.warn("[AVC]", ...args);
 
+  // web/src/lib/learn-protocol/model.ts
+  var newLearnOp = (kind, payload, op_id = crypto.randomUUID(), client_ts = (/* @__PURE__ */ new Date()).toISOString()) => ({ op_id, kind, payload, client_ts });
+  var intervals = [
+    0,
+    4 * 36e5,
+    24 * 36e5,
+    3 * 864e5,
+    7 * 864e5,
+    21 * 864e5
+  ];
+
+  // web/src/lib/learn-protocol/validate.ts
+  var object = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  var plain = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max && !/[\u0000-\u001f]/.test(v);
+  var text = (v, max = 200) => plain(v, max) && !["__proto__", "constructor", "prototype"].includes(v);
+  var num = (v, max = 1e9) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max;
+  var PUBLIC_SETTINGS = {
+    pauseMode: (v) => ["copilot", "pause", "off"].includes(v),
+    cooldownSec: (v) => num(v, 120),
+    maxCardsPerHour: (v) => num(v, 60),
+    targetLevel: (v) => num(v, 5) && Number(v) >= 1,
+    autoResumeSec: (v) => num(v, 120),
+    displayScript: (v) => ["romaji", "kana", "kanji", "romaji-kana"].includes(v),
+    learningDirection: (v) => ["en-ja", "ja-en"].includes(v),
+    autoSpeak: (v) => typeof v === "boolean",
+    subLens: (v) => typeof v === "boolean",
+    subLensPeek: (v) => typeof v === "boolean",
+    transcribeModel: (v) => text(v, 100),
+    sites: (v) => object(v) && Object.keys(v).every(
+      (k) => ["youtube", "netflix", "generic"].includes(k)
+    ) && ["youtube", "netflix", "generic"].every((k) => typeof v[k] === "boolean")
+  };
+  function publicSettings(raw) {
+    return Object.fromEntries(
+      Object.entries(raw).filter(
+        ([k, v]) => Object.prototype.hasOwnProperty.call(PUBLIC_SETTINGS, k) && PUBLIC_SETTINGS[k](v)
+      )
+    );
+  }
+
+  // web/src/lib/sync.ts
+  function asRecord(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+  function asNumber(value, fallback = 0) {
+    return Number.isFinite(Number(value)) ? Number(value) : fallback;
+  }
+  function asString(value, fallback = "") {
+    return typeof value === "string" ? value : fallback;
+  }
+  function asWordState(value, base = "word") {
+    if (value === void 0 || value === null || value === "new") return "new";
+    if (value === "learning" || value === "known" || value === "ignored") return value;
+    throw new Error(`Invalid word state for ${base}.`);
+  }
+  function timeToIso(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return new Date(n).toISOString();
+  }
+  function asTimestampArray(value) {
+    return Array.isArray(value) ? value.map(Number).filter((n) => Number.isFinite(n) && n > 0) : [];
+  }
+  var MAX_SOURCE_TITLE = 200;
+  var MAX_SOURCE_LINE = 500;
+  function clampOrNull(value, max) {
+    if (typeof value !== "string") return null;
+    const t = value.trim().slice(0, max);
+    return t.length ? t : null;
+  }
+  function asWordSource(value) {
+    if (!value || typeof value !== "object") return null;
+    const s = value;
+    const title = clampOrNull(s.title, MAX_SOURCE_TITLE);
+    const line = clampOrNull(s.line, MAX_SOURCE_LINE);
+    const en = clampOrNull(s.en, MAX_SOURCE_LINE);
+    if (!title && !line && !en) return null;
+    return { title, line, en };
+  }
+  var SECRET_SETTING_KEYS = ["openaiKey", "apiKey"];
+  function stripSecretSettings(settings) {
+    const out = { ...settings };
+    for (const key of SECRET_SETTING_KEYS) delete out[key];
+    return out;
+  }
+  function normalizeAnimeVocabExport(input, now = /* @__PURE__ */ new Date()) {
+    const vocab = asRecord(input.vocab);
+    const stats = input.stats || {};
+    const daily = asRecord(stats.daily);
+    return {
+      schemaVersion: 1,
+      source: "animevocab-extension",
+      importedAt: now.toISOString(),
+      sourceExportedAt: typeof input.exportedAt === "string" ? input.exportedAt : null,
+      settings: stripSecretSettings(asRecord(input.settings)),
+      cardTimestamps: asTimestampArray(stats.cardTimestamps),
+      words: Object.entries(vocab).map(([base, raw]) => {
+        const rec = asRecord(raw);
+        const srs = asRecord(rec.srs);
+        const hasSrs = rec.srs !== null && Object.keys(srs).length > 0;
+        return {
+          base,
+          state: asWordState(rec.state, base),
+          reading: asString(rec.reading),
+          gloss: asString(rec.gloss),
+          level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
+          freqRank: Number.isFinite(Number(rec.freqRank)) ? Number(rec.freqRank) : null,
+          seenCount: asNumber(rec.seenCount),
+          shownCount: asNumber(rec.shownCount),
+          firstSeenAt: timeToIso(rec.firstSeenAt),
+          lastSeenAt: timeToIso(rec.lastSeenAt),
+          review: hasSrs ? {
+            stage: asNumber(srs.stage),
+            dueAt: timeToIso(srs.dueAt),
+            lapses: asNumber(srs.lapses)
+          } : null,
+          source: asWordSource(rec.source)
+        };
+      }).sort((a, b) => a.base.localeCompare(b.base)),
+      daily: Object.entries(daily).map(([day, raw]) => {
+        const rec = asRecord(raw);
+        return {
+          day,
+          met: asNumber(rec.met),
+          judged: asNumber(rec.judged),
+          reviews: asNumber(rec.reviews),
+          watchMin: asNumber(rec.watchMin)
+        };
+      }).sort((a, b) => a.day.localeCompare(b.day))
+    };
+  }
+
+  // src/lib/learn-cache.ts
+  var LEARN_KEYS = [
+    "learnOutbox",
+    "learnOwner",
+    "learnOwnerToken",
+    "learnCursor",
+    "learnRemote",
+    "learnInitialized",
+    "learnLegacy",
+    "learnEpoch",
+    "syncToken",
+    "vocab",
+    "stats",
+    "settings"
+  ];
+  async function learningPatch(before, patch, intent = "seen", review) {
+    const stored = await chrome.storage.local.get(LEARN_KEYS);
+    const next = normalizeAnimeVocabExport({ ...before, ...patch });
+    const previous = normalizeAnimeVocabExport(before);
+    const ops = [];
+    if (patch.settings) {
+      const changed = Object.fromEntries(
+        Object.entries(publicSettings(patch.settings)).filter(
+          ([k, v]) => JSON.stringify(v) !== JSON.stringify(previous.settings[k])
+        )
+      );
+      if (Object.keys(changed).length)
+        ops.push(newLearnOp("settings", { settings: changed }));
+    }
+    if (patch.vocab) {
+      const prior = new Map(previous.words.map((w) => [w.base, w]));
+      for (const word of next.words) {
+        const old = prior.get(word.base);
+        if (JSON.stringify(word) === JSON.stringify(old)) continue;
+        if (review?.base === word.base && old) continue;
+        ops.push(
+          newLearnOp("word", {
+            word,
+            intent,
+            seenDelta: Math.max(0, word.seenCount - (old?.seenCount || 0)),
+            shownDelta: Math.max(0, word.shownCount - (old?.shownCount || 0))
+          })
+        );
+      }
+    }
+    if (review) ops.push(newLearnOp("review", review));
+    if (patch.stats) {
+      const prior = new Map(previous.daily.map((d) => [d.day, d]));
+      for (const row of next.daily) {
+        const old = prior.get(row.day);
+        const delta = {};
+        for (const key of ["met", "judged", "reviews", "watchMin"]) {
+          const n = row[key] - (old?.[key] || 0) - (review && review.day === row.day && (key === "judged" || key === "reviews") ? 1 : 0);
+          if (n > 0) delta[key] = n;
+        }
+        if (Object.keys(delta).length)
+          ops.push(newLearnOp("progress", { day: row.day, delta }));
+      }
+    }
+    const pending = stored.learnOutbox || [];
+    const token = String(stored.learnOwnerToken || stored.syncToken || "");
+    const ownerId = typeof stored.learnOwner === "string" ? stored.learnOwner : null;
+    const result = {
+      ...patch,
+      learnOutbox: [...pending, ...ops.map((op) => ({ token, ownerId, op }))]
+    };
+    if (!stored.learnInitialized && !stored.learnLegacy)
+      result.learnLegacy = structuredClone({
+        vocab: before.vocab ?? stored.vocab,
+        stats: before.stats ?? stored.stats,
+        settings: before.settings ?? stored.settings
+      });
+    return result;
+  }
+
   // src/config.ts
   var BACKEND_URL = "https://api.animevocab.com";
   var WEB_URL = "https://animevocab.com";
@@ -705,10 +912,12 @@
     });
   }
   function setSettings(partial) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "setSettings", args: [partial] }).then(unwrapLearningReply);
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["settings"]);
+      const before = { ...structuredClone(r), settings: { ...withDefaults(r.settings || {}) } };
       const settings = { ...withDefaults(r.settings || {}), ...partial };
-      await chrome.storage.local.set({ settings });
+      await chrome.storage.local.set(await learningPatch(before, { settings: { ...settings } }));
       return settings;
     });
   }
@@ -757,8 +966,10 @@
     });
   }
   function recordSeen(tokens, wordStates, targetedSet, direction = "en-ja", overlay) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "recordSeen", args: [tokens, wordStates, [...targetedSet], direction, overlay] }).then(unwrapLearningReply);
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const before = structuredClone(r);
       const vocab = { ...r.vocab || {} };
       const stats = r.stats || emptyStats();
       const day = todayKey();
@@ -791,7 +1002,7 @@
         }
       }
       if (changed) {
-        await chrome.storage.local.set({ vocab, stats });
+        await chrome.storage.local.set(await learningPatch(before, { vocab, stats }));
         void stampOnboarding("watchedAt");
       }
     });
@@ -815,8 +1026,10 @@
     }
   }
   function judgeWord(base, judgment, meta, source) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "judgeWord", args: [base, judgment, meta, source] }).then(unwrapLearningReply);
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const before = structuredClone(r);
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
       const day = todayKey();
@@ -863,7 +1076,12 @@
       if (judgment !== "dismiss") {
         daily.judged += 1;
       }
-      await chrome.storage.local.set({ vocab, stats });
+      await chrome.storage.local.set(await learningPatch(
+        before,
+        { vocab, stats },
+        judgment === "dismiss" ? "seen" : "save",
+        judgment === "review-pass" || judgment === "review-fail" ? { base, result: judgment === "review-pass" ? "pass" : "fail", day } : void 0
+      ));
       if (judgment === "review-pass" || judgment === "review-fail") {
         await trackExtensionMilestone("first_srs_review");
       }
@@ -883,8 +1101,10 @@
     });
   }
   function recordCardShown(base) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "recordCardShown", args: [base] }).then(unwrapLearningReply);
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const before = structuredClone(r);
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
       const now = Date.now();
@@ -893,20 +1113,22 @@
       if (vocab[base]) {
         vocab[base].shownCount = (vocab[base].shownCount || 0) + 1;
       }
-      await chrome.storage.local.set({ vocab, stats });
+      await chrome.storage.local.set(await learningPatch(before, { vocab, stats }));
       await trackExtensionMilestone("first_card_created");
       void stampOnboarding("cardShownAt");
       void trackFeature("card_shown");
     });
   }
   function recordWatchTick() {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "recordWatchTick", args: [] }).then(unwrapLearningReply);
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["stats"]);
+      const before = structuredClone(r);
       const stats = r.stats || emptyStats();
       const day = todayKey();
       const daily = ensureDaily(stats, day);
       daily.watchMin += 1;
-      await chrome.storage.local.set({ stats });
+      await chrome.storage.local.set(await learningPatch(before, { stats }));
     });
   }
   function getSyncToken() {
@@ -923,6 +1145,10 @@
         resolve("");
       }
     });
+  }
+  function unwrapLearningReply(reply) {
+    if (!reply || reply.error) throw new Error(reply?.error || "Could not save learning data.");
+    return reply.value;
   }
 
   // src/lib/tts-client.ts
@@ -948,8 +1174,8 @@
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new Blob([bytes], { type: mime });
   }
-  async function speakText(text) {
-    const trimmed = (text || "").trim();
+  async function speakText(text2) {
+    const trimmed = (text2 || "").trim();
     if (!trimmed) return { ok: false, error: "empty" };
     try {
       const res = await chrome.runtime.sendMessage({ type: "avc-tts", text: trimmed });
@@ -1165,18 +1391,18 @@
       highlight: idx === highlightIndex
     })).filter((p) => p.text);
   }
-  function speak(text) {
-    void speakAsync(text);
+  function speak(text2) {
+    void speakAsync(text2);
   }
   async function speakAsync(raw) {
-    const text = (raw || "").trim();
-    if (!text) return;
-    const cloud = await speakText(text);
+    const text2 = (raw || "").trim();
+    if (!text2) return;
+    const cloud = await speakText(text2);
     if (cloud.ok) return;
     try {
       const synth = window.top?.speechSynthesis ?? speechSynthesis;
       const voices = await loadVoices(synth);
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(text2);
       u.lang = "ja-JP";
       u.rate = 0.85;
       const ja = voices.find((v) => v.lang === "ja-JP") || voices.find((v) => v.lang?.startsWith("ja")) || null;
@@ -1233,14 +1459,14 @@
     });
     return initPromise;
   }
-  async function tokenize(text) {
+  async function tokenize(text2) {
     try {
       await init();
     } catch {
       return [];
     }
     if (!tokenizerInstance) return [];
-    return tokenizerInstance.tokenize(text).map((t) => ({
+    return tokenizerInstance.tokenize(text2).map((t) => ({
       surface: t.surface_form,
       base: t.basic_form === "*" ? t.surface_form : t.basic_form,
       reading: kataToHira(t.reading || ""),
@@ -1447,11 +1673,11 @@
     if (w.endsWith("s") && !w.endsWith("ss") && w.length > 3) return w.slice(0, -1);
     return w;
   }
-  function tokenizeEnglish(text) {
+  function tokenizeEnglish(text2) {
     const tokens = [];
     const re = /[A-Za-z]+(?:'[A-Za-z]+)?/g;
     let m;
-    while ((m = re.exec(text)) !== null) {
+    while ((m = re.exec(text2)) !== null) {
       const surface = m[0];
       const lower = surface.toLowerCase();
       if (STOPWORDS.has(lower)) continue;
@@ -1557,12 +1783,12 @@
     }
     flushList();
   }
-  function appendInline(parent, text) {
+  function appendInline(parent, text2) {
     const re = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
     let last = 0;
     let m;
-    while (m = re.exec(text)) {
-      if (m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
+    while (m = re.exec(text2)) {
+      if (m.index > last) parent.appendChild(document.createTextNode(text2.slice(last, m.index)));
       const tok = m[0];
       if (tok.startsWith("`")) {
         const code = document.createElement("code");
@@ -1580,7 +1806,7 @@
       }
       last = m.index + tok.length;
     }
-    if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+    if (last < text2.length) parent.appendChild(document.createTextNode(text2.slice(last)));
   }
 
   // src/lib/pausable-timer.ts
@@ -1817,8 +2043,8 @@
   }
 
   // src/lib/course-listening.ts
-  function soundKey(text) {
-    return kataToHira(text.normalize("NFKC")).replace(/[^ぁ-ゖー]/g, "");
+  function soundKey(text2) {
+    return kataToHira(text2.normalize("NFKC")).replace(/[^ぁ-ゖー]/g, "");
   }
   function wordsHeard(tokens, words, baseReading = () => null) {
     const sounds = tokens.map((t) => soundKey(t.reading || t.surface));
@@ -2764,32 +2990,32 @@
       out.textContent = "No hooks returned.";
     }
   }
-  function appendChatBubble(log2, role, text, streaming = false) {
+  function appendChatBubble(log2, role, text2, streaming = false) {
     const bubble = document.createElement("div");
     bubble.className = `avc-agent-chat-msg avc-${role}${streaming ? " avc-streaming" : ""}`;
     if (role === "user") {
-      bubble.textContent = text;
+      bubble.textContent = text2;
     } else {
       const body = document.createElement("div");
-      renderMarkdown(body, text);
+      renderMarkdown(body, text2);
       bubble.appendChild(body);
     }
     log2.appendChild(bubble);
     log2.scrollTop = log2.scrollHeight;
     return bubble;
   }
-  function updateStreamBubble(bubble, text) {
+  function updateStreamBubble(bubble, text2) {
     let body = bubble.querySelector(":scope > div");
     if (!body) {
       body = document.createElement("div");
       bubble.appendChild(body);
     }
-    renderMarkdown(body, text);
+    renderMarkdown(body, text2);
     bubble.classList.add("avc-streaming");
     if (shell) shell.chatLog.scrollTop = shell.chatLog.scrollHeight;
   }
-  function finishStreamBubble(bubble, text) {
-    updateStreamBubble(bubble, text);
+  function finishStreamBubble(bubble, text2) {
+    updateStreamBubble(bubble, text2);
     bubble.classList.remove("avc-streaming");
   }
   function payloadFromCtx(ctx) {
@@ -2890,11 +3116,11 @@
       title: null,
       course: course ? coursePrompt(course) : null
     };
-    const text = (question ?? shell.chatInput.value).trim();
-    if (!text) return;
+    const text2 = (question ?? shell.chatInput.value).trim();
+    if (!text2) return;
     if (question === void 0) shell.chatInput.value = "";
-    appendChatBubble(shell.chatLog, "user", text);
-    chatHistory.push({ role: "user", content: text });
+    appendChatBubble(shell.chatLog, "user", text2);
+    chatHistory.push({ role: "user", content: text2 });
     shell.chatSend.disabled = true;
     shell.chatInput.disabled = true;
     chatStreaming = true;
@@ -2938,7 +3164,7 @@
           else reject(new Error(chrome.runtime.lastError?.message || "disconnected"));
         });
         port.postMessage({
-          message: text,
+          message: text2,
           history: chatHistory.slice(0, -1),
           payload
         });
@@ -3353,8 +3579,8 @@
       rail
     };
   }
-  function showToast(text, kind = "info", action) {
-    if (!text) return;
+  function showToast(text2, kind = "info", action) {
+    if (!text2) return;
     const root2 = mountHost();
     let layer = root2.getElementById("avc-toast-layer");
     if (!layer) {
@@ -3366,7 +3592,7 @@
     const accent = kind === "error" ? "#f87171" : "#e3ba63";
     const toast = document.createElement("div");
     toast.style.cssText = `pointer-events:auto; max-width:min(380px, 92vw); padding:11px 14px; border-radius:10px;background:rgba(18,16,22,0.95); color:rgba(240,238,232,0.96); font-size:13px; line-height:1.45;border:1px solid ${accent}44; border-left:3px solid ${accent};box-shadow:0 10px 30px rgba(0,0,0,0.45); cursor:pointer;backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);opacity:0; transform:translateY(-6px); transition:opacity 180ms ease, transform 180ms ease;`;
-    toast.textContent = text;
+    toast.textContent = text2;
     if (action) {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -3651,10 +3877,10 @@
     shell.wordIdle.innerHTML = course ? "Listening along with your lesson.<br>Unit words light up when they're spoken. <strong>Ask anything</strong> below." : "Watching. New words appear here.<br><strong>Ask anything</strong> in the chat below.";
     if (!course) return;
     const lesson = course;
-    const el = (tag2, cls, text) => {
+    const el = (tag2, cls, text2) => {
       const node = document.createElement(tag2);
       node.className = cls;
-      if (text !== void 0) node.textContent = text;
+      if (text2 !== void 0) node.textContent = text2;
       return node;
     };
     const ja = lesson.script === "kana" ? "ja" : "";
@@ -4016,10 +4242,10 @@
     if (script !== "romaji") return pieces.map((p) => p.text);
     let sentenceStart = true;
     return pieces.map((p) => {
-      const text = sentenceStart ? p.text.replace(/^([^A-Za-z]*)([a-z])/, (_m, a, b) => a + b.toUpperCase()) : p.text;
+      const text2 = sentenceStart ? p.text.replace(/^([^A-Za-z]*)([a-z])/, (_m, a, b) => a + b.toUpperCase()) : p.text;
       if (/[A-Za-z]/.test(p.text)) sentenceStart = false;
       if (/[.!?…][\u201d")]*$/.test(p.text)) sentenceStart = true;
-      return text;
+      return text2;
     });
   }
 
@@ -4525,8 +4751,8 @@
     placedFor = "";
     position();
   }
-  function updateLensLine(text, update) {
-    if (!shown || shown.text !== text || currentLine !== text) return;
+  function updateLensLine(text2, update) {
+    if (!shown || shown.text !== text2 || currentLine !== text2) return;
     if (update.readings && Object.keys(update.readings).length && shown.script !== "kanji") {
       const fixed = dualPieces(shown.tokens, shown.script, { ...update.readings, ...shown.readings });
       if (fixed.length === shown.pieces.length) {
@@ -4540,17 +4766,17 @@
     }
     if (update.en) paintEnglish(update.en);
   }
-  function showLensLine(text, en, tokens, vocab, options) {
+  function showLensLine(text2, en, tokens, vocab, options) {
     opts = options;
     vocabSnapshot = vocab;
     cancelPendingClear();
-    if (text === currentLine) return;
-    currentLine = text;
+    if (text2 === currentLine) return;
+    currentLine = text2;
     ensureMounted();
     if (!lensEl) return;
     hideTip();
     lensEl.innerHTML = "";
-    const source = { title: options.getTitle(), line: text, en: en || null };
+    const source = { title: options.getTitle(), line: text2, en: en || null };
     const script = options.script ?? "kanji";
     const card = document.createElement("div");
     card.className = "card";
@@ -4592,7 +4818,7 @@
       jpLine.appendChild(s);
     });
     card.appendChild(jpLine);
-    shown = { text, tokens, script, source, card, pieces: rendered, enEl: null, readings: options.readings ?? {} };
+    shown = { text: text2, tokens, script, source, card, pieces: rendered, enEl: null, readings: options.readings ?? {} };
     if (en) paintEnglish(en);
     lensEl.appendChild(card);
     placedFor = "";
@@ -4697,7 +4923,7 @@
       if (!Number.isFinite(end)) end = start + (ttmlTime(attr(a, "dur"), base) || 0);
       if (!Number.isFinite(start) || !(end > start)) continue;
       const stack = [];
-      let text = "";
+      let text2 = "";
       let rubyBase = "";
       let rubyText = "";
       const ruby = [];
@@ -4708,14 +4934,14 @@
           if (role === "text" || role === "textContainer") rubyText += chunk;
           else if (role === "delimiter") continue;
           else {
-            text += chunk;
+            text2 += chunk;
             if (role === "base" || role === "baseContainer") rubyBase += chunk;
           }
           continue;
         }
         const name = local(t[2]);
         if (name === "br") {
-          text += " ";
+          text2 += " ";
           continue;
         }
         if (name !== "span") continue;
@@ -4732,7 +4958,7 @@
           if (role === "container") rubyBase = rubyText = "";
         }
       }
-      const clean = text.replace(/\s+/g, " ").trim();
+      const clean = text2.replace(/\s+/g, " ").trim();
       if (clean) cues.push({ start, end, text: clean, ruby });
     }
     return cues.sort((x, y) => x.start - y.start);
@@ -4757,13 +4983,13 @@
         const reading = decode(m[2].replace(/<[^>]+>/g, "")).trim();
         if (written && reading) ruby.push([written, reading]);
       }
-      const text = decode(raw.replace(/<rt>[\s\S]*?<\/rt>/g, "").replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
-      if (text) cues.push({ start, end, text, ruby });
+      const text2 = decode(raw.replace(/<rt>[\s\S]*?<\/rt>/g, "").replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+      if (text2) cues.push({ start, end, text: text2, ruby });
     }
     return cues.sort((x, y) => x.start - y.start);
   }
-  function parseTimedText(text) {
-    return /^﻿?WEBVTT/.test(text) ? parseVtt(text) : parseTtml(text);
+  function parseTimedText(text2) {
+    return /^﻿?WEBVTT/.test(text2) ? parseVtt(text2) : parseTtml(text2);
   }
   function cueAt(cues, t) {
     let lo = 0, hi = cues.length - 1, found = -1;
@@ -4984,15 +5210,15 @@
       this.entries = [];
     }
     /** Note what is on screen at video time `t` (seconds). */
-    record(t, text) {
+    record(t, text2) {
       if (!Number.isFinite(t)) return;
       const last = this.entries[this.entries.length - 1];
       if (last && t < last.t) {
         this.entries = this.entries.filter((e) => e.t <= t);
       }
       const tail = this.entries[this.entries.length - 1];
-      if (tail && tail.text === text) return;
-      this.entries.push({ t, text });
+      if (tail && tail.text === text2) return;
+      this.entries.push({ t, text: text2 });
       if (this.entries.length > MAX_ENTRIES) this.entries.splice(0, this.entries.length - MAX_ENTRIES);
     }
     /**
@@ -5031,22 +5257,22 @@
       }, ms);
     };
   }
-  function normalize(text) {
-    return text.replace(/\s+/g, " ").trim();
+  function normalize(text2) {
+    return text2.replace(/\s+/g, " ").trim();
   }
   var CUE_SEPARATOR_TAG = /<\s*\/?\s*(?:br|p|div)\b[^>]*>/gi;
   var CUE_INLINE_TAG = /<[^>]+>/g;
-  function stripCueTags(text) {
-    return text.replace(CUE_SEPARATOR_TAG, " ").replace(CUE_INLINE_TAG, "");
+  function stripCueTags(text2) {
+    return text2.replace(CUE_SEPARATOR_TAG, " ").replace(CUE_INLINE_TAG, "");
   }
-  function hasJapanese(text) {
-    return /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/.test(text);
+  function hasJapanese(text2) {
+    return /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/.test(text2);
   }
-  function hasEnglish(text) {
-    return /[A-Za-z]{2,}/.test(text);
+  function hasEnglish(text2) {
+    return /[A-Za-z]{2,}/.test(text2);
   }
-  function matchesTargetScript(text, direction) {
-    return normalizeDirection(direction) === "ja-en" ? hasEnglish(text) : hasJapanese(text);
+  function matchesTargetScript(text2, direction) {
+    return normalizeDirection(direction) === "ja-en" ? hasEnglish(text2) : hasJapanese(text2);
   }
   var activeDirection = "en-ja";
   function setAdapterDirection(direction) {
@@ -5173,16 +5399,16 @@
       if (!ev.segs || ev.aAppend) continue;
       const base = (ev.tStartMs || 0) / 1e3;
       for (const seg of ev.segs) {
-        const text = seg.utf8 || "";
-        if (!text.trim()) continue;
-        words.push({ start: base + (seg.tOffsetMs || 0) / 1e3, text: text.replace(/\n/g, " ") });
+        const text2 = seg.utf8 || "";
+        if (!text2.trim()) continue;
+        words.push({ start: base + (seg.tOffsetMs || 0) / 1e3, text: text2.replace(/\n/g, " ") });
       }
     }
     words.sort((a, b) => a.start - b.start);
     return words;
   }
-  function spokenSec(text, lang) {
-    const chars = text.trim().length;
+  function spokenSec(text2, lang) {
+    const chars = text2.trim().length;
     return Math.min(1.5, Math.max(0.2, chars * (lang === "ja" ? 0.13 : 0.06)));
   }
   function buildSentenceCues(words, lang) {
@@ -5209,13 +5435,13 @@
     close();
     const cues = [];
     groups.forEach((group, i) => {
-      const text = normalize(group.map((w) => w.text.trim()).join(lang === "ja" ? "" : " "));
-      if (!text) return;
+      const text2 = normalize(group.map((w) => w.text.trim()).join(lang === "ja" ? "" : " "));
+      if (!text2) return;
       const last = group[group.length - 1];
       const start = group[0].start;
       const nextStart = groups[i + 1]?.[0].start ?? Infinity;
       const end = Math.min(nextStart, last.start + spokenSec(last.text, lang) + TAIL_SEC);
-      cues.push({ start, end: Math.max(end, start + 0.1), text });
+      cues.push({ start, end: Math.max(end, start + 0.1), text: text2 });
     });
     return cues;
   }
@@ -5229,10 +5455,10 @@
       this.emitted = "";
     }
     /** Feed what is on screen now. */
-    update(text, now) {
-      if (text === this.pending) return;
+    update(text2, now) {
+      if (text2 === this.pending) return;
       if (!this.pending) this.rollingSince = now;
-      this.pending = text;
+      this.pending = text2;
       this.changedAt = now;
     }
     /** The caption to emit now, if it has settled (or rolled too long) and says
@@ -5250,15 +5476,15 @@
       return line;
     }
     /** A caption that replaced the last one outright: it is out, nothing waits. */
-    markEmitted(text) {
+    markEmitted(text2) {
       this.pending = "";
-      this.emitted = text;
+      this.emitted = text2;
     }
     /** Whether `text` continues the caption given out last (a rolling update)
      * rather than replacing it. */
-    continues(text) {
+    continues(text2) {
       const prev = this.pending || this.emitted;
-      return !!prev && unseenTail(prev, text) !== text.trim();
+      return !!prev && unseenTail(prev, text2) !== text2.trim();
     }
     reset() {
       this.pending = "";
@@ -5351,10 +5577,10 @@
     const cues = [];
     for (const ev of data2.events || []) {
       if (!ev.segs) continue;
-      const text = normalize(ev.segs.map((s) => s.utf8 || "").join(""));
-      if (!text) continue;
+      const text2 = normalize(ev.segs.map((s) => s.utf8 || "").join(""));
+      if (!text2) continue;
       const start = ev.tStartMs / 1e3;
-      cues.push({ start, end: start + (ev.dDurMs || 3e3) / 1e3, text });
+      cues.push({ start, end: start + (ev.dDurMs || 3e3) / 1e3, text: text2 });
     }
     cues.sort((a, b) => a.start - b.start);
     return cues;
@@ -5362,9 +5588,9 @@
   async function fetchTrack(track, pot, lang) {
     const res = await fetch(trackUrl(track.baseUrl, pot, location.origin));
     if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
-    const text = await res.text();
-    if (!text) return [];
-    const data2 = JSON.parse(text);
+    const text2 = await res.text();
+    if (!text2) return [];
+    const data2 = JSON.parse(text2);
     return track.kind === "asr" ? buildSentenceCues(parseJson3Words(data2), lang) : parseJson3(data2);
   }
   async function potFor(videoId, captionsOn) {
@@ -5517,17 +5743,17 @@
             return;
           }
           if (Date.now() < settleUntil) return;
-          const text = getVisibleText();
-          if (text === lastText) return;
-          if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+          const text2 = getVisibleText();
+          if (text2 === lastText) return;
+          if (!text2 || !matchesTargetScript(text2, getAdapterDirection())) {
             roller.reset();
             if (lastText) onClear?.();
             lastText = "";
             return;
           }
-          lastText = text;
-          if (roller.continues(text)) {
-            roller.update(text, Date.now());
+          lastText = text2;
+          if (roller.continues(text2)) {
+            roller.update(text2, Date.now());
             if (!rollTimer) {
               rollTimer = setInterval(() => {
                 flushRolling();
@@ -5538,8 +5764,8 @@
             }
             return;
           }
-          roller.markEmitted(text);
-          onLine(text, { en: "" });
+          roller.markEmitted(text2);
+          onLine(text2, { en: "" });
         } catch (err) {
           warn("youtube adapter error:", err);
         }
@@ -5573,15 +5799,15 @@
       let lastText = "";
       const check = () => {
         try {
-          const text = getVisibleText2();
-          if (text === lastText) return;
-          if (!text || !matchesTargetScript(text, getAdapterDirection())) {
+          const text2 = getVisibleText2();
+          if (text2 === lastText) return;
+          if (!text2 || !matchesTargetScript(text2, getAdapterDirection())) {
             if (lastText) onClear?.();
             lastText = "";
             return;
           }
-          lastText = text;
-          onLine(text, { en: "" });
+          lastText = text2;
+          onLine(text2, { en: "" });
         } catch (err) {
           warn("netflix adapter error:", err);
         }
@@ -5612,8 +5838,8 @@
       for (const track of video.textTracks) {
         if (track.mode !== "showing" || !track.activeCues) continue;
         for (const cue of track.activeCues) {
-          const text = cue.text;
-          if (text) parts.push(stripCueTags(text));
+          const text2 = cue.text;
+          if (text2) parts.push(stripCueTags(text2));
         }
       }
       return normalize(parts.join(" "));
@@ -5625,19 +5851,19 @@
         const want = contextLang(getAdapterDirection());
         for (const track of video.textTracks) {
           if (!(track.language || "").startsWith(want) || !track.activeCues) continue;
-          const text = normalize(
+          const text2 = normalize(
             Array.from(track.activeCues).map((c) => stripCueTags(c.text)).join(" ")
           );
-          if (text) return text;
+          if (text2) return text2;
         }
         for (const track of video.textTracks) {
           if (track.mode !== "showing" || !track.activeCues) continue;
-          const text = normalize(
+          const text2 = normalize(
             Array.from(track.activeCues).map((c) => stripCueTags(c.text)).join(" ")
           );
-          if (!text) continue;
-          if (want === "en" && hasEnglish(text)) return text;
-          if (want === "ja" && matchesTargetScript(text, "en-ja")) return text;
+          if (!text2) continue;
+          if (want === "en" && hasEnglish(text2)) return text2;
+          if (want === "ja" && matchesTargetScript(text2, "en-ja")) return text2;
         }
         return "";
       };
@@ -5658,14 +5884,14 @@
                     }
                     return;
                   }
-                  const text = normalize(
+                  const text2 = normalize(
                     Array.from(cues).map((c) => stripCueTags(c.text)).join(" ")
                   );
                   const lastText = lastByTrack.get(track) || "";
-                  if (!text || text === lastText) return;
-                  if (!matchesTargetScript(text, getAdapterDirection())) return;
-                  lastByTrack.set(track, text);
-                  onLine(text, { en: contextFromVideo(v) });
+                  if (!text2 || text2 === lastText) return;
+                  if (!matchesTargetScript(text2, getAdapterDirection())) return;
+                  lastByTrack.set(track, text2);
+                  onLine(text2, { en: contextFromVideo(v) });
                 } catch (err) {
                   warn("generic adapter cue error:", err);
                 }
@@ -5777,8 +6003,8 @@
   var SENTENCE = { ja: /(?<=[。！？!?…])/, en: /(?<=[.!?…])\s+/ };
   var SOFT_BREAK = { ja: /[、,，」』）)\s]/, en: /\s/ };
   var LENS_MAX_CHARS = { ja: 28, en: 90 };
-  function splitForLens(text, lang, maxChars = LENS_MAX_CHARS[lang]) {
-    const clean = text.replace(/\s+/g, " ").trim();
+  function splitForLens(text2, lang, maxChars = LENS_MAX_CHARS[lang]) {
+    const clean = text2.replace(/\s+/g, " ").trim();
     if (!clean) return [];
     const out = [];
     for (const sentence of clean.split(SENTENCE[lang])) {
@@ -6055,25 +6281,25 @@
       return adapters.find((a) => a.matches()) || null;
     }
     function pickAdapter() {
-      if (signedIn !== true) return null;
+      if (signedIn === null) return null;
       if (adapter) return adapter;
       adapter = matchAdapter();
       if (adapter && !started) {
         started = true;
         log("adapter chosen:", adapter.name);
         adapter.start(
-          (text, context) => {
-            if (signedIn !== true) return;
+          (text2, context) => {
+            if (signedIn === null) return;
             lastPageLineAt = Date.now();
             if (episode) {
-              comparePageLine(text);
+              comparePageLine(text2);
               return;
             }
             subsDiag.source = "page";
-            onLine(text, context);
+            onLine(text2, context);
           },
           () => {
-            if (signedIn === true && !episode) clearLensLine();
+            if (signedIn !== null && !episode) clearLensLine();
           }
         );
         void ensureInit();
@@ -6263,12 +6489,12 @@
       contextSubs.clear();
     }
     function contextForAudio(a, start) {
-      let text = a.getVisibleText();
+      let text2 = a.getVisibleText();
       if (typeof start === "number") {
         const at = contextSubs.textAt(start);
-        if (at !== null) text = at;
+        if (at !== null) text2 = at;
       }
-      return text && matchesTargetScript(text, normalizeDirection(settings?.learningDirection)) ? "" : text;
+      return text2 && matchesTargetScript(text2, normalizeDirection(settings?.learningDirection)) ? "" : text2;
     }
     function audioLineIsCurrent(video, start, end) {
       if (!video) return true;
@@ -6319,10 +6545,10 @@
     let subsNoticeShown = false;
     function explainMissingEnglish() {
       if (subsNoticeShown || !subs.lastError) return;
-      const text = /quota/.test(subs.lastError) ? "English subtitles are paused: this month's limit is used up. Romaji keeps working." : /not_linked|unauthorized/.test(subs.lastError) ? "Sign in to AnimeVocab to get English under the romaji." : "";
-      if (!text) return;
+      const text2 = /quota/.test(subs.lastError) ? "English subtitles are paused: this month's limit is used up. Romaji keeps working." : /not_linked|unauthorized/.test(subs.lastError) ? "Sign in to AnimeVocab to get English under the romaji." : "";
+      if (!text2) return;
       subsNoticeShown = true;
-      showToast(text, "info");
+      showToast(text2, "info");
     }
     async function prefetchEnglish(line, a) {
       if (pageHasEnglish || hasEnglish(a.getVisibleText()) || contextSubs.some(hasEnglish)) return;
@@ -6334,11 +6560,11 @@
       const siteKey = adapter ? adapter.name : "generic";
       return !(s.sites && s.sites[siteKey] === false);
     }
-    async function tokenizeJa(text) {
-      const hit = tokenMemo.get(text);
+    async function tokenizeJa(text2) {
+      const hit = tokenMemo.get(text2);
       if (hit) return hit;
-      const tokens = await tokenize(text);
-      tokenMemo.set(text, tokens);
+      const tokens = await tokenize(text2);
+      tokenMemo.set(text2, tokens);
       if (tokenMemo.size > 64) tokenMemo.delete(tokenMemo.keys().next().value);
       return tokens;
     }
@@ -6417,7 +6643,7 @@
       const seq = ++lensSeq;
       const sessionId = currentSessionId();
       const cue = context?.cue;
-      const stale = () => signedIn !== true || seq !== lensSeq || currentSessionId() !== sessionId || cue !== void 0 && cue !== timelineCue;
+      const stale = () => signedIn === null || seq !== lensSeq || currentSessionId() !== sessionId || cue !== void 0 && cue !== timelineCue;
       const current2 = settings || await getSettings();
       if (stale()) return;
       if (!siteEnabled(current2) || !lensOn(current2)) {
@@ -6476,8 +6702,8 @@
     function cancelPacedLens() {
       lensChain += 1;
     }
-    function showPacedLens(text, context) {
-      const pieces = splitForLens(text, studyLang());
+    function showPacedLens(text2, context) {
+      const pieces = splitForLens(text2, studyLang());
       if (!pieces.length) return -1;
       cancelPacedLens();
       const chain = lensChain;
@@ -6493,17 +6719,18 @@
       step(0);
       return groupSeq;
     }
-    function onLine(text, context, opts2 = {}) {
-      if (signedIn !== true || pipelineDisabled) return;
-      const line = text.replace(/\s+/g, " ").trim();
+    function onLine(text2, context, opts2 = {}) {
+      if (signedIn === null || pipelineDisabled) return;
+      const line = text2.replace(/\s+/g, " ").trim();
       if (!line) return;
-      void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
+      if (signedIn === true) void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
       let seq = opts2.lensSeq ?? -1;
       if (opts2.lens !== false) {
         cancelPacedLens();
         renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
         seq = lensSeq;
       }
+      if (signedIn !== true) return;
       pendingLines.push({ text: line, context, lensSeq: seq });
       if (pendingLines.length > MAX_PENDING_LINES) pendingLines.splice(0, pendingLines.length - MAX_PENDING_LINES);
       if (!lineInFlight) void drainLines();
@@ -6523,12 +6750,12 @@
         lineInFlight = false;
       }
     }
-    async function processLine(text, context, lineLensSeq = -1) {
+    async function processLine(text2, context, lineLensSeq = -1) {
       const lineSessionId = currentSessionId();
       const staleSession = () => {
         if (signedIn !== true) return true;
         if (currentSessionId() === lineSessionId) return false;
-        log("dropped line from the previous video:", text.slice(0, 40));
+        log("dropped line from the previous video:", text2.slice(0, 40));
         return true;
       };
       settings = await getSettings();
@@ -6540,7 +6767,7 @@
       if (settings.pauseMode === "off" && !lensEnabled) return;
       await ensureInit();
       if (!initialized) return;
-      const normalized = text.replace(/\s+/g, " ").trim();
+      const normalized = text2.replace(/\s+/g, " ").trim();
       if (normalized === lastLine) return;
       lastLine = normalized;
       let tokens;
@@ -6679,16 +6906,16 @@
       netflixOffset = Math.abs(median) < 0.08 ? 0 : median;
       subsDiag.offsetMs = Math.round(netflixOffset * 1e3);
     }
-    function comparePageLine(text) {
+    function comparePageLine(text2) {
       const ep = episode;
       if (!ep || timelineCue < 0) return;
       const flat = (s) => s.replace(/[\s　]/g, "");
-      const page = flat(text);
+      const page = flat(text2);
       if (!page) return;
       subsDiag.pageChecked++;
       const near = [timelineCue - 1, timelineCue, timelineCue + 1].map((i) => ep.cues[i]?.text ?? "");
       if (near.some((c) => flat(c) === page || c && (flat(c).includes(page) || page.includes(flat(c))))) subsDiag.pageMatched++;
-      else subsDiag.lastMismatch = `page "${text.slice(0, 30)}" vs ours "${(ep.cues[timelineCue]?.text ?? "").slice(0, 30)}"`;
+      else subsDiag.lastMismatch = `page "${text2.slice(0, 30)}" vs ours "${(ep.cues[timelineCue]?.text ?? "").slice(0, 30)}"`;
     }
     let timelineFrame = 0;
     const TIMELINE_LEAD_SEC = 0.05;
@@ -6696,13 +6923,13 @@
       return location.pathname.match(/\/watch\/(\d+)/)?.[1] || window.__avcNetflixVideoId || "";
     }
     function requestNetflixTracks() {
-      if (signedIn !== true) return;
+      if (signedIn === null) return;
       if (!location.hostname.endsWith("netflix.com")) return;
       const movieId = netflixId();
       if (movieId) window.postMessage({ source: "avc-content", type: "avc-netflix-timedtext-request", movieId }, location.origin);
     }
     function useNetflixTracks(data2) {
-      if (signedIn !== true) return;
+      if (signedIn === null) return;
       if (typeof data2.movieId !== "string" || data2.movieId !== netflixId()) return;
       const upgrade = data2.movieId === episodeId && episode?.source === "translation" && typeof data2.en?.text === "string";
       if (data2.movieId === episodeId && !upgrade) return;
@@ -6904,7 +7131,7 @@
         typeof msg.end === "number" ? msg.end : void 0
       );
     });
-    function handleTranscript(text, start, end) {
+    function handleTranscript(text2, start, end) {
       if (episode) return;
       const pageLive = Date.now() - lastPageLineAt < 15e3;
       if (!pageLive) subsDiag.source = "audio";
@@ -6918,19 +7145,19 @@
         log("transcript ignored (no video in this frame)");
         return;
       }
-      const rawTranscript = text.trim();
+      const rawTranscript = text2.trim();
       if (pipelineDisabled || !rawTranscript) return;
       const ahead = typeof start === "number" ? start - video.currentTime : 0;
       if (ahead > EARLY_LINE_TOLERANCE_SEC) {
         if (ahead > MAX_EARLY_HOLD_SEC) return;
         if (settings && lensOn(settings) && Date.now() - lastPageLineAt >= 15e3) {
-          for (const piece of splitForLens(text.trim(), studyLang())) void prefetchEnglish(piece, a);
+          for (const piece of splitForLens(text2.trim(), studyLang())) void prefetchEnglish(piece, a);
         }
         const sessionId = currentSessionId();
         const generation = cachePollGeneration;
         setTimeout(() => {
           if (currentSessionId() !== sessionId || cachePollGeneration !== generation) return;
-          handleTranscript(text, start, end);
+          handleTranscript(text2, start, end);
         }, ahead * 1e3 / (video.playbackRate || 1));
         return;
       }
@@ -6953,14 +7180,14 @@
         return;
       }
       const direction = normalizeDirection(current2.learningDirection);
-      const text = captionNoticeText(report, {
+      const text2 = captionNoticeText(report, {
         listening: listeningActive,
         cardsOn: current2.pauseMode !== "off",
         lensOn: direction === "en-ja" && current2.subLens !== false
       });
-      if (!text) return;
+      if (!text2) return;
       captionNoticeShown = true;
-      showToast(text, "info");
+      showToast(text2, "info");
     }
     onCaptions(() => {
       void maybeExplainMissingCaptions();
@@ -7053,8 +7280,8 @@
       const initial = pickAdapter();
       lastSessionId = initial ? sessionIdentity(platformForAdapter(initial), studyLang()) : location.pathname;
       refreshCacheKey();
+      requestNetflixTracks();
       if (signedIn === true) {
-        requestNetflixTracks();
         prefetchAnimeContext(currentTitle());
         void restoreTabSession();
       }
@@ -7109,4 +7336,8 @@
     });
     void setAgentPinned(false);
   })();
+  window.addEventListener("online", () => {
+    void chrome.runtime.sendMessage({ type: "avc-sync-now" }).catch(() => {
+    });
+  });
 })();

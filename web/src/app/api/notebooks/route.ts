@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { resolveProfile } from "@/lib/auth";
-import { getNotebookStore, putNotebookStore } from "@/lib/notebook-store";
+import { getNotebookStore } from "@/lib/notebook-store";
+import { getLearnStore } from "@/lib/learn-server";
+import { LearnError } from "@/lib/learn-store";
+import { newLearnOp } from "../../../lib/learn-protocol/model";
 import { clampName, toSummary, MAX_NOTEBOOKS, type Notebook } from "@/lib/notebooks";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +16,7 @@ export async function GET(req: Request) {
     const store = await getNotebookStore(profile.id);
     return NextResponse.json({ notebooks: store.notebooks.map(toSummary) });
   } catch (err) {
-    return NextResponse.json({ error: msg(err) }, { status: 503 });
+    return fail(err);
   }
 }
 
@@ -42,12 +45,20 @@ export async function POST(req: Request) {
       updatedAt: now,
       entries: [],
     };
-    store.notebooks.unshift(notebook);
-    await putNotebookStore(profile.id, store);
+    await (await getLearnStore(profile.id)).apply([newLearnOp("notebook",{notebook})]);
     return NextResponse.json({ notebook: toSummary(notebook) }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: msg(err) }, { status: 503 });
+    return fail(err);
   }
+}
+
+// Rejections keep their status; only unexpected failures read as unavailable.
+function fail(err: unknown) {
+  if (err instanceof LearnError && err.status < 500)
+    return NextResponse.json({ error: err.message }, { status: err.status });
+  if (err instanceof Error && /^invalid_/.test(err.message))
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  return NextResponse.json({ error: msg(err) }, { status: 503 });
 }
 
 // Never leak raw internal error text (e.g. KV binding messages) to clients.

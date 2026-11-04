@@ -1,31 +1,188 @@
 "use strict";
 (() => {
-  // src/types.ts
-  var DEFAULTS = {
-    pauseMode: "copilot",
-    cooldownSec: 20,
-    maxCardsPerHour: 12,
-    targetLevel: 5,
-    autoResumeSec: 15,
-    displayScript: "romaji",
-    learningDirection: "en-ja",
-    autoSpeak: true,
-    subLens: true,
-    subLensPeek: true,
-    openaiKey: "",
-    transcribeModel: "gpt-4o-mini-transcribe",
-    sites: { youtube: true, netflix: true, generic: true }
+  // web/src/lib/learn-protocol/model.ts
+  var emptyLearnState = () => ({
+    words: {},
+    daily: {},
+    settings: {},
+    notebooks: {}
+  });
+  var newLearnOp = (kind, payload, op_id = crypto.randomUUID(), client_ts = (/* @__PURE__ */ new Date()).toISOString()) => ({ op_id, kind, payload, client_ts });
+  var intervals = [
+    0,
+    4 * 36e5,
+    24 * 36e5,
+    3 * 864e5,
+    7 * 864e5,
+    21 * 864e5
+  ];
+  function projectLearnOp(state, op) {
+    const p = op.payload;
+    const at = Date.parse(op.client_ts);
+    const delta = {};
+    if (op.kind === "word" || op.kind === "import_local") {
+      const incoming = p.word;
+      if (incoming) {
+        const current = state.words[incoming.base];
+        let word = structuredClone(incoming);
+        if (op.kind === "import_local" && current) word = current;
+        else if (current && p.intent === "seen") {
+          word = {
+            ...current,
+            seenCount: current.seenCount + Number(p.seenDelta || 0),
+            shownCount: current.shownCount + Number(p.shownDelta || 0),
+            lastSeenAt: incoming.lastSeenAt
+          };
+        } else if (current && p.intent === "save" && incoming.state === "learning" && current.state === "learning") {
+          word = { ...incoming, review: current.review };
+        }
+        state.words[incoming.base] = word;
+        delta.words = { [incoming.base]: word };
+      }
+      if (op.kind === "import_local") {
+        const daily = p.daily;
+        if (daily && !state.daily[daily.day]) {
+          state.daily[daily.day] = structuredClone(daily);
+          delta.daily = { [daily.day]: state.daily[daily.day] };
+        }
+        if (p.settings) {
+          const settings = Object.fromEntries(
+            Object.entries(p.settings).filter(
+              ([k]) => !(k in state.settings)
+            )
+          );
+          Object.assign(state.settings, settings);
+          delta.settings = settings;
+        }
+      }
+    } else if (op.kind === "review_history") {
+    } else if (op.kind === "review") {
+      const base = p.base;
+      const current = state.words[base];
+      if (!current) throw new Error("word_not_found");
+      const word = structuredClone(current);
+      if (word.state === "learning" && word.review) {
+        const stage = p.result === "pass" ? word.review.stage + 1 : 1;
+        if (stage >= intervals.length) {
+          word.state = "known";
+          word.review = null;
+        } else
+          word.review = {
+            stage,
+            dueAt: new Date(at + intervals[stage]).toISOString(),
+            lapses: word.review.lapses + (p.result === "fail" ? 1 : 0)
+          };
+      }
+      word.lastSeenAt = op.client_ts;
+      state.words[base] = word;
+      delta.words = { [base]: word };
+      delta.daily = bumpProgress(state, p.day, {
+        reviews: 1,
+        judged: 1
+      });
+    } else if (op.kind === "settings") {
+      Object.assign(state.settings, p.settings);
+      delta.settings = structuredClone(p.settings);
+    } else if (op.kind === "progress") {
+      delta.daily = bumpProgress(
+        state,
+        p.day,
+        p.delta
+      );
+    } else if (op.kind === "notebook") {
+      const notebook = p.notebook;
+      if (!state.notebooks[notebook.id] && Object.keys(state.notebooks).length >= 100)
+        throw new Error("too_many_notebooks");
+      const next = {
+        ...structuredClone(notebook),
+        updatedAt: op.client_ts,
+        entries: state.notebooks[notebook.id]?.entries || []
+      };
+      state.notebooks[next.id] = next;
+      delta.notebooks = { [next.id]: { ...next, entries: [] } };
+    } else if (op.kind === "notebook_delete") {
+      delete state.notebooks[p.id];
+      delta.notebooks = { [p.id]: null };
+    } else {
+      const id = p.id;
+      const notebook = state.notebooks[id];
+      if (!notebook) throw new Error("notebook_not_found");
+      if (op.kind === "notebook_item") {
+        const entry = p.entry;
+        if (!notebook.entries.some((e) => e.id === entry.id) && notebook.entries.length >= 2e3)
+          throw new Error("notebook_full");
+        notebook.entries = [
+          structuredClone(entry),
+          ...notebook.entries.filter((e) => e.id !== entry.id)
+        ];
+        delta.entries = [{ notebookId: id, entry: structuredClone(entry) }];
+      } else {
+        notebook.entries = notebook.entries.filter((e) => e.id !== p.entryId);
+        delta.entries = [{ notebookId: id, removed: p.entryId }];
+      }
+      notebook.updatedAt = op.client_ts;
+      delta.notebooks = { [id]: { ...structuredClone(notebook), entries: [] } };
+    }
+    return delta;
+  }
+  function bumpProgress(state, day, values) {
+    const row = state.daily[day] || {
+      day,
+      met: 0,
+      judged: 0,
+      reviews: 0,
+      watchMin: 0
+    };
+    for (const key of ["met", "judged", "reviews", "watchMin"])
+      row[key] += values[key] || 0;
+    state.daily[day] = row;
+    return { [day]: { ...row } };
+  }
+  function applyLearnDelta(state, delta) {
+    Object.assign(state.words, delta.words);
+    Object.assign(state.daily, delta.daily);
+    Object.assign(state.settings, delta.settings);
+    for (const [id, nb] of Object.entries(delta.notebooks || {})) {
+      if (nb) state.notebooks[id] = { ...nb, entries: state.notebooks[id]?.entries || [] };
+      else delete state.notebooks[id];
+    }
+    for (const change of delta.entries || []) {
+      const notebook = state.notebooks[change.notebookId];
+      if (!notebook) continue;
+      const id = change.entry?.id ?? change.removed;
+      notebook.entries = notebook.entries.filter((e) => e.id !== id);
+      if (change.entry) notebook.entries.unshift(change.entry);
+    }
+  }
+
+  // web/src/lib/learn-protocol/validate.ts
+  var object = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  var plain = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max && !/[\u0000-\u001f]/.test(v);
+  var text = (v, max = 200) => plain(v, max) && !["__proto__", "constructor", "prototype"].includes(v);
+  var num = (v, max = 1e9) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max;
+  var PUBLIC_SETTINGS = {
+    pauseMode: (v) => ["copilot", "pause", "off"].includes(v),
+    cooldownSec: (v) => num(v, 120),
+    maxCardsPerHour: (v) => num(v, 60),
+    targetLevel: (v) => num(v, 5) && Number(v) >= 1,
+    autoResumeSec: (v) => num(v, 120),
+    displayScript: (v) => ["romaji", "kana", "kanji", "romaji-kana"].includes(v),
+    learningDirection: (v) => ["en-ja", "ja-en"].includes(v),
+    autoSpeak: (v) => typeof v === "boolean",
+    subLens: (v) => typeof v === "boolean",
+    subLensPeek: (v) => typeof v === "boolean",
+    transcribeModel: (v) => text(v, 100),
+    sites: (v) => object(v) && Object.keys(v).every(
+      (k) => ["youtube", "netflix", "generic"].includes(k)
+    ) && ["youtube", "netflix", "generic"].every((k) => typeof v[k] === "boolean")
   };
-  var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
-
-  // src/config.ts
-  var BACKEND_URL = "https://api.animevocab.com";
-  var WEB_URL = "https://animevocab.com";
-  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
-
-  // src/lib/log.ts
-  var log = (...args) => console.log("[AVC]", ...args);
-  var warn = (...args) => console.warn("[AVC]", ...args);
+  function publicSettings(raw) {
+    return Object.fromEntries(
+      Object.entries(raw).filter(
+        ([k, v]) => Object.prototype.hasOwnProperty.call(PUBLIC_SETTINGS, k) && PUBLIC_SETTINGS[k](v)
+      )
+    );
+  }
 
   // web/src/lib/sync.ts
   function asRecord(value) {
@@ -51,11 +208,6 @@
     if (!value) return 0;
     const time = Date.parse(value);
     return Number.isFinite(time) ? time : 0;
-  }
-  function normalizeIsoString(value) {
-    if (typeof value !== "string") return null;
-    const time = Date.parse(value);
-    return Number.isFinite(time) ? new Date(time).toISOString() : null;
   }
   function asTimestampArray(value) {
     return Array.isArray(value) ? value.map(Number).filter((n) => Number.isFinite(n) && n > 0) : [];
@@ -128,59 +280,6 @@
       }).sort((a, b) => a.day.localeCompare(b.day))
     };
   }
-  function normalizeCloudSyncSnapshot(input, now = /* @__PURE__ */ new Date()) {
-    const raw = asRecord(input);
-    const words = Array.isArray(raw.words) ? raw.words : [];
-    const daily = Array.isArray(raw.daily) ? raw.daily : [];
-    if (raw.schemaVersion !== 1 || raw.source !== "animevocab-extension") {
-      throw new Error("invalid_snapshot");
-    }
-    return {
-      schemaVersion: 1,
-      source: "animevocab-extension",
-      importedAt: normalizeIsoString(raw.importedAt) ?? now.toISOString(),
-      sourceExportedAt: normalizeIsoString(raw.sourceExportedAt),
-      settings: stripSecretSettings(asRecord(raw.settings)),
-      cardTimestamps: asTimestampArray(raw.cardTimestamps),
-      words: words.map((value) => {
-        const rec = asRecord(value);
-        const review = asRecord(rec.review);
-        const hasReview = rec.review !== null && Object.keys(review).length > 0;
-        const base = asString(rec.base);
-        if (!base) throw new Error("invalid_snapshot");
-        return {
-          base,
-          state: asWordState(rec.state, base),
-          reading: asString(rec.reading),
-          gloss: asString(rec.gloss),
-          level: Number.isFinite(Number(rec.level)) ? Number(rec.level) : null,
-          freqRank: Number.isFinite(Number(rec.freqRank)) ? Number(rec.freqRank) : null,
-          seenCount: asNumber(rec.seenCount),
-          shownCount: asNumber(rec.shownCount),
-          firstSeenAt: normalizeIsoString(rec.firstSeenAt),
-          lastSeenAt: normalizeIsoString(rec.lastSeenAt),
-          review: hasReview ? {
-            stage: asNumber(review.stage),
-            dueAt: normalizeIsoString(review.dueAt),
-            lapses: asNumber(review.lapses)
-          } : null,
-          source: asWordSource(rec.source)
-        };
-      }).sort((a, b) => a.base.localeCompare(b.base)),
-      daily: daily.map((value) => {
-        const rec = asRecord(value);
-        const day = asString(rec.day);
-        if (!day) throw new Error("invalid_snapshot");
-        return {
-          day,
-          met: asNumber(rec.met),
-          judged: asNumber(rec.judged),
-          reviews: asNumber(rec.reviews),
-          watchMin: asNumber(rec.watchMin)
-        };
-      }).sort((a, b) => a.day.localeCompare(b.day))
-    };
-  }
   function cloudSnapshotToAnimeVocabExport(snapshot) {
     const vocab = {};
     const daily = {};
@@ -219,94 +318,131 @@
       exportedAt: snapshot.sourceExportedAt ?? snapshot.importedAt
     };
   }
-  var MAX_MERGED_CARD_TIMESTAMPS = 1e4;
-  function earliestIso(a, b) {
-    if (!a) return b;
-    if (!b) return a;
-    return isoToTime(a) <= isoToTime(b) ? a : b;
+
+  // src/lib/learn-cache.ts
+  var LEARN_KEYS = [
+    "learnOutbox",
+    "learnOwner",
+    "learnOwnerToken",
+    "learnCursor",
+    "learnRemote",
+    "learnInitialized",
+    "learnLegacy",
+    "learnEpoch",
+    "syncToken",
+    "vocab",
+    "stats",
+    "settings"
+  ];
+  function localImportOps(raw) {
+    const snapshot = normalizeAnimeVocabExport(raw);
+    return [
+      ...snapshot.words.map((word) => newLearnOp("import_local", { word })),
+      ...snapshot.daily.map((daily) => newLearnOp("import_local", { daily })),
+      newLearnOp("import_local", { settings: publicSettings(snapshot.settings) })
+    ];
   }
-  function mergeWordRecords(server, incoming) {
-    const winner = isoToTime(incoming.lastSeenAt) > isoToTime(server.lastSeenAt) ? incoming : server;
-    return {
-      ...winner,
-      firstSeenAt: earliestIso(server.firstSeenAt, incoming.firstSeenAt),
-      seenCount: Math.max(server.seenCount, incoming.seenCount),
-      shownCount: Math.max(server.shownCount, incoming.shownCount)
-    };
-  }
-  function mergeWords(server, incoming) {
-    const byBase = /* @__PURE__ */ new Map();
-    for (const w of server) byBase.set(w.base, w);
-    for (const w of incoming) {
-      const existing = byBase.get(w.base);
-      byBase.set(w.base, existing ? mergeWordRecords(existing, w) : w);
-    }
-    return [...byBase.values()].sort((a, b) => a.base.localeCompare(b.base));
-  }
-  function mergeDaily(server, incoming) {
-    const byDay = /* @__PURE__ */ new Map();
-    for (const d of server) byDay.set(d.day, d);
-    for (const d of incoming) {
-      const e = byDay.get(d.day);
-      byDay.set(
-        d.day,
-        e ? {
-          day: d.day,
-          met: Math.max(e.met, d.met),
-          judged: Math.max(e.judged, d.judged),
-          reviews: Math.max(e.reviews, d.reviews),
-          watchMin: Math.max(e.watchMin, d.watchMin)
-        } : d
+  async function learningPatch(before, patch, intent = "seen", review) {
+    const stored = await chrome.storage.local.get(LEARN_KEYS);
+    const next = normalizeAnimeVocabExport({ ...before, ...patch });
+    const previous = normalizeAnimeVocabExport(before);
+    const ops = [];
+    if (patch.settings) {
+      const changed = Object.fromEntries(
+        Object.entries(publicSettings(patch.settings)).filter(
+          ([k, v]) => JSON.stringify(v) !== JSON.stringify(previous.settings[k])
+        )
       );
+      if (Object.keys(changed).length)
+        ops.push(newLearnOp("settings", { settings: changed }));
     }
-    return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+    if (patch.vocab) {
+      const prior = new Map(previous.words.map((w) => [w.base, w]));
+      for (const word of next.words) {
+        const old = prior.get(word.base);
+        if (JSON.stringify(word) === JSON.stringify(old)) continue;
+        if (review?.base === word.base && old) continue;
+        ops.push(
+          newLearnOp("word", {
+            word,
+            intent,
+            seenDelta: Math.max(0, word.seenCount - (old?.seenCount || 0)),
+            shownDelta: Math.max(0, word.shownCount - (old?.shownCount || 0))
+          })
+        );
+      }
+    }
+    if (review) ops.push(newLearnOp("review", review));
+    if (patch.stats) {
+      const prior = new Map(previous.daily.map((d) => [d.day, d]));
+      for (const row of next.daily) {
+        const old = prior.get(row.day);
+        const delta = {};
+        for (const key of ["met", "judged", "reviews", "watchMin"]) {
+          const n = row[key] - (old?.[key] || 0) - (review && review.day === row.day && (key === "judged" || key === "reviews") ? 1 : 0);
+          if (n > 0) delta[key] = n;
+        }
+        if (Object.keys(delta).length)
+          ops.push(newLearnOp("progress", { day: row.day, delta }));
+      }
+    }
+    const pending = stored.learnOutbox || [];
+    const token = String(stored.learnOwnerToken || stored.syncToken || "");
+    const ownerId = typeof stored.learnOwner === "string" ? stored.learnOwner : null;
+    const result = {
+      ...patch,
+      learnOutbox: [...pending, ...ops.map((op) => ({ token, ownerId, op }))]
+    };
+    if (!stored.learnInitialized && !stored.learnLegacy)
+      result.learnLegacy = structuredClone({
+        vocab: before.vocab ?? stored.vocab,
+        stats: before.stats ?? stored.stats,
+        settings: before.settings ?? stored.settings
+      });
+    return result;
   }
-  function mergeCardTimestamps(server, incoming) {
-    const set = /* @__PURE__ */ new Set();
-    for (const t of server) set.add(t);
-    for (const t of incoming) set.add(t);
-    const all = [...set].sort((a, b) => a - b);
-    return all.length > MAX_MERGED_CARD_TIMESTAMPS ? all.slice(all.length - MAX_MERGED_CARD_TIMESTAMPS) : all;
-  }
-  function mergeCloudSnapshots(server, incoming) {
+  function cacheFromState(remote, pending, token, deviceSettings) {
+    const view = structuredClone(remote);
+    for (const item of pending.filter((p) => p.token === token)) {
+      try {
+        projectLearnOp(view, item.op);
+      } catch {
+      }
+    }
+    const data2 = cloudSnapshotToAnimeVocabExport({
+      ...normalizeAnimeVocabExport({}),
+      words: Object.values(view.words),
+      daily: Object.values(view.daily),
+      settings: view.settings
+    });
     return {
-      schemaVersion: 1,
-      source: "animevocab-extension",
-      importedAt: incoming.importedAt,
-      sourceExportedAt: incoming.sourceExportedAt ?? server.sourceExportedAt,
-      // Per-key union; the pushing device's values win (settings are push-owned).
-      // Strip secrets defensively in case a legacy stored snapshot still holds one.
-      settings: stripSecretSettings({ ...server.settings, ...incoming.settings }),
-      words: mergeWords(server.words, incoming.words),
-      daily: mergeDaily(server.daily, incoming.daily),
-      cardTimestamps: mergeCardTimestamps(server.cardTimestamps, incoming.cardTimestamps)
+      vocab: data2.vocab,
+      stats: data2.stats,
+      settings: { ...deviceSettings, ...data2.settings }
     };
   }
+  function mergeLearnChanges(remote, pending, token, changes) {
+    const state = structuredClone(remote || emptyLearnState());
+    for (const change of changes) applyLearnDelta(state, change.delta);
+    const seen = new Set(changes.map((c) => c.op_id));
+    return {
+      state,
+      pending: pending.filter((p) => p.token !== token || !seen.has(p.op.op_id))
+    };
+  }
+
+  // src/lib/log.ts
+  var log = (...args) => console.log("[AVC]", ...args);
+  var warn = (...args) => console.warn("[AVC]", ...args);
+
+  // src/config.ts
+  var BACKEND_URL = "https://api.animevocab.com";
+  var WEB_URL = "https://animevocab.com";
+  var CWS_EXTENSION_ID = "lkjbomofgfonjjbemobacegffepbdnel";
 
   // src/lib/account-cache.ts
   var ACCOUNT_CACHE_CLEARED = "accountCacheClearedAt";
   var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
-  async function restoredAccountCache(token) {
-    const before = await chrome.storage.local.get(ACCOUNT_CACHE_CLEARED);
-    const clearedAt = before[ACCOUNT_CACHE_CLEARED];
-    if (!clearedAt) return {};
-    const res = await fetch(WEB_URL + "/api/sync/snapshot", {
-      headers: { Authorization: "Bearer " + token },
-      signal: AbortSignal.timeout(1e4)
-    });
-    if (!res.ok) throw new Error("Could not restore your words. Please try signing in again.");
-    const data = await res.json();
-    const after = await chrome.storage.local.get(ACCOUNT_CACHE_CLEARED);
-    if (after[ACCOUNT_CACHE_CLEARED] !== clearedAt) throw new Error("Account changed while restoring your words.");
-    const restored = cloudSnapshotToAnimeVocabExport(data.envelope?.snapshot ? normalizeCloudSyncSnapshot(data.envelope.snapshot) : normalizeAnimeVocabExport({}));
-    return {
-      vocab: restored.vocab,
-      stats: restored.stats,
-      settings: restored.settings,
-      webReviewSeq: data.envelope?.webReviewSeq || 0,
-      [ACCOUNT_CACHE_CLEARED]: null
-    };
-  }
 
   // src/lib/locale-direction.ts
   function isJapaneseUiLocale() {
@@ -321,6 +457,251 @@
     if (stored === "ja-en" || stored === "en-ja") return stored;
     return null;
   }
+
+  // src/lib/dictionary.ts
+  var data = null;
+  function lookup(base) {
+    if (!data) return null;
+    const entry = data[base];
+    if (!entry) return null;
+    return {
+      reading: entry.r,
+      glosses: entry.g,
+      level: entry.l,
+      freqRank: entry.f
+    };
+  }
+
+  // src/lib/priority-words.ts
+  var ESSENTIAL_WORDS = {
+    \u3042\u308A\u304C\u3068\u3046: { boost: 0.38, jlpt: "N5" },
+    \u3069\u3046\u3082: { boost: 0.28, jlpt: "N5" },
+    \u3059\u307F\u307E\u305B\u3093: { boost: 0.36, jlpt: "N5" },
+    \u3054\u3081\u3093: { boost: 0.3, jlpt: "N5" },
+    \u3054\u3081\u3093\u306A\u3055\u3044: { boost: 0.34, jlpt: "N5" },
+    \u304A\u9858\u3044: { boost: 0.34, jlpt: "N5" },
+    \u304A\u9858\u3044\u3057\u307E\u3059: { boost: 0.4, jlpt: "N5" },
+    \u304F\u3060\u3055\u3044: { boost: 0.32, jlpt: "N5" },
+    \u304A\u306F\u3088\u3046: { boost: 0.3, jlpt: "N5" },
+    \u3053\u3093\u306B\u3061\u306F: { boost: 0.3, jlpt: "N5" },
+    \u3053\u3093\u3070\u3093\u306F: { boost: 0.28, jlpt: "N5" },
+    \u3055\u3088\u3046\u306A\u3089: { boost: 0.26, jlpt: "N5" },
+    \u3058\u3083\u3042\u306D: { boost: 0.24, jlpt: "N5" },
+    \u304A\u3084\u3059\u307F: { boost: 0.28, jlpt: "N5" },
+    \u306F\u3044: { boost: 0.22, jlpt: "N5" },
+    \u3044\u3044\u3048: { boost: 0.22, jlpt: "N5" },
+    \u5927\u4E08\u592B: { boost: 0.32, jlpt: "N5" },
+    \u5206\u304B\u308B: { boost: 0.3, jlpt: "N5" },
+    \u5206\u304B\u3089\u306A\u3044: { boost: 0.3, jlpt: "N5" },
+    \u597D\u304D: { boost: 0.28, jlpt: "N5" },
+    \u5ACC\u3044: { boost: 0.24, jlpt: "N5" },
+    \u6B32\u3057\u3044: { boost: 0.28, jlpt: "N5" },
+    \u884C\u304F: { boost: 0.26, jlpt: "N5" },
+    \u6765\u308B: { boost: 0.26, jlpt: "N5" },
+    \u898B\u308B: { boost: 0.24, jlpt: "N5" },
+    \u805E\u304F: { boost: 0.26, jlpt: "N5" },
+    \u8A00\u3046: { boost: 0.26, jlpt: "N5" },
+    \u98DF\u3079\u308B: { boost: 0.28, jlpt: "N5" },
+    \u98F2\u3080: { boost: 0.26, jlpt: "N5" },
+    \u52C9\u5F37: { boost: 0.24, jlpt: "N5" },
+    \u5B66\u6821: { boost: 0.24, jlpt: "N5" },
+    \u5148\u751F: { boost: 0.26, jlpt: "N5" },
+    \u53CB\u9054: { boost: 0.26, jlpt: "N5" },
+    \u540D\u524D: { boost: 0.24, jlpt: "N5" },
+    \u672C\u5F53: { boost: 0.28, jlpt: "N5" },
+    \u30DE\u30B8: { boost: 0.22, jlpt: "N5" },
+    \u3084\u3070\u3044: { boost: 0.24, jlpt: "N5" },
+    \u9811\u5F35\u308B: { boost: 0.28, jlpt: "N5" },
+    \u5F85\u3064: { boost: 0.24, jlpt: "N4" },
+    \u601D\u3046: { boost: 0.24, jlpt: "N4" },
+    \u77E5\u308B: { boost: 0.26, jlpt: "N5" },
+    \u4F1A\u3046: { boost: 0.24, jlpt: "N5" }
+  };
+  function isEssentialWord(base) {
+    return base in ESSENTIAL_WORDS;
+  }
+
+  // src/lib/english-essentials.ts
+  var ENGLISH_ESSENTIALS = {
+    please: { gloss: "\u304A\u9858\u3044\u3057\u307E\u3059\uFF0F\u3069\u3046\u305E", level: 5 },
+    thanks: { gloss: "\u3042\u308A\u304C\u3068\u3046", level: 5 },
+    thank: { gloss: "\u611F\u8B1D\u3059\u308B", level: 5 },
+    sorry: { gloss: "\u3054\u3081\u3093\uFF0F\u3059\u307F\u307E\u305B\u3093", level: 5 },
+    hello: { gloss: "\u3053\u3093\u306B\u3061\u306F", level: 5 },
+    goodbye: { gloss: "\u3055\u3088\u3046\u306A\u3089", level: 5 },
+    love: { gloss: "\u611B\u3059\u308B\uFF0F\u5927\u597D\u304D", level: 5 },
+    like: { gloss: "\u597D\u304D\uFF0F\u301C\u307F\u305F\u3044", level: 5 },
+    want: { gloss: "\u6B32\u3057\u3044\uFF0F\u3057\u305F\u3044", level: 5 },
+    need: { gloss: "\u5FC5\u8981\u3060", level: 5 },
+    know: { gloss: "\u77E5\u3063\u3066\u3044\u308B", level: 5 },
+    think: { gloss: "\u601D\u3046", level: 5 },
+    feel: { gloss: "\u611F\u3058\u308B", level: 5 },
+    come: { gloss: "\u6765\u308B", level: 5 },
+    go: { gloss: "\u884C\u304F", level: 5 },
+    see: { gloss: "\u898B\u308B", level: 5 },
+    look: { gloss: "\u898B\u308B\uFF0F\u69D8\u5B50", level: 5 },
+    hear: { gloss: "\u805E\u304F", level: 5 },
+    listen: { gloss: "\u8033\u3092\u50BE\u3051\u308B", level: 5 },
+    speak: { gloss: "\u8A71\u3059", level: 5 },
+    talk: { gloss: "\u8A71\u3059", level: 5 },
+    say: { gloss: "\u8A00\u3046", level: 5 },
+    tell: { gloss: "\u4F1D\u3048\u308B", level: 5 },
+    ask: { gloss: "\u5C0B\u306D\u308B", level: 5 },
+    give: { gloss: "\u4E0E\u3048\u308B", level: 5 },
+    take: { gloss: "\u53D6\u308B", level: 5 },
+    make: { gloss: "\u4F5C\u308B", level: 5 },
+    get: { gloss: "\u5F97\u308B\uFF0F\u306A\u308B", level: 5 },
+    find: { gloss: "\u898B\u3064\u3051\u308B", level: 5 },
+    help: { gloss: "\u52A9\u3051\u308B", level: 5 },
+    wait: { gloss: "\u5F85\u3064", level: 5 },
+    stop: { gloss: "\u6B62\u3081\u308B", level: 5 },
+    start: { gloss: "\u59CB\u3081\u308B", level: 5 },
+    leave: { gloss: "\u53BB\u308B", level: 5 },
+    stay: { gloss: "\u6B8B\u308B\uFF0F\u6CCA\u307E\u308B", level: 5 },
+    open: { gloss: "\u958B\u3051\u308B\uFF0F\u958B\u3044\u305F", level: 5 },
+    close: { gloss: "\u9589\u3081\u308B\uFF0F\u8FD1\u3044", level: 4 },
+    friend: { gloss: "\u53CB\u9054", level: 5 },
+    family: { gloss: "\u5BB6\u65CF", level: 5 },
+    school: { gloss: "\u5B66\u6821", level: 5 },
+    home: { gloss: "\u5BB6", level: 5 },
+    house: { gloss: "\u5BB6\uFF0F\u4F4F\u5B85", level: 5 },
+    world: { gloss: "\u4E16\u754C", level: 5 },
+    life: { gloss: "\u4EBA\u751F\uFF0F\u751F\u6D3B", level: 5 },
+    time: { gloss: "\u6642\u9593", level: 5 },
+    day: { gloss: "\u65E5\uFF0F\u663C\u9593", level: 5 },
+    night: { gloss: "\u591C", level: 5 },
+    morning: { gloss: "\u671D", level: 5 },
+    today: { gloss: "\u4ECA\u65E5", level: 5 },
+    tomorrow: { gloss: "\u660E\u65E5", level: 5 },
+    yesterday: { gloss: "\u6628\u65E5", level: 5 },
+    people: { gloss: "\u4EBA\u3005", level: 5 },
+    person: { gloss: "\u4EBA", level: 5 },
+    man: { gloss: "\u7537\uFF0F\u4EBA", level: 5 },
+    woman: { gloss: "\u5973", level: 5 },
+    child: { gloss: "\u5B50\u4F9B", level: 5 },
+    kid: { gloss: "\u5B50\u4F9B", level: 5 },
+    boy: { gloss: "\u5C11\u5E74", level: 5 },
+    girl: { gloss: "\u5C11\u5973", level: 5 },
+    heart: { gloss: "\u5FC3\uFF0F\u5FC3\u81D3", level: 4 },
+    dream: { gloss: "\u5922", level: 4 },
+    power: { gloss: "\u529B", level: 4 },
+    fight: { gloss: "\u6226\u3046\uFF0F\u55A7\u5629", level: 4 },
+    battle: { gloss: "\u6226\u3044", level: 4 },
+    enemy: { gloss: "\u6575", level: 4 },
+    danger: { gloss: "\u5371\u967A", level: 4 },
+    safe: { gloss: "\u5B89\u5168\u306A", level: 4 },
+    truth: { gloss: "\u771F\u5B9F", level: 4 },
+    lie: { gloss: "\u5618", level: 4 },
+    secret: { gloss: "\u79D8\u5BC6", level: 4 },
+    promise: { gloss: "\u7D04\u675F", level: 4 },
+    believe: { gloss: "\u4FE1\u3058\u308B", level: 4 },
+    remember: { gloss: "\u899A\u3048\u3066\u3044\u308B", level: 4 },
+    forget: { gloss: "\u5FD8\u308C\u308B", level: 4 },
+    understand: { gloss: "\u7406\u89E3\u3059\u308B", level: 4 },
+    change: { gloss: "\u5909\u3048\u308B\uFF0F\u5909\u5316", level: 4 },
+    happen: { gloss: "\u8D77\u3053\u308B", level: 4 },
+    forever: { gloss: "\u6C38\u9060\u306B", level: 3 },
+    together: { gloss: "\u4E00\u7DD2\u306B", level: 5 },
+    alone: { gloss: "\u4E00\u4EBA\u3067", level: 5 },
+    always: { gloss: "\u3044\u3064\u3082", level: 5 },
+    never: { gloss: "\u6C7A\u3057\u3066\u301C\u306A\u3044", level: 5 },
+    really: { gloss: "\u672C\u5F53\u306B", level: 5 },
+    maybe: { gloss: "\u305F\u3076\u3093", level: 5 },
+    because: { gloss: "\u306A\u305C\u306A\u3089", level: 5 },
+    right: { gloss: "\u6B63\u3057\u3044\uFF0F\u53F3", level: 5 },
+    wrong: { gloss: "\u9593\u9055\u3063\u305F", level: 5 },
+    good: { gloss: "\u826F\u3044", level: 5 },
+    bad: { gloss: "\u60AA\u3044", level: 5 },
+    great: { gloss: "\u7D20\u6674\u3089\u3057\u3044", level: 5 },
+    beautiful: { gloss: "\u7F8E\u3057\u3044", level: 4 },
+    happy: { gloss: "\u5E78\u305B\u306A", level: 5 },
+    sad: { gloss: "\u60B2\u3057\u3044", level: 5 },
+    angry: { gloss: "\u6012\u3063\u305F", level: 4 },
+    scared: { gloss: "\u6016\u304C\u3063\u3066\u3044\u308B", level: 4 },
+    strong: { gloss: "\u5F37\u3044", level: 5 },
+    weak: { gloss: "\u5F31\u3044", level: 5 },
+    important: { gloss: "\u5927\u5207\u306A", level: 4 },
+    different: { gloss: "\u9055\u3046", level: 4 },
+    same: { gloss: "\u540C\u3058", level: 5 }
+  };
+
+  // src/lib/direction.ts
+  function normalizeDirection(value) {
+    return value === "ja-en" ? "ja-en" : "en-ja";
+  }
+
+  // src/lib/scoring.ts
+  var ELIGIBLE_POS = ["\u540D\u8A5E", "\u52D5\u8A5E", "\u5F62\u5BB9\u8A5E", "\u526F\u8A5E", "CONTENT"];
+  var EXCLUDED_NOUN_POS1 = ["\u4EE3\u540D\u8A5E", "\u6570", "\u63A5\u5C3E", "\u975E\u81EA\u7ACB", "\u56FA\u6709\u540D\u8A5E"];
+  function hasKanji(base) {
+    return /[\u4E00-\u9FFF]/.test(base);
+  }
+  function lookupForDirection(base, direction, overlay) {
+    if (overlay?.[base]) return overlay[base];
+    if (normalizeDirection(direction) === "ja-en") {
+      const hit = ENGLISH_ESSENTIALS[base];
+      if (!hit) return null;
+      return {
+        reading: "",
+        glosses: [hit.gloss],
+        level: hit.level,
+        freqRank: Math.round((6 - hit.level) * 2e3)
+      };
+    }
+    return lookup(base);
+  }
+  function checkEligibility(token, wordStates, targetedSet, now = Date.now(), direction = "en-ja", overlay) {
+    const { base, pos, pos1 } = token;
+    const dir = normalizeDirection(direction);
+    const isEnglish = dir === "ja-en" || pos === "CONTENT";
+    if (!ELIGIBLE_POS.includes(pos)) {
+      return { eligible: false, countSeen: false };
+    }
+    if (!isEnglish && pos === "\u540D\u8A5E" && EXCLUDED_NOUN_POS1.includes(pos1)) {
+      return { eligible: false, countSeen: false };
+    }
+    if (!isEnglish && base.length < 2 && !hasKanji(base) && !isEssentialWord(base)) {
+      return { eligible: false, countSeen: false };
+    }
+    if (isEnglish && base.length < 2) {
+      return { eligible: false, countSeen: false };
+    }
+    const entry = lookupForDirection(base, dir, overlay);
+    if (!entry) {
+      return { eligible: false, countSeen: false };
+    }
+    const rec = wordStates[base];
+    const state = rec?.state;
+    if (state === "known" || state === "ignored") {
+      return { eligible: false, countSeen: true, entry };
+    }
+    if (state === "learning") {
+      const due = !!rec?.srs && rec.srs.dueAt <= now;
+      if (!due) return { eligible: false, countSeen: true, entry };
+    }
+    if (targetedSet && targetedSet.has(base)) {
+      return { eligible: false, countSeen: true, entry };
+    }
+    return { eligible: true, countSeen: true, entry };
+  }
+
+  // src/types.ts
+  var DEFAULTS = {
+    pauseMode: "copilot",
+    cooldownSec: 20,
+    maxCardsPerHour: 12,
+    targetLevel: 5,
+    autoResumeSec: 15,
+    displayScript: "romaji",
+    learningDirection: "en-ja",
+    autoSpeak: true,
+    subLens: true,
+    subLensPeek: true,
+    openaiKey: "",
+    transcribeModel: "gpt-4o-mini-transcribe",
+    sites: { youtube: true, netflix: true, generic: true }
+  };
+  var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
 
   // src/lib/review-prompt.ts
   var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
@@ -608,6 +989,10 @@
     }
     return stats.daily[day];
   }
+  function pruneTimestamps(timestamps) {
+    const cutoff = Date.now() - 36e5;
+    return (timestamps || []).filter((t) => t >= cutoff);
+  }
   function emptyStats() {
     return { daily: {}, cardTimestamps: [] };
   }
@@ -633,11 +1018,71 @@
     });
   }
   function setSettings(partial) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "setSettings", args: [partial] }).then(unwrapLearningReply);
     return enqueue2(async () => {
       const r = await chrome.storage.local.get(["settings"]);
+      const before = { ...structuredClone(r), settings: { ...withDefaults(r.settings || {}) } };
       const settings = { ...withDefaults(r.settings || {}), ...partial };
-      await chrome.storage.local.set({ settings });
+      await chrome.storage.local.set(await learningPatch(before, { settings: { ...settings } }));
       return settings;
+    });
+  }
+  function setWordState(base, state) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "setWordState", args: [base, state] }).then(unwrapLearningReply);
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab"]);
+      const before = structuredClone(r);
+      const vocab = r.vocab || {};
+      if (!vocab[base]) return;
+      vocab[base].state = state;
+      if (state === "learning") {
+        vocab[base].srs = { stage: 1, dueAt: Date.now() + SRS_INTERVALS[1], lapses: 0 };
+      } else {
+        vocab[base].srs = null;
+      }
+      await chrome.storage.local.set(await learningPatch(before, { vocab }, "state"));
+    });
+  }
+  function recordSeen(tokens, wordStates, targetedSet, direction = "en-ja", overlay) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "recordSeen", args: [tokens, wordStates, [...targetedSet], direction, overlay] }).then(unwrapLearningReply);
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const before = structuredClone(r);
+      const vocab = { ...r.vocab || {} };
+      const stats = r.stats || emptyStats();
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      let changed = false;
+      for (const token of tokens) {
+        const eligibility = checkEligibility(token, wordStates, targetedSet, Date.now(), direction, overlay);
+        if (!eligibility.countSeen) continue;
+        const entry = lookupForDirection(token.base, direction, overlay);
+        if (!entry) continue;
+        if (!vocab[token.base]) {
+          vocab[token.base] = {
+            state: "new",
+            reading: entry.reading,
+            gloss: entry.glosses[0] || "",
+            level: entry.level,
+            freqRank: entry.freqRank,
+            seenCount: 1,
+            shownCount: 0,
+            firstSeenAt: Date.now(),
+            lastSeenAt: Date.now(),
+            srs: null
+          };
+          daily.met += 1;
+          changed = true;
+        } else {
+          vocab[token.base].seenCount += 1;
+          vocab[token.base].lastSeenAt = Date.now();
+          changed = true;
+        }
+      }
+      if (changed) {
+        await chrome.storage.local.set(await learningPatch(before, { vocab, stats }));
+        void stampOnboarding("watchedAt");
+      }
     });
   }
   function applyReviewResult(rec, passed, at) {
@@ -658,57 +1103,111 @@
       rec.srs.dueAt = at + SRS_INTERVALS[1];
     }
   }
-  function getWebReviewSeq() {
-    return chrome.storage.local.get(["webReviewSeq"]).then((r) => {
-      const n = Number(r.webReviewSeq);
-      return Number.isFinite(n) && n > 0 ? n : 0;
-    });
-  }
-  function applyWebReviews(ops, expectedToken) {
+  function judgeWord(base, judgment, meta, source) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "judgeWord", args: [base, judgment, meta, source] }).then(unwrapLearningReply);
     return enqueue2(async () => {
-      const r = await chrome.storage.local.get(["vocab", "stats", "webReviewSeq", "syncToken"]);
-      if (expectedToken !== void 0 && r.syncToken !== expectedToken) return { applied: 0, seq: 0 };
-      const stored = Number(r.webReviewSeq);
-      let seq = Number.isFinite(stored) && stored > 0 ? stored : 0;
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const before = structuredClone(r);
       const vocab = r.vocab || {};
       const stats = r.stats || emptyStats();
-      const result = replayWebReviews(vocab, stats, seq, ops);
-      if (result.seq === seq) return result;
-      seq = result.seq;
-      const { applied } = result;
-      await chrome.storage.local.set({ vocab, stats, webReviewSeq: seq });
-      if (applied) sendBadge(stats);
-      return { applied, seq };
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      const now = Date.now();
+      if (!vocab[base]) {
+        vocab[base] = {
+          state: "new",
+          reading: meta.reading,
+          gloss: meta.gloss,
+          level: meta.level,
+          freqRank: meta.freqRank,
+          seenCount: 1,
+          shownCount: 0,
+          firstSeenAt: now,
+          lastSeenAt: now,
+          srs: null
+        };
+      }
+      const rec = vocab[base];
+      const wasCollected = rec.state === "known" || rec.state === "learning";
+      if (meta) {
+        rec.reading = meta.reading;
+        rec.gloss = meta.gloss;
+        rec.level = meta.level;
+        rec.freqRank = meta.freqRank;
+      }
+      if (source && !rec.source && (source.title || source.line)) {
+        rec.source = source;
+      }
+      if (judgment === "know") {
+        rec.state = "known";
+        rec.srs = null;
+      } else if (judgment === "learn") {
+        rec.state = "learning";
+        rec.srs = { stage: 1, dueAt: now + SRS_INTERVALS[1], lapses: 0 };
+      } else if (judgment === "ignore") {
+        rec.state = "ignored";
+        rec.srs = null;
+      } else if (judgment === "review-pass" || judgment === "review-fail") {
+        applyReviewResult(rec, judgment === "review-pass", now);
+        daily.reviews += 1;
+      }
+      if (judgment !== "dismiss") {
+        daily.judged += 1;
+      }
+      await chrome.storage.local.set(await learningPatch(
+        before,
+        { vocab, stats },
+        judgment === "dismiss" ? "seen" : "save",
+        judgment === "review-pass" || judgment === "review-fail" ? { base, result: judgment === "review-pass" ? "pass" : "fail", day } : void 0
+      ));
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        await trackExtensionMilestone("first_srs_review");
+      }
+      if (judgment === "know" || judgment === "learn") {
+        void stampOnboarding("firstCardAt");
+      }
+      if (judgment === "know") void trackFeature("card_known");
+      if (judgment === "learn") void trackFeature("card_learn");
+      if (!wasCollected && (judgment === "know" || judgment === "learn")) {
+        void trackFeature("word_saved");
+      }
+      if (judgment === "review-pass" || judgment === "review-fail") {
+        void trackFeature("review_done");
+      }
+      sendBadge(stats);
+      return vocab[base];
     });
   }
-  function exportAll() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
-        resolve({
-          settings: withDefaults(r.settings || {}),
-          vocab: r.vocab || {},
-          stats: r.stats || emptyStats(),
-          exportedAt: (/* @__PURE__ */ new Date()).toISOString()
-        });
-      });
+  function recordCardShown(base) {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "recordCardShown", args: [base] }).then(unwrapLearningReply);
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["vocab", "stats"]);
+      const before = structuredClone(r);
+      const vocab = r.vocab || {};
+      const stats = r.stats || emptyStats();
+      const now = Date.now();
+      stats.cardTimestamps = pruneTimestamps(stats.cardTimestamps);
+      stats.cardTimestamps.push(now);
+      if (vocab[base]) {
+        vocab[base].shownCount = (vocab[base].shownCount || 0) + 1;
+      }
+      await chrome.storage.local.set(await learningPatch(before, { vocab, stats }));
+      await trackExtensionMilestone("first_card_created");
+      void stampOnboarding("cardShownAt");
+      void trackFeature("card_shown");
     });
   }
-  function replayWebReviews(vocab, stats, seq, ops) {
-    const fresh = ops.filter((op) => op && Number.isFinite(op.seq) && op.seq > seq && typeof op.base === "string").sort((a, b) => a.seq - b.seq);
-    let applied = 0;
-    for (const op of fresh) {
-      seq = op.seq;
-      const rec = vocab[op.base];
-      if (!rec || rec.state !== "learning" || !rec.srs) continue;
-      const parsed = Date.parse(op.at);
-      const at = Number.isFinite(parsed) ? parsed : Date.now();
-      applyReviewResult(rec, op.result === "pass", at);
-      const daily = ensureDaily(stats, new Date(at).toLocaleDateString("sv"));
-      daily.reviews++;
-      daily.judged++;
-      applied++;
-    }
-    return { applied, seq };
+  function recordWatchTick() {
+    if (typeof document !== "undefined") return chrome.runtime.sendMessage({ type: "avc-learning-write", method: "recordWatchTick", args: [] }).then(unwrapLearningReply);
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["stats"]);
+      const before = structuredClone(r);
+      const stats = r.stats || emptyStats();
+      const day = todayKey();
+      const daily = ensureDaily(stats, day);
+      daily.watchMin += 1;
+      await chrome.storage.local.set(await learningPatch(before, { stats }));
+    });
   }
   function getSyncToken() {
     return new Promise((resolve) => {
@@ -728,7 +1227,17 @@
   function setSyncToken(token) {
     return enqueue2(async () => {
       if (token) {
+        const r = await chrome.storage.local.get([...LEARN_KEYS, "pendingSignoutExports"]);
+        const patch = {};
+        if (typeof r.syncToken === "string" && r.syncToken && r.syncToken !== token && !r.learnOwner) {
+          const legacy = r.learnLegacy || { vocab: r.vocab, stats: r.stats, settings: r.settings };
+          const { openaiKey: _key, ...settings } = legacy.settings || {};
+          const pending = r.pendingSignoutExports || [];
+          pending.push({ id: crypto.randomUUID(), token: r.syncToken, appliedWebReviewSeq: 0, export: { settings, vocab: legacy.vocab || {}, stats: legacy.stats || emptyStats(), exportedAt: (/* @__PURE__ */ new Date()).toISOString() } });
+          Object.assign(patch, { pendingSignoutExports: pending, vocab: {}, stats: emptyStats(), settings: { openaiKey: r.settings?.openaiKey || "" }, learnLegacy: null, learnInitialized: false, learnCursor: 0, learnRemote: null, learnOwnerToken: null });
+        }
         await chrome.storage.local.set({
+          ...patch,
           syncToken: token,
           relinkNeeded: false,
           syncAuthFailures: 0
@@ -740,10 +1249,10 @@
   }
   function clearSignedOutCache() {
     return enqueue2(async () => {
-      const r = await chrome.storage.local.get(["syncToken", "settings", "vocab", "stats", "webReviewSeq", "pendingSignoutExports"]);
+      const r = await chrome.storage.local.get(["syncToken", "settings", "vocab", "stats", "webReviewSeq", "pendingSignoutExports", "learnInitialized"]);
       const settings = r.settings || {};
       const pending = r.pendingSignoutExports || [];
-      if (typeof r.syncToken === "string" && r.syncToken) {
+      if (typeof r.syncToken === "string" && r.syncToken && !r.learnInitialized) {
         const { openaiKey: _key, ...cloudSettings } = settings;
         pending.push({ id: crypto.randomUUID(), token: r.syncToken, appliedWebReviewSeq: Number(r.webReviewSeq) || 0, export: {
           settings: cloudSettings,
@@ -754,6 +1263,14 @@
       }
       await chrome.storage.local.set({
         pendingSignoutExports: pending,
+        learnSigninPrompted: false,
+        learnOwner: null,
+        learnOwnerToken: null,
+        learnCursor: 0,
+        learnRemote: null,
+        learnInitialized: false,
+        learnLegacy: null,
+        learnEpoch: null,
         syncToken: "",
         syncProfile: null,
         relinkNeeded: false,
@@ -773,23 +1290,6 @@
       const r = await chrome.storage.local.get("pendingSignoutExports");
       const pending = r.pendingSignoutExports || [];
       await chrome.storage.local.set({ pendingSignoutExports: pending.filter((p) => p.id !== sent.id) });
-    });
-  }
-  function applyRestoredAccountCache(token, clearedAt, patch) {
-    return enqueue2(async () => {
-      const r = await chrome.storage.local.get(["syncToken", ACCOUNT_CACHE_CLEARED, "settings", "vocab", "stats"]);
-      if (r.syncToken !== token || r[ACCOUNT_CACHE_CLEARED] !== clearedAt) return;
-      const merged = cloudSnapshotToAnimeVocabExport(mergeCloudSnapshots(
-        normalizeAnimeVocabExport(patch),
-        normalizeAnimeVocabExport(r)
-      ));
-      const settings = r.settings || {};
-      await chrome.storage.local.set({
-        ...patch,
-        vocab: merged.vocab,
-        stats: merged.stats,
-        settings: { ...merged.settings, openaiKey: settings.openaiKey || "" }
-      });
     });
   }
   function getSyncAuthFailures() {
@@ -885,204 +1385,247 @@
       });
     });
   }
-
-  // src/lib/notify.ts
-  function toastTab(tabId, text2, kind = "info") {
-    chrome.tabs.sendMessage(tabId, { type: "avc-toast", text: text2, kind }).catch(() => {
+  function unwrapLearningReply(reply) {
+    if (!reply || reply.error) throw new Error(reply?.error || "Could not save learning data.");
+    return reply.value;
+  }
+  function prepareLearnSync(token, ownerId, epoch) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(LEARN_KEYS);
+      if (r.syncToken !== token) return;
+      let pending = r.learnOutbox || [];
+      const switched = r.learnOwner && r.learnOwner !== ownerId;
+      const reset = !switched && !!r.learnOwner && typeof epoch === "number" && typeof r.learnEpoch === "number" && r.learnEpoch !== epoch;
+      const imports = !r.learnInitialized && !switched ? localImportOps(r.learnLegacy || { vocab: r.vocab, stats: r.stats, settings: r.settings }) : [];
+      const adopted = pending.map((item) => !item.token || item.ownerId === ownerId ? { ...item, token, ownerId } : item);
+      pending = [...imports.map((op) => ({ token, ownerId, op })), ...adopted];
+      if (reset) pending = pending.filter((item) => item.token !== token);
+      const patch = { learnOwner: ownerId, learnOwnerToken: token, learnOutbox: pending, learnInitialized: true, learnLegacy: null };
+      if (typeof epoch === "number") patch.learnEpoch = epoch;
+      if (switched || reset || !r.learnOwner) {
+        patch.learnCursor = 0;
+        patch.learnRemote = emptyLearnState();
+        if (switched || reset) Object.assign(patch, cacheFromState(emptyLearnState(), pending, token, { openaiKey: r.settings?.openaiKey || "" }));
+      }
+      await chrome.storage.local.set(patch);
     });
   }
-  async function toastActiveTab(text2, kind = "info") {
-    try {
-      const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      const tabId = tabs[0]?.id;
-      if (tabId != null) toastTab(tabId, text2, kind);
-    } catch {
-    }
+  function rejectLearnOps(token, rejected) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(["learnOutbox", "learnRejected"]);
+      const ids = new Set(rejected.map((x) => x.op.op_id));
+      warn("cloud rejected learning operations:", rejected.map((x) => `${x.op.kind}:${x.reason}`).join(", "));
+      await chrome.storage.local.set({
+        learnOutbox: (r.learnOutbox || []).filter((p) => p.token !== token || !ids.has(p.op.op_id)),
+        learnRejected: [...r.learnRejected || [], ...rejected.map((x) => ({ ...x, at: (/* @__PURE__ */ new Date()).toISOString() }))].slice(-50)
+      });
+    });
+  }
+  function applyLearnChanges(token, changes, cursor) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get(LEARN_KEYS);
+      if (r.syncToken !== token || r.learnOwnerToken !== token) return;
+      const { state, pending } = mergeLearnChanges(r.learnRemote, r.learnOutbox || [], token, changes);
+      const cache = cacheFromState(state, pending, token, r.settings || {});
+      cache.stats.cardTimestamps = r.stats?.cardTimestamps || [];
+      const patch = { learnRemote: state, learnCursor: cursor, learnOutbox: pending };
+      for (const [key, value] of Object.entries(cache)) if (JSON.stringify(r[key]) !== JSON.stringify(value)) patch[key] = value;
+      await chrome.storage.local.set(patch);
+    });
+  }
+  function acknowledgeDetachedLearnOps(token, ids) {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get("learnOutbox");
+      const set = new Set(ids);
+      await chrome.storage.local.set({ learnOutbox: (r.learnOutbox || []).filter((p) => p.token !== token || !set.has(p.op.op_id)) });
+    });
+  }
+  function discardDeletedAccountWrites() {
+    return enqueue2(async () => {
+      const r = await chrome.storage.local.get([...LEARN_KEYS, "pendingSignoutExports"]);
+      const pending = (r.learnOutbox || []).filter((p) => p.token !== r.syncToken && (!r.learnOwner || p.ownerId !== r.learnOwner));
+      const cache = cacheFromState(emptyLearnState(), [], "", { openaiKey: r.settings?.openaiKey || "" });
+      await chrome.storage.local.set({
+        learnOutbox: pending,
+        pendingSignoutExports: (r.pendingSignoutExports || []).filter((p) => p.token !== r.syncToken),
+        learnInitialized: true,
+        learnLegacy: null,
+        learnCursor: 0,
+        learnRemote: emptyLearnState(),
+        learnEpoch: null,
+        ...cache,
+        stats: { ...cache.stats, cardTimestamps: [] }
+      });
+      sendBadge({ daily: {} });
+    });
   }
 
   // src/lib/cloud-sync.ts
-  var SNAPSHOT_URL = WEB_URL + "/api/sync/snapshot";
-  var MAX_SYNC_401 = 3;
-  async function noteAuthFailure() {
-    const failures = await getSyncAuthFailures() + 1;
-    await setSyncAuthFailures(failures);
-    if (failures < MAX_SYNC_401) {
-      warn(`cloud sync: 401 #${failures}/${MAX_SYNC_401} \u2014 tolerating (transient auth blip?)`);
-      return false;
-    }
-    warn("cloud sync: token rejected repeatedly \u2014 unlinking, re-link needed");
-    await setSyncToken("");
-    await setRelinkNeeded(true);
-    await toastActiveTab("AnimeVocab sync signed out \u2014 re-link at animevocab.com to keep your progress in the cloud.", "error");
-    return true;
+  var Rejected = class extends Error {
+  };
+  var running = null;
+  var queued = false;
+  async function request(token, path, body) {
+    return fetch(WEB_URL + "/api/learn/" + path, {
+      method: body ? "POST" : "GET",
+      headers: {
+        Authorization: "Bearer " + token,
+        ...body ? { "Content-Type": "application/json" } : {}
+      },
+      ...body ? { body: JSON.stringify(body) } : {},
+      signal: AbortSignal.timeout(1e4)
+    });
   }
-  async function noteSyncSuccess() {
-    if (await getSyncAuthFailures() > 0) await setSyncAuthFailures(0);
+  async function permanentRejection(res) {
+    if (![400, 404, 409, 413].includes(res.status)) return null;
+    const error = (await res.json().catch(() => null))?.error;
+    if (res.status === 409 && error !== "operation_id_reused") return null;
+    return typeof error === "string" ? error : `HTTP ${res.status}`;
   }
-  var syncing = false;
-  var syncQueued = false;
-  async function pullRevision(token) {
-    let data;
-    try {
-      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
-      if (!res.ok) return null;
-      data = await res.json();
-    } catch {
-      return null;
-    }
-    if (await getSyncToken() !== token) return null;
-    const ops = data.envelope?.webReviews;
-    if (Array.isArray(ops) && ops.length) {
-      const { applied } = await applyWebReviews(ops, token);
-      if (applied) log(`cloud sync: applied ${applied} review(s) from the cloud app`);
-    }
-    return data.envelope?.revision ?? null;
-  }
-  async function pullSettingsFromCloud() {
-    const token = await getSyncToken();
-    if (!token) return;
-    try {
-      const res = await fetch(SNAPSHOT_URL, { headers: { Authorization: "Bearer " + token } });
-      if (res.status === 401) {
-        await noteAuthFailure();
-        return;
+  async function checked(token, path, body) {
+    const res = await request(token, path, body);
+    if (res.status === 401 && await getSyncToken() === token) {
+      const n = await getSyncAuthFailures() + 1;
+      await setSyncAuthFailures(n);
+      if (n >= 3) {
+        await setSyncToken("");
+        await setRelinkNeeded(true);
       }
-      if (!res.ok) return;
-      await noteSyncSuccess();
-      const data = await res.json();
-      const raw = data.envelope?.snapshot?.settings;
-      if (!raw || typeof raw !== "object") return;
-      const partial = { ...raw };
-      if (partial.pauseMode === "notify") partial.pauseMode = "copilot";
-      await setSettings(partial);
-      log("cloud settings pulled");
+    }
+    if (!res.ok) {
+      const reason = body && await permanentRejection(res);
+      if (reason) throw new Rejected(reason);
+      throw new Error(`Cloud returned HTTP ${res.status}.`);
+    }
+    return res;
+  }
+  async function sendOps(token, ops, epoch) {
+    try {
+      await checked(token, "ops", { ops, epoch });
+      return [];
     } catch (err) {
-      warn("cloud settings pull error:", err);
+      if (!(err instanceof Rejected)) throw err;
+      if (ops.length === 1) return [{ op: ops[0], reason: err.message }];
+      const rejected = [];
+      for (const op of ops) rejected.push(...await sendOps(token, [op], epoch));
+      return rejected;
     }
   }
-  async function syncWithCloud() {
-    await pushSnapshot();
-  }
-  async function pushSnapshot() {
-    if (syncing) {
-      syncQueued = true;
-      return;
+  function syncWithCloud() {
+    if (running) {
+      queued = true;
+      return running;
     }
-    syncing = true;
-    try {
-      do {
-        syncQueued = false;
-        await pushSnapshotOnce();
-      } while (syncQueued);
-    } finally {
-      syncing = false;
-    }
+    running = (async () => {
+      try {
+        do {
+          queued = false;
+          await syncOnce();
+        } while (queued);
+      } finally {
+        running = null;
+      }
+    })();
+    const foreground = running;
+    return Promise.all([foreground, syncPendingSignouts()]).then(() => {
+    });
   }
-  async function pushSnapshotOnce() {
-    await syncPendingSignouts();
+  var pullSettingsFromCloud = syncWithCloud;
+  async function syncOnce() {
     const token = await getSyncToken();
     if (!token) return;
-    const startedAt = Date.now();
-    const previousStatus = await getSyncStatus();
-    const lastSuccessAt = previousStatus.lastSuccessAt;
-    await setSyncStatus({ state: "syncing", lastAttemptAt: startedAt, lastSuccessAt, error: null });
+    const prior = await getSyncStatus();
+    const at = Date.now();
+    await setSyncStatus({
+      state: "syncing",
+      lastAttemptAt: at,
+      lastSuccessAt: prior.lastSuccessAt,
+      error: null
+    });
     try {
-      const cache = await chrome.storage.local.get(ACCOUNT_CACHE_CLEARED);
-      if (cache[ACCOUNT_CACHE_CLEARED]) {
-        const patch = await restoredAccountCache(token);
-        await applyRestoredAccountCache(token, cache[ACCOUNT_CACHE_CLEARED], patch);
+      const identity2 = await (await checked(token, "changes?since=0&limit=0")).json();
+      await prepareLearnSync(token, identity2.userId, identity2.epoch);
+      if (await getSyncToken() !== token) return;
+      const captured = await chrome.storage.local.get("learnOutbox");
+      const pending = (captured.learnOutbox || []).filter(
+        (p) => p.token === token
+      );
+      for (let i = 0; i < pending.length; i += 50) {
         if (await getSyncToken() !== token) return;
+        const rejected = await sendOps(
+          token,
+          pending.slice(i, i + 50).map((p) => p.op),
+          identity2.epoch
+        );
+        if (rejected.length) await rejectLearnOps(token, rejected);
       }
-      let conflictRevision = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const expectedRevision = await pullRevision(token) ?? conflictRevision;
+      let more = true;
+      while (more) {
+        const r = await chrome.storage.local.get("learnCursor");
+        const data2 = await (await checked(token, "changes?since=" + Number(r.learnCursor || 0))).json();
         if (await getSyncToken() !== token) return;
-        const exportData = await exportAll();
-        const settingsNoKey = { ...exportData.settings };
-        delete settingsNoKey.openaiKey;
-        const safeExport = { ...exportData, settings: settingsNoKey };
-        const appliedWebReviewSeq = await getWebReviewSeq();
-        if (await getSyncToken() !== token) return;
-        const res = await fetch(SNAPSHOT_URL, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-          body: JSON.stringify({ export: safeExport, expectedRevision, appliedWebReviewSeq })
-        });
-        if (await getSyncToken() !== token) return;
-        if (res.status === 409) {
-          const data = await res.json().catch(() => ({}));
-          conflictRevision = data.conflict?.currentRevision ?? null;
-          continue;
-        }
-        if (res.status === 401) {
-          await noteAuthFailure();
-          await setSyncStatus({
-            state: "error",
-            lastAttemptAt: startedAt,
-            lastSuccessAt,
-            error: "Account link was rejected. Open animevocab.com/app to reconnect."
-          });
-          return;
-        }
-        if (!res.ok) {
-          warn("cloud sync failed: HTTP", res.status);
-          await setSyncStatus({
-            state: "error",
-            lastAttemptAt: startedAt,
-            lastSuccessAt,
-            error: `Cloud returned HTTP ${res.status}.`
-          });
-          return;
-        }
-        await noteSyncSuccess();
-        await setSyncStatus({ state: "ok", lastAttemptAt: startedAt, lastSuccessAt: Date.now(), error: null });
-        log("cloud sync ok");
-        return;
+        await applyLearnChanges(token, data2.changes, data2.cursor);
+        more = data2.hasMore;
       }
-      warn("cloud sync: gave up after revision conflict");
+      if (await getSyncToken() !== token) return;
+      await setSyncAuthFailures(0);
       await setSyncStatus({
-        state: "error",
-        lastAttemptAt: startedAt,
-        lastSuccessAt,
-        error: "Cloud changed during sync. Retry to save the newest local snapshot."
+        state: "ok",
+        lastAttemptAt: at,
+        lastSuccessAt: Date.now(),
+        error: null
       });
     } catch (err) {
       if (await getSyncToken() !== token) return;
-      warn("cloud sync error:", err);
       await setSyncStatus({
         state: "error",
-        lastAttemptAt: startedAt,
-        lastSuccessAt,
-        error: err instanceof Error ? err.message : "Network error while syncing."
+        lastAttemptAt: at,
+        lastSuccessAt: prior.lastSuccessAt,
+        error: err instanceof Error ? err.message : "Cloud sync failed."
       });
     }
   }
-  async function syncPendingSignouts() {
-    const r = await chrome.storage.local.get("pendingSignoutExports");
+  var detachedRunning = null;
+  function syncPendingSignouts() {
+    if (detachedRunning) return detachedRunning;
+    detachedRunning = flushDetached().finally(() => {
+      detachedRunning = null;
+    });
+    return detachedRunning;
+  }
+  async function flushDetached() {
+    const r = await chrome.storage.local.get([
+      "learnOutbox",
+      "syncToken",
+      "pendingSignoutExports"
+    ]);
+    const outbox = r.learnOutbox || [];
+    const tokens = [
+      ...new Set(
+        outbox.filter((p) => p.token && p.token !== r.syncToken).map((p) => p.token)
+      )
+    ];
+    for (const token of tokens) {
+      const items = outbox.filter((p) => p.token === token);
+      try {
+        for (let i = 0; i < items.length; i += 50) {
+          const batch = items.slice(i, i + 50).map((p) => p.op);
+          const rejected = await sendOps(token, batch);
+          if (rejected.length) await rejectLearnOps(token, rejected);
+          await acknowledgeDetachedLearnOps(
+            token,
+            batch.map((o) => o.op_id)
+          );
+        }
+      } catch {
+      }
+    }
     for (const pending of r.pendingSignoutExports || []) {
       try {
-        for (let attempt = 0; attempt < 2; attempt++) {
-          const headers = { Authorization: "Bearer " + pending.token, "Content-Type": "application/json" };
-          const current = await fetch(SNAPSHOT_URL, { headers, signal: AbortSignal.timeout(1e4) });
-          if (!current.ok) break;
-          const data = await current.json();
-          const outgoing = structuredClone(pending.export);
-          const { seq } = replayWebReviews(
-            outgoing.vocab,
-            outgoing.stats,
-            pending.appliedWebReviewSeq,
-            data.envelope?.webReviews || []
-          );
-          const response = await fetch(SNAPSHOT_URL, {
-            method: "PUT",
-            headers,
-            signal: AbortSignal.timeout(1e4),
-            body: JSON.stringify({ export: outgoing, expectedRevision: data.envelope?.revision ?? null, appliedWebReviewSeq: seq })
-          });
-          if (response.status === 409) continue;
-          if (response.ok) await acknowledgeSignoutExport(pending);
-          break;
-        }
+        const ops = localImportOps(pending.export);
+        for (let i = 0; i < ops.length; i += 50)
+          await sendOps(pending.token, ops.slice(i, i + 50));
+        await acknowledgeSignoutExport(pending);
       } catch {
       }
     }
@@ -1102,10 +1645,10 @@
   function interpretMintResponse(httpStatus, body) {
     if (httpStatus === 401 || httpStatus === 403) return { status: "signed-out" };
     if (httpStatus < 200 || httpStatus >= 300) return { status: "error", detail: `HTTP ${httpStatus}` };
-    const data = body || {};
-    const token = typeof data.token === "string" ? data.token : "";
+    const data2 = body || {};
+    const token = typeof data2.token === "string" ? data2.token : "";
     if (!token) return { status: "error", detail: "no token in response" };
-    const p = data.profile && typeof data.profile === "object" ? data.profile : {};
+    const p = data2.profile && typeof data2.profile === "object" ? data2.profile : {};
     return {
       status: "linked",
       token,
@@ -1174,9 +1717,9 @@
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(body)
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
-      return { ok: true, result: data.result };
+      const data2 = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data2.error || `http_${res.status}` };
+      return { ok: true, result: data2.result };
     } catch {
       return { ok: false, error: "network" };
     }
@@ -1209,8 +1752,8 @@
         signal: abort.signal
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        return { ok: false, error: data.error || `http_${res.status}` };
+        const data2 = await res.json().catch(() => ({}));
+        return { ok: false, error: data2.error || `http_${res.status}` };
       }
       if (!res.body) return { ok: false, error: "no_body" };
       const reader = res.body.getReader();
@@ -1268,12 +1811,12 @@
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify(req)
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
-      const word = data.result?.word;
+      const data2 = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data2.error || `http_${res.status}` };
+      const word = data2.result?.word;
       if (!word) return { ok: false, error: "empty_pick" };
       sessionCache.set(key, word);
-      return { ok: true, word, cached: data.cached };
+      return { ok: true, word, cached: data2.cached };
     } catch {
       return { ok: false, error: "network" };
     }
@@ -1301,12 +1844,12 @@
           title: opts.title || void 0
         })
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || `http_${res.status}` };
-      const words = data.result?.words;
+      const data2 = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: data2.error || `http_${res.status}` };
+      const words = data2.result?.words;
       if (!words?.length) return { ok: false, error: "empty_extract" };
       sessionCache2.set(key, words);
-      return { ok: true, words, cached: data.cached };
+      return { ok: true, words, cached: data2.cached };
     } catch {
       return { ok: false, error: "network" };
     }
@@ -1327,8 +1870,8 @@
         { headers: { Authorization: "Bearer " + token } }
       );
       if (!res.ok) return null;
-      const data = await res.json();
-      const ctx = (data.context || "").trim();
+      const data2 = await res.json();
+      const ctx = (data2.context || "").trim();
       if (ctx) sessionCache3.set(clean.toLowerCase(), ctx);
       return ctx || null;
     } catch {
@@ -1337,24 +1880,24 @@
   }
 
   // src/lib/tts-client.ts
-  async function fetchCloudTts(text2, token) {
+  async function fetchCloudTts(text3, token) {
     const res = await fetch(WEB_URL + "/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-      body: JSON.stringify({ text: text2 })
+      body: JSON.stringify({ text: text3 })
     });
     if (res.status === 429) {
-      const data = await res.json().catch(() => ({}));
-      return { blob: null, error: data.error || "auto_quota_exhausted" };
+      const data2 = await res.json().catch(() => ({}));
+      return { blob: null, error: data2.error || "auto_quota_exhausted" };
     }
     if (!res.ok) return { blob: null, error: `http_${res.status}` };
     return { blob: await res.blob() };
   }
-  async function fetchByoTts(text2, key) {
+  async function fetchByoTts(text3, key) {
     const res = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
-      body: JSON.stringify({ model: "tts-1", voice: "nova", input: text2, response_format: "mp3" })
+      body: JSON.stringify({ model: "tts-1", voice: "nova", input: text3, response_format: "mp3" })
     });
     if (!res.ok) return null;
     return res.blob();
@@ -1365,8 +1908,8 @@
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin);
   }
-  async function fetchTtsAudio(text2) {
-    const trimmed = (text2 || "").trim();
+  async function fetchTtsAudio(text3) {
+    const trimmed = (text3 || "").trim();
     if (!trimmed) return null;
     const settings = await getSettings();
     if (settings.openaiKey?.trim()) {
@@ -1439,29 +1982,35 @@
   }
   var LISTEN_SIGNIN_REQUIRED = "Listening needs a free account. Sign in at animevocab.com/start, then try again.";
 
+  // src/lib/notify.ts
+  function toastTab(tabId, text3, kind = "info") {
+    chrome.tabs.sendMessage(tabId, { type: "avc-toast", text: text3, kind }).catch(() => {
+    });
+  }
+
   // src/lib/course-listening.ts
   var ID = /^[a-z0-9][a-z0-9-]{0,127}$/;
   var obj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-  var text = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
+  var text2 = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
   function courseLessonFromState(state) {
     if (!obj(state) || !obj(state.lesson)) return null;
     const l = state.lesson;
-    if (!text(l.id, 128) || !ID.test(l.id) || l.script !== "romaji" && l.script !== "kana" || !text(l.canDo, 500)) return null;
+    if (!text2(l.id, 128) || !ID.test(l.id) || l.script !== "romaji" && l.script !== "kana" || !text2(l.canDo, 500)) return null;
     if (!Array.isArray(l.vocabulary) || l.vocabulary.length > 20) return null;
     const words = [];
     for (const v of l.vocabulary) {
-      if (!obj(v) || !text(v.id, 128) || !text(v.reading, 120) || !text(v.meaning, 250)) return null;
-      const kana = text(v.kana, 120) ? v.kana : l.script === "kana" ? v.reading : "";
+      if (!obj(v) || !text2(v.id, 128) || !text2(v.reading, 120) || !text2(v.meaning, 250)) return null;
+      const kana = text2(v.kana, 120) ? v.kana : l.script === "kana" ? v.reading : "";
       words.push({ id: v.id, reading: v.reading, meaning: v.meaning, kana });
     }
     const unit = Number.isSafeInteger(l.unit) && l.unit >= 1 && l.unit <= 99 ? l.unit : null;
-    const episode = obj(l.episode) && Number.isSafeInteger(l.episode.number) && text(l.episode.title, 120) ? { number: l.episode.number, title: l.episode.title } : null;
+    const episode = obj(l.episode) && Number.isSafeInteger(l.episode.number) && text2(l.episode.title, 120) ? { number: l.episode.number, title: l.episode.title } : null;
     const ids = new Set(words.map((w) => w.id));
     const heard = Array.isArray(l.heard) ? l.heard.filter((id) => typeof id === "string" && ids.has(id)) : [];
     return {
       id: l.id,
       unit,
-      title: text(l.title, 120) ? l.title : null,
+      title: text2(l.title, 120) ? l.title : null,
       canDo: l.canDo,
       script: l.script,
       episode,
@@ -1498,7 +2047,7 @@
     const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
     return { token, tokenHash: Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("") };
   }
-  async function request(token, path, body) {
+  async function request2(token, path, body) {
     const response = await fetch(BACKEND_URL + "/v1/n5" + path, {
       method: body === void 0 ? "GET" : "POST",
       headers: { Authorization: "Bearer " + token, ...body === void 0 ? {} : { "Content-Type": "application/json" } },
@@ -1533,7 +2082,7 @@
     const outbox = await readOutbox(tokenHash);
     for (const [lessonId, wordIds] of Object.entries(outbox.heard)) {
       try {
-        const saved = await request(token, "/heard", { lessonId, wordIds: wordIds.slice(0, 20) });
+        const saved = await request2(token, "/heard", { lessonId, wordIds: wordIds.slice(0, 20) });
         delete outbox.heard[lessonId];
         const cache = await readCache();
         if (cache?.tokenHash === tokenHash && cache.lesson?.id === lessonId && Array.isArray(saved?.heard)) {
@@ -1549,7 +2098,7 @@
     }
     for (const event of [...outbox.watched]) {
       try {
-        await request(token, "/events", { episodeId: event.episodeId, kind: "watch_complete", idempotencyKey: event.idempotencyKey });
+        await request2(token, "/events", { episodeId: event.episodeId, kind: "watch_complete", idempotencyKey: event.idempotencyKey });
       } catch (error) {
         if (!(error instanceof CourseError && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 429)) break;
       }
@@ -1567,7 +2116,7 @@
     }
     let next;
     try {
-      const state = await request(who.token, "/extension/state");
+      const state = await request2(who.token, "/extension/state");
       const context = state?.context;
       next = {
         tokenHash: who.tokenHash,
@@ -1660,15 +2209,15 @@
         body: JSON.stringify({ line: req.line, context: req.context, title: req.title || void 0, words: req.words }),
         signal: AbortSignal.timeout(8e3)
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.result || typeof data.result.en !== "string") return { ok: false, error: data.error || `http_${res.status}` };
+      const data2 = await res.json().catch(() => ({}));
+      if (!res.ok || !data2.result || typeof data2.result.en !== "string") return { ok: false, error: data2.error || `http_${res.status}` };
       const readings = {};
-      if (data.result.readings && typeof data.result.readings === "object") {
-        for (const [k, v] of Object.entries(data.result.readings)) {
+      if (data2.result.readings && typeof data2.result.readings === "object") {
+        for (const [k, v] of Object.entries(data2.result.readings)) {
           if (/^\d{1,3}$/.test(k) && typeof v === "string" && /^[ぁ-ゖァ-ヺー]{1,30}$/.test(v)) readings[k] = v;
         }
       }
-      return { ok: true, result: { en: data.result.en.slice(0, 400), readings } };
+      return { ok: true, result: { en: data2.result.en.slice(0, 400), readings } };
     } catch {
       return { ok: false, error: "network" };
     }
@@ -1683,12 +2232,12 @@
         body: JSON.stringify({ title: req.title || void 0, lines: req.lines, context: req.context }),
         signal: AbortSignal.timeout(3e4)
       });
-      const data = await res.json().catch(() => ({}));
-      const en = data.result?.en;
-      if (!res.ok || !Array.isArray(en) || en.length !== req.lines.length) return { ok: false, error: data.error || `http_${res.status}` };
+      const data2 = await res.json().catch(() => ({}));
+      const en = data2.result?.en;
+      if (!res.ok || !Array.isArray(en) || en.length !== req.lines.length) return { ok: false, error: data2.error || `http_${res.status}` };
       const names = {};
-      if (data.result?.names && typeof data.result.names === "object") {
-        for (const [k, v] of Object.entries(data.result.names)) {
+      if (data2.result?.names && typeof data2.result.names === "object") {
+        for (const [k, v] of Object.entries(data2.result.names)) {
           if (k.length <= 20 && typeof v === "string" && /^[\u3041-\u3096\u30a1-\u30faー]{1,30}$/.test(v)) names[k] = v;
         }
       }
@@ -1877,8 +2426,8 @@
   void ensureSyncBridgeInOpenTabs();
   var SYNC_ALARM = "avc-cloud-sync";
   var syncDebounce = null;
-  function scheduleSync(delayMs = 8e3) {
-    if (syncDebounce) clearTimeout(syncDebounce);
+  function scheduleSync(delayMs = 250) {
+    if (syncDebounce) return;
     syncDebounce = setTimeout(() => {
       syncDebounce = null;
       syncWithCloud().catch(() => {
@@ -1892,7 +2441,7 @@
     void retryPendingN5();
     void linkAccount("startup");
   });
-  chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
+  chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 1 }));
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === SYNC_ALARM) {
       syncWithCloud().catch(() => {
@@ -1963,7 +2512,8 @@
   }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (changes.vocab || changes.stats) scheduleSync();
+    const outbox = changes.learnOutbox;
+    if (outbox && (Array.isArray(outbox.newValue) ? outbox.newValue.length : 0) > (Array.isArray(outbox.oldValue) ? outbox.oldValue.length : 0)) scheduleSync();
     const token = changes.syncToken;
     if (!token || token.oldValue === token.newValue) return;
     const had = isSignedIn(token.oldValue);
@@ -2010,10 +2560,10 @@
       return false;
     }
   }
-  async function deliverTranscript(tabId, text2, start, end) {
+  async function deliverTranscript(tabId, text3, start, end) {
     const payload = {
       type: "avc-transcript",
-      text: text2,
+      text: text3,
       ...typeof start === "number" ? { start } : {},
       ...typeof end === "number" ? { end } : {}
     };
@@ -2141,6 +2691,12 @@
     });
     return { ok: true };
   }
+  async function noteStartPageSurface() {
+    const s = await chrome.storage.session.get(SIGNIN_SURFACE_KEY);
+    if (!isSigninSurface(s[SIGNIN_SURFACE_KEY])) {
+      await chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "start_page" });
+    }
+  }
   var ACCOUNT_REQUESTS = /* @__PURE__ */ new Set([
     "avc-coach",
     "avc-coach-chat",
@@ -2153,6 +2709,55 @@
     "avc-usage"
   ]);
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === "avc-learning-write") {
+      const args = Array.isArray(msg.args) ? msg.args : [];
+      const handlers = {
+        setSettings: () => setSettings(args[0]),
+        setWordState: () => setWordState(args[0], args[1]),
+        recordSeen: () => recordSeen(args[0], args[1], new Set(args[2]), args[3], args[4]),
+        judgeWord: () => judgeWord(args[0], args[1], args[2], args[3]),
+        recordCardShown: () => recordCardShown(args[0]),
+        recordWatchTick: () => recordWatchTick()
+      };
+      const handler = Object.prototype.hasOwnProperty.call(handlers, msg.method || "") ? handlers[msg.method] : null;
+      if (!handler) {
+        sendResponse({ error: "Unknown learning write." });
+        return;
+      }
+      void handler().then(async (value) => {
+        sendResponse({ value });
+        if (msg.method === "judgeWord" && (args[1] === "learn" || args[1] === "know") && !await getSyncToken()) {
+          const r = await chrome.storage.local.get("learnSigninPrompted");
+          if (!r.learnSigninPrompted) {
+            await chrome.storage.local.set({ learnSigninPrompted: true });
+            void openSigninFromGate({ type: "avc-open-signin", from: "content_chip" }, sender);
+          }
+        }
+      }, (error) => sendResponse({ error: String(error?.message || error) }));
+      return true;
+    }
+    if (msg.type === "avc-device-key") {
+      const url = sender.url || sender.tab?.url || "";
+      if (!/^https:\/\/(www\.)?animevocab\.com\//.test(url) || typeof msg.value !== "string" || msg.value.length > 512) {
+        sendResponse({ ok: false });
+        return;
+      }
+      void setSettings({ openaiKey: msg.value.trim() }).then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
+      return true;
+    }
+    if (msg.type === "avc-delete-learning-data") {
+      void discardDeletedAccountWrites().then(() => syncWithCloud().catch(() => {
+      })).then(() => sendResponse({ ok: true }));
+      return true;
+    }
+    if (msg.type === "avc-link-token" && typeof msg.token === "string") {
+      void (msg.surface === "start_page" ? noteStartPageSurface() : Promise.resolve()).then(() => setSyncToken(msg.token)).then(async () => {
+        if (msg.profile) await setSyncProfile(msg.profile);
+        await syncWithCloud();
+        sendResponse({ ok: true });
+      }).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (ACCOUNT_REQUESTS.has(msg.type) || msg.type?.startsWith("avc-n5-")) {
       void getSyncToken().then((token) => {
         if (!token) sendResponse({ ok: false, error: "Sign in to your free account at animevocab.com/start." });
@@ -2178,8 +2783,8 @@
       return true;
     }
     if (msg.type === "avc-badge") {
-      const text2 = (msg.count || 0) > 0 ? String(msg.count) : "";
-      chrome.action.setBadgeText({ text: text2 });
+      const text3 = (msg.count || 0) > 0 ? String(msg.count) : "";
+      chrome.action.setBadgeText({ text: text3 });
       chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
       return;
     }
@@ -2246,12 +2851,7 @@
       return true;
     }
     if (msg.type === "avc-signin-surface") {
-      void (async () => {
-        const s = await chrome.storage.session.get(SIGNIN_SURFACE_KEY);
-        if (!isSigninSurface(s[SIGNIN_SURFACE_KEY]) && msg.surface === "start_page") {
-          await chrome.storage.session.set({ [SIGNIN_SURFACE_KEY]: "start_page" });
-        }
-      })().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
+      void (msg.surface === "start_page" ? noteStartPageSurface() : Promise.resolve()).then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
       return true;
     }
     if (msg.type === "avc-pull-settings") {
@@ -2423,4 +3023,12 @@
     }
     await setCopilotTab(tabId, false);
   });
+  self.addEventListener("online", () => scheduleSync(0));
+  function redirectRetiredPage(details) {
+    if (details.frameId === 0 && details.url === chrome.runtime.getURL(["dashboard", "dashboard.html"].join("/"))) {
+      void chrome.tabs.update(details.tabId, { url: WEB_URL + "/app#progress" });
+    }
+  }
+  chrome.webNavigation.onBeforeNavigate.addListener(redirectRetiredPage);
+  chrome.webNavigation.onErrorOccurred.addListener(redirectRetiredPage);
 })();

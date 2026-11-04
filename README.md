@@ -78,13 +78,15 @@ npm run test:unit
 
 ```
 src/           extension source (TypeScript)
-  entries/     content, background, popup, options, dashboard, …
+  entries/     content, background, popup, redirect stubs, …
   lib/         tokenizer, dictionary, SRS, site adapters
 extension/     manifest, icons, built bundles
 web/           Next.js site + cloud app (animevocab.com)
 backend/       Cloudflare Worker (licensing, sync API)
 scripts/       dictionary builder
 ```
+
+Cloud-owned learner data, local D1 setup, sync protocol, migration and lifecycle: [docs/cloud-learning.md](docs/cloud-learning.md).
 
 Store submission: [PUBLISHING.md](PUBLISHING.md)
 

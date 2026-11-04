@@ -117,18 +117,36 @@ export function useCloudSyncMeta(): SyncMeta {
 }
 
 export async function fetchCloudEnvelope(): Promise<CloudSyncEnvelope | null> {
-  const res = await fetch("/api/sync/snapshot", { cache: "no-store" });
+  const fetched = await fetchCloudEnvelopeIfChanged(null);
+  return fetched === UNCHANGED ? null : fetched;
+}
+
+const UNCHANGED = Symbol("unchanged");
+
+/** With a known revision the server answers from one row when nothing changed. */
+async function fetchCloudEnvelopeIfChanged(
+  known: number | null,
+): Promise<CloudSyncEnvelope | null | typeof UNCHANGED> {
+  const query = known === null ? "" : `?known=${known}`;
+  const res = await fetch("/api/sync/snapshot" + query, { cache: "no-store" });
   if (!res.ok) throw new Error(`Couldn't load backup (${res.status}).`);
-  const data = (await res.json()) as { envelope: CloudSyncEnvelope | null };
+  const data = (await res.json()) as { envelope?: CloudSyncEnvelope | null; unchanged?: boolean };
+  if (data.unchanged) return UNCHANGED;
   return data.envelope ?? null;
 }
 
 /** Pull the server snapshot into localStorage so the dashboard stays current. */
-export async function refreshCloudFromServer(options?: { silent?: boolean }): Promise<CloudSyncEnvelope | null> {
+export async function refreshCloudFromServer(options?: { silent?: boolean; ifChanged?: boolean }): Promise<CloudSyncEnvelope | null> {
   const silent = options?.silent !== false;
   setSyncMeta({ loading: true, error: null });
   try {
-    const envelope = await fetchCloudEnvelope();
+    const fetched = await fetchCloudEnvelopeIfChanged(options?.ifChanged ? syncMeta.revision : null);
+    if (fetched === UNCHANGED) {
+      // Nothing new: no rewrite, and no extension sync nudge every poll.
+      setSyncMeta({ loading: false, fetchedAt: Date.now() });
+      return null;
+    }
+    const envelope = fetched;
     if (envelope) {
       persistCloudEnvelope(envelope);
       try {
@@ -155,13 +173,13 @@ export function useAutoCloudSync(): void {
     void refreshCloudFromServer();
 
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refreshCloudFromServer();
-    }, 120_000);
+      if (document.visibilityState === "visible") void refreshCloudFromServer({ ifChanged: true });
+    }, 3_000);
 
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       const age = syncMeta.fetchedAt ? Date.now() - syncMeta.fetchedAt : Infinity;
-      if (age > 30_000) void refreshCloudFromServer();
+      if (age > 30_000) void refreshCloudFromServer({ ifChanged: true });
     };
 
     document.addEventListener("visibilitychange", onVisible);
