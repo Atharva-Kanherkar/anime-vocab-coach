@@ -173,3 +173,12 @@ describe("lenient keys", () => {
     expect(rendered("ほん", "romaji")).toBe("hon");
   });
 });
+
+describe("lexical particle homographs", () => {
+  it("uses the dictionary reading only when the source marks it lexical", () => {
+    expect(render("'は")).toEqual({ romaji: "ha", kana: "は" });
+    expect(render("は")).toEqual({ romaji: "wa", kana: "は" });
+    expect(render("わたし_は がくせい_です。")).toEqual({ romaji: "watashi wa gakusei desu.", kana: "わたしは がくせいです。" });
+    expect(render("'は_が いたい_です。")).toEqual({ romaji: "ha ga itai desu.", kana: "はが いたいです。" });
+  });
+});

@@ -8,6 +8,8 @@ import type { N5Script, N5Text } from "../../../shared/n5/contracts";
  * - A standalone は / へ / を word is a particle and reads wa / e / o, as do the
  *   fixed greetings こんにちは / こんばんは.
  * - `^` capitalises a name in romaji.
+ * - A leading `'` marks a lexical word that happens to look like a particle, so
+ *   `'は` reads ha (tooth), while a standalone は still reads wa.
  * - 。、？！ become . , ? ! in romaji.
  */
 const BASE: Record<string, string> = {
@@ -56,14 +58,14 @@ const ENDING_PARTICLE = /^(.*(?:です|ます|ません|でした|ました))([�
 const COPULA = /^(.+?)(です|でした|じゃ)$/;
 
 /** Romanise one word of kana. Throws on characters outside the course inventory. */
-export function romaniseWord(word: string): string {
+export function romaniseWord(word: string, lexical = false): string {
   const ending = foldKana(word).match(ENDING_PARTICLE);
   if (ending) return `${romaniseWord(ending[1])} ${romaniseWord(ending[2])}`;
   const copula = foldKana(word).match(COPULA);
   if (copula && !PARTICLE[copula[1]]) return `${romaniseWord(copula[1])} ${romaniseWord(copula[2])}`;
   const kana = foldKana(word);
-  if (PARTICLE[kana]) return PARTICLE[kana];
-  if (WORD[kana]) return WORD[kana];
+  if (!lexical && PARTICLE[kana]) return PARTICLE[kana];
+  if (!lexical && WORD[kana]) return WORD[kana];
   let out = "";
   let geminate = false;
   let afterN = false;
@@ -98,15 +100,16 @@ function words(source: string): string[] {
 
 /** Render one source string to both scripts. */
 export function render(source: string): N5Text {
-  if (!/^[ぁ-ゖァ-ヺー 。、？！_^]+$/.test(source) || !/[ぁ-ゖァ-ヺ]/.test(source))
+  if (!/^[ぁ-ゖァ-ヺー 。、？！_^']+$/.test(source) || !/[ぁ-ゖァ-ヺ]/.test(source))
     throw new Error(`Invalid course source: ${source}`);
-  const kana = source.trim().replace(/[_^]/g, "").replace(/ +/g, " ").replace(/([。、？！]) /g, "$1");
+  const kana = source.trim().replace(/[_^']/g, "").replace(/ +/g, " ").replace(/([。、？！]) /g, "$1");
   const romaji = words(source).map((token) => {
     const name = token.startsWith("^");
+    const lexical = token.startsWith("'");
     let out = "";
     let run = "";
-    const flush = () => { if (run) { out += (out && !/[ ]$/.test(out) ? " " : "") + romaniseWord(run); run = ""; } };
-    for (const c of token.replace(/\^/g, "")) {
+    const flush = () => { if (run) { out += (out && !/[ ]$/.test(out) ? " " : "") + romaniseWord(run, lexical); run = ""; } };
+    for (const c of token.replace(/[\^']/g, "")) {
       if (PUNCT[c]) { flush(); out += PUNCT[c] + " "; }
       else if (KANA_CHAR.test(c)) run += c;
       else throw new Error(`Invalid course source: ${source}`);

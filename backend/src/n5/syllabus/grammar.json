@@ -1,0 +1,696 @@
+[
+  {
+    "id": "u01-g1",
+    "title": "X は Y です — X is Y",
+    "pattern": "X は Y です",
+    "explanation": "は[k: (as a particle it sounds like わ)] marks the topic. です ends a polite sentence, a bit like 'is' or 'am'.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u01-g2",
+    "title": "さん — polite name suffix",
+    "pattern": "さん",
+    "explanation": "Add さん after someone else's name to be polite. Never use it for your own name.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u02-g1",
+    "title": "～ですか — polite questions",
+    "pattern": "～ですか",
+    "explanation": "Add か to the end of a polite sentence to make a question. No question mark is needed, though you will see one in casual writing.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u02-g2",
+    "title": "～じゃ ありません — is not",
+    "pattern": "～じゃ ありません",
+    "explanation": "Replace です with じゃ ありません to say something is not the case.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u03-g1",
+    "title": "A の B — A's B",
+    "pattern": "A の B",
+    "explanation": "の links two nouns: the first owns or describes the second.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u03-g2",
+    "title": "だれ_の ... ですか — whose?",
+    "pattern": "だれ_の ... ですか",
+    "explanation": "Put だれ_の (whose) before a noun to ask who owns it.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u04-g1",
+    "title": "これ / それ / あれ は なんですか",
+    "pattern": "これ / それ / あれ は なんですか",
+    "explanation": "これ is near the speaker, それ near the listener, あれ far from both. なんですか asks 'what is it?'.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u04-g2",
+    "title": "この / その / あの + noun",
+    "pattern": "この / その / あの + noun",
+    "explanation": "この, その and あの must come directly before a noun: この ノート (this notebook).",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u05-g1",
+    "title": "N は place に います / あります",
+    "pattern": "N は place に います / あります",
+    "explanation": "Use います for people and animals and あります for things. に marks the place where something is.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u05-g2",
+    "title": "どこですか — where is it?",
+    "pattern": "どこですか",
+    "explanation": "Ask where something is with どこですか, and answer with a place word plus です.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u06-g1",
+    "title": "いま なんじですか — telling the time",
+    "pattern": "いま なんじですか",
+    "explanation": "Number + じ is the hour; add はん for half past. Watch the special readings: よじ (4:00), しちじ (7:00) and くじ (9:00).",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u06-g2",
+    "title": "Days and when things happen",
+    "pattern": "Days and when things happen",
+    "explanation": "Day words like きょう, あした and にちようび work like nouns: X は あした です = X is tomorrow.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "u07-g1",
+    "title": "～ます / ～ません",
+    "pattern": "～ます / ～ません",
+    "explanation": "Polite verbs end in ます (do / will do). Change ます to ません for the negative. を marks the object.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u07-g2",
+    "title": "time に — at a time",
+    "pattern": "time に",
+    "explanation": "Put に after a clock time to say when something happens. Words like まいにち and あした don't take に.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u08-g1",
+    "title": "～ました / ～ませんでした",
+    "pattern": "～ました / ～ませんでした",
+    "explanation": "Change ます to ました for the polite past, and to ませんでした for the past negative.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u08-g2",
+    "title": "でした — was",
+    "pattern": "でした",
+    "explanation": "でした is the past of です: きのう_は にちようび_でした (yesterday was Sunday).",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u09-g1",
+    "title": "place に/へ いきます, vehicle で",
+    "pattern": "place に/へ いきます, vehicle で",
+    "explanation": "に or へ[k: (as a particle it sounds like え)] marks a destination. で marks how you travel. あるいて (on foot) needs no particle.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u09-g2",
+    "title": "person と — with someone",
+    "pattern": "person と",
+    "explanation": "と after a person means 'with'. Add いっしょに for 'together'.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u10-g1",
+    "title": "N を ください",
+    "pattern": "N を ください",
+    "explanation": "Name the thing, then を ください, to ask for it. A count word like ふたつ goes just before ください.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u10-g2",
+    "title": "いくらですか — prices",
+    "pattern": "いくらですか",
+    "explanation": "Ask a price with いくらですか. Answer with a number plus えん. Watch the sound changes: さんびゃく (300), はっぴゃく (800), さんぜん (3,000).",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u11-g1",
+    "title": "い-adjectives",
+    "pattern": "い-adjectives",
+    "explanation": "い-adjectives end in い. Negative: drop い and add くない (たかくない). Past: drop い and add かった (たかかった). Add です to be polite.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u11-g2",
+    "title": "な-adjectives",
+    "pattern": "な-adjectives",
+    "explanation": "な-adjectives (きれい, しずか, げんき) work like nouns: しずかです, しずかじゃ ありません. Before a noun, add な: しずか_な ホール.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u12-g1",
+    "title": "N が すきです / きらいです",
+    "pattern": "N が すきです / きらいです",
+    "explanation": "Use が (not を) with すき and きらい. For 'not much', use あまり + negative.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u12-g2",
+    "title": "しゅみ_は ... です — my hobby is ...",
+    "pattern": "しゅみ_は ... です",
+    "explanation": "Say your hobby as a noun with しゅみ_は ... です. も means 'also'.",
+    "prerequisites": [],
+    "band": 2
+  },
+  {
+    "id": "u13-g1",
+    "title": "～ませんか — won't you ...?",
+    "pattern": "～ませんか",
+    "explanation": "Turn ます into ませんか for a polite invitation. It sounds softer than asking directly.",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u13-g2",
+    "title": "～ましょう — let's",
+    "pattern": "～ましょう",
+    "explanation": "Turn ます into ましょう to say 'let's'. To decline softly, say ちょっと ... and give a reason.",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u14-g1",
+    "title": "～て ください — please do",
+    "pattern": "～て ください",
+    "explanation": "The て-form plus ください makes a polite request: まって ください (please wait).",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u14-g2",
+    "title": "Making the て-form",
+    "pattern": "Making the て-form",
+    "explanation": "～きます → ～いて (かいて), ～みます → ～んで (よんで), ～ちます/～います → ～って (まって, いって), ～します → ～して. いきます is special: いって.",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u15-g1",
+    "title": "～て います — is doing",
+    "pattern": "～て います",
+    "explanation": "て-form + います describes an action in progress: よんで います (is reading).",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u15-g2",
+    "title": "なに_を して いますか",
+    "pattern": "なに_を して いますか",
+    "explanation": "して います is the progressive of します. で marks where an action happens.",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u16-g1",
+    "title": "～ても いいですか — may I?",
+    "pattern": "～ても いいですか",
+    "explanation": "て-form + も いいですか asks permission. Answer はい、どうぞ (yes, go ahead).",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u16-g2",
+    "title": "～て_は いけません — must not",
+    "pattern": "～て_は いけません",
+    "explanation": "て-form + は いけません states a rule: you must not. In casual speech you'll hear だめ.",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u17-g1",
+    "title": "N が ほしいです / ～たいです",
+    "pattern": "N が ほしいです / ～たいです",
+    "explanation": "N が ほしいです = I want N. For actions, change ます to たい: たべます → たべたいです (I want to eat).",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u17-g2",
+    "title": "place へ ... に いきます — go to do",
+    "pattern": "place へ ... に いきます",
+    "explanation": "A ます-stem or an activity noun + に before いきます gives the purpose: かいもの_に いきます (go shopping).",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u18-g1",
+    "title": "N が できます / ～こと が できます",
+    "pattern": "N が できます / ～こと が できます",
+    "explanation": "N が できます = can do N. For a verb, use the dictionary form + こと が できます.",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u18-g2",
+    "title": "N が じょうず / へた です",
+    "pattern": "N が じょうず / へた です",
+    "explanation": "Say what someone is good or bad at with が. Don't use じょうず about yourself; say まだ へたです (still bad) to be modest.",
+    "prerequisites": [],
+    "band": 3
+  },
+  {
+    "id": "u19-g1",
+    "title": "Dictionary form = casual present",
+    "pattern": "Dictionary form = casual present",
+    "explanation": "Friends drop ます: いきます → いく, たべます → たべる, します → する. Questions often just rise in tone. Use polite forms with people you don't know well.",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u19-g2",
+    "title": "Casual past and negative",
+    "pattern": "Casual past and negative",
+    "explanation": "Casual past ends in た (みた, いった). Casual negative ends in ない (たべない, いかない). いこう means 'let's go'.",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u20-g1",
+    "title": "A は B より ... です",
+    "pattern": "A は B より ... です",
+    "explanation": "より means 'than': A は B より はやいです = A is faster than B.",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u20-g2",
+    "title": "どちら_が ... ですか / ～の ほう_が",
+    "pattern": "どちら_が ... ですか / ～の ほう_が",
+    "explanation": "Ask which of two with A と B と どちら_が ... ですか. Answer with A の ほう_が ... です. For three or more, use いちばん.",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u21-g1",
+    "title": "reason から, result",
+    "pattern": "reason から, result",
+    "explanation": "Put から after the reason, then say the result: ねつ_が あります_から、 やすみます (I have a fever, so I'll rest).",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u21-g2",
+    "title": "どうしてですか / ～からです",
+    "pattern": "どうしてですか / ～からです",
+    "explanation": "Ask why with どうして. Answer with the reason + から (です). だから starts a new sentence: 'so ...'.",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u22-g1",
+    "title": "... から ... まで — from ... until ...",
+    "pattern": "... から ... まで",
+    "explanation": "から marks a starting time or place and まで the end: くじ_から さんじ_まで (from 9 until 3).",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u22-g2",
+    "title": "ね and よ in short messages",
+    "pattern": "ね and よ in short messages",
+    "explanation": "ね seeks agreement ('isn't it?'). よ tells the listener something new ('you know').",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u23-g1",
+    "title": "Asking for clarification",
+    "pattern": "Asking for clarification",
+    "explanation": "Say すみません、よく わかりません when you're lost. Ask えいご_で なん_ですか for a translation, or ～は どういう いみ_ですか for a meaning.",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u23-g2",
+    "title": "Linking steps with the て-form",
+    "pattern": "Linking steps with the て-form",
+    "explanation": "The て-form links actions in order: まっすぐ いって、 みぎ_に まがって ください (go straight, then turn right).",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u24-g1",
+    "title": "Polite verb endings",
+    "pattern": "Polite verb endings",
+    "explanation": "ます (do), ません (don't), ました (did), ませんでした (didn't), ましょう (let's), ませんか (won't you?), たいです (want to).",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "u24-g2",
+    "title": "Linking ideas",
+    "pattern": "Linking ideas",
+    "explanation": "て-form links steps and makes requests. から gives a reason. より compares.",
+    "prerequisites": [],
+    "band": 4
+  },
+  {
+    "id": "g-particle-mo",
+    "title": "も - also / too",
+    "pattern": "N も ...",
+    "explanation": "も replaces は or が to say that the same thing is true of another person or thing.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "g-question-words",
+    "title": "だれ / なに / どこ / いつ - question words",
+    "pattern": "question word + ですか",
+    "explanation": "だれ asks who, なに asks what, どこ asks where and いつ asks when. Keep the word order and add か at the end.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "g-numbers-100",
+    "title": "Numbers to 100",
+    "pattern": "いち, に, さん ... じゅう, ひゃく",
+    "explanation": "Numbers are regular until 10, then combine: じゅういち is 11 and にじゅう is 20. ひゃく is 100.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "g-counter-tsu",
+    "title": "～つ - general counters",
+    "pattern": "ひとつ, ふたつ, みっつ ...",
+    "explanation": "The つ counters work for most objects up to ten and need no noun class.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "g-ko-so-a-do",
+    "title": "こ / そ / あ / ど - this, that, which",
+    "pattern": "これ / それ / あれ / どれ",
+    "explanation": "The こ series is near the speaker, そ near the listener, あ far from both and ど is the question form.",
+    "prerequisites": [],
+    "band": 1
+  },
+  {
+    "id": "g-particle-ga-subject",
+    "title": "が - subject marker",
+    "pattern": "N が ...",
+    "explanation": "が marks the subject, especially new information or the answer to a question. It also follows the object of すき, きらい, ほしい and できます.",
+    "prerequisites": [
+      "u01-g1"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-particle-wo-object",
+    "title": "を - object marker",
+    "pattern": "N を verb",
+    "explanation": "を marks the direct object of a verb. It sounds like o.",
+    "prerequisites": [
+      "u01-g1"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-particle-de-means-place",
+    "title": "で - place of action or means",
+    "pattern": "place で verb / tool で verb",
+    "explanation": "で marks where an action happens, or the tool or vehicle used. It is not the same as に, which marks where something exists.",
+    "prerequisites": [
+      "u05-g1"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-particle-to-and",
+    "title": "と / や - and (nouns)",
+    "pattern": "A と B / A や B",
+    "explanation": "と joins nouns completely, while や lists examples and suggests there are more.",
+    "prerequisites": [
+      "u03-g1"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-counter-people-things",
+    "title": "～人 / ～枚 / ～台 / ～回 - counters",
+    "pattern": "number + counter",
+    "explanation": "Japanese uses different counters for people, flat things, machines and times. The number usually comes before the counter.",
+    "prerequisites": [
+      "g-counter-tsu"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-counter-age",
+    "title": "～歳 - age",
+    "pattern": "number + さい",
+    "explanation": "Ask an age with なんさい. Watch はっさい (8) and じゅっさい (10).",
+    "prerequisites": [
+      "g-counter-tsu"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-existence-ga-arimasu",
+    "title": "N が あります / います - there is",
+    "pattern": "place に N が あります / います",
+    "explanation": "あります is for things and います for people and animals. The thing that exists takes が.",
+    "prerequisites": [
+      "u05-g1"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-nanika-nanimo",
+    "title": "なにか / なにも - something / nothing",
+    "pattern": "なにか / なにも + verb",
+    "explanation": "なにか means something and なにも with a negative verb means nothing.",
+    "prerequisites": [
+      "g-question-words"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-dake-only",
+    "title": "だけ - only",
+    "pattern": "N だけ",
+    "explanation": "だけ limits a noun or a quantity to one thing: みず だけ = only water.",
+    "prerequisites": [
+      "g-particle-mo"
+    ],
+    "band": 2
+  },
+  {
+    "id": "g-te-kara",
+    "title": "～てから - after doing",
+    "pattern": "V-て から ...",
+    "explanation": "The て-form plus から says that the second action happens after the first one finishes.",
+    "prerequisites": [
+      "u07-g1"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-ta-koto-ga-aru",
+    "title": "～た こと が あります - have done",
+    "pattern": "V-た こと が あります",
+    "explanation": "This pattern describes an experience you have had at some point in your life, not something you just did.",
+    "prerequisites": [
+      "u08-g1"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-nagara",
+    "title": "～ながら - while doing",
+    "pattern": "V-ます stem + ながら ...",
+    "explanation": "ながら attaches to the stem of a verb to say that two actions happen at the same time by the same person.",
+    "prerequisites": [
+      "u07-g1"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-toki",
+    "title": "～とき - when",
+    "pattern": "V / adjective + とき",
+    "explanation": "とき turns a clause into a time expression: がっこう に いく とき = when I go to school.",
+    "prerequisites": [
+      "u07-g1"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-mae-ni",
+    "title": "～まえ に - before",
+    "pattern": "V-dictionary + まえ に / N の まえ に",
+    "explanation": "まえ に says that something happens before an action or in front of a place.",
+    "prerequisites": [
+      "u07-g2"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-ato-de",
+    "title": "～あと で - after",
+    "pattern": "V-た + あと で / N の あと で",
+    "explanation": "あと で says that something happens after an action or event.",
+    "prerequisites": [
+      "u07-g2"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-tsumori",
+    "title": "～つもり です - intend to",
+    "pattern": "V-dictionary + つもり です",
+    "explanation": "つもり expresses a plan or intention. The verb before it stays in the dictionary form.",
+    "prerequisites": [
+      "u07-g1"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-desho",
+    "title": "～でしょう - probably",
+    "pattern": "plain form + でしょう",
+    "explanation": "でしょう adds probability: あした は あめ でしょう = it will probably rain tomorrow.",
+    "prerequisites": [
+      "u08-g2"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-kamoshirenai",
+    "title": "～かもしれません - maybe",
+    "pattern": "plain form + かもしれません",
+    "explanation": "かもしれません is a weaker, more polite guess than でしょう.",
+    "prerequisites": [
+      "u08-g2"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-to-omoimasu",
+    "title": "～と おもいます - I think",
+    "pattern": "plain form + と おもいます",
+    "explanation": "Use と おもいます to give an opinion. The quoted clause takes the plain form.",
+    "prerequisites": [
+      "u07-g1"
+    ],
+    "band": 3
+  },
+  {
+    "id": "g-n-desu",
+    "title": "～んです - explanation",
+    "pattern": "plain form + んです",
+    "explanation": "んです asks for or gives background, reason or context. It is common in conversation.",
+    "prerequisites": [
+      "u07-g1"
+    ],
+    "band": 4
+  },
+  {
+    "id": "g-sou-desu",
+    "title": "～そうです - looks like / I hear",
+    "pattern": "stem + そうです / plain form + そうです",
+    "explanation": "There are two patterns: a stem before そうです means 'looks like', and a plain form before そうです means 'I hear'.",
+    "prerequisites": [
+      "u11-g1"
+    ],
+    "band": 4
+  },
+  {
+    "id": "g-hou-ga-ii",
+    "title": "～ほう が いい です - had better",
+    "pattern": "V-た / V-ない + ほう が いい です",
+    "explanation": "This gives advice. Use the past form for a positive suggestion and the negative form for advice against something.",
+    "prerequisites": [
+      "u11-g1"
+    ],
+    "band": 4
+  },
+  {
+    "id": "g-ni-naru",
+    "title": "～に なる - become",
+    "pattern": "N / na-adjective + に なる",
+    "explanation": "になる says that something becomes something else: せんせい に なる = become a teacher.",
+    "prerequisites": [
+      "u11-g2"
+    ],
+    "band": 4
+  },
+  {
+    "id": "g-te-oku",
+    "title": "～て おきます - do in advance",
+    "pattern": "V-て おきます",
+    "explanation": "て おきます says an action is done ahead of time or left in a state for later.",
+    "prerequisites": [
+      "u16-g1"
+    ],
+    "band": 4
+  },
+  {
+    "id": "g-te-shimau",
+    "title": "～て しまいました - ended up doing",
+    "pattern": "V-て しまいました",
+    "explanation": "て しまいました says an action was completed, often with regret or surprise.",
+    "prerequisites": [
+      "u14-g2"
+    ],
+    "band": 4
+  },
+  {
+    "id": "g-kara-node",
+    "title": "から / ので - because",
+    "pattern": "reason から ... / reason ので ...",
+    "explanation": "から states a reason directly. ので sounds softer and is common when explaining politely.",
+    "prerequisites": [
+      "u07-g1"
+    ],
+    "band": 4
+  },
+  {
+    "id": "g-nasai",
+    "title": "～なさい - do (instruction)",
+    "pattern": "V-ます stem + なさい",
+    "explanation": "なさい gives a firm but polite instruction, the way a parent or teacher speaks to a child.",
+    "prerequisites": [
+      "u13-g2"
+    ],
+    "band": 4
+  }
+]
