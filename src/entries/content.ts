@@ -794,9 +794,9 @@ declare global {
     if (signedIn !== true || pipelineDisabled) return;
     const line = text.replace(/\s+/g, " ").trim();
     if (!line) return;
-    episodeQuiz.noteLine(line, context?.en);
     void hearCourseWords(line).catch((err) => warn("course matching failed:", err));
     let seq = opts.lensSeq ?? -1;
+    episodeQuiz.noteLine(line, context?.en);
     if (opts.lens !== false) {
       cancelPacedLens();
       renderLens(line, context).catch((err) => warn("sub-lens render failed:", err));
