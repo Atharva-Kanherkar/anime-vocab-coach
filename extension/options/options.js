@@ -1,8 +1,302 @@
 "use strict";
 (() => {
+  // src/lib/log.ts
+  var warn = (...args) => console.warn("[AVC]", ...args);
+
   // src/config.ts
   var WEB_URL = "https://animevocab.com";
 
+  // src/lib/account-cache.ts
+  var SIGN_OUT_SUPPRESSION_MS = 5 * 60 * 1e3;
+
+  // src/lib/locale-direction.ts
+  function isJapaneseUiLocale() {
+    try {
+      const ui = chrome.i18n?.getUILanguage?.() || navigator.language || "en";
+      return ui.toLowerCase().startsWith("ja");
+    } catch {
+      return false;
+    }
+  }
+  function resolveStoredDirection(stored) {
+    if (stored === "ja-en" || stored === "en-ja") return stored;
+    return null;
+  }
+
+  // src/types.ts
+  var DEFAULTS = {
+    pauseMode: "copilot",
+    cooldownSec: 20,
+    maxCardsPerHour: 12,
+    targetLevel: 5,
+    autoResumeSec: 15,
+    displayScript: "romaji",
+    learningDirection: "en-ja",
+    autoSpeak: true,
+    subLens: true,
+    subLensPeek: true,
+    openaiKey: "",
+    transcribeModel: "gpt-4o-mini-transcribe",
+    sites: { youtube: true, netflix: true, generic: true }
+  };
+  var SRS_INTERVALS = [0, 4 * 36e5, 24 * 36e5, 3 * 24 * 36e5, 7 * 24 * 36e5, 21 * 24 * 36e5];
+
+  // src/lib/review-prompt.ts
+  var REVIEW_PROMPT_SNOOZE_MS = 14 * 24 * 36e5;
+
+  // src/lib/feature-events.ts
+  var SIGNIN_FEATURE_EVENTS = [
+    "signin_gate_shown",
+    "signin_started",
+    "signin_completed",
+    "signin_gate_dismissed"
+  ];
+  var SIGNIN_SURFACES = [
+    "content_chip",
+    "popup",
+    "start_page",
+    "install",
+    "startup"
+  ];
+  var FEATURE_EVENTS = [
+    "card_shown",
+    "card_known",
+    "card_learn",
+    "word_saved",
+    "review_done",
+    "listening_started",
+    "install_first_run",
+    "extension_linked",
+    ...SIGNIN_FEATURE_EVENTS
+  ];
+  var TRACK_URL = WEB_URL + "/api/track";
+  var SIGNIN_EVENT_SET = new Set(SIGNIN_FEATURE_EVENTS);
+  var SIGNIN_SURFACE_SET = new Set(SIGNIN_SURFACES);
+
+  // src/lib/onboarding.ts
+  var ONBOARDING_CHECKLIST_AFTER_MS = 24 * 36e5;
+
+  // src/lib/onboarding-store.ts
+  var queue = Promise.resolve();
+
+  // src/lib/storage.ts
+  var queue2 = Promise.resolve();
+  function todayKey() {
+    return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
+  }
+  function enqueue(fn) {
+    const next = queue2.then(fn, fn);
+    queue2 = next.catch((err) => warn("storage error:", err));
+    return next;
+  }
+  function emptyStats() {
+    return { daily: {}, cardTimestamps: [] };
+  }
+  function sendBadge(stats) {
+    const day = todayKey();
+    const judged = stats.daily?.[day]?.judged || 0;
+    chrome.runtime.sendMessage({ type: "avc-badge", count: judged }).catch(() => {
+    });
+  }
+  function withDefaults(stored) {
+    const merged = { ...DEFAULTS, ...stored };
+    if (merged.pauseMode === "notify") merged.pauseMode = "copilot";
+    if (resolveStoredDirection(stored.learningDirection) === null && isJapaneseUiLocale()) {
+      merged.learningDirection = "ja-en";
+    }
+    return merged;
+  }
+  function getSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["settings"], (r) => {
+        resolve(withDefaults(r.settings || {}));
+      });
+    });
+  }
+  function setSettings(partial) {
+    return enqueue(async () => {
+      const r = await chrome.storage.local.get(["settings"]);
+      const settings = { ...withDefaults(r.settings || {}), ...partial };
+      await chrome.storage.local.set({ settings });
+      return settings;
+    });
+  }
+  function exportAll() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["settings", "vocab", "stats"], (r) => {
+        resolve({
+          settings: withDefaults(r.settings || {}),
+          vocab: r.vocab || {},
+          stats: r.stats || emptyStats(),
+          exportedAt: (/* @__PURE__ */ new Date()).toISOString()
+        });
+      });
+    });
+  }
+  function resetProgress() {
+    return enqueue(async () => {
+      await chrome.storage.local.set({ vocab: {}, stats: emptyStats() });
+      sendBadge({ daily: {} });
+    });
+  }
+
   // src/entries/options.ts
-  window.location.replace(WEB_URL + "/app#settings");
+  function todayKey2() {
+    return (/* @__PURE__ */ new Date()).toLocaleDateString("sv");
+  }
+  function byId(id) {
+    return document.getElementById(id);
+  }
+  function showSaved() {
+    const el = byId("saved-msg");
+    el.hidden = false;
+    setTimeout(() => {
+      el.hidden = true;
+    }, 1500);
+  }
+  function initTheme() {
+    const btn = byId("theme-toggle");
+    const icon = document.getElementById("theme-icon");
+    const apply = (theme) => {
+      document.documentElement.setAttribute("data-theme", theme);
+      if (!icon) return;
+      if (theme === "dark") {
+        icon.innerHTML = '<circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"></path>';
+        btn.setAttribute("aria-label", "Switch to light mode");
+      } else {
+        icon.innerHTML = '<path d="M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z"></path>';
+        btn.setAttribute("aria-label", "Switch to dark mode");
+      }
+    };
+    apply(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+    btn.addEventListener("click", () => {
+      const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+      apply(next);
+      try {
+        localStorage.setItem("av-theme", next);
+      } catch {
+      }
+    });
+  }
+  async function loadSettingsForm() {
+    const s = await getSettings();
+    document.querySelectorAll('input[name="pauseMode"]').forEach((el) => {
+      el.checked = el.value === s.pauseMode;
+    });
+    byId("cooldownSec").value = String(s.cooldownSec);
+    byId("maxCardsPerHour").value = String(s.maxCardsPerHour);
+    byId("targetLevel").value = String(s.targetLevel);
+    byId("autoResumeSec").value = String(s.autoResumeSec);
+    byId("site-youtube").checked = s.sites?.youtube !== false;
+    byId("site-netflix").checked = s.sites?.netflix !== false;
+    byId("site-generic").checked = s.sites?.generic !== false;
+    byId("displayScript").value = s.displayScript || "romaji";
+    byId("learningDirection").value = s.learningDirection || "en-ja";
+    byId("autoSpeak").checked = s.autoSpeak !== false;
+    byId("subLens").checked = s.subLens !== false;
+    byId("subLensPeek").checked = s.subLensPeek !== false;
+    byId("openaiKey").value = s.openaiKey || "";
+    byId("transcribeModel").value = s.transcribeModel || "gpt-4o-mini-transcribe";
+  }
+  async function savePartial(partial) {
+    await setSettings(partial);
+    showSaved();
+  }
+  function maybeShowJaEnBanner() {
+    if (!isJapaneseUiLocale()) return;
+    try {
+      if (localStorage.getItem("av-ja-en-prompt-dismissed") === "1") return;
+    } catch {
+    }
+    void getSettings().then((s) => {
+      if (s.learningDirection === "ja-en") return;
+      const banner = document.createElement("div");
+      banner.className = "av-ja-en-banner";
+      banner.innerHTML = '<p><strong>\u65E5\u672C\u8A9E \u2192 English \u3067\u5B66\u3079\u307E\u3059\u3002</strong> \u30A2\u30CB\u30E1\u306E\u82F1\u8A9E\u304B\u3089\u5358\u8A9E\u3092\u899A\u3048\u3001\u89E3\u8AAC\u306F\u65E5\u672C\u8A9E\u3067\u3059\u3002</p><div class="av-ja-en-banner__actions"><button type="button" class="av-btn av-btn-primary" id="ja-en-apply">\u65E5\u672C\u8A9E \u2192 English \u306B\u5207\u308A\u66FF\u3048</button><button type="button" class="av-btn av-btn-ghost" id="ja-en-dismiss">\u9589\u3058\u308B</button></div>';
+      const shell = document.querySelector(".shell");
+      shell?.insertBefore(banner, shell.querySelector(".av-sub"));
+      banner.querySelector("#ja-en-apply")?.addEventListener("click", () => {
+        void savePartial({ learningDirection: "ja-en" }).then(() => {
+          byId("learningDirection").value = "ja-en";
+          banner.remove();
+        });
+      });
+      banner.querySelector("#ja-en-dismiss")?.addEventListener("click", () => {
+        try {
+          localStorage.setItem("av-ja-en-prompt-dismissed", "1");
+        } catch {
+        }
+        banner.remove();
+      });
+    });
+  }
+  document.addEventListener("DOMContentLoaded", async () => {
+    initTheme();
+    await loadSettingsForm();
+    maybeShowJaEnBanner();
+    document.querySelectorAll('input[name="pauseMode"]').forEach((el) => {
+      el.addEventListener("change", () => savePartial({ pauseMode: el.value }));
+    });
+    byId("cooldownSec").addEventListener("change", (e) => {
+      const v = Number(e.target.value) || 20;
+      savePartial({ cooldownSec: Math.max(5, Math.min(120, v)) });
+    });
+    byId("maxCardsPerHour").addEventListener("change", (e) => {
+      const v = Number(e.target.value) || 12;
+      savePartial({ maxCardsPerHour: Math.max(1, Math.min(60, v)) });
+    });
+    byId("targetLevel").addEventListener("change", (e) => {
+      savePartial({ targetLevel: Number(e.target.value) });
+    });
+    byId("autoResumeSec").addEventListener("change", (e) => {
+      savePartial({ autoResumeSec: Math.max(0, Number(e.target.value) || 0) });
+    });
+    byId("site-youtube").addEventListener("change", async (e) => {
+      const s = await getSettings();
+      savePartial({ sites: { ...s.sites, youtube: e.target.checked } });
+    });
+    byId("site-netflix").addEventListener("change", async (e) => {
+      const s = await getSettings();
+      savePartial({ sites: { ...s.sites, netflix: e.target.checked } });
+    });
+    byId("site-generic").addEventListener("change", async (e) => {
+      const s = await getSettings();
+      savePartial({ sites: { ...s.sites, generic: e.target.checked } });
+    });
+    byId("learningDirection").addEventListener("change", (e) => {
+      savePartial({ learningDirection: e.target.value });
+    });
+    byId("displayScript").addEventListener("change", (e) => {
+      savePartial({ displayScript: e.target.value });
+    });
+    byId("subLens").addEventListener("change", (e) => {
+      savePartial({ subLens: e.target.checked });
+    });
+    byId("subLensPeek").addEventListener("change", (e) => {
+      savePartial({ subLensPeek: e.target.checked });
+    });
+    byId("autoSpeak").addEventListener("change", (e) => {
+      savePartial({ autoSpeak: e.target.checked });
+    });
+    byId("openaiKey").addEventListener("change", (e) => {
+      savePartial({ openaiKey: e.target.value.trim() });
+    });
+    byId("transcribeModel").addEventListener("change", (e) => {
+      savePartial({ transcribeModel: e.target.value });
+    });
+    byId("export-btn").addEventListener("click", async () => {
+      const data = await exportAll();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `animevocab-export-${todayKey2()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    byId("reset-btn").addEventListener("click", async () => {
+      if (!confirm("Reset all vocab and stats? Settings will be kept.")) return;
+      await resetProgress();
+    });
+  });
 })();

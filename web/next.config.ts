@@ -1,4 +1,3 @@
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
@@ -53,12 +52,6 @@ const config = (phase: string) => {
     }
   }
 
-  // Integration fixtures can preload a context shared with their API Worker.
-  // Keep those bindings rather than replacing them with a separate local Worker.
-  const existingContext = (globalThis as Record<symbol, unknown>)[Symbol.for("__cloudflare-context__")];
-  if (phase !== PHASE_PRODUCTION_BUILD && process.env.NODE_ENV !== "production" && !existingContext) {
-    void initOpenNextCloudflareForDev();
-  }
   return nextConfig;
 };
 

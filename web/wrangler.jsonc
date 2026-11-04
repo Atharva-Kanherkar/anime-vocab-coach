@@ -17,7 +17,6 @@
   // Direct Worker-to-Worker route to the API for the N5 course gateway. Same-account
   // workers.dev fetches are not a reliable path from a Worker; a service binding is.
   "services": [{ "binding": "N5_API", "service": "avc-api" }],
-  "d1_databases": [{ "binding": "LEARN_DB", "database_name": "avc-n5", "database_id": "578cb3a0-025f-4d1c-b70e-a1394afa7d52", "migrations_dir": "../backend/migrations" }],
   "kv_namespaces": [
     {
       "binding": "AVC_SYNC_KV",

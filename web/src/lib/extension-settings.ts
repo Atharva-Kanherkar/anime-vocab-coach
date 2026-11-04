@@ -16,9 +16,6 @@ export interface ExtensionSettings {
   displayScript: DisplayScript;
   learningDirection: LearningDirection;
   autoSpeak: boolean;
-  subLens: boolean;
-  subLensPeek: boolean;
-  transcribeModel: string;
   sites: { youtube: boolean; netflix: boolean; generic: boolean };
 }
 
@@ -40,9 +37,6 @@ export const EXTENSION_SETTINGS_DEFAULTS: ExtensionSettings = {
   displayScript: "romaji",
   learningDirection: "en-ja",
   autoSpeak: true,
-  subLens: true,
-  subLensPeek: true,
-  transcribeModel: "gpt-4o-mini-transcribe",
   sites: { youtube: true, netflix: true, generic: true },
 };
 
@@ -74,9 +68,6 @@ export function parseExtensionSettings(
       ? (raw!.learningDirection as LearningDirection)
       : resolveLearningDirection(undefined, locale),
     autoSpeak: raw?.autoSpeak !== false,
-    subLens: raw?.subLens !== false,
-    subLensPeek: raw?.subLensPeek !== false,
-    transcribeModel: typeof raw?.transcribeModel === "string" && raw.transcribeModel.length > 0 && raw.transcribeModel.length <= 100 ? raw.transcribeModel : d.transcribeModel,
     sites: {
       youtube: sites.youtube !== false,
       netflix: sites.netflix !== false,

@@ -62,11 +62,8 @@ export function CloudSyncPanel() {
     }
   };
 
-  const exportSnapshot = async () => {
-    const response = await fetch("/api/learn/export", {cache:"no-store"});
-    if (!response.ok) { setMessage("Could not export your account. Please try again."); return; }
-    const data = await response.json();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const exportSnapshot = () => {
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -167,7 +164,7 @@ export function CloudSyncPanel() {
               onChange={(event) => onFile(event.currentTarget.files?.[0] ?? null)}
             />
           </label>
-          <button className="av-btn av-btn-ghost av-btn-sm" type="button" onClick={()=>void exportSnapshot()}>
+          <button className="av-btn av-btn-ghost av-btn-sm" type="button" onClick={exportSnapshot}>
             Download JSON
           </button>
           <button

@@ -72,7 +72,7 @@ jobs:
           NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
           NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: /app
           NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: /app
-        run: npm ci && npx wrangler d1 migrations apply avc-n5 --remote && npm run deploy
+        run: npm ci && npm run deploy
 
       - name: Notify search engines (IndexNow)
         run: |
