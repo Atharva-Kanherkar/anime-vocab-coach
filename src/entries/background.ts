@@ -8,6 +8,7 @@ import { fetchExtractWords, type ExtractWordsRequest } from "../lib/extract-word
 import { fetchAnimeContext } from "../lib/anime-context-client";
 import { fetchTtsAudio } from "../lib/tts-client";
 import { fetchUsage } from "../lib/usage-client";
+import { EPISODE_QUIZ_MESSAGE, postEpisodeQuiz } from "../lib/episode-quiz-client";
 import { clearSignedOutCache, getSyncToken } from "../lib/storage";
 import { stampOnboarding } from "../lib/onboarding-store";
 import {
@@ -820,6 +821,14 @@ function handleRuntimeMessage(msg: RuntimeMsg, sender: chrome.runtime.MessageSen
         sendResponse({ ok: false, error: reason });
       })
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
+
+  // The end-of-episode quiz and Haru's verdict (lib/episode-quiz-ui).
+  if (msg.type === EPISODE_QUIZ_MESSAGE) {
+    postEpisodeQuiz((msg.payload as unknown as Record<string, unknown>) || {})
+      .then(sendResponse)
+      .catch(() => sendResponse({ ok: false, error: "network" }));
     return true;
   }
 
