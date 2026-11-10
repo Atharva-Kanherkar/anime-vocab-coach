@@ -435,6 +435,9 @@
     "listening_started",
     "install_first_run",
     "extension_linked",
+    "quiz_offered",
+    "quiz_started",
+    "quiz_completed",
     ...SIGNIN_FEATURE_EVENTS
   ];
   function isFeatureEvent(v) {
@@ -463,7 +466,8 @@
     "ext_popup",
     "ext_milestone",
     "ext_popup_limit",
-    "ext_limit_sheet"
+    "ext_limit_sheet",
+    "ext_episode_quiz"
   ];
   function isProFunnelEvent(v) {
     return typeof v === "string" && PRO_FUNNEL_EVENTS.includes(v);
@@ -1416,6 +1420,25 @@
     };
   }
 
+  // src/lib/episode-quiz-client.ts
+  var EPISODE_QUIZ_MESSAGE = "avc-episode-quiz";
+  async function postEpisodeQuiz(payload) {
+    const token = await getSyncToken();
+    if (!token) return { ok: false, error: "not_linked" };
+    try {
+      const res = await fetch(WEB_URL + "/api/ai/episode-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: typeof data.error === "string" ? data.error : `http_${res.status}` };
+      return { ok: true, data };
+    } catch {
+      return { ok: false, error: "network" };
+    }
+  }
+
   // src/lib/signin-gate.ts
   var SIGNIN_CHIP_DISMISSED_KEY = "signinChipDismissed";
   var SIGNIN_UPGRADE_NOTICE_KEY = "signinUpgradeNotice";
@@ -2303,6 +2326,10 @@
         }
         sendResponse({ ok: false, error: reason });
       }).catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true;
+    }
+    if (msg.type === EPISODE_QUIZ_MESSAGE) {
+      postEpisodeQuiz(msg.payload || {}).then(sendResponse).catch(() => sendResponse({ ok: false, error: "network" }));
       return true;
     }
     if (msg.type === "avc-usage") {

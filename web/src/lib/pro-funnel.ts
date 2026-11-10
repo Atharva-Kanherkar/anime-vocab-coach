@@ -38,6 +38,7 @@ export const PRO_SURFACES = [
   "ext_milestone",
   "ext_popup_limit",
   "ext_limit_sheet",
+  "ext_episode_quiz",
 ] as const;
 
 export type ProSurface = (typeof PRO_SURFACES)[number];
