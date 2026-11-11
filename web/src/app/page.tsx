@@ -73,12 +73,6 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
       />
       <HeroImagePreloader slides={heroSlides} />
-      {/* Free public front door to the creative Manga Studio + gallery. */}
-      <a className="studio-banner" href="/studio">
-        <span className="studio-banner__tag">NEW</span>
-        Manga Studio — create your own manga with AI. Free, no sign-up to try
-        <span aria-hidden="true"> →</span>
-      </a>
       <main id="main">
         <FxSlider slides={heroSlides} />
       </main>
@@ -95,9 +89,6 @@ export default function HomePage() {
           { href: "/free-japanese-anime-extension", label: "Free extension" },
           { href: "/blog/how-to-learn-japanese-watching-anime-2026", label: "How to learn" },
           { href: "/blog", label: "Blog" },
-          { href: "/studio", label: "Manga Studio" },
-          { href: "/gallery", label: "Gallery" },
-          { href: "/learn-japanese-manga", label: "Learn with manga" },
           { href: "/learn-japanese-with-anime", label: "Guides" },
           { href: "/learn-japanese-crunchyroll", label: "Crunchyroll" },
           { href: "/learn-japanese-hulu", label: "Hulu" },

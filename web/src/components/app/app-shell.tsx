@@ -12,8 +12,6 @@ import { AiCoach } from "@/components/ai-coach";
 import { NotebooksPanel } from "@/components/notebooks-panel";
 import { CardsPanel } from "@/components/app/cards-panel";
 import { MangaReader } from "@/components/app/manga-reader";
-import { StudioPanel } from "@/components/app/studio-panel";
-import { WordMangaPanel } from "@/components/app/word-manga-panel";
 import { GamificationPanel } from "@/components/gamification-panel";
 import { ReviewPanel } from "@/components/app/review-panel";
 import { ProgressOverview } from "@/components/app/progress-overview";
@@ -33,8 +31,6 @@ type SectionId =
   | "notebooks"
   | "cards"
   | "manga"
-  | "studio"
-  | "word-manga"
   | "progress"
   | "backup"
   | "billing"
@@ -48,8 +44,6 @@ const NAV: { id: SectionId; label: string }[] = [
   { id: "notebooks", label: "Notebooks" },
   { id: "cards", label: "Cards" },
   { id: "manga", label: "Manga" },
-  { id: "studio", label: "Studio" },
-  { id: "word-manga", label: "Word Manga" },
   { id: "progress", label: "Progress" },
   { id: "backup", label: "Backup" },
   { id: "billing", label: "Billing" },
@@ -113,7 +107,7 @@ export function AppShell({
           </Link>
 
           {/* Beside the logo, not with the controls on the right. The nav has a
-              row of its own: thirteen sections no longer fit beside the logo. */}
+              row of its own: eleven sections no longer fit beside the logo. */}
           {offerPro && <ProHeaderEntry onOpenBilling={openBilling} />}
 
           <nav aria-label="Sections" className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto md:mx-0">
@@ -170,12 +164,6 @@ export function AppShell({
           </div>
           <div hidden={section !== "manga"}>
             <MangaReader owner={owner} />
-          </div>
-          <div hidden={section !== "studio"}>
-            <StudioPanel />
-          </div>
-          <div hidden={section !== "word-manga"}>
-            <WordMangaPanel />
           </div>
           <div hidden={section !== "progress"}>
             <ProgressOverview onGo={go} />

@@ -49,7 +49,7 @@ export function startedNewStreakDay(
 /**
  * Player level implied by a snapshot.
  *
- * Extension progress only: the web app adds Manga Studio XP on top, which
+ * Extension progress only: the web app adds saga-chapter XP on top, which
  * lives in browser-local state the sync route never sees. So this is a lower
  * bound on the learner's real level, and `card_unlocked` counted from it is an
  * undercount rather than a fabrication — the safer direction for a metric

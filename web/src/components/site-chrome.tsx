@@ -21,16 +21,11 @@ export function SiteHeader({ compact = false }: { compact?: boolean }) {
           <nav aria-label="Primary" className="top-nav-compact">
             <Link href="/pricing">{t("pricing")}</Link>
             <Link href="/blog">{t("blog")}</Link>
-            <Link href="/end">{t("endings")}</Link>
-            <Link href="/studio">{t("studio")}</Link>
-            <Link href="/gallery">{t("gallery")}</Link>
             <Link href="/learn-japanese-with-anime">{t("guides")}</Link>
           </nav>
         ) : (
           <nav aria-label="Primary">
             <Link href="/#features">{t("features")}</Link>
-            <Link href="/studio">{t("studio")}</Link>
-            <Link href="/gallery">{t("gallery")}</Link>
             <Link href="/cloud">{t("cloud")}</Link>
             <Link href="/pricing">{t("pricing")}</Link>
             <Link href="/#faq">{t("faq")}</Link>
@@ -134,8 +129,6 @@ export function SiteFooter({ links }: { links?: { href: string; label: string }[
   const defaultLinks = [
     { href: "/pricing", label: t("pricing") },
     { href: "/anime-vocabulary", label: "Anime vocabulary" },
-    { href: "/studio", label: t("studio") },
-    { href: "/gallery", label: t("gallery") },
     { href: "/blog", label: t("blog") },
     { href: "/learn-japanese-with-anime", label: t("guides") },
     { href: "/ja", label: t("languageJa") },

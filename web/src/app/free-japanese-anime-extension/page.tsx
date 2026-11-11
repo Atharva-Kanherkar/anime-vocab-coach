@@ -164,8 +164,7 @@ export default function FreeJapaneseAnimeExtensionPage() {
               Deeper workflows:{" "}
               <Link href="/learn-japanese-with-anime-free">learn Japanese with anime free</Link>,{" "}
               <Link href="/romaji-japanese-learning">romaji-first learning</Link>,{" "}
-              <Link href="/anime-spaced-repetition">spaced repetition</Link>,{" "}
-              <Link href="/studio">free AI manga maker</Link> for output practice.
+              <Link href="/anime-spaced-repetition">spaced repetition</Link>.
             </p>
 
             <h2>FAQ</h2>

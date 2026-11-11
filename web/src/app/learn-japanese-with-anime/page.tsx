@@ -432,16 +432,6 @@ export default function LearnJapaneseWithAnimePage() {
               </li>
             </ul>
 
-            <h2>Learn by creating manga</h2>
-            <p>
-              Watching builds listening vocabulary; <strong>writing short manga</strong> forces you to produce
-              Japanese you remember.{" "}
-              <Link href="/learn-japanese-manga">Learn Japanese by writing manga</Link> walks through the
-              workflow, and <Link href="/ai-manga-maker">AnimeVocab Manga Studio</Link> lets you draft a full
-              chapter free — edit dialogue, redraw panels, and publish to the{" "}
-              <Link href="/gallery">public gallery</Link>. Open <Link href="/studio">Manga Studio</Link> to try
-              it without an account.
-            </p>
             <div className="pick">
               <div className="card mine">
                 <h3>New to Japanese?</h3>

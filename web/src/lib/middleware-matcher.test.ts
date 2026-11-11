@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { match } from "path-to-regexp";
 import { describe, expect, it } from "vitest";
 
-// Regression test for the /studio production 500: any page that calls Clerk's
+// Regression test for the /app production 500: any page that calls Clerk's
 // currentUser()/auth() throws unless clerkMiddleware ran on the request, which
 // only happens on routes the middleware `config.matcher` covers. This pins the
 // matcher to keep covering every page route (and /app protection paths).
@@ -49,8 +49,6 @@ function covered(path: string): boolean {
 
 describe("middleware matcher", () => {
   it("covers pages that call currentUser()", () => {
-    // /studio is public but reads sign-in state — this was the prod 500.
-    expect(covered("/studio")).toBe(true);
     expect(covered("/start")).toBe(true);
     expect(covered("/app")).toBe(true);
     expect(covered("/app/cards/abc")).toBe(true);
@@ -79,7 +77,7 @@ describe("middleware matcher", () => {
 
   it("skips Clerk on anonymous funnel beacons", () => {
     // Still matched by /(api|trpc)(.*), but BEACON_ROUTES exits before Clerk.
-    for (const path of ["/api/extension/track", "/api/ending/track"]) {
+    for (const path of ["/api/extension/track"]) {
       expect(matches(matcherPatterns(), path), `matcher should see ${path}`).toBe(true);
       expect(matches(beaconPatterns(), path), `beacon list should include ${path}`).toBe(true);
       expect(covered(path), `Clerk must not run on ${path}`).toBe(false);
@@ -95,7 +93,7 @@ describe("middleware matcher", () => {
     // Static pages must NOT pay Clerk's per-request cost — running it
     // site-wide caused Worker 1102s under bursts. www redirect still needs
     // the matcher to see these paths, so only the Clerk list may exclude them.
-    for (const path of ["/", "/blog", "/gallery", "/vs-migaku", "/learn-japanese-with-anime"]) {
+    for (const path of ["/", "/blog", "/vs-migaku", "/learn-japanese-with-anime"]) {
       expect(matches(matcherPatterns(), path), `matcher should see ${path} for www redirect`).toBe(true);
       expect(matches(clerkPatterns(), path), `clerk should skip ${path}`).toBe(false);
     }
