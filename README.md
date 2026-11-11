@@ -6,9 +6,9 @@
 
 **Learn Japanese from the anime you already watch.**
 
-Romaji-first vocabulary cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube. Free and open source, with a free account for your words, reviews and progress, plus [Manga Studio](https://animevocab.com/studio) for creating your own manga.
+Romaji-first vocabulary cards, spaced repetition, and Listening Mode for Netflix, Crunchyroll, and YouTube. Free and open source, with a free account for your words, reviews and progress.
 
-[**Website**](https://animevocab.com) · [**Install extension**](https://animevocab.com/app) · [**Manga Studio**](https://animevocab.com/studio) · [**Cloud app**](https://animevocab.com/app)
+[**Website**](https://animevocab.com) · [**Install extension**](https://animevocab.com/app) · [**Cloud app**](https://animevocab.com/app)
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
 [![Chrome](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?logo=googlechrome&logoColor=white)](extension/manifest.json)
@@ -28,7 +28,6 @@ Most anime learning tools assume you can already read Japanese subtitles. AnimeV
 | **Spaced repetition** | Built-in review queue; export to Anki anytime |
 | **Listening Mode** | Transcribes tab audio when JP subs are missing (Crunchyroll, etc.) |
 | **Free account** | Sign in at [animevocab.com/start](https://animevocab.com/start) to connect the extension and sync your progress |
-| **Manga Studio** | AI-assisted manga maker at [animevocab.com/studio](https://animevocab.com/studio) |
 | **Cloud app** | Account sync, AI coach, notebooks, streaks at [animevocab.com/app](https://animevocab.com/app) |
 
 ## Install the Chrome extension
@@ -100,7 +99,6 @@ Not accepting outside issues or PRs right now due to business and bandwidth cons
 
 - **Website:** https://animevocab.com  
 - **Cloud app:** https://animevocab.com/app  
-- **Manga Studio:** https://animevocab.com/studio  
 - **Sponsor:** https://github.com/sponsors/Atharva-Kanherkar  
 
 ### Private N5 course pilot
