@@ -77,9 +77,6 @@ export const TRACKABLE_EVENTS = [
   "coach_chat",
   "listening_stop",
   "notebook_open",
-  "studio_create",
-  "manga_create",
-  "ending_create",
   "extension_install_click",
   "signin_start",
   "landing_view",
@@ -122,7 +119,7 @@ export function normalizeClientVersion(raw: unknown): string {
  * other SEO landing page — which is the most valuable pageview data there is.
  * `/blog/[slug]` is intentionally absent: those slugs ARE the page identity.
  */
-const ID_PARENTS = new Set(["m", "wm", "e", "end", "cards", "notebooks"]);
+const ID_PARENTS = new Set(["cards", "notebooks"]);
 
 /** Shape-based fallback for ids under a parent not listed above. Kept
  * deliberately narrow — each pattern is unambiguous. */

@@ -8,8 +8,8 @@ import { computeXp, levelState, type LevelState } from "@/lib/cards";
 import { studioXp, useStudioProgress } from "@/lib/studio-xp";
 
 /** Player level, derived from the sync snapshot the same way everywhere,
- * plus web-earned XP (Manga Studio creations, chapters read, word checks) so
- * chapters and cards unlock without the extension. */
+ * plus web-earned XP (saga chapters read) so chapters and cards unlock
+ * without the extension. */
 export function useUserLevel(): LevelState {
   const snapshot = useCloudSnapshot();
   const progress = useStudioProgress();

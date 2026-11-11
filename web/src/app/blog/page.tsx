@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     ...defaultOpenGraph,
     title: "AnimeVocab Blog · Learn Japanese from Anime",
     description:
-      "Research-backed guides: Crunchyroll, Netflix, SRS, romaji-first learning, Manga Studio, and immersion workflows.",
+      "Research-backed guides: Crunchyroll, Netflix, SRS, romaji-first learning, and immersion workflows.",
     url: `${SITE_URL}/blog`,
   },
   twitter: {
@@ -47,7 +47,7 @@ export default function BlogIndexPage() {
             <p className="eyebrow">Guides & research</p>
             <h1>Learn Japanese from anime — for real</h1>
             <p className="lede">
-              Practical posts on Crunchyroll, Netflix, spaced repetition, Manga Studio, and tools — written for
+              Practical posts on Crunchyroll, Netflix, spaced repetition, and tools — written for
               learners who want listening gains, not binge guilt.
             </p>
           </div>
@@ -783,9 +783,6 @@ export default function BlogIndexPage() {
                   <Link href="/blog/kitsunekko-subtitles-anime-2026">Kitsunekko subtitle guide</Link>
                 </li>
                 <li>
-                  <Link href="/blog/word-manga-vocabulary-practice-2026">Word Manga vocabulary</Link>
-                </li>
-                <li>
                   <Link href="/blog/uplang-netflix-dual-subtitles-2026">
                     Uplang vs HASHIGO on Netflix
                   </Link>
@@ -830,24 +827,9 @@ export default function BlogIndexPage() {
                   <Link href="/learn-japanese-with-anime">How to learn Japanese with anime (2026)</Link>
                 </li>
                 <li>
-                  <Link href="/fan-ending-manga">Fan ending manga — choose your ending</Link>
-                </li>
-                <li>
-                  <Link href="/ai-manga-ending-generator">AI manga ending generator</Link>
-                </li>
-                <li>
-                  <Link href="/end">Endings catalog (fan art)</Link>
-                </li>
-                <li>
                   <Link href="/blog/fan-ending-manga-ai-generator-2026">
                     Fan ending AI generator (2026)
                   </Link>
-                </li>
-                <li>
-                  <Link href="/ai-manga-maker">AI manga maker — create manga online free</Link>
-                </li>
-                <li>
-                  <Link href="/learn-japanese-manga">Learn Japanese by writing manga</Link>
                 </li>
                 <li>
                   <Link href="/learn-japanese-crunchyroll">Learn Japanese on Crunchyroll</Link>

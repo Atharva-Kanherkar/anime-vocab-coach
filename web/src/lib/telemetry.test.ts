@@ -502,8 +502,9 @@ describe("track event allowlist", () => {
   it("collapses record ids so cardinality stays bounded", () => {
     expect(normalizeTrackPath("/app/cards/9f2b1c8d4e5a6b7c")).toBe("/app/cards/:id");
     expect(normalizeTrackPath("/app/notebooks/abc123XYZ")).toBe("/app/notebooks/:id");
-    expect(normalizeTrackPath("/e/550e8400-e29b-41d4-a716-446655440000")).toBe("/e/:id");
-    expect(normalizeTrackPath("/m/Kj8sPq2mZx")).toBe("/m/:id");
+    expect(normalizeTrackPath("/app/n5/lessons/550e8400-e29b-41d4-a716-446655440000")).toBe(
+      "/app/n5/lessons/:id"
+    );
   });
 
   it("keeps SEO landing pages and blog slugs intact", () => {

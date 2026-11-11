@@ -76,25 +76,6 @@
     // is a secret (set in the Cloudflare dashboard), not here.
     "DODO_PRO_PRODUCT_ID": "pdt_0NjC6UgznpQBcuqEgqQvh,pdt_0NjC7U0M47YSNH1im6hK1",
     "DODO_MAX_PRODUCT_ID": "pdt_0NjC6keUai2ij7peo7bOr,pdt_0NjC6vrfhe4ejCgC8mOXH",
-    // Manga Studio (see docs/unit-economics.md "Manga Studio"). The editor draws
-    // one image PER PANEL, so per-panel art calls — not saved count — are the
-    // real cost gate. Signed-in users get a monthly art budget; anonymous
-    // "taste" callers get a small per-IP daily budget (≈ one manga) so a
-    // stranger can try it without an account but can't loop up the bill.
-    "STUDIO_CREATIONS_PER_MONTH": "5",
-    "STUDIO_ART_PER_MONTH": "60",
-    "STUDIO_ANON_ART_PER_DAY": "8",
-    "STUDIO_ANON_DRAFTS_PER_DAY": "5",
-    "STUDIO_SCRIPT_MODEL": "gpt-4.1-mini",
-    "STUDIO_IMAGE_MODEL": "gpt-image-2",
-    "STUDIO_IMAGE_QUALITY": "medium",
-    // Ending Funnel (/from-reel → /end; see web/src/lib/ending-funnel.ts).
-    // One free 5-panel ending per IP; a free account unlocks a monthly
-    // allowance; a global daily cap bounds worst-case ad-spike spend
-    // (400 endings/day × 5 panels × ~$0.04 ≈ $80/day ceiling).
-    "ENDING_FREE_PER_IP": "1",
-    "ENDING_SIGNED_PER_MONTH": "3",
-    "ENDING_GLOBAL_PER_DAY": "400",
     // Resend transactional mail (API key is a Worker secret: RESEND_API_KEY).
     "EMAIL_FROM": "Anime Vocab <atharva@animevocab.com>",
     "EMAIL_REPLY_TO": "atharvakanherkar25@gmail.com"

@@ -124,60 +124,6 @@ Weekly review checklist:
 4. AI quota usage once shipped: if normal users burn through 300 calls, redesign
    the AI UX around cached explanations and batch summaries.
 
-## Manga Studio (launched free, capped)
-
-A **creative** manga maker (not a learning tool). Users give a concept (genre,
-tone, setting, premise) and the studio drafts a whole chapter: a titled sequence
-of panels with a recurring cast and manga dialogue (speech / thought / narration
-/ SFX, in any language). It draws **one image per panel** so each can be edited
-or redrawn independently, and a creator can hand-draw a rough sketch the image
-model redraws into the chosen style (`images/edits`) — "bad drawers become good
-manga makers." The public front door (`/studio`) needs no account to try; the
-gallery (`/gallery`) of published manga is free to read forever.
-
-Per-panel art is the real cost driver, so metering moved from "saved count" to
-**art calls**:
-
-| Step | Config | Default | Est. cost |
-| --- | --- | --- | ---: |
-| Script draft | `STUDIO_SCRIPT_MODEL` | `gpt-4.1-mini` | ~$0.003 |
-| Panel art (each) | `STUDIO_IMAGE_MODEL` + `STUDIO_IMAGE_QUALITY` | `gpt-image-2`, `medium`, 1024×1024 | ~$0.04 |
-| Storage | KV (`studio:panel:<id>:<i>`, base64 PNG) | ~1.5 MB/panel | negligible |
-
-A finished 6-panel manga ≈ **$0.24** in art (more with regenerations/sketches).
-Caps, owners exempt:
-
-- `STUDIO_ART_PER_MONTH` (default **60**) — signed-in art generations/month:
-  ~10 mangas, worst case **~$2.40/user/month**. The dominant knob.
-- `STUDIO_ANON_ART_PER_DAY` (default **8**) / `STUDIO_ANON_DRAFTS_PER_DAY`
-  (default **5**) — the logged-out "taste", metered per IP so a stranger can
-  make ~one manga without an account but can't loop up the bill.
-- `STUDIO_CREATIONS_PER_MONTH` (default **5**) — saved-manga count (saving does
-  not re-spend; art was already paid for during editing).
-
-Levers, in order: quality `medium → low` cuts image cost ~4x; lower
-`STUDIO_ART_PER_MONTH`; fewer panels; script model to nano. Public sharing
-(`/m/<id>`) and the gallery cost nothing extra and are the viral loop: every
-shared manga is a product demo with a "make your own" CTA.
-
-### Ending Funnel (Instagram ads → /from-reel → /end)
-
-The paid-traffic funnel has its OWN backend (`/api/ending/*`) and its own
-gate, separate from the Studio budgets above. One ending = 1 script call +
-exactly **5** panel images with dialogue lettered in ≈ **$0.20**.
-
-- `ENDING_FREE_PER_IP` (default **1**) — the free taste, per IP (60-day key),
-  so an ad click costs at most ~$0.20 in art.
-- `ENDING_SIGNED_PER_MONTH` (default **3**) — what a free account unlocks;
-  the paywall's first conversion step (email capture) before Pro checkout.
-- `ENDING_GLOBAL_PER_DAY` (default **400**) — global daily creation cap:
-  worst-case ad-spike spend ceiling ≈ **$80/day** even under IP rotation.
-
-Funnel analytics are server-side KV counters (`endstats:*`), read via the
-owner-only `GET /api/ending/stats` (land → pick → generate → complete →
-paywall → signup/checkout clicks, per day and all-time). Share pages
-(`/e/<id>`) cost nothing and are the viral loop.
-
 ## MRR Targets
 
 At launch pricing:

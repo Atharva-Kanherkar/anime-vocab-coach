@@ -41,13 +41,7 @@ export const SEO_KEYWORDS = [
   "Listening Mode Japanese",
   "Japanese immersion",
   "anime subtitle extension",
-  "ai manga maker",
-  "fan ending manga",
 ];
-
-export const STUDIO_DESCRIPTION =
-  "Free AI manga maker — write a premise, get a full chapter with cast and dialogue. Edit every line, redraw any panel, sketch and AI-beautify. Publish to the gallery. No drawing skills needed.";
-export const STUDIO_TAGLINE = "AI Manga Maker — write your own manga online free";
 
 export const defaultOpenGraph = {
   siteName: SITE_NAME,
@@ -116,7 +110,7 @@ export function blogJsonLd(posts: { title: string; url: string; publishedAt: str
     "@type": "Blog",
     name: `${SITE_NAME} Blog`,
     url: `${SITE_URL}/blog`,
-    description: "Guides for learning Japanese from anime and manga — Crunchyroll, Netflix, spaced repetition, Manga Studio, and tool comparisons.",
+    description: "Guides for learning Japanese from anime and manga — Crunchyroll, Netflix, spaced repetition, and tool comparisons.",
     blogPost: posts.map((p) => ({
       "@type": "BlogPosting",
       headline: p.title,
@@ -192,108 +186,6 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
   };
 }
 
-export function mangaCreativeWorkJsonLd(input: {
-  id: string;
-  title: string;
-  description: string;
-  authorName?: string;
-  genre?: string;
-  createdAt: string;
-  /** Share URL prefix — studio chapters use /m/, word-manga uses /wm/. */
-  pathPrefix?: "m" | "wm";
-  /** OG/social image path, e.g. /api/word-manga/:id/image */
-  imagePath?: string;
-}) {
-  const prefix = input.pathPrefix ?? "m";
-  const url = `${SITE_URL}/${prefix}/${input.id}`;
-  const image = input.imagePath
-    ? `${SITE_URL}${input.imagePath}`
-    : prefix === "wm"
-      ? `${SITE_URL}/api/word-manga/${input.id}/image`
-      : `${SITE_URL}/api/studio/${input.id}/panel/0`;
-  return {
-    "@context": "https://schema.org",
-    "@type": "VisualArtwork",
-    name: input.title,
-    description: input.description,
-    url,
-    image,
-    dateCreated: input.createdAt,
-    artform: "manga",
-    genre: input.genre || "manga",
-    inLanguage: "en",
-    isAccessibleForFree: true,
-    creator: {
-      "@type": "Person",
-      name: input.authorName?.trim() || "Anonymous",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: SITE_NAME,
-      url: SITE_URL,
-    },
-  };
-}
-
-export function galleryCollectionJsonLd(
-  entries: { id: string; title: string }[]
-): Record<string, unknown> {
-  return {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "AnimeVocab Manga Gallery",
-    description: "Original manga chapters created in AnimeVocab Manga Studio — free to read.",
-    url: `${SITE_URL}/gallery`,
-    isAccessibleForFree: true,
-    publisher: {
-      "@type": "Organization",
-      name: SITE_NAME,
-      url: SITE_URL,
-    },
-    mainEntity: {
-      "@type": "ItemList",
-      numberOfItems: entries.length,
-      itemListElement: entries.map((entry, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-        name: entry.title,
-        url: `${SITE_URL}/m/${entry.id}`,
-      })),
-    },
-  };
-}
-
-/** Fan-ending catalog at /end — CollectionPage + ItemList for series pickers. */
-export function endingCatalogJsonLd(
-  entries: { id: string; title: string; description: string }[]
-): Record<string, unknown> {
-  return {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "Choose your ending — fan art manga epilogues",
-    description:
-      "Unofficial fan endings for famous manga and anime. Pick a series, choose a finale, get a free fan-art chapter.",
-    url: `${SITE_URL}/end`,
-    isAccessibleForFree: true,
-    publisher: {
-      "@type": "Organization",
-      name: SITE_NAME,
-      url: SITE_URL,
-    },
-    mainEntity: {
-      "@type": "ItemList",
-      numberOfItems: entries.length,
-      itemListElement: entries.map((entry, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-        name: entry.title,
-        description: entry.description,
-        url: `${SITE_URL}/end/${entry.id}`,
-      })),
-    },
-  };
-}
-
 export function webApplicationJsonLd(input: {
   id: string;
   name: string;
@@ -319,35 +211,6 @@ export function webApplicationJsonLd(input: {
     },
     featureList: input.featureList,
     ...(input.downloadUrl ? { downloadUrl: input.downloadUrl } : {}),
-  };
-}
-
-export function studioJsonLd() {
-  return {
-    "@context": "https://schema.org",
-    "@graph": [
-      webApplicationJsonLd({
-        id: `${SITE_URL}/studio#app`,
-        name: "AnimeVocab Manga Studio",
-        description: STUDIO_DESCRIPTION,
-        url: `${SITE_URL}/studio`,
-        featureList: [
-          "AI-drafted manga chapters from a text premise",
-          "Per-panel art generation and redraw",
-          "Sketch-to-manga AI beautify",
-          "Editable dialogue with speech, thought, narration, and SFX",
-          "Public manga gallery",
-          "Free to try without an account",
-        ],
-      }),
-      {
-        "@type": "CreativeWork",
-        name: "Manga Gallery",
-        url: `${SITE_URL}/gallery`,
-        description: "Original manga created and published in AnimeVocab Manga Studio.",
-        isAccessibleForFree: true,
-      },
-    ],
   };
 }
 
@@ -394,17 +257,6 @@ export function homeJsonLd() {
           "Spaced repetition while watching",
           "Listening Mode for Netflix and Crunchyroll",
           "Local-first privacy",
-        ],
-      }),
-      webApplicationJsonLd({
-        id: `${SITE_URL}/studio#app`,
-        name: "AnimeVocab Manga Studio",
-        description: STUDIO_DESCRIPTION,
-        url: `${SITE_URL}/studio`,
-        featureList: [
-          "AI manga maker with editable chapters",
-          "Per-panel redraw and sketch beautify",
-          "Public gallery publishing",
         ],
       }),
     ],

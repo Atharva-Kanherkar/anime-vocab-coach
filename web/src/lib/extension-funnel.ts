@@ -1,5 +1,5 @@
 // Allowlisted extension product-funnel events (aggregate KV counters only).
-// Keep tight and additive — same pattern as ending-funnel.ts.
+// Keep tight and additive — same pattern as the extension beacon routes.
 
 export const EXTENSION_EVENTS = [
   "review_prompt_shown",

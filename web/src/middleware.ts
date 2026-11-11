@@ -13,14 +13,13 @@ const isProtectedRoute = createRouteMatcher(["/app(.*)"]);
 // Anonymous product-funnel beacons (always 204, no auth). Exempt before Clerk
 // so a Clerk outage / CPU spike cannot 5xx them. Named because
 // middleware-matcher.test.ts pins these route lists from source.
-const BEACON_ROUTES = ["/api/extension/track", "/api/ending/track"];
+const BEACON_ROUTES = ["/api/extension/track"];
 const isBeaconRoute = createRouteMatcher(BEACON_ROUTES);
 
 // Routes where clerkMiddleware must run: everything that calls auth() /
 // currentUser() on the server, plus the auth pages and the Clerk proxy.
 const CLERK_ROUTES = [
   "/app(.*)",
-  "/studio",
   "/start",
   // The owner dashboard gates on currentUser() and 404s for everyone else;
   // outside the matcher currentUser() throws, which would turn the gate into

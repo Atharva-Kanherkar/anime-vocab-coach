@@ -8,9 +8,6 @@ export type SiteUiKey =
   | "signIn"
   | "cloudApp"
   | "blog"
-  | "endings"
-  | "studio"
-  | "gallery"
   | "guides"
   | "features"
   | "cloud"
@@ -20,8 +17,7 @@ export type SiteUiKey =
   | "languageEn"
   | "languageJa"
   | "switchToEnglish"
-  | "switchToJapanese"
-  | "studioBanner";
+  | "switchToJapanese";
 
 const EN: Record<SiteUiKey, string> = {
   skipToContent: "Skip to content",
@@ -31,9 +27,6 @@ const EN: Record<SiteUiKey, string> = {
   signIn: "Sign in",
   cloudApp: "Cloud app",
   blog: "Blog",
-  endings: "Endings",
-  studio: "Studio",
-  gallery: "Gallery",
   guides: "Guides",
   features: "Features",
   cloud: "Cloud",
@@ -44,8 +37,6 @@ const EN: Record<SiteUiKey, string> = {
   languageJa: "日本語",
   switchToEnglish: "English",
   switchToJapanese: "日本語",
-  studioBanner:
-    "Manga Studio — create your own manga with AI. Free, no sign-up to try",
 };
 
 const JA: Record<SiteUiKey, string> = {
@@ -56,9 +47,6 @@ const JA: Record<SiteUiKey, string> = {
   signIn: "ログイン",
   cloudApp: "クラウドアプリ",
   blog: "ブログ",
-  endings: "エンディング",
-  studio: "スタジオ",
-  gallery: "ギャラリー",
   guides: "ガイド",
   features: "機能",
   cloud: "クラウド",
@@ -69,8 +57,6 @@ const JA: Record<SiteUiKey, string> = {
   languageJa: "日本語",
   switchToEnglish: "English",
   switchToJapanese: "日本語",
-  studioBanner:
-    "マンガスタジオ — AI でオリジナル漫画を作成。無料・登録不要で試せます",
 };
 
 export function siteUi(locale: SiteLocale, key: SiteUiKey): string {
