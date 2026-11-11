@@ -8055,7 +8055,6 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 9,
     ogImage: "/slides/12-manga.webp",
-    canonicalPath: "/ai-manga-maker",
     blocks: [
       {
         type: "p",
@@ -8107,7 +8106,6 @@ export const blogPosts: BlogPost[] = [
     ],
     readingMinutes: 7,
     ogImage: "/slides/12-manga.webp",
-    canonicalPath: "/learn-japanese-manga",
     blocks: [
       {
         type: "p",
