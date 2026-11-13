@@ -10,6 +10,7 @@
 import { BACKEND_URL } from "../config";
 import { getSyncToken } from "./storage";
 import { courseLessonFromState, lessonUrl, type CourseLesson } from "./course-listening";
+import { recordHealth } from "./health";
 
 const CACHE_KEY = "n5Listen";
 const OUTBOX_KEY = "n5ListenOutbox";
@@ -138,6 +139,9 @@ async function lesson(refresh: boolean): Promise<{ lesson: CourseLesson | null; 
     // No access or no account is an answer; anything else is a blip, and the
     // last known lesson is better than none while it lasts.
     if (!(error instanceof CourseError && (error.status === 401 || error.status === 404))) {
+      // Kept quiet for the learner (the last lesson stands in), but never for
+      // us: this is how the course vanished from the copilot unnoticed.
+      void recordHealth("course_load_failed", error instanceof CourseError ? error.message : error, "worker");
       return { lesson: withPending(mine?.lesson ?? null, await readOutbox(who.tokenHash)), cache: mine };
     }
     next = { tokenHash: who.tokenHash, lesson: null, episodeId: null, fetchedAt: Date.now() };

@@ -57,6 +57,15 @@ watching, and the page URL are never sent with these.** They exist so we can
 tell "nobody is getting cards" apart from "nobody has installed it", which
 previously could not be distinguished at all.
 
+**Error reports.** When something the extension depends on fails (English
+subtitles could not be fetched, a video showed no English at all, the course
+could not load, or the page lost its connection to the extension), it sends the
+failure's name, a short error code such as `network` or `http_502`, which
+supported site it happened on (e.g. `netflix`), and the extension's version. At
+most one report per kind of failure every 30 minutes. **No subtitle text, word,
+show title, or page URL is sent with these.** They exist so a failure reaches us
+before you have to report it.
+
 If your extension is linked to an account, these are associated with your
 account id in the same way website analytics are (see below), because a count of
 activity nobody can be attributed to cannot answer whether anyone is learning.
