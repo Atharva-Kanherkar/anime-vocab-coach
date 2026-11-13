@@ -1448,9 +1448,9 @@
   function isSignedIn(token) {
     return typeof token === "string" && token.length > 0;
   }
-  function isBeforeAccountGate(version) {
-    if (!/^\d+(\.\d+){0,3}$/.test(version)) return false;
-    const parts = version.split(".").map((p) => Number(p));
+  function isBeforeAccountGate(version2) {
+    if (!/^\d+(\.\d+){0,3}$/.test(version2)) return false;
+    const parts = version2.split(".").map((p) => Number(p));
     if (!parts.length || parts.some((n) => !Number.isInteger(n) || n < 0)) return false;
     const [major = 0, minor = 0, patch = 0] = parts;
     if (major !== 0) return false;
@@ -1497,9 +1497,212 @@
     return `https://animevocab.com/app/n5/lessons/${lesson2.id}?script=${lesson2.script}#${step}`;
   }
 
+  // src/lib/health.ts
+  var HEALTH_EVENTS = [
+    // A translate or translate-batch call came back with an error.
+    "subs_english_failed",
+    // Watchdog: dual subtitles showed many lines and not one had English, with
+    // no error to explain it. Catches the causes nobody thought of.
+    "subs_english_missing",
+    // The N5 lesson could not be loaded (not "no access", which is an answer).
+    "course_load_failed",
+    // A content script could not reach the service worker.
+    "bg_unreachable"
+  ];
+  var HEALTH_SITES = ["netflix", "youtube", "crunchyroll", "generic", "worker", "popup"];
+  function isHealthEvent(v) {
+    return typeof v === "string" && HEALTH_EVENTS.includes(v);
+  }
+  function isHealthSite(v) {
+    return typeof v === "string" && HEALTH_SITES.includes(v);
+  }
+  var HEALTH_MESSAGE = "avc-health";
+  var OUTBOX_KEY = "healthOutbox";
+  var SENT_KEY = "healthSent";
+  var DEDUP_MS = 30 * 6e4;
+  var MAX_OUTBOX = 20;
+  var MAX_SENT_KEYS = 60;
+  var MAX_CODE = 48;
+  function normalizeHealthCode(raw) {
+    const text2 = typeof raw === "string" ? raw : raw instanceof Error ? raw.message || raw.name : "";
+    const known = classifyError(text2);
+    if (known) return known;
+    const code = text2.trim().toLowerCase().replace(/[^a-z0-9_.:-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, MAX_CODE);
+    return code || "unknown";
+  }
+  function classifyError(text2) {
+    if (!text2) return null;
+    if (/extension context invalidated/i.test(text2)) return "context_invalidated";
+    if (/sign in/i.test(text2)) return "not_linked";
+    if (/receiving end does not exist|could not establish connection/i.test(text2)) return "no_receiver";
+    if (/message port closed|message channel closed/i.test(text2)) return "port_closed";
+    if (/failed to fetch|networkerror|network request failed|load failed/i.test(text2)) return "network";
+    if (/timeout|timed out|aborterror|the operation was aborted/i.test(text2)) return "timeout";
+    return null;
+  }
+  function healthKey(item) {
+    return `${item.name}|${item.code}|${item.site}`;
+  }
+  function admit(item, outbox, sent, now) {
+    const key = healthKey(item);
+    const last = sent[key];
+    const queued = outbox.some((o) => healthKey(o) === key);
+    if (queued || typeof last === "number" && now - last < DEDUP_MS) {
+      return { admitted: false, outbox, sent };
+    }
+    const nextSent = { ...sent, [key]: now };
+    const entries = Object.entries(nextSent).filter(([, t]) => now - t < 24 * 36e5).sort((a, b) => b[1] - a[1]).slice(0, MAX_SENT_KEYS);
+    const nextOutbox = [...outbox, item].slice(-MAX_OUTBOX);
+    return { admitted: true, outbox: nextOutbox, sent: Object.fromEntries(entries) };
+  }
+  function sanitize(item) {
+    if (!isHealthEvent(item.name)) return null;
+    return {
+      name: item.name,
+      code: normalizeHealthCode(item.code),
+      site: isHealthSite(item.site) ? item.site : "generic",
+      v: typeof item.v === "string" ? item.v.slice(0, 32) : "",
+      at: typeof item.at === "number" && Number.isFinite(item.at) ? item.at : Date.now()
+    };
+  }
+  async function readState2() {
+    const r = await chrome.storage.local.get([OUTBOX_KEY, SENT_KEY]);
+    const outbox = Array.isArray(r[OUTBOX_KEY]) ? r[OUTBOX_KEY].map(sanitize).filter((x) => !!x) : [];
+    const rawSent = r[SENT_KEY];
+    const sent = {};
+    if (rawSent && typeof rawSent === "object") {
+      for (const [k, t] of Object.entries(rawSent)) {
+        if (typeof t === "number" && Number.isFinite(t)) sent[k] = t;
+      }
+    }
+    return { outbox, sent };
+  }
+  var tail = Promise.resolve();
+  function serial(fn) {
+    const next = tail.then(fn, fn);
+    tail = next.catch(() => {
+    });
+    return next;
+  }
+  function enqueueHealth(raw) {
+    const item = sanitize(raw);
+    if (!item) return Promise.resolve(false);
+    return serial(async () => {
+      const state = await readState2();
+      const next = admit(item, state.outbox, state.sent, Date.now());
+      if (!next.admitted) return false;
+      await chrome.storage.local.set({ [OUTBOX_KEY]: next.outbox, [SENT_KEY]: next.sent });
+      return true;
+    });
+  }
+  async function syncToken2() {
+    try {
+      const r = await chrome.storage.local.get(["syncToken"]);
+      return typeof r.syncToken === "string" ? r.syncToken : "";
+    } catch {
+      return "";
+    }
+  }
+  async function post(item, token) {
+    const headers = { "content-type": "application/json" };
+    if (token) headers.authorization = "Bearer " + token;
+    try {
+      const res = await fetch(WEB_URL + "/api/track", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kind: "health", name: item.name, code: item.code, surface: item.site, v: item.v }),
+        keepalive: true,
+        signal: AbortSignal.timeout(1e4)
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+  function flushHealth() {
+    if (!inServiceWorker()) return Promise.resolve(0);
+    return serial(async () => {
+      const { outbox } = await readState2();
+      if (!outbox.length) return 0;
+      const token = await syncToken2();
+      let sent = 0;
+      for (const item of outbox) {
+        if (!await post(item, token)) break;
+        sent++;
+      }
+      if (sent) {
+        const now = await readState2();
+        const done = new Set(outbox.slice(0, sent).map((o) => `${healthKey(o)}|${o.at}`));
+        await chrome.storage.local.set({ [OUTBOX_KEY]: now.outbox.filter((o) => !done.has(`${healthKey(o)}|${o.at}`)) });
+      }
+      return sent;
+    });
+  }
+  function beacon(item) {
+    try {
+      navigator.sendBeacon?.(
+        WEB_URL + "/api/track",
+        new Blob([JSON.stringify({ kind: "health", name: item.name, code: item.code, surface: item.site, v: item.v })], {
+          type: "text/plain"
+        })
+      );
+    } catch {
+    }
+  }
+  var VERSION = extensionVersion();
+  function version() {
+    if (!VERSION) VERSION = extensionVersion();
+    return VERSION;
+  }
+  function contextAlive() {
+    try {
+      return typeof chrome !== "undefined" && !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  }
+  async function recordHealth(name, code, site) {
+    const item = sanitize({ name, code: normalizeHealthCode(code), site, v: version(), at: Date.now() });
+    if (!item) return;
+    try {
+      if (inServiceWorker()) {
+        if (await enqueueHealth(item)) await flushHealth();
+        return;
+      }
+      if (!contextAlive()) {
+        beacon(item);
+        return;
+      }
+      let relayed = false;
+      try {
+        const res = await chrome.runtime.sendMessage({ type: HEALTH_MESSAGE, item });
+        relayed = res?.ok === true;
+      } catch (err) {
+        if (!contextAlive()) {
+          beacon(item);
+          return;
+        }
+        void enqueueHealth({ name: "bg_unreachable", code: normalizeHealthCode(err), site, v: version(), at: Date.now() }).catch(() => {
+        });
+      }
+      if (!relayed) await enqueueHealth(item);
+    } catch {
+    }
+  }
+  async function receiveHealth(raw) {
+    const item = sanitize(raw && typeof raw === "object" ? raw : {});
+    if (!item) return { ok: false };
+    try {
+      if (await enqueueHealth(item)) void flushHealth();
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
+  }
+
   // src/lib/n5-service.ts
   var CACHE_KEY = "n5Listen";
-  var OUTBOX_KEY = "n5ListenOutbox";
+  var OUTBOX_KEY2 = "n5ListenOutbox";
   var FRESH_MS = 10 * 6e4;
   var ID2 = /^[a-z0-9][a-z0-9-]{0,127}$/;
   var CourseError = class extends Error {
@@ -1508,10 +1711,10 @@
       this.status = status;
     }
   };
-  var tail = Promise.resolve();
-  function serial(fn) {
-    const next = tail.then(fn, fn);
-    tail = next.catch(() => {
+  var tail2 = Promise.resolve();
+  function serial2(fn) {
+    const next = tail2.then(fn, fn);
+    tail2 = next.catch(() => {
     });
     return next;
   }
@@ -1540,12 +1743,12 @@
     return raw && typeof raw.tokenHash === "string" ? raw : null;
   }
   async function readOutbox(tokenHash) {
-    const raw = (await chrome.storage.local.get(OUTBOX_KEY))[OUTBOX_KEY];
+    const raw = (await chrome.storage.local.get(OUTBOX_KEY2))[OUTBOX_KEY2];
     if (!raw || raw.tokenHash !== tokenHash) return { tokenHash, heard: {}, watched: [] };
     return { tokenHash, heard: raw.heard || {}, watched: Array.isArray(raw.watched) ? raw.watched : [] };
   }
   async function writeOutbox(outbox) {
-    await chrome.storage.local.set({ [OUTBOX_KEY]: outbox });
+    await chrome.storage.local.set({ [OUTBOX_KEY2]: outbox });
   }
   function withPending(lesson2, outbox) {
     if (!lesson2) return null;
@@ -1600,6 +1803,7 @@
       };
     } catch (error) {
       if (!(error instanceof CourseError && (error.status === 401 || error.status === 404))) {
+        void recordHealth("course_load_failed", error instanceof CourseError ? error.message : error, "worker");
         return { lesson: withPending(mine?.lesson ?? null, await readOutbox(who.tokenHash)), cache: mine };
       }
       next = { tokenHash: who.tokenHash, lesson: null, episodeId: null, fetchedAt: Date.now() };
@@ -1610,7 +1814,7 @@
   }
   var APP_ORIGINS = ["https://animevocab.com", "https://www.animevocab.com"];
   function handleN5(raw, sender, stopCapture) {
-    return serial(async () => {
+    return serial2(async () => {
       try {
         if (sender.id !== chrome.runtime.id) return { ok: false, error: "forbidden" };
         const msg = raw && typeof raw === "object" ? raw : {};
@@ -1635,7 +1839,7 @@
           const outbox = await readOutbox(who.tokenHash);
           outbox.heard[current.id] = [.../* @__PURE__ */ new Set([...outbox.heard[current.id] || [], ...fresh])].slice(0, 20);
           await writeOutbox(outbox);
-          void serial(() => flush(who.token, who.tokenHash)).catch(() => {
+          void serial2(() => flush(who.token, who.tokenHash)).catch(() => {
           });
           return { ok: true, lesson: withPending(current, outbox) };
         }
@@ -1667,7 +1871,7 @@
   async function retryPendingN5() {
     try {
       const who = await identity();
-      if (who) await serial(() => flush(who.token, who.tokenHash));
+      if (who) await serial2(() => flush(who.token, who.tokenHash));
     } catch {
     }
   }
@@ -1746,9 +1950,9 @@
 
   // src/lib/listening-coordination.ts
   function listeningRegistry(read, write) {
-    let tail2 = Promise.resolve();
+    let tail3 = Promise.resolve();
     return (tabId, active, current = () => true) => {
-      const update = tail2.then(async () => {
+      const update = tail3.then(async () => {
         const tabs = await read();
         if (!current()) return false;
         if (active) tabs[tabId] = true;
@@ -1756,7 +1960,7 @@
         await write(tabs);
         return current();
       });
-      tail2 = update.catch(() => {
+      tail3 = update.catch(() => {
       });
       return update;
     };
@@ -1921,6 +2125,8 @@
       syncWithCloud().catch(() => {
       });
       void retryPendingN5();
+      void flushHealth().catch(() => {
+      });
     }
   });
   async function completeSignin() {
@@ -2101,15 +2307,15 @@
     const cancelledAck = { ok: false, error: "Listening start was cancelled." };
     const r = await chrome.storage.local.get(["settings"]);
     const settings = r.settings || {};
-    const syncToken2 = await getSyncToken();
-    if (!syncToken2) {
+    const syncToken3 = await getSyncToken();
+    if (!syncToken3) {
       return { ok: false, error: LISTEN_SIGNIN_REQUIRED };
     }
     let auth;
     if (settings.openaiKey?.trim()) {
       auth = { kind: "byo", key: settings.openaiKey.trim() };
     } else {
-      auth = { kind: "cloud", syncToken: syncToken2, backendUrl: BACKEND_URL };
+      auth = { kind: "cloud", syncToken: syncToken3, backendUrl: BACKEND_URL };
     }
     const injected = await ensureContentScript(tabId);
     if (!injected) {
@@ -2205,6 +2411,10 @@
       chrome.action.setBadgeText({ text: text2 });
       chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
       return;
+    }
+    if (msg.type === HEALTH_MESSAGE) {
+      void receiveHealth(msg.item).then(sendResponse, () => sendResponse({ ok: false }));
+      return true;
     }
     if (msg.type === TRACK_FEATURE_MESSAGE) {
       if (isFeatureEvent(msg.event)) void sendFeatureBeacon(msg.event);

@@ -801,6 +801,37 @@
     return `https://animevocab.com/app/n5/lessons/${lesson.id}?script=${lesson.script}#${step}`;
   }
 
+  // src/lib/health.ts
+  var DEDUP_MS = 30 * 6e4;
+  var MAX_CODE = 48;
+  function normalizeHealthCode(raw) {
+    const text = typeof raw === "string" ? raw : raw instanceof Error ? raw.message || raw.name : "";
+    const known = classifyError(text);
+    if (known) return known;
+    const code = text.trim().toLowerCase().replace(/[^a-z0-9_.:-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, MAX_CODE);
+    return code || "unknown";
+  }
+  function classifyError(text) {
+    if (!text) return null;
+    if (/extension context invalidated/i.test(text)) return "context_invalidated";
+    if (/sign in/i.test(text)) return "not_linked";
+    if (/receiving end does not exist|could not establish connection/i.test(text)) return "no_receiver";
+    if (/message port closed|message channel closed/i.test(text)) return "port_closed";
+    if (/failed to fetch|networkerror|network request failed|load failed/i.test(text)) return "network";
+    if (/timeout|timed out|aborterror|the operation was aborted/i.test(text)) return "timeout";
+    return null;
+  }
+  var tail = Promise.resolve();
+  var VERSION = extensionVersion();
+  function englishErrorText(code) {
+    if (!code) return "";
+    if (/quota/.test(code)) return "English paused: this month's limit is used up";
+    if (/not_linked|unauthorized/.test(code)) return "Sign in to get English";
+    if (/^bg_/.test(code)) return "English unavailable: reload this tab";
+    if (/network|timeout/.test(code)) return "English unavailable: can't reach AnimeVocab";
+    return `English unavailable (${normalizeHealthCode(code)})`;
+  }
+
   // src/entries/popup.ts
   var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   function todayKey() {
@@ -1139,12 +1170,13 @@
   }
   var lastSubsDiag = null;
   function subsSourceText(d) {
+    const problem = d.english === "netflix" ? "" : englishErrorText(d.englishError);
     if (d.source === "track") {
-      const english = d.english === "netflix" ? "Netflix's English" : d.translating && d.translating.done < d.translating.total ? `English translating ${d.translating.done}/${d.translating.total}` : "English translated";
+      const english = d.english === "netflix" ? "Netflix's English" : problem ? problem : d.translating && d.translating.done < d.translating.total ? `English translating ${d.translating.done}/${d.translating.total}` : "English translated";
       const sync = d.pageChecked ? ` \xB7 matches Netflix ${d.pageMatched}/${d.pageChecked}` : "";
       return `Netflix's Japanese track \xB7 ${english}${d.offsetMs ? ` \xB7 ad-adjusted ${(d.offsetMs / 1e3).toFixed(1)}s` : ""}${sync}`;
     }
-    if (d.source === "page") return "Reading the subtitles on screen";
+    if (d.source === "page") return problem ? `Reading the subtitles on screen \xB7 ${problem}` : "Reading the subtitles on screen";
     if (d.source === "audio") return "From the audio (Listening)";
     return "Waiting for subtitles";
   }
@@ -1190,7 +1222,7 @@
         "mode-lens",
         lensLive ? "On" : "Off",
         !lensSupported ? "Available while learning Japanese" : lensConfigured ? diag ? subsSourceText(diag) : "Romaji + English, hover any word" : "Off \u2014 no subtitles of ours on screen",
-        lensLive ? "on" : lensConfigured ? "warn" : "off"
+        lensLive ? diag && englishErrorText(diag.englishError) && diag.english !== "netflix" ? "warn" : "on" : lensConfigured ? "warn" : "off"
       );
       lensToggle.setAttribute("aria-checked", String(lensLive));
       lensToggle.disabled = !lensSupported;

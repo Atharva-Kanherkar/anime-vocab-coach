@@ -168,3 +168,44 @@ describe("POST /api/track (sign-in gate)", () => {
     expect(blob(0, "surface")).toBe("");
   });
 });
+
+/**
+ * Extension health (src/lib/health.ts): the extension reporting its own
+ * failures. The row must land under the learner with its reason, site and
+ * build, and nothing about it may widen what a public beacon can write.
+ */
+describe("POST /api/track (extension health)", () => {
+  it("records a failure under the learner, with reason, site and build", async () => {
+    identity.userId = "user_9";
+    const res = await post({ kind: "health", name: "subs_english_failed", code: "network", surface: "netflix", v: "0.7.2" });
+    expect(res.status).toBe(204);
+    expect(writes).toHaveLength(1);
+    expect(blob(0, "kind")).toBe("health");
+    expect(blob(0, "name")).toBe("subs_english_failed");
+    expect(blob(0, "userId")).toBe("user_9");
+    expect(blob(0, "errorCode")).toBe("network");
+    expect(blob(0, "surface")).toBe("netflix");
+    expect(blob(0, "clientVersion")).toBe("0.7.2");
+  });
+
+  it("bounds the reason and the site instead of storing what it was sent", async () => {
+    await post({ kind: "health", name: "course_load_failed", code: "<img src=x onerror=alert(1)>", surface: "evil.example" });
+    expect(blob(0, "errorCode")).toBe("other");
+    expect(blob(0, "surface")).toBe("generic");
+    await post({ kind: "health", name: "bg_unreachable" });
+    expect(blob(1, "errorCode")).toBe("unknown");
+  });
+
+  it("drops a health name that is not on the list, and a feature name sent as health", async () => {
+    await post({ kind: "health", name: "made_up", code: "x" });
+    await post({ kind: "health", name: "word_saved", code: "x" });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("never lets a feature row carry a reason, or a health name count as a feature", async () => {
+    await post({ kind: "feature", name: "word_saved", code: "network", v: "0.7.2" });
+    expect(blob(0, "errorCode")).toBe("");
+    await post({ kind: "feature", name: "subs_english_failed", v: "0.7.2" });
+    expect(writes).toHaveLength(1);
+  });
+});

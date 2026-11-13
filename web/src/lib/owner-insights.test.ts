@@ -46,6 +46,8 @@ function baseData(over: Partial<OwnerDashboardData> = {}): OwnerDashboardData {
     animeContextCache: EMPTY_CACHE,
     apiErrors: [],
     proFunnel: [],
+    health: [],
+    healthUsers: [],
     ...over,
   };
 }

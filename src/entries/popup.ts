@@ -19,6 +19,7 @@ import {
 } from "../lib/pro-moment";
 import type { DailyStats, PauseMode } from "../types";
 import { lessonUrl, type CourseLesson } from "../lib/course-listening";
+import { englishErrorText } from "../lib/health";
 
 type Theme = "dark" | "light";
 
@@ -596,14 +597,17 @@ let lastSubsDiag: SubsDiag | null = null;
 
 /** Where the subtitles on this tab come from, in a line. */
 function subsSourceText(d: SubsDiag): string {
+  const problem = d.english === "netflix" ? "" : englishErrorText(d.englishError);
   if (d.source === "track") {
-    const english = d.english === "netflix" ? "Netflix's English" : d.translating && d.translating.done < d.translating.total
-      ? `English translating ${d.translating.done}/${d.translating.total}`
-      : "English translated";
+    const english = d.english === "netflix" ? "Netflix's English" : problem
+      ? problem
+      : d.translating && d.translating.done < d.translating.total
+        ? `English translating ${d.translating.done}/${d.translating.total}`
+        : "English translated";
     const sync = d.pageChecked ? ` · matches Netflix ${d.pageMatched}/${d.pageChecked}` : "";
     return `Netflix's Japanese track · ${english}${d.offsetMs ? ` · ad-adjusted ${(d.offsetMs / 1000).toFixed(1)}s` : ""}${sync}`;
   }
-  if (d.source === "page") return "Reading the subtitles on screen";
+  if (d.source === "page") return problem ? `Reading the subtitles on screen · ${problem}` : "Reading the subtitles on screen";
   if (d.source === "audio") return "From the audio (Listening)";
   return "Waiting for subtitles";
 }
@@ -655,7 +659,7 @@ async function initModeControls(): Promise<void> {
       "mode-lens",
       lensLive ? "On" : "Off",
       !lensSupported ? "Available while learning Japanese" : lensConfigured ? (diag ? subsSourceText(diag) : "Romaji + English, hover any word") : "Off — no subtitles of ours on screen",
-      lensLive ? "on" : lensConfigured ? "warn" : "off"
+      lensLive ? (diag && englishErrorText(diag.englishError) && diag.english !== "netflix" ? "warn" : "on") : lensConfigured ? "warn" : "off"
     );
     lensToggle.setAttribute("aria-checked", String(lensLive));
     lensToggle.disabled = !lensSupported;

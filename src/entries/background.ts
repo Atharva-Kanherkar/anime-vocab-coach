@@ -45,6 +45,7 @@ import {
 import { toastTab } from "../lib/notify";
 import { handleN5, invalidateN5, retryPendingN5 } from "../lib/n5-service";
 import { fetchSubBatch, fetchSubTranslation, type SubRequest } from "../lib/subs-client";
+import { HEALTH_MESSAGE, flushHealth, receiveHealth } from "../lib/health";
 import type { BatchRequest } from "../lib/episode-subs";
 import { CaptureStarts } from "../lib/capture-starts";
 import { listeningRegistry, retryCaptureStart } from "../lib/listening-coordination";
@@ -251,7 +252,7 @@ chrome.runtime.onStartup.addListener(() => {
 });
 chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 30 }));
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === SYNC_ALARM) { syncWithCloud().catch(() => {}); void retryPendingN5(); }
+  if (alarm.name === SYNC_ALARM) { syncWithCloud().catch(() => {}); void retryPendingN5(); void flushHealth().catch(() => {}); }
 });
 /**
  * A token just arrived (#206): close the loop the gate opened.
@@ -620,6 +621,13 @@ function handleRuntimeMessage(msg: RuntimeMsg, sender: chrome.runtime.MessageSen
     chrome.action.setBadgeText({ text });
     chrome.action.setBadgeBackgroundColor({ color: "#c4553a" });
     return;
+  }
+
+  // Extension health (see lib/health): content scripts relay their failures
+  // here, and the worker owns the outbox and the delivery.
+  if (msg.type === HEALTH_MESSAGE) {
+    void receiveHealth((msg as { item?: unknown }).item).then(sendResponse, () => sendResponse({ ok: false }));
+    return true;
   }
 
   // Learning-loop beacons are relayed here (#111) because a content script runs

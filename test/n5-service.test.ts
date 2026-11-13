@@ -42,7 +42,9 @@ beforeEach(() => {
   vi.stubGlobal("chrome", {
     runtime: { id: "extension" },
     storage: { local: {
-      get: async (key: string) => ({ [key]: clone(env.local[key]) }),
+      // Like chrome.storage: one key or a list of them.
+      get: async (keys: string | string[]) =>
+        Object.fromEntries((Array.isArray(keys) ? keys : [keys]).map((k) => [k, clone(env.local[k])])),
       set: async (values: Record<string, unknown>) => Object.assign(env.local, clone(values)),
       remove: async (key: string) => { delete env.local[key]; },
     } },
@@ -71,10 +73,28 @@ describe("N5 course for Listening Mode", () => {
     expect((await run({ type: "avc-n5-lesson" }, { ...tab, id: "other" })).ok).toBe(false);
   });
 
+  it("reports a course that fails to load (lib/health), and never a 404, which is an answer", async () => {
+    const health = () =>
+      env.network.mock.calls
+        .filter(([url]) => String(url).endsWith("/api/track"))
+        .map(([, init]) => JSON.parse(String(init.body)));
+    env.network.mockResolvedValueOnce(new Response("{}", { status: 404 }));
+    await run({ type: "avc-n5-lesson" });
+    await settle();
+    expect(health()).toEqual([]);
+    env.network.mockResolvedValueOnce(new Response("down", { status: 502 }));
+    await run({ type: "avc-n5-lesson", refresh: true });
+    await vi.waitFor(() => expect(health()).toHaveLength(1));
+    expect(health()[0]).toMatchObject({ kind: "health", name: "course_load_failed", code: "course_502", surface: "worker" });
+  });
+
   it("keeps the last lesson through a network blip, but never another account's", async () => {
     await run({ type: "avc-n5-lesson" });
     env.network.mockRejectedValueOnce(new TypeError("offline"));
     expect((await run({ type: "avc-n5-lesson", refresh: true })).lesson?.id).toBe(LESSON);
+    // The blip is quiet for the learner but reported (lib/health); let that
+    // report go out before the next mocked failure is queued.
+    await vi.waitFor(() => expect(env.network.mock.calls.some(([url]) => String(url).endsWith("/api/track"))).toBe(true));
     env.token = "avc_st_bob";
     env.network.mockRejectedValueOnce(new TypeError("offline"));
     expect((await run({ type: "avc-n5-lesson" })).lesson).toBeNull();

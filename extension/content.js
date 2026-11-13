@@ -5007,8 +5007,8 @@
       if (last && t < last.t) {
         this.entries = this.entries.filter((e) => e.t <= t);
       }
-      const tail = this.entries[this.entries.length - 1];
-      if (tail && tail.text === text) return;
+      const tail2 = this.entries[this.entries.length - 1];
+      if (tail2 && tail2.text === text) return;
       this.entries.push({ t, text });
       if (this.entries.length > MAX_ENTRIES) this.entries.splice(0, this.entries.length - MAX_ENTRIES);
     }
@@ -5736,13 +5736,13 @@
   }
 
   // src/lib/transcript-client.ts
-  async function lookupTranscript(syncToken2, cacheKey2, t, windowSec = 8) {
+  async function lookupTranscript(syncToken3, cacheKey2, t, windowSec = 8) {
     const url = new URL(BACKEND_URL + "/v1/transcript");
     url.searchParams.set("key", cacheKey2);
     url.searchParams.set("t", String(t));
     url.searchParams.set("window", String(windowSec));
     const res = await fetch(url.toString(), {
-      headers: { Authorization: "Bearer " + syncToken2 }
+      headers: { Authorization: "Bearer " + syncToken3 }
     });
     if (res.status === 401) throw new Error("not signed in");
     if (res.status === 429) throw new Error("monthly listening hours used up");
@@ -6775,6 +6775,199 @@
     if (parent && host2.parentElement !== parent) parent.appendChild(host2);
   }
 
+  // src/lib/health.ts
+  var HEALTH_EVENTS = [
+    // A translate or translate-batch call came back with an error.
+    "subs_english_failed",
+    // Watchdog: dual subtitles showed many lines and not one had English, with
+    // no error to explain it. Catches the causes nobody thought of.
+    "subs_english_missing",
+    // The N5 lesson could not be loaded (not "no access", which is an answer).
+    "course_load_failed",
+    // A content script could not reach the service worker.
+    "bg_unreachable"
+  ];
+  var HEALTH_SITES = ["netflix", "youtube", "crunchyroll", "generic", "worker", "popup"];
+  function isHealthEvent(v) {
+    return typeof v === "string" && HEALTH_EVENTS.includes(v);
+  }
+  function isHealthSite(v) {
+    return typeof v === "string" && HEALTH_SITES.includes(v);
+  }
+  var HEALTH_MESSAGE = "avc-health";
+  var OUTBOX_KEY = "healthOutbox";
+  var SENT_KEY = "healthSent";
+  var DEDUP_MS = 30 * 6e4;
+  var MAX_OUTBOX = 20;
+  var MAX_SENT_KEYS = 60;
+  var MAX_CODE = 48;
+  function normalizeHealthCode(raw) {
+    const text = typeof raw === "string" ? raw : raw instanceof Error ? raw.message || raw.name : "";
+    const known = classifyError(text);
+    if (known) return known;
+    const code = text.trim().toLowerCase().replace(/[^a-z0-9_.:-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, MAX_CODE);
+    return code || "unknown";
+  }
+  function classifyError(text) {
+    if (!text) return null;
+    if (/extension context invalidated/i.test(text)) return "context_invalidated";
+    if (/sign in/i.test(text)) return "not_linked";
+    if (/receiving end does not exist|could not establish connection/i.test(text)) return "no_receiver";
+    if (/message port closed|message channel closed/i.test(text)) return "port_closed";
+    if (/failed to fetch|networkerror|network request failed|load failed/i.test(text)) return "network";
+    if (/timeout|timed out|aborterror|the operation was aborted/i.test(text)) return "timeout";
+    return null;
+  }
+  function healthKey(item) {
+    return `${item.name}|${item.code}|${item.site}`;
+  }
+  function admit(item, outbox, sent, now) {
+    const key = healthKey(item);
+    const last = sent[key];
+    const queued = outbox.some((o) => healthKey(o) === key);
+    if (queued || typeof last === "number" && now - last < DEDUP_MS) {
+      return { admitted: false, outbox, sent };
+    }
+    const nextSent = { ...sent, [key]: now };
+    const entries = Object.entries(nextSent).filter(([, t]) => now - t < 24 * 36e5).sort((a, b) => b[1] - a[1]).slice(0, MAX_SENT_KEYS);
+    const nextOutbox = [...outbox, item].slice(-MAX_OUTBOX);
+    return { admitted: true, outbox: nextOutbox, sent: Object.fromEntries(entries) };
+  }
+  function sanitize(item) {
+    if (!isHealthEvent(item.name)) return null;
+    return {
+      name: item.name,
+      code: normalizeHealthCode(item.code),
+      site: isHealthSite(item.site) ? item.site : "generic",
+      v: typeof item.v === "string" ? item.v.slice(0, 32) : "",
+      at: typeof item.at === "number" && Number.isFinite(item.at) ? item.at : Date.now()
+    };
+  }
+  async function readState2() {
+    const r = await chrome.storage.local.get([OUTBOX_KEY, SENT_KEY]);
+    const outbox = Array.isArray(r[OUTBOX_KEY]) ? r[OUTBOX_KEY].map(sanitize).filter((x) => !!x) : [];
+    const rawSent = r[SENT_KEY];
+    const sent = {};
+    if (rawSent && typeof rawSent === "object") {
+      for (const [k, t] of Object.entries(rawSent)) {
+        if (typeof t === "number" && Number.isFinite(t)) sent[k] = t;
+      }
+    }
+    return { outbox, sent };
+  }
+  var tail = Promise.resolve();
+  function serial(fn) {
+    const next = tail.then(fn, fn);
+    tail = next.catch(() => {
+    });
+    return next;
+  }
+  function enqueueHealth(raw) {
+    const item = sanitize(raw);
+    if (!item) return Promise.resolve(false);
+    return serial(async () => {
+      const state = await readState2();
+      const next = admit(item, state.outbox, state.sent, Date.now());
+      if (!next.admitted) return false;
+      await chrome.storage.local.set({ [OUTBOX_KEY]: next.outbox, [SENT_KEY]: next.sent });
+      return true;
+    });
+  }
+  async function syncToken2() {
+    try {
+      const r = await chrome.storage.local.get(["syncToken"]);
+      return typeof r.syncToken === "string" ? r.syncToken : "";
+    } catch {
+      return "";
+    }
+  }
+  async function post(item, token) {
+    const headers = { "content-type": "application/json" };
+    if (token) headers.authorization = "Bearer " + token;
+    try {
+      const res = await fetch(WEB_URL + "/api/track", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kind: "health", name: item.name, code: item.code, surface: item.site, v: item.v }),
+        keepalive: true,
+        signal: AbortSignal.timeout(1e4)
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+  function flushHealth() {
+    if (!inServiceWorker()) return Promise.resolve(0);
+    return serial(async () => {
+      const { outbox } = await readState2();
+      if (!outbox.length) return 0;
+      const token = await syncToken2();
+      let sent = 0;
+      for (const item of outbox) {
+        if (!await post(item, token)) break;
+        sent++;
+      }
+      if (sent) {
+        const now = await readState2();
+        const done = new Set(outbox.slice(0, sent).map((o) => `${healthKey(o)}|${o.at}`));
+        await chrome.storage.local.set({ [OUTBOX_KEY]: now.outbox.filter((o) => !done.has(`${healthKey(o)}|${o.at}`)) });
+      }
+      return sent;
+    });
+  }
+  function beacon(item) {
+    try {
+      navigator.sendBeacon?.(
+        WEB_URL + "/api/track",
+        new Blob([JSON.stringify({ kind: "health", name: item.name, code: item.code, surface: item.site, v: item.v })], {
+          type: "text/plain"
+        })
+      );
+    } catch {
+    }
+  }
+  var VERSION = extensionVersion();
+  function version() {
+    if (!VERSION) VERSION = extensionVersion();
+    return VERSION;
+  }
+  function contextAlive() {
+    try {
+      return typeof chrome !== "undefined" && !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  }
+  async function recordHealth(name, code, site) {
+    const item = sanitize({ name, code: normalizeHealthCode(code), site, v: version(), at: Date.now() });
+    if (!item) return;
+    try {
+      if (inServiceWorker()) {
+        if (await enqueueHealth(item)) await flushHealth();
+        return;
+      }
+      if (!contextAlive()) {
+        beacon(item);
+        return;
+      }
+      let relayed = false;
+      try {
+        const res = await chrome.runtime.sendMessage({ type: HEALTH_MESSAGE, item });
+        relayed = res?.ok === true;
+      } catch (err) {
+        if (!contextAlive()) {
+          beacon(item);
+          return;
+        }
+        void enqueueHealth({ name: "bg_unreachable", code: normalizeHealthCode(err), site, v: version(), at: Date.now() }).catch(() => {
+        });
+      }
+      if (!relayed) await enqueueHealth(item);
+    } catch {
+    }
+  }
+
   // src/entries/content.ts
   var AUDIO_LENS_MAX_LAG_SEC = 7;
   var AUDIO_LENS_MAX_LAG_AFTER_END_SEC = 4;
@@ -6996,10 +7189,10 @@
       try {
         settings = await getSettings();
         if (stale()) return;
-        const syncToken2 = await getSyncToken();
-        if (!syncToken2 || stale()) return;
+        const syncToken3 = await getSyncToken();
+        if (!syncToken3 || stale()) return;
         const t = video.currentTime;
-        const result = await lookupTranscript(syncToken2, requestedKey, t, 2);
+        const result = await lookupTranscript(syncToken3, requestedKey, t, 2);
         if (stale()) return;
         if (!result.hit || !result.segments.length) return;
         for (const seg of result.segments) {
@@ -7100,15 +7293,43 @@
       if (course2) return course2.script;
       return s.displayScript === "kana" ? "kana" : s.displayScript === "kanji" ? "kanji" : "romaji";
     }
-    const subs = new SubTranslator(
-      (payload) => chrome.runtime.sendMessage({ type: "avc-translate", payload })
-    );
+    function healthSite() {
+      const h = location.hostname;
+      if (h.endsWith("netflix.com")) return "netflix";
+      if (h.endsWith("youtube.com")) return "youtube";
+      if (h.endsWith("crunchyroll.com")) return "crunchyroll";
+      return "generic";
+    }
+    function askEnglish(type, payload) {
+      return chrome.runtime.sendMessage({ type, payload }).then(
+        (res) => {
+          if (!res?.ok) void recordHealth("subs_english_failed", res?.error ?? "no_response", healthSite());
+          return res;
+        },
+        (err) => {
+          const code = "bg_" + normalizeHealthCode(err);
+          void recordHealth("subs_english_failed", code, healthSite());
+          return { ok: false, error: code };
+        }
+      );
+    }
+    const subs = new SubTranslator((payload) => askEnglish("avc-translate", payload));
+    const ENGLISH_WATCH_LINES = 12;
+    const englishWatch = { session: "", lines: 0, english: 0, reported: false };
+    function watchEnglish(sessionId, line, gotEnglish) {
+      if (englishWatch.session !== sessionId) Object.assign(englishWatch, { session: sessionId, lines: 0, english: 0, reported: false });
+      if (line) englishWatch.lines++;
+      if (gotEnglish) englishWatch.english++;
+      if (englishWatch.reported || englishWatch.english > 0 || englishWatch.lines < ENGLISH_WATCH_LINES) return;
+      englishWatch.reported = true;
+      const why = episode?.lastError ?? subs.lastError ?? "none";
+      void recordHealth("subs_english_missing", `${subsDiag.source}_${subsDiag.english}_${why}`, healthSite());
+    }
     let pageHasEnglish = false;
     let subsNoticeShown = false;
     function explainMissingEnglish() {
       if (subsNoticeShown || !subs.lastError) return;
-      const text = /quota/.test(subs.lastError) ? "English subtitles are paused: this month's limit is used up. Romaji keeps working." : /not_linked|unauthorized/.test(subs.lastError) ? "Sign in to AnimeVocab to get English under the romaji." : "";
-      if (!text) return;
+      const text = /quota/.test(subs.lastError) ? "English subtitles are paused: this month's limit is used up. Romaji keeps working." : /not_linked|unauthorized/.test(subs.lastError) ? "Sign in to AnimeVocab to get English under the romaji." : "English subtitles aren't loading right now. Romaji keeps working; if it lasts, reload this tab.";
       subsNoticeShown = true;
       showToast(text, "info");
     }
@@ -7222,6 +7443,7 @@
       const script = lensScript(current2);
       const fromEpisode = cue !== void 0 ? episode : null;
       if (fromEpisode) syncNativeSubs(current2);
+      watchEnglish(sessionId, true, !!en);
       showLensLine(line, en, tokens, wordStates, {
         script,
         readings: fromEpisode ? glossaryReadings(tokens, fromEpisode.glossary) : void 0,
@@ -7247,6 +7469,7 @@
         if (stale()) return;
         if (ahead !== null) {
           if (ahead) updateLensLine(line, { en: ahead });
+          watchEnglish(sessionId, false, !!ahead);
           return;
         }
         if (fromEpisode.lastError && /quota|not_linked|unauthorized/.test(fromEpisode.lastError)) {
@@ -7258,6 +7481,7 @@
       const translated = await subs.translate(line, tokens, currentTitle());
       if (stale()) return;
       updateLensLine(line, translated ?? {});
+      watchEnglish(sessionId, false, !!translated?.en);
       if (!translated) explainMissingEnglish();
     }
     let lensChain = 0;
@@ -7505,7 +7729,7 @@
         ja,
         en && en.length >= 5 ? en : null,
         currentTitle(),
-        (payload) => chrome.runtime.sendMessage({ type: "avc-translate-batch", payload })
+        (payload) => askEnglish("avc-translate-batch", payload)
       );
       episode = ep;
       const video = adapter?.getVideo();
@@ -7586,7 +7810,9 @@
         try {
           const res = await chrome.runtime.sendMessage({ type: "avc-n5-lesson", refresh });
           next = res?.ok ? res.lesson ?? null : null;
-        } catch {
+          if (!res?.ok) void recordHealth("course_load_failed", res?.error ?? "no_response", healthSite());
+        } catch (err) {
+          void recordHealth("course_load_failed", "bg_" + normalizeHealthCode(err), healthSite());
           next = course2;
         }
         const current2 = settings || await getSettings();

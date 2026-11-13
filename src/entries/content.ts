@@ -44,6 +44,7 @@ import {
   resetCaptions,
 } from "../lib/caption-status";
 import type { DictEntry, LineContext, Settings, SiteAdapter, Target, Token, VocabMap } from "../types";
+import { normalizeHealthCode, recordHealth, type HealthSite } from "../lib/health";
 
 /** An audio line whose speech began longer ago than this is too late for the
  * Subtitle Lens: by then the scene has moved on. It still reaches the card
@@ -516,10 +517,55 @@ declare global {
     return s.displayScript === "kana" ? "kana" : s.displayScript === "kanji" ? "kanji" : "romaji";
   }
 
+  /** Which site a health row belongs to (Crunchyroll runs the generic adapter). */
+  function healthSite(): HealthSite {
+    const h = location.hostname;
+    if (h.endsWith("netflix.com")) return "netflix";
+    if (h.endsWith("youtube.com")) return "youtube";
+    if (h.endsWith("crunchyroll.com")) return "crunchyroll";
+    return "generic";
+  }
+
+  /**
+   * Ask the worker for English, and say so when it fails. The reason used to
+   * stop at `lastError`, where nobody saw it; each failure is now a health row
+   * (lib/health). A worker that does not answer is reported as itself
+   * ("bg_no_receiver", "bg_context_invalidated") instead of looking like the
+   * network.
+   */
+  function askEnglish<T extends { ok: boolean; error?: string }>(type: string, payload: unknown): Promise<T | undefined> {
+    return (chrome.runtime.sendMessage({ type, payload }) as Promise<T | undefined>).then(
+      (res) => {
+        if (!res?.ok) void recordHealth("subs_english_failed", res?.error ?? "no_response", healthSite());
+        return res;
+      },
+      (err: unknown) => {
+        const code = "bg_" + normalizeHealthCode(err);
+        void recordHealth("subs_english_failed", code, healthSite());
+        return { ok: false, error: code } as T;
+      }
+    );
+  }
+
   /** English for lines the page has no English for (see subs-client). */
-  const subs = new SubTranslator(
-    (payload) => chrome.runtime.sendMessage({ type: "avc-translate", payload }) as Promise<SubResponse | undefined>
-  );
+  const subs = new SubTranslator((payload) => askEnglish<SubResponse>("avc-translate", payload));
+
+  /**
+   * The dual-subtitles watchdog. Every known failure above has a reason; this
+   * catches the ones without one: a video where the Lens has shown a dozen
+   * lines and not one of them got English. Once per video.
+   */
+  const ENGLISH_WATCH_LINES = 12;
+  const englishWatch = { session: "", lines: 0, english: 0, reported: false };
+  function watchEnglish(sessionId: string, line: boolean, gotEnglish: boolean): void {
+    if (englishWatch.session !== sessionId) Object.assign(englishWatch, { session: sessionId, lines: 0, english: 0, reported: false });
+    if (line) englishWatch.lines++;
+    if (gotEnglish) englishWatch.english++;
+    if (englishWatch.reported || englishWatch.english > 0 || englishWatch.lines < ENGLISH_WATCH_LINES) return;
+    englishWatch.reported = true;
+    const why = episode?.lastError ?? subs.lastError ?? "none";
+    void recordHealth("subs_english_missing", `${subsDiag.source}_${subsDiag.english}_${why}`, healthSite());
+  }
   /** Whether the page has been supplying English lines, so a line heard ahead
    * of its moment is only translated early when it will need it. */
   let pageHasEnglish = false;
@@ -531,8 +577,9 @@ declare global {
       ? "English subtitles are paused: this month's limit is used up. Romaji keeps working."
       : /not_linked|unauthorized/.test(subs.lastError)
         ? "Sign in to AnimeVocab to get English under the romaji."
-        : "";
-    if (!text) return;
+        // Anything else used to say nothing at all, which is how a broken
+        // install looked like a product with no English.
+        : "English subtitles aren't loading right now. Romaji keeps working; if it lasts, reload this tab.";
     subsNoticeShown = true;
     overlay.showToast(text, "info");
   }
@@ -693,6 +740,7 @@ declare global {
     const fromEpisode = cue !== undefined ? episode : null;
     // Whatever order the tracks and the settings arrived in.
     if (fromEpisode) syncNativeSubs(current);
+    watchEnglish(sessionId, true, !!en);
     showLensLine(line, en, tokens, wordStates, {
       script,
       readings: fromEpisode ? glossaryReadings(tokens, fromEpisode.glossary) : undefined,
@@ -720,6 +768,7 @@ declare global {
       if (stale()) return;
       if (ahead !== null) {
         if (ahead) updateLensLine(line, { en: ahead });
+        watchEnglish(sessionId, false, !!ahead);
         return;
       }
       if (fromEpisode.lastError && /quota|not_linked|unauthorized/.test(fromEpisode.lastError)) {
@@ -732,6 +781,7 @@ declare global {
     const translated = await subs.translate(line, tokens, currentTitle());
     if (stale()) return;
     updateLensLine(line, translated ?? {});
+    watchEnglish(sessionId, false, !!translated?.en);
     if (!translated) explainMissingEnglish();
   }
 
@@ -1068,7 +1118,7 @@ declare global {
     episode?.stop();
     episodeId = data.movieId;
     const ep = new EpisodeSubs(ja, en && en.length >= 5 ? en : null, currentTitle(), (payload) =>
-      chrome.runtime.sendMessage({ type: "avc-translate-batch", payload }) as Promise<BatchResponse | undefined>
+      askEnglish<BatchResponse>("avc-translate-batch", payload)
     );
     episode = ep;
     const video = adapter?.getVideo();
@@ -1160,9 +1210,12 @@ declare global {
       if (signedIn !== true) { course = null; courseLoad = null; return; }
       let next: CourseLesson | null = null;
       try {
-        const res = (await chrome.runtime.sendMessage({ type: "avc-n5-lesson", refresh })) as { ok?: boolean; lesson?: CourseLesson | null } | undefined;
+        const res = (await chrome.runtime.sendMessage({ type: "avc-n5-lesson", refresh })) as { ok?: boolean; error?: string; lesson?: CourseLesson | null } | undefined;
         next = res?.ok ? res.lesson ?? null : null;
-      } catch {
+        // "No course" is ok:true with a null lesson; this is a failure.
+        if (!res?.ok) void recordHealth("course_load_failed", res?.error ?? "no_response", healthSite());
+      } catch (err) {
+        void recordHealth("course_load_failed", "bg_" + normalizeHealthCode(err), healthSite());
         next = course; // background asleep or reloading; keep what we had
       }
       const current = settings || (await storage.getSettings());
