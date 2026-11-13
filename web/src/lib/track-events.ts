@@ -104,6 +104,45 @@ export function isTrackableEvent(value: unknown): value is TrackableEvent {
  * collapses to "" rather than minting a new row. Never a reason to drop the
  * event: the row is still worth counting when its build is unknown.
  */
+/**
+ * Extension health (src/lib/health.ts): the failures a learner sees as "it
+ * just doesn't work". MIRROR of HEALTH_EVENTS there; test/health.test.ts pins
+ * the two lists. Kept out of TRACKABLE_EVENTS: these are `health` rows, not
+ * feature rows, so no feature panel can count a failure as usage.
+ */
+export const HEALTH_EVENTS = [
+  "subs_english_failed",
+  "subs_english_missing",
+  "course_load_failed",
+  "bg_unreachable",
+] as const;
+
+export type HealthEvent = (typeof HEALTH_EVENTS)[number];
+
+/** Where it happened. MIRROR of HEALTH_SITES in src/lib/health.ts. */
+export const HEALTH_SITES = ["netflix", "youtube", "crunchyroll", "generic", "worker", "popup"] as const;
+
+export function isHealthEvent(value: unknown): value is HealthEvent {
+  return typeof value === "string" && (HEALTH_EVENTS as readonly string[]).includes(value);
+}
+
+export function normalizeHealthSite(value: unknown): string {
+  return typeof value === "string" && (HEALTH_SITES as readonly string[]).includes(value) ? value : "generic";
+}
+
+/**
+ * The reason on a health row. The extension already sends a normalized code;
+ * this is the server's own bound, because /api/track is public and a blob is a
+ * group in every panel: lowercase [a-z0-9_.:-], at most 48 characters, else
+ * "other".
+ */
+export function normalizeHealthCode(value: unknown): string {
+  if (typeof value !== "string") return "unknown";
+  const code = value.trim().toLowerCase();
+  if (!code) return "unknown";
+  return /^[a-z0-9_.:-]{1,48}$/.test(code) ? code : "other";
+}
+
 export function normalizeClientVersion(raw: unknown): string {
   if (typeof raw !== "string") return "";
   return /^\d{1,5}(\.\d{1,5}){0,3}$/.test(raw) ? raw : "";

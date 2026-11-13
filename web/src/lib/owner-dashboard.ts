@@ -12,6 +12,10 @@ import {
   apiErrorsSql,
   apiRoutesSql,
   proFunnelSql,
+  extensionHealthSql,
+  extensionHealthUsersSql,
+  type HealthQueryRow,
+  type HealthUserQueryRow,
   eventGroupSql,
   llmFacetsSql,
   mapLimit,
@@ -331,6 +335,10 @@ export interface OwnerDashboardData {
   apiErrors: ApiErrorRow[];
   /** Pro prompts: shown → clicked → checkout, one row per surface (#162). */
   proFunnel: ProFunnelRow[];
+  /** The extension's own failure reports (src/lib/health.ts). */
+  health: HealthRow[];
+  /** Learners behind those reports, newest first. */
+  healthUsers: HealthUserRow[];
 }
 
 /** One learning-loop event: how often, and how many learners. */
@@ -476,6 +484,65 @@ export function foldApiErrors(rows: ApiErrorQueryRow[]): ApiErrorRow[] {
       lastSeen: String(r.lastSeen ?? ""),
     };
   });
+}
+
+/** One kind of extension failure, as /owner shows it. */
+export interface HealthRow {
+  name: string;
+  /** What it means, in words, for the owner reading the panel. */
+  meaning: string;
+  reason: string;
+  site: string;
+  /** "" for a row the server could not version, shown as "unknown". */
+  build: string;
+  events: number;
+  /** Distinct identified learners; the shared anonymous bucket is not one. */
+  users: number;
+  anonEvents: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+const HEALTH_MEANINGS = new Map<string, string>([
+  ["subs_english_failed", "English subtitles: a translate call failed"],
+  ["subs_english_missing", "English subtitles: none at all on a video"],
+  ["course_load_failed", "N5 course did not load"],
+  ["bg_unreachable", "Page could not reach the extension"],
+]);
+
+export function healthMeaning(name: string): string {
+  return HEALTH_MEANINGS.get(name) ?? "";
+}
+
+export function foldHealth(rows: HealthQueryRow[]): HealthRow[] {
+  return rows.map((r) => {
+    const anonEvents = num(r.anonEvents);
+    return {
+      name: r.name || "(none)",
+      meaning: healthMeaning(r.name),
+      reason: r.errorCode || "unknown",
+      site: r.site || "generic",
+      build: r.clientVersion || "",
+      events: num(r.events),
+      users: Math.max(0, num(r.users) - (anonEvents > 0 ? 1 : 0)),
+      anonEvents,
+      firstSeen: String(r.firstSeen ?? ""),
+      lastSeen: String(r.lastSeen ?? ""),
+    };
+  });
+}
+
+export interface HealthUserRow {
+  userId: string;
+  events: number;
+  kinds: number;
+  lastSeen: string;
+}
+
+export function foldHealthUsers(rows: HealthUserQueryRow[]): HealthUserRow[] {
+  return rows
+    .filter((r) => r.userId && r.userId !== "anon")
+    .map((r) => ({ userId: r.userId, events: num(r.events), kinds: num(r.kinds), lastSeen: String(r.lastSeen ?? "") }));
 }
 
 /** One step of the Pro funnel on one surface. */
@@ -631,6 +698,8 @@ const UNCONFIGURED: OwnerDashboardData = {
   animeContextCache: EMPTY_CACHE,
   apiErrors: [],
   proFunnel: [],
+  health: [],
+  healthUsers: [],
 };
 
 const simple = (rows: EventGroupRow[]): SimpleRow[] =>
@@ -689,6 +758,9 @@ export async function loadOwnerDashboard(
     { label: "api errors", sql: apiErrorsSql(hours, scope) },
     // #162, appended for the same reason.
     { label: "pro funnel", sql: proFunnelSql(hours, scope) },
+    // Extension health, appended so every index above keeps its position.
+    { label: "extension health", sql: extensionHealthSql(hours, scope) },
+    { label: "extension health users", sql: extensionHealthUsersSql(hours, scope) },
   ];
 
   const outcomes = await mapLimit(specs, QUERY_CONCURRENCY, async (spec) => {
@@ -728,6 +800,8 @@ export async function loadOwnerDashboard(
     const buildRows = at<FeatureEventRow>(22);
     const apiErrorRows = at<ApiErrorQueryRow>(23);
     const proFunnelRows = at<ProFunnelQueryRow>(24);
+    const healthRows = at<HealthQueryRow>(25);
+    const healthUserRows = at<HealthUserQueryRow>(26);
 
     const txCalls = num(txTotals?.calls);
     const txHits = num(txTotals?.hits);
@@ -844,6 +918,8 @@ export async function loadOwnerDashboard(
       animeContextCache,
       apiErrors: foldApiErrors(apiErrorRows),
       proFunnel: foldProFunnel(proFunnelRows),
+      health: foldHealth(healthRows),
+      healthUsers: foldHealthUsers(healthUserRows),
     };
   }
 }

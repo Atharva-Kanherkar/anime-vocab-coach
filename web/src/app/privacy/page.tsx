@@ -96,6 +96,16 @@ export default function PrivacyPage() {
               installed it&quot;, which previously could not be distinguished at all.
             </li>
             <li>
+              <b>Error reports.</b> When something the extension depends on fails (English
+              subtitles could not be fetched, a video showed no English at all, the course could
+              not load, or the page lost its connection to the extension), it sends the
+              failure&apos;s name, a short error code such as <code>network</code>, which
+              supported site it happened on, and the extension&apos;s version, at most once per
+              kind of failure every 30 minutes. <b>No subtitle text, word, show title, or page
+              URL is sent with these.</b> They exist so a failure reaches us before you have to
+              report it.
+            </li>
+            <li>
               If your extension is <b>linked to an account</b>, the learning-activity counters
               are associated with your account id, in the same way the website analytics below
               are. An unlinked, local-only install sends them with no identity attached.

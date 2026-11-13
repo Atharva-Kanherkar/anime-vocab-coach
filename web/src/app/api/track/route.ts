@@ -1,6 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
 import { DEV_NO_CLERK } from "@/lib/dev-auth";
-import { isTrackableEvent, normalizeClientVersion, normalizeTrackPath } from "@/lib/track-events";
+import {
+  isHealthEvent,
+  isTrackableEvent,
+  normalizeClientVersion,
+  normalizeHealthCode,
+  normalizeHealthSite,
+  normalizeTrackPath,
+} from "@/lib/track-events";
 import {
   authKindOf,
   externalReferrerHost,
@@ -42,6 +49,7 @@ export async function POST(req: Request) {
       utm_campaign?: unknown;
       v?: unknown;
       surface?: unknown;
+      code?: unknown;
     };
     try {
       body = JSON.parse(text) as typeof body;
@@ -49,13 +57,21 @@ export async function POST(req: Request) {
       return new Response(null, { status: 204 });
     }
 
-    const kind = body.kind === "feature" ? "feature" : "pageview";
+    // `health` rows (src/lib/health.ts) are the extension reporting its own
+    // failures: English that would not load, a course that would not load, a
+    // worker that would not answer. Their own allowlist, so no failure can be
+    // counted as a feature and no feature name can mint a failure.
+    const kind = body.kind === "feature" ? "feature" : body.kind === "health" ? "health" : "pageview";
     const name =
       kind === "pageview"
         ? normalizeTrackPath(typeof body.name === "string" ? body.name : "")
-        : isTrackableEvent(body.name)
-          ? body.name
-          : null;
+        : kind === "health"
+          ? isHealthEvent(body.name)
+            ? body.name
+            : null
+          : isTrackableEvent(body.name)
+            ? body.name
+            : null;
     if (!name) return new Response(null, { status: 204 });
 
     // The extension fires learning-loop events through this same beacon and
@@ -101,11 +117,16 @@ export async function POST(req: Request) {
       // Only a funnel row carries a surface. Taking it from any other row
       // would let a pageview mint /owner labels. The sign-in gate (#206) has
       // its own allowlist because its metric is per surface too.
-      surface: isProFunnelEvent(name)
-        ? normalizeProSurface(body.surface)
-        : isSigninFunnelEvent(name)
-          ? normalizeSigninSurface(body.surface)
-          : "",
+      surface:
+        kind === "health"
+          ? normalizeHealthSite(body.surface)
+          : isProFunnelEvent(name)
+            ? normalizeProSurface(body.surface)
+            : isSigninFunnelEvent(name)
+              ? normalizeSigninSurface(body.surface)
+              : "",
+      // Why it failed, for health rows only; every other row keeps "".
+      errorCode: kind === "health" ? normalizeHealthCode(body.code) : "",
       ...attribution,
     });
   } catch {

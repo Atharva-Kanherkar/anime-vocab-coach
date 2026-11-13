@@ -909,3 +909,66 @@ export function proFunnelSql(hours: number, scope?: UserScope): string {
   ORDER BY events DESC
   LIMIT 200`;
 }
+
+export interface HealthQueryRow {
+  name: string;
+  errorCode: string;
+  site: string;
+  clientVersion: string;
+  events: number;
+  /** Distinct userIds INCLUDING the single "anon" bucket, as in apiErrorsSql. */
+  users: number;
+  anonEvents: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+function healthFilters(hours: number, scope?: UserScope): string[] {
+  return [since(hours), `${eventColumn("kind")} = 'health'`, ...userFilters(eventColumn("userId"), scope)];
+}
+
+/**
+ * The extension's own failure reports (src/lib/health.ts) by what failed, why,
+ * where and in which build. Newest first: a problem that started an hour ago
+ * matters more than a big one that stopped last week.
+ */
+export function extensionHealthSql(hours: number, scope?: UserScope, limit = 50): string {
+  const userCol = eventColumn("userId");
+  return `SELECT
+    ${eventColumn("name")} AS name,
+    ${eventColumn("errorCode")} AS errorCode,
+    ${eventColumn("surface")} AS site,
+    ${eventColumn("clientVersion")} AS clientVersion,
+    SUM(_sample_interval) AS events,
+    COUNT(DISTINCT ${userCol}) AS users,
+    ${countIf(`${userCol} = 'anon' OR ${userCol} = ''`, "anonEvents")},
+    MIN(timestamp) AS firstSeen,
+    MAX(timestamp) AS lastSeen
+  FROM ${EVENT_DATASET}
+  WHERE ${healthFilters(hours, scope).join("\n    AND ")}
+  GROUP BY name, errorCode, site, clientVersion
+  ORDER BY lastSeen DESC
+  LIMIT ${Math.max(1, Math.min(200, Math.round(limit)))}`;
+}
+
+export interface HealthUserQueryRow {
+  userId: string;
+  events: number;
+  kinds: number;
+  lastSeen: string;
+}
+
+/** Who is hitting failures, so the owner can look, or write to them, first. */
+export function extensionHealthUsersSql(hours: number, scope?: UserScope, limit = 25): string {
+  const userCol = eventColumn("userId");
+  return `SELECT
+    ${userCol} AS userId,
+    SUM(_sample_interval) AS events,
+    COUNT(DISTINCT ${eventColumn("name")}) AS kinds,
+    MAX(timestamp) AS lastSeen
+  FROM ${EVENT_DATASET}
+  WHERE ${[...healthFilters(hours, scope), `${userCol} != 'anon'`, `${userCol} != ''`].join("\n    AND ")}
+  GROUP BY userId
+  ORDER BY lastSeen DESC
+  LIMIT ${Math.max(1, Math.min(100, Math.round(limit)))}`;
+}

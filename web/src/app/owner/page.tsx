@@ -864,6 +864,81 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         </Panel>
       </div>
 
+      {/* Extension health (src/lib/health.ts): the failures a learner only
+          sees as "romaji, but no English" or "the course is gone". Before
+          this, the first sign of one was the learner telling us. */}
+      <div className="ow-grid">
+        <Panel title="Extension health" wide empty={data.health.length === 0}>
+          <p className="ow-sub">
+            {focusUser
+              ? "This learner's failure reports only."
+              : "Reported by the extension itself, one row per install per reason per 30 minutes. bg_*: the page could not reach the extension (a reload fixes it) · network/timeout: animevocab.com unreachable from the learner"}
+          </p>
+          <div className="ow-scroll">
+            <table className="ow-table">
+              <thead>
+                <tr>
+                  <th>What failed</th>
+                  <th>Reason</th>
+                  <th>Site</th>
+                  <th>Build</th>
+                  <th className="ow-num">Reports</th>
+                  <th className="ow-num">Learners</th>
+                  <th className="ow-num">First seen</th>
+                  <th className="ow-num">Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.health.map((r) => (
+                  <tr key={`${r.name}:${r.reason}:${r.site}:${r.build}`}>
+                    <td className="ow-label">
+                      <span className="ow-mono ow-bad">{r.name}</span> {r.meaning}
+                    </td>
+                    <td className="ow-label ow-mono">{r.reason}</td>
+                    <td>
+                      <span className="ow-tag">{r.site}</span>
+                    </td>
+                    <td className="ow-label ow-mono">{r.build || "unknown"}</td>
+                    <td className="ow-num">{fmtInt(r.events)}</td>
+                    <td className="ow-num">{fmtInt(r.users)}</td>
+                    <td className="ow-num">{fmtWhen(r.firstSeen)}</td>
+                    <td className="ow-num">{fmtWhen(r.lastSeen)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+        {!focusUser && (
+          <Panel title="Learners hitting failures" empty={data.healthUsers.length === 0}>
+            <div className="ow-scroll">
+              <table className="ow-table">
+                <thead>
+                  <tr>
+                    <th>Learner</th>
+                    <th className="ow-num">Reports</th>
+                    <th className="ow-num">Kinds</th>
+                    <th className="ow-num">Last seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.healthUsers.map((u) => (
+                    <tr key={u.userId}>
+                      <td className="ow-label ow-mono">
+                        <Link href={`/owner?h=${win.hours}&user=${encodeURIComponent(u.userId)}`}>{u.userId}</Link>
+                      </td>
+                      <td className="ow-num">{fmtInt(u.events)}</td>
+                      <td className="ow-num">{fmtInt(u.kinds)}</td>
+                      <td className="ow-num">{fmtWhen(u.lastSeen)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        )}
+      </div>
+
       <h2 className="ow-section">Listening Mode (transcription)</h2>
       <p className="ow-sub">
         Written by the avc-api Worker, which is a separate deploy from this app. Cache hits are

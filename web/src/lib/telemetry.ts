@@ -140,7 +140,8 @@ export async function recordLlmCall(record: LlmCallRecord): Promise<void> {
 
 // -------------------------------------------------------------- User events
 
-export type EventKind = "pageview" | "api" | "feature" | "auth";
+/** `health`: the extension reporting its own failures (src/lib/health.ts). */
+export type EventKind = "pageview" | "api" | "feature" | "auth" | "health";
 
 export interface UserEventRecord {
   kind: EventKind;

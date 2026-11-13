@@ -229,6 +229,22 @@ export function buildInsightsDigest(
     );
   }
 
+  if (data.health.length) {
+    // The extension's own failure reports (src/lib/health.ts). These are the
+    // problems a learner would otherwise have to notice, diagnose and report
+    // themselves, so they lead with who and since when.
+    lines.push("\n## Extension health (failures the extension reported)");
+    lines.push(
+      take(data.health, 10)
+        .map(
+          (r) =>
+            `  - ${r.name} (${r.meaning || "unlabelled"}), reason ${r.reason}, on ${r.site}, build ${r.build || "unknown"}: ` +
+            `${fmtInt(r.events)} reports, ${fmtInt(r.users)} learners, first ${fmtWhen(r.firstSeen)}, last ${fmtWhen(r.lastSeen)}`
+        )
+        .join("\n")
+    );
+  }
+
   if (data.proFunnel.length) {
     // #162: which Pro prompt turns a view into a checkout. Rates carry their
     // n because at this traffic a single click moves them by whole points.
