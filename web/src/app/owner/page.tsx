@@ -342,6 +342,15 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
 
       <div className="ow-top">
         <h1>{focusUser ? "User telemetry" : "Owner dashboard"}</h1>
+        {/* A plain link, not <Link>: the route answers with a file download. */}
+        <a
+          className="ow-export"
+          href="/api/owner/export"
+          download
+          title="Every user, all-time backups and 90 days of raw analytics, as one JSON file"
+        >
+          Download all data
+        </a>
         <nav className="ow-windows">
           {WINDOWS.map((w) => (
             <Link key={w.hours} href={href(w.hours)} className={w.hours === win.hours ? "is-on" : ""}>

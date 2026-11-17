@@ -110,7 +110,7 @@ export const EMPTY_HISTORY: OwnerHistory = {
 };
 
 /** The KV namespace shared by the web and avc-api Workers. */
-interface KvLike {
+export interface KvLike {
   list(opts: { prefix: string; limit?: number; cursor?: string }): Promise<{
     keys: { name: string }[];
     list_complete: boolean;
@@ -119,7 +119,7 @@ interface KvLike {
   get(key: string): Promise<string | null>;
 }
 
-async function syncKv(): Promise<KvLike | null> {
+export async function syncKv(): Promise<KvLike | null> {
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const { env } = (await getCloudflareContext({ async: true })) as {
@@ -132,7 +132,7 @@ async function syncKv(): Promise<KvLike | null> {
 }
 
 /** List one prefix, bounded. Returns the names plus whether we stopped early. */
-async function listPrefix(
+export async function listPrefix(
   kv: KvLike,
   prefix: string
 ): Promise<{ names: string[]; truncated: boolean }> {
